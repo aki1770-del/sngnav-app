@@ -16,8 +16,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:navigation_safety_core/navigation_safety_core.dart';
 
+import 'package:latlong2/latlong.dart';
+
 import 'akita_map.dart';
 import 'jma_fetch.dart';
+import 'route_fetch.dart';
 
 void main() {
   runApp(const SngnavApp());
@@ -60,6 +63,12 @@ class _HomePageState extends State<HomePage> {
   JmaResult? _jmaResult;
   bool _jmaLoading = false;
 
+  // Routing state — Slice 2b. Tap A → tap B → fetch → polyline.
+  LatLng? _origin;
+  LatLng? _destination;
+  RouteResult? _routeResult;
+  bool _routeLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -72,6 +81,49 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _jmaResult = result;
       _jmaLoading = false;
+    });
+  }
+
+  void _handleMapTap(LatLng point) {
+    if (_origin == null) {
+      setState(() {
+        _origin = point;
+        _destination = null;
+        _routeResult = null;
+      });
+      return;
+    }
+    if (_destination == null) {
+      setState(() => _destination = point);
+      _fetchRoute();
+      return;
+    }
+    // Both set — start over with this tap as new origin.
+    setState(() {
+      _origin = point;
+      _destination = null;
+      _routeResult = null;
+    });
+  }
+
+  void _resetRoute() {
+    setState(() {
+      _origin = null;
+      _destination = null;
+      _routeResult = null;
+    });
+  }
+
+  Future<void> _fetchRoute() async {
+    final o = _origin;
+    final d = _destination;
+    if (o == null || d == null) return;
+    setState(() => _routeLoading = true);
+    final result = await fetchDrivingRoute(origin: o, destination: d);
+    if (!mounted) return;
+    setState(() {
+      _routeResult = result;
+      _routeLoading = false;
     });
   }
 
@@ -196,7 +248,20 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 16),
             _section(
               title: 'Map — Akita-shi (station 32402)',
-              child: const AkitaMap(),
+              child: AkitaMap(
+                origin: _origin,
+                destination: _destination,
+                routePoints: switch (_routeResult) {
+                  RouteSuccess(:final points) => points,
+                  _ => const [],
+                },
+                onTap: _handleMapTap,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _section(
+              title: 'Route — tap A then B (driving, no snow-aware yet)',
+              child: _routePanel(),
             ),
             const SizedBox(height: 16),
             _section(
@@ -330,6 +395,66 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Widget _routePanel() {
+    final hint = switch ((_origin, _destination)) {
+      (null, _) => 'Tap the map to set point A (origin).',
+      (_, null) => 'Tap again to set point B (destination).',
+      _ => 'A and B set. Tap anywhere to start over.',
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(hint, style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
+        const SizedBox(height: 8),
+        if (_routeLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else
+          switch (_routeResult) {
+            null => const SizedBox.shrink(),
+            RouteSuccess(:final distanceMeters, :final durationSeconds) => Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _kv('Distance', '${(distanceMeters / 1000).toStringAsFixed(1)} km'),
+                  _kv('Duration', _formatDuration(durationSeconds)),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Source: OSRM public demo (router.project-osrm.org). '
+                    'NOT snow-aware. NOT for production navigation.',
+                    style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+                  ),
+                ],
+              ),
+            RouteFailure(:final reason) => Container(
+                padding: const EdgeInsets.all(8),
+                color: Colors.red.shade50,
+                child: Text(
+                  'Route fetch failed: $reason',
+                  style: TextStyle(color: Colors.red.shade900),
+                ),
+              ),
+          },
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: _origin == null ? null : _resetRoute,
+            child: const Text('Reset'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDuration(double seconds) {
+    final mins = (seconds / 60).round();
+    if (mins < 60) return '$mins min';
+    final h = mins ~/ 60;
+    final m = mins % 60;
+    return '${h}h ${m}m';
+  }
+
   String _formatFetched(DateTime fetchedAt, int minutesStale) {
     final fmt = DateFormat('HH:mm');
     return '${fmt.format(fetchedAt)} ($minutesStale min ago)';
@@ -373,9 +498,10 @@ class _Footer extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(
-        'sngnav-app 0.0.1 — Slice 0 try-first. '
+        'sngnav-app 0.0.2 — Slice 2b try-first. '
         'Built on navigation_safety_core 0.4.1 (pub.dev). '
-        'Akita station chosen because HER\'s mother lives there (V21).',
+        'Akita station chosen because HER\'s mother lives there (V21). '
+        'Routing via OSRM public demo (NOT snow-aware yet).',
         style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
         textAlign: TextAlign.center,
       ),

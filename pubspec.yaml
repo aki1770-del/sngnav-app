@@ -3,7 +3,7 @@ description: >-
   Alpha-stage navigation companion for snow-zone commuting. The SPA Actuator
   unit's first edge-developer use of the navigation_safety packages from
   pub.dev — eating our own dog food while learning what fails.
-version: 0.0.1
+version: 0.0.2
 publish_to: 'none'
 
 environment:

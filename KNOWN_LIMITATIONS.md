@@ -34,12 +34,40 @@ reason. It does NOT silently fall back to cached or stale data displayed
 as fresh. Staleness must be visible to the driver — silent stale data is
 the V14 anti-Jidoka failure mode.
 
-## No real navigation
+## Routing is NOT snow-aware (Slice 2b boundary)
 
-There is no map widget. No GPS. No routing. No turn-by-turn. The
-`AlertDensityThrottle` demo fires alerts on a synthetic time sequence
-to let you see the per-profile cap behavior — it is not connected to
-real driving conditions.
+The route panel calls the OSRM public demo server
+(`router.project-osrm.org`) and draws the polyline OSRM returns. That
+polyline reflects **road network connectivity only** — it does NOT know:
+
+- whether a pass is closed for the season
+- whether plows have run today
+- whether snow depth exceeds the vehicle's clearance
+- whether the route crosses a chain-required zone
+
+The driver remains responsible for assessing all of the above before
+following any drawn route. Snow-aware routing — the eventual reason
+this app exists — depends on the `condition_aggregator` data-fusion
+component class within Direction B (currently in Aspiration-Gate
+explore-phase under Loom L12); it is not implemented at Slice 2b.
+
+The OSRM demo server is rate-limited and has no SLA. It is suitable
+for personal demos, NOT for production navigation.
+
+## No GPS yet
+
+The route widget accepts two map taps for origin and destination. There
+is no "use my current location" — that requires platform location
+permissions and a permission-rationale UI that respects V96 cohort
+dignity (the ageingRural default profile may not understand a system
+permission dialog without context). Deferred to a later slice.
+
+## No turn-by-turn
+
+The route is drawn as a single polyline with distance + duration. There
+is no step-by-step instruction list, no voice guidance, no rerouting on
+deviation. The `AlertDensityThrottle` demo fires alerts on a synthetic
+time sequence — it is not yet connected to real driving conditions.
 
 ## No telemetry, no consent flow, no beta protocol
 
