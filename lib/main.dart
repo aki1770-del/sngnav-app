@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:navigation_safety_core/navigation_safety_core.dart';
 
+import 'akita_map.dart';
 import 'jma_fetch.dart';
 
 void main() {
@@ -191,6 +192,11 @@ class _HomePageState extends State<HomePage> {
                     ),
                 ],
               ),
+            ),
+            const SizedBox(height: 16),
+            _section(
+              title: 'Map — Akita-shi (station 32402)',
+              child: const AkitaMap(),
             ),
             const SizedBox(height: 16),
             _section(
