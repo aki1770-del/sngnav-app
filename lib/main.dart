@@ -76,6 +76,10 @@ class _HomePageState extends State<HomePage> {
   PositionFix? _herFix;
   StreamSubscription<PositionFix>? _herSub;
 
+  // Slice 2d — dev-only mock position. V14: amber dot, never blue, so
+  // mock cannot be visually mistaken for real GPS.
+  bool _isMockPosition = false;
+
   @override
   void initState() {
     super.initState();
@@ -90,10 +94,36 @@ class _HomePageState extends State<HomePage> {
 
   void _shareLocation() {
     if (_herSub != null) return;
-    setState(() => _herFix = null);
+    setState(() {
+      _herFix = null;
+      _isMockPosition = false;
+    });
     _herSub = herPositionStream().listen((fix) {
       if (!mounted) return;
       setState(() => _herFix = fix);
+    });
+  }
+
+  void _useMockPosition() {
+    _herSub?.cancel();
+    _herSub = null;
+    setState(() {
+      _isMockPosition = true;
+      _herFix = PositionAvailable(
+        latitude: akitaStation.latitude,
+        longitude: akitaStation.longitude,
+        accuracyMeters: 35,
+        timestamp: DateTime.now(),
+      );
+    });
+  }
+
+  void _clearPosition() {
+    _herSub?.cancel();
+    _herSub = null;
+    setState(() {
+      _herFix = null;
+      _isMockPosition = false;
     });
   }
 
@@ -290,6 +320,7 @@ class _HomePageState extends State<HomePage> {
                       PositionAvailable(:final accuracyMeters) => accuracyMeters,
                       _ => null,
                     },
+                    isHerPositionMock: _isMockPosition,
                   ),
                   const SizedBox(height: 8),
                   _herStatusLine(),
@@ -434,7 +465,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _herStatusLine() {
-    if (_herSub == null) {
+    // Initial state: no mode active.
+    if (_herSub == null && !_isMockPosition) {
       return Row(
         children: [
           Expanded(
@@ -447,9 +479,35 @@ class _HomePageState extends State<HomePage> {
             onPressed: _shareLocation,
             child: const Text('Share my location'),
           ),
+          TextButton(
+            onPressed: _useMockPosition,
+            child: const Text('Use Akita mock (dev)'),
+          ),
         ],
       );
     }
+    // Mock-mode active.
+    if (_isMockPosition) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Mock position · Akita station ±35 m (DEV — not real GPS)',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.amber.shade900,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: _clearPosition,
+            child: const Text('Clear'),
+          ),
+        ],
+      );
+    }
+    // Real-GPS mode active.
     final fix = _herFix;
     final (text, color) = switch (fix) {
       null => (
@@ -465,9 +523,16 @@ class _HomePageState extends State<HomePage> {
         Colors.grey.shade700,
       ),
     };
-    return Text(
-      text,
-      style: TextStyle(fontSize: 12, color: color),
+    return Row(
+      children: [
+        Expanded(
+          child: Text(text, style: TextStyle(fontSize: 12, color: color)),
+        ),
+        TextButton(
+          onPressed: _clearPosition,
+          child: const Text('Stop'),
+        ),
+      ],
     );
   }
 
@@ -574,10 +639,10 @@ class _Footer extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(
-        'sngnav-app 0.0.3 — Slice 2c try-first. '
+        'sngnav-app 0.0.4 — Slice 2d try-first. '
         'Built on navigation_safety_core 0.4.1 (pub.dev). '
         'Akita station chosen because HER\'s mother lives there (V21). '
-        'GPS shows position with honest accuracy. '
+        'GPS shows position with honest accuracy; mock dot is amber (dev). '
         'Routing via OSRM public demo (NOT snow-aware yet).',
         style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
         textAlign: TextAlign.center,

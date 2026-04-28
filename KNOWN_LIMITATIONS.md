@@ -54,6 +54,26 @@ explore-phase under Loom L12); it is not implemented at Slice 2b.
 The OSRM demo server is rate-limited and has no SLA. It is suitable
 for personal demos, NOT for production navigation.
 
+## Dev-only mock GPS (Slice 2d)
+
+A "Use Akita mock (dev)" button next to "Share my location" injects a
+fixed `PositionAvailable` at Akita station with ±35m accuracy. This
+exists so the position-dot UX can be validated on developer hardware
+without a GPS receiver (most laptops, including the HP ZBook this app
+was first try-first tested on, have no GNSS chip).
+
+V14 discipline: the mock dot is **amber**, not blue. The accuracy
+circle is amber-translucent, not blue-translucent. The status line
+prefixes "Mock position · " and ends with " (DEV — not real GPS)" in
+amber bold. There is no path by which a viewer can mistake mock for
+real position. If you ever see an amber dot in production, the loom
+has failed.
+
+The mock button stays in the build for now because it costs ~30 lines
+and lets edge developers smoke-test the position UX from any browser.
+If/when sngnav-app gains a release configuration, the button should
+be compiled out via `kReleaseMode` or `kDebugMode` gating — not yet.
+
 ## GPS is wired, but minimum (Slice 2c boundary)
 
 Slice 2c shows HER's position as a blue dot with a translucent accuracy

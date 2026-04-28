@@ -27,6 +27,7 @@ class AkitaMap extends StatelessWidget {
     this.onTap,
     this.herPosition,
     this.herAccuracyMeters,
+    this.isHerPositionMock = false,
   });
 
   final double height;
@@ -36,6 +37,7 @@ class AkitaMap extends StatelessWidget {
   final void Function(LatLng)? onTap;
   final LatLng? herPosition;
   final double? herAccuracyMeters;
+  final bool isHerPositionMock;
 
   @override
   Widget build(BuildContext context) {
@@ -64,8 +66,10 @@ class AkitaMap extends StatelessWidget {
                     point: herPosition!,
                     radius: herAccuracyMeters!,
                     useRadiusInMeter: true,
-                    color: Colors.blue.withValues(alpha: 0.12),
-                    borderColor: Colors.blue.withValues(alpha: 0.35),
+                    color: (isHerPositionMock ? Colors.amber : Colors.blue)
+                        .withValues(alpha: 0.12),
+                    borderColor: (isHerPositionMock ? Colors.amber : Colors.blue)
+                        .withValues(alpha: 0.45),
                     borderStrokeWidth: 1,
                   ),
                 ],
@@ -107,7 +111,7 @@ class AkitaMap extends StatelessWidget {
                     point: herPosition!,
                     width: 22,
                     height: 22,
-                    child: const _HerDot(),
+                    child: _HerDot(isMock: isHerPositionMock),
                   ),
               ],
             ),
@@ -184,18 +188,21 @@ class _EndpointMarker extends StatelessWidget {
 }
 
 class _HerDot extends StatelessWidget {
-  const _HerDot();
+  const _HerDot({required this.isMock});
+
+  final bool isMock;
 
   @override
   Widget build(BuildContext context) {
+    final color = isMock ? Colors.amber.shade700 : Colors.blue.shade600;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.blue.shade600,
+        color: color,
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 3),
         boxShadow: [
           BoxShadow(
-            color: Colors.blue.withValues(alpha: 0.4),
+            color: color.withValues(alpha: 0.4),
             blurRadius: 6,
             spreadRadius: 1,
           ),
