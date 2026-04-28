@@ -7,12 +7,18 @@
 /// and I will not pretend." That is V14 (silent-failure-anti-Jidoka)
 /// applied to position.
 ///
+/// V96 cohort dignity: the permission ask is gated on a deliberate user
+/// gesture (tap "Share my location"). Auto-grabbing GPS on app open is
+/// disrespectful and — as a practical matter — modern browsers refuse
+/// to prompt for permission outside a user gesture, so the auto-grab
+/// path also fails technically. Two reasons, one solution.
+///
 /// What this slice does NOT yet do (deferred):
 /// - Dead-reckoning fallback when GPS drops (the `kalman_dr` package in
 ///   the SNGNav family is the substrate; not wired yet).
-/// - Cohort-respectful permission rationale UI (V96 dignity for the
-///   ageingRural profile — "Allow location?" without context is a V42
-///   loom failure for that cohort).
+/// - Cohort-respectful permission rationale UI tailored per DriverProfile
+///   (the button label is the same for all cohorts; ageingRural deserves
+///   pre-rationale context — future slice).
 /// - Cross-trip memory of GPS-weak zones (the anti-cortisol loom from
 ///   the conversation that produced this slice).
 ///
@@ -47,37 +53,58 @@ class PositionUnavailable extends PositionFix {
 /// Streams HER position with accuracy. Emits [PositionUnavailable] on
 /// permission denial, service-disabled, or stream error — never silently
 /// stalls on a stale fix.
-Stream<PositionFix> herPositionStream() async* {
-  final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-  if (!serviceEnabled) {
-    yield const PositionUnavailable('Location services disabled');
-    return;
-  }
-  var permission = await Geolocator.checkPermission();
-  if (permission == LocationPermission.denied) {
-    permission = await Geolocator.requestPermission();
-    if (permission == LocationPermission.denied) {
-      yield const PositionUnavailable('Location permission denied');
-      return;
+///
+/// MUST be called from a user-gesture handler (button onPressed). Modern
+/// browsers refuse permission prompts outside a user gesture; calling
+/// this from initState() will silently fail without prompting.
+Stream<PositionFix> herPositionStream() {
+  final controller = StreamController<PositionFix>();
+  StreamSubscription<Position>? sub;
+
+  Future<void> start() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        controller.add(const PositionUnavailable('Location services disabled'));
+        return;
+      }
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          controller.add(const PositionUnavailable('Location permission denied'));
+          return;
+        }
+      }
+      if (permission == LocationPermission.deniedForever) {
+        controller.add(const PositionUnavailable(
+          'Location permission permanently denied — change in OS settings',
+        ));
+        return;
+      }
+      sub = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 5,
+        ),
+      ).listen(
+        (p) => controller.add(PositionAvailable(
+          latitude: p.latitude,
+          longitude: p.longitude,
+          accuracyMeters: p.accuracy,
+          timestamp: p.timestamp,
+        )),
+        onError: (Object e) =>
+            controller.add(PositionUnavailable('GPS stream error: $e')),
+      );
+    } catch (e) {
+      controller.add(PositionUnavailable('GPS init error: $e'));
     }
   }
-  if (permission == LocationPermission.deniedForever) {
-    yield const PositionUnavailable(
-      'Location permission permanently denied — change in OS settings',
-    );
-    return;
-  }
-  yield* Geolocator.getPositionStream(
-    locationSettings: const LocationSettings(
-      accuracy: LocationAccuracy.high,
-      distanceFilter: 5,
-    ),
-  ).map<PositionFix>((p) => PositionAvailable(
-        latitude: p.latitude,
-        longitude: p.longitude,
-        accuracyMeters: p.accuracy,
-        timestamp: p.timestamp,
-      )).handleError((Object e) {
-    return PositionUnavailable('GPS stream error: $e');
-  });
+
+  controller.onListen = start;
+  controller.onCancel = () async {
+    await sub?.cancel();
+  };
+  return controller.stream;
 }

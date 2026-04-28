@@ -80,16 +80,21 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _refreshJma();
-    _herSub = herPositionStream().listen((fix) {
-      if (!mounted) return;
-      setState(() => _herFix = fix);
-    });
   }
 
   @override
   void dispose() {
     _herSub?.cancel();
     super.dispose();
+  }
+
+  void _shareLocation() {
+    if (_herSub != null) return;
+    setState(() => _herFix = null);
+    _herSub = herPositionStream().listen((fix) {
+      if (!mounted) return;
+      setState(() => _herFix = fix);
+    });
   }
 
   Future<void> _refreshJma() async {
@@ -429,6 +434,22 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _herStatusLine() {
+    if (_herSub == null) {
+      return Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Location not yet shared.',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+          ),
+          TextButton(
+            onPressed: _shareLocation,
+            child: const Text('Share my location'),
+          ),
+        ],
+      );
+    }
     final fix = _herFix;
     final (text, color) = switch (fix) {
       null => (
