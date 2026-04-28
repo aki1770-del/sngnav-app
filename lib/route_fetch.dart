@@ -53,9 +53,12 @@ Future<RouteResult> fetchDrivingRoute({
     '?overview=full&geometries=geojson',
   );
   try {
-    final resp = await http
-        .get(url, headers: {'User-Agent': 'sngnav-app/0.0.2 (alpha)'})
-        .timeout(const Duration(seconds: 15));
+    // No custom headers: on web, a custom User-Agent triggers a CORS
+    // preflight (OPTIONS). OSRM advertises only GET in
+    // access-control-allow-methods, so preflight fails and the GET never
+    // fires. The browser sends its own User-Agent regardless, so the
+    // header was wasted on web and harmful at the same time.
+    final resp = await http.get(url).timeout(const Duration(seconds: 15));
     if (resp.statusCode != 200) {
       return RouteFailure('OSRM HTTP ${resp.statusCode}');
     }
