@@ -16,9 +16,12 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:navigation_safety_core/navigation_safety_core.dart';
 
+import 'dart:async';
+
 import 'package:latlong2/latlong.dart';
 
 import 'akita_map.dart';
+import 'her_position.dart';
 import 'jma_fetch.dart';
 import 'route_fetch.dart';
 
@@ -69,10 +72,24 @@ class _HomePageState extends State<HomePage> {
   RouteResult? _routeResult;
   bool _routeLoading = false;
 
+  // HER position — Slice 2c. The passenger sits down quietly.
+  PositionFix? _herFix;
+  StreamSubscription<PositionFix>? _herSub;
+
   @override
   void initState() {
     super.initState();
     _refreshJma();
+    _herSub = herPositionStream().listen((fix) {
+      if (!mounted) return;
+      setState(() => _herFix = fix);
+    });
+  }
+
+  @override
+  void dispose() {
+    _herSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _refreshJma() async {
@@ -248,14 +265,30 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 16),
             _section(
               title: 'Map — Akita-shi (station 32402)',
-              child: AkitaMap(
-                origin: _origin,
-                destination: _destination,
-                routePoints: switch (_routeResult) {
-                  RouteSuccess(:final points) => points,
-                  _ => const [],
-                },
-                onTap: _handleMapTap,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AkitaMap(
+                    origin: _origin,
+                    destination: _destination,
+                    routePoints: switch (_routeResult) {
+                      RouteSuccess(:final points) => points,
+                      _ => const [],
+                    },
+                    onTap: _handleMapTap,
+                    herPosition: switch (_herFix) {
+                      PositionAvailable(:final latitude, :final longitude) =>
+                        LatLng(latitude, longitude),
+                      _ => null,
+                    },
+                    herAccuracyMeters: switch (_herFix) {
+                      PositionAvailable(:final accuracyMeters) => accuracyMeters,
+                      _ => null,
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _herStatusLine(),
+                ],
               ),
             ),
             const SizedBox(height: 16),
@@ -395,6 +428,28 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Widget _herStatusLine() {
+    final fix = _herFix;
+    final (text, color) = switch (fix) {
+      null => (
+        'Locating you…',
+        Colors.grey.shade600,
+      ),
+      PositionAvailable(:final accuracyMeters) => (
+        'You are here · ±${accuracyMeters.toStringAsFixed(0)} m',
+        Colors.blueGrey.shade700,
+      ),
+      PositionUnavailable(:final reason) => (
+        'GPS unavailable — $reason. The map remains; the route panel still works by tap.',
+        Colors.grey.shade700,
+      ),
+    };
+    return Text(
+      text,
+      style: TextStyle(fontSize: 12, color: color),
+    );
+  }
+
   Widget _routePanel() {
     final hint = switch ((_origin, _destination)) {
       (null, _) => 'Tap the map to set point A (origin).',
@@ -498,9 +553,10 @@ class _Footer extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(
-        'sngnav-app 0.0.2 — Slice 2b try-first. '
+        'sngnav-app 0.0.3 — Slice 2c try-first. '
         'Built on navigation_safety_core 0.4.1 (pub.dev). '
         'Akita station chosen because HER\'s mother lives there (V21). '
+        'GPS shows position with honest accuracy. '
         'Routing via OSRM public demo (NOT snow-aware yet).',
         style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
         textAlign: TextAlign.center,

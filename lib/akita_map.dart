@@ -25,6 +25,8 @@ class AkitaMap extends StatelessWidget {
     this.destination,
     this.routePoints = const [],
     this.onTap,
+    this.herPosition,
+    this.herAccuracyMeters,
   });
 
   final double height;
@@ -32,6 +34,8 @@ class AkitaMap extends StatelessWidget {
   final LatLng? destination;
   final List<LatLng> routePoints;
   final void Function(LatLng)? onTap;
+  final LatLng? herPosition;
+  final double? herAccuracyMeters;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +57,19 @@ class AkitaMap extends StatelessWidget {
               userAgentPackageName: 'dev.aki1770del.sngnav_app',
               maxZoom: 19,
             ),
+            if (herPosition != null && herAccuracyMeters != null)
+              CircleLayer(
+                circles: [
+                  CircleMarker(
+                    point: herPosition!,
+                    radius: herAccuracyMeters!,
+                    useRadiusInMeter: true,
+                    color: Colors.blue.withValues(alpha: 0.12),
+                    borderColor: Colors.blue.withValues(alpha: 0.35),
+                    borderStrokeWidth: 1,
+                  ),
+                ],
+              ),
             if (routePoints.isNotEmpty)
               PolylineLayer(
                 polylines: [
@@ -84,6 +101,13 @@ class AkitaMap extends StatelessWidget {
                     width: 50,
                     height: 50,
                     child: const _EndpointMarker(label: 'B', color: Colors.red),
+                  ),
+                if (herPosition != null)
+                  Marker(
+                    point: herPosition!,
+                    width: 22,
+                    height: 22,
+                    child: const _HerDot(),
                   ),
               ],
             ),
@@ -155,6 +179,28 @@ class _EndpointMarker extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _HerDot extends StatelessWidget {
+  const _HerDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.blue.shade600,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 3),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withValues(alpha: 0.4),
+            blurRadius: 6,
+            spreadRadius: 1,
+          ),
+        ],
+      ),
     );
   }
 }

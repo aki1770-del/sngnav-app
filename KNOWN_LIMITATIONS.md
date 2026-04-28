@@ -54,13 +54,36 @@ explore-phase under Loom L12); it is not implemented at Slice 2b.
 The OSRM demo server is rate-limited and has no SLA. It is suitable
 for personal demos, NOT for production navigation.
 
-## No GPS yet
+## GPS is wired, but minimum (Slice 2c boundary)
 
-The route widget accepts two map taps for origin and destination. There
-is no "use my current location" — that requires platform location
-permissions and a permission-rationale UI that respects V96 cohort
-dignity (the ageingRural default profile may not understand a system
-permission dialog without context). Deferred to a later slice.
+Slice 2c shows HER's position as a blue dot with a translucent accuracy
+circle. The circle is rendered at the radius the platform reports — small
+circle = sure, large circle = unsure. When the platform reports no fix
+(permission denied, services off, stream error), the dot disappears and
+a one-line status surfaces under the map ("GPS unavailable — <reason>").
+No popups. No banners. No voice. The passenger sits down quietly.
+
+What is NOT yet wired:
+
+- **Cohort-respectful permission rationale.** The first GPS request uses
+  the platform's default permission dialog. For the `ageingRural` cohort
+  the default dialog is a V96 dignity gap — "Allow location?" without
+  context will be confusing. A pre-permission rationale screen tailored
+  per `DriverProfile` is a future slice.
+- **Dead-reckoning fallback.** When GPS drops mid-trip (tunnel, cedar
+  canopy, snow on antenna), the dot disappears. There is no fallback to
+  IMU + odometer integration yet. The `kalman_dr` package in the SNGNav
+  family (`packages/kalman_dr/`) is the substrate; wiring it requires
+  vehicle-bus access (CAN/OBD) which sngnav-app does not yet have.
+- **Cross-trip memory of GPS-weak zones.** No carry-forward yet of "this
+  tunnel costs you 90s of fade." Anti-cortisol is a future slice.
+- **Recovery confirmation.** When GPS comes back, the dot just reappears.
+  No "GPS restored — last 1.4km dead reckoning ±38m, route consistent"
+  message yet (because there is no dead reckoning yet to summarize).
+
+The honesty discipline (V14): the dot reflects what the platform reports.
+WE do not invent confidence. WE do not freeze the dot on its last fix
+and pretend it is current. When WE do not know, the dot is gone.
 
 ## No turn-by-turn
 
