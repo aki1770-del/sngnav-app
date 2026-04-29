@@ -66,6 +66,10 @@ class _HomePageState extends State<HomePage> {
   JmaResult? _jmaResult;
   bool _jmaLoading = false;
 
+  // Slice 3 — corridor stations along Akita prefecture's inhabited spine.
+  List<JmaResult>? _corridorResults;
+  bool _corridorLoading = false;
+
   // Routing state — Slice 2b. Tap A → tap B → fetch → polyline.
   LatLng? _origin;
   LatLng? _destination;
@@ -84,6 +88,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _refreshJma();
+    _refreshCorridor();
   }
 
   @override
@@ -130,9 +135,20 @@ class _HomePageState extends State<HomePage> {
   Future<void> _refreshJma() async {
     setState(() => _jmaLoading = true);
     final result = await fetchLatestObservation();
+    if (!mounted) return;
     setState(() {
       _jmaResult = result;
       _jmaLoading = false;
+    });
+  }
+
+  Future<void> _refreshCorridor() async {
+    setState(() => _corridorLoading = true);
+    final results = await fetchCorridorObservations();
+    if (!mounted) return;
+    setState(() {
+      _corridorResults = results;
+      _corridorLoading = false;
     });
   }
 
@@ -336,6 +352,11 @@ class _HomePageState extends State<HomePage> {
             _section(
               title: 'JMA AMeDAS — Akita-shi (station 32402)',
               child: _jmaPanel(),
+            ),
+            const SizedBox(height: 16),
+            _section(
+              title: 'Corridor weather — Akita prefecture spine',
+              child: _corridorPanel(),
             ),
             const SizedBox(height: 16),
             const _Footer(),
@@ -596,6 +617,115 @@ class _HomePageState extends State<HomePage> {
     return '${h}h ${m}m';
   }
 
+  Widget _corridorPanel() {
+    if (_corridorLoading && _corridorResults == null) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final results = _corridorResults;
+    if (results == null) {
+      return Row(children: [
+        const Text('(no fetch yet)'),
+        const Spacer(),
+        TextButton(onPressed: _refreshCorridor, child: const Text('Fetch')),
+      ]);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Header row
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Row(
+            children: [
+              const SizedBox(width: 60, child: Text('Station',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+              const Expanded(child: Text('Snow',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+              const Expanded(child: Text('Temp',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+              const Expanded(child: Text('Wind',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+              const SizedBox(width: 70, child: Text('Observed',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+            ],
+          ),
+        ),
+        const Divider(height: 4),
+        ...results.map(_corridorRow),
+        const SizedBox(height: 4),
+        Text(
+          'Source: JMA AMeDAS — verbatim relay per station, no derivation. '
+          'Geographic aggregation only (op-(e) per AAA Article 17 (β)).',
+          style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            onPressed: _refreshCorridor,
+            child: const Text('Re-fetch all'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _corridorRow(JmaResult result) {
+    switch (result) {
+      case JmaSuccess(:final observation):
+        final snow = observation.snowDepthCm;
+        final temp = observation.temperatureCelsius;
+        final wind = observation.windMetersPerSecond;
+        final ts = observation.observedAtJstKey;
+        String obsTime = ts;
+        if (ts.length == 14) {
+          obsTime = '${ts.substring(8, 10)}:${ts.substring(10, 12)}';
+        }
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            children: [
+              SizedBox(
+                  width: 60,
+                  child: Text(observation.stationName,
+                      style: const TextStyle(fontSize: 12))),
+              Expanded(
+                  child: Text(snow == null ? '—' : '${snow.toStringAsFixed(0)} cm',
+                      style: const TextStyle(fontSize: 12))),
+              Expanded(
+                  child: Text(temp == null ? '—' : '${temp.toStringAsFixed(1)} °C',
+                      style: const TextStyle(fontSize: 12))),
+              Expanded(
+                  child: Text(wind == null ? '—' : '${wind.toStringAsFixed(1)} m/s',
+                      style: const TextStyle(fontSize: 12))),
+              SizedBox(
+                  width: 70,
+                  child: Text('$obsTime JST',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade700))),
+            ],
+          ),
+        );
+      case JmaFailure(:final reason):
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Row(
+            children: [
+              const SizedBox(width: 60, child: Text('—',
+                  style: TextStyle(fontSize: 12))),
+              Expanded(
+                child: Text(
+                  'fetch failed: $reason',
+                  style: TextStyle(fontSize: 11, color: Colors.red.shade700),
+                ),
+              ),
+            ],
+          ),
+        );
+    }
+  }
+
   String _formatFetched(DateTime fetchedAt, int minutesStale) {
     final fmt = DateFormat('HH:mm');
     return '${fmt.format(fetchedAt)} ($minutesStale min ago)';
@@ -639,11 +769,12 @@ class _Footer extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(
-        'sngnav-app 0.0.4 — Slice 2d try-first. '
+        'sngnav-app 0.0.5 — Slice 3 try-first. '
         'Built on navigation_safety_core 0.4.1 (pub.dev). '
         'Akita station chosen because HER\'s mother lives there (V21). '
         'GPS shows position with honest accuracy; mock dot is amber (dev). '
-        'Routing via OSRM public demo (NOT snow-aware yet).',
+        'Routing via OSRM public demo (NOT snow-aware yet). '
+        'Corridor weather = 5-station JMA verbatim (op-(e) aggregation only).',
         style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
         textAlign: TextAlign.center,
       ),

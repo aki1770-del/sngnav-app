@@ -10,13 +10,37 @@ real loom from `navigation_safety_core`; everything else (map, routing,
 GPS, real alert delivery) is not implemented. The driver remains
 responsible for all driving decisions.
 
-## Single station
+## Curated 5-station corridor (Slice 3 boundary)
 
-Only Akita-shi (JMA AMeDAS station 32402) is fetched. That choice is
-deliberate — HER's mother lives there, and the first customer for invention
-is the named person in the household. Multi-station aggregation is a
-future-slice scope after legal + safety review (see the `condition_aggregator`
-research substrate in the parent unit's `outputs/research/`).
+Slice 3 adds a "Corridor weather" panel showing 5 hardcoded JMA AMeDAS
+stations along Akita prefecture's main inhabited spine: 秋田 (Akita-shi)
++ 大曲 (Omagari) + 横手 (Yokote) + 湯沢 (Yuzawa) + 男鹿 (Oga peninsula).
+
+What this slice IS:
+- Pure op-(e) geographic aggregation per AAA Article 17 (β): N stations
+  presented side-by-side, each verbatim from JMA. No combining, no
+  averaging, no fused metric.
+- Honest staleness per row: each station's observation timestamp shown.
+- Per-station failure isolated: one station's network error does not
+  invalidate the others.
+
+What this slice is NOT:
+- **Not route-aware.** The 5 stations are hardcoded; they do not
+  dynamically filter based on the route HER drew on the map. Route-aware
+  corridor selection is a future slice.
+- **Not predictive.** WE do not infer "snow is likely on the road" from
+  the meteorological observations. JMA measures the air; the road is the
+  driver's judgment. Crossing into per-route-segment surface inference
+  would cross from op-(e) into op-(c) time-shifted derivation territory
+  (forecasting permit required under 気象業務法 第十七条).
+- **Not all of Tohoku.** Adjacent prefectures (Iwate, Yamagata, Aomori)
+  not yet covered. Multi-prefecture aggregation will pair with the
+  `condition_aggregator` data-fusion package when that explore-phase
+  substrate matures.
+- **Not rate-limit-aware.** 5 parallel JMA fetches per refresh. JMA's
+  AMeDAS endpoints have no published rate limit but courteous use is
+  expected; if the app gains many concurrent users, request batching /
+  caching at a proxy layer becomes necessary.
 
 ## Verbatim relay only
 

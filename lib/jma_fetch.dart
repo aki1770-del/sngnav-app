@@ -23,6 +23,20 @@ import 'package:http/http.dart' as http;
 /// JMA AMeDAS station ID for Akita-shi (秋田).
 const String akitaStationId = '32402';
 
+/// Curated AMeDAS station list along Akita prefecture's main inhabited
+/// corridor (Oga peninsula → Akita-shi → Omagari → Yokote → Yuzawa).
+/// Slice 3 first try: hardcoded; not yet filtered by HER's actual route.
+///
+/// Each entry is (stationId, stationName-JA). Coordinates are deferred
+/// until route-corridor filtering becomes a real need (a future slice).
+const List<({String id, String name})> corridorStations = [
+  (id: '32402', name: '秋田'),       // Akita-shi
+  (id: '32441', name: '大曲'),       // Omagari
+  (id: '32466', name: '横手'),       // Yokote
+  (id: '32486', name: '湯沢'),       // Yuzawa
+  (id: '32414', name: '男鹿'),       // Oga peninsula
+];
+
 /// Verbatim JMA observation as fetched. No interpretation.
 class JmaObservation {
   /// Station ID (e.g. "32402" for Akita).
@@ -164,4 +178,21 @@ Future<JmaResult> fetchLatestObservation({
   } finally {
     if (client == null) c.close();
   }
+}
+
+/// Fetch the latest observation for every station in [corridorStations]
+/// in parallel. Returns one result per station, in the same order.
+///
+/// AAA Article 17 (β) classification: this is op-(e) geographic
+/// aggregation (presenting N stations' verbatim observations
+/// side-by-side; not combining them into a fused metric and not
+/// time-shifting them). Permit-free under the unit's safety boundary.
+///
+/// Failures are per-station: one station's network failure does not
+/// invalidate the others — staleness is honest per row.
+Future<List<JmaResult>> fetchCorridorObservations() async {
+  final futures = corridorStations.map(
+    (s) => fetchLatestObservation(stationId: s.id, stationName: s.name),
+  );
+  return Future.wait(futures);
 }
