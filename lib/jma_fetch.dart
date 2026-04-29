@@ -24,21 +24,26 @@ import 'package:http/http.dart' as http;
 const String akitaStationId = '32402';
 
 /// Curated AMeDAS station list along Akita prefecture's main inhabited
-/// corridor (Oga peninsula → Akita-shi → Omagari → Yokote → Yuzawa).
-/// IDs verified against JMA's amedastable.json via Explore agent
-/// 2026-04-29. Initial Slice-3 hardcoding used 3 wrong IDs (32441 /
-/// 32486 / 32414) that 404'd in the live fetch — V14 honesty surfaced
-/// the failure per row and a verify-first lookup against the canonical
-/// table fixed it. Lesson saved in feedback memory.
+/// corridor (north coast → city → central inland → south mountain).
+/// IDs + lat/lon verified against JMA's amedastable.json via Explore
+/// agent 2026-04-29 (research artifact:
+/// outputs/research/jma_amedas_akita_corridor_stations_2026_04_29.md).
 ///
-/// Each entry is (stationId, stationName-JA). Coordinates are deferred
-/// until route-corridor filtering becomes a real need (a future slice).
-const List<({String id, String name})> corridorStations = [
-  (id: '32402', name: '秋田'),       // Akita-shi
-  (id: '32551', name: '大曲'),       // Omagari
-  (id: '32466', name: '横手'),       // Yokote
-  (id: '32691', name: '湯沢'),       // Yuzawa
-  (id: '32286', name: '男鹿'),       // Oga peninsula
+/// Each entry carries (stationId, name-JA, lat, lon, descriptor) so HER
+/// has geographic context per row. Slice-3 update orders by latitude
+/// descending (north → south) for geographic intuition.
+const List<({
+  String id,
+  String name,
+  double lat,
+  double lon,
+  String descriptor,
+})> corridorStations = [
+  (id: '32286', name: '男鹿', lat: 39.911, lon: 139.900, descriptor: 'north coast'),
+  (id: '32402', name: '秋田', lat: 39.717, lon: 140.098, descriptor: 'city'),
+  (id: '32551', name: '大曲', lat: 39.490, lon: 140.495, descriptor: 'central inland'),
+  (id: '32466', name: '横手', lat: 39.320, lon: 140.555, descriptor: 'south inland'),
+  (id: '32691', name: '湯沢', lat: 39.187, lon: 140.463, descriptor: 'south mountain'),
 ];
 
 /// Verbatim JMA observation as fetched. No interpretation.

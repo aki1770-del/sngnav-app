@@ -632,6 +632,16 @@ class _HomePageState extends State<HomePage> {
         TextButton(onPressed: _refreshCorridor, child: const Text('Fetch')),
       ]);
     }
+    // Compute temperature min/max across resolved stations for gradient shading.
+    final temps = <double>[];
+    for (final r in results) {
+      if (r is JmaSuccess && r.observation.temperatureCelsius != null) {
+        temps.add(r.observation.temperatureCelsius!);
+      }
+    }
+    final tempMin = temps.isEmpty ? null : temps.reduce((a, b) => a < b ? a : b);
+    final tempMax = temps.isEmpty ? null : temps.reduce((a, b) => a > b ? a : b);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -640,7 +650,7 @@ class _HomePageState extends State<HomePage> {
           padding: const EdgeInsets.only(bottom: 4),
           child: Row(
             children: [
-              const SizedBox(width: 60, child: Text('Station',
+              const SizedBox(width: 130, child: Text('Station',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
               const Expanded(child: Text('Snow',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
@@ -654,7 +664,8 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         const Divider(height: 4),
-        ...results.map(_corridorRow),
+        for (var i = 0; i < results.length; i++)
+          _corridorRow(results[i], corridorStations[i].descriptor, tempMin, tempMax),
         const SizedBox(height: 4),
         Text(
           'Source: JMA AMeDAS — verbatim relay per station, no derivation. '
@@ -672,7 +683,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _corridorRow(JmaResult result) {
+  Widget _corridorRow(
+    JmaResult result,
+    String descriptor,
+    double? tempMin,
+    double? tempMax,
+  ) {
     switch (result) {
       case JmaSuccess(:final observation):
         final snow = observation.snowDepthCm;
@@ -683,20 +699,46 @@ class _HomePageState extends State<HomePage> {
         if (ts.length == 14) {
           obsTime = '${ts.substring(8, 10)}:${ts.substring(10, 12)}';
         }
+        // Temp gradient color: cold = light blue, warm = light orange.
+        // Single-station-resolved (no spread) renders neutral grey.
+        Color tempBg = Colors.transparent;
+        if (temp != null && tempMin != null && tempMax != null && tempMax > tempMin) {
+          final t = (temp - tempMin) / (tempMax - tempMin);  // 0 = coldest, 1 = warmest
+          tempBg = Color.lerp(
+            Colors.blue.shade100,
+            Colors.orange.shade100,
+            t,
+          )!;
+        }
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
           child: Row(
             children: [
               SizedBox(
-                  width: 60,
-                  child: Text(observation.stationName,
-                      style: const TextStyle(fontSize: 12))),
+                  width: 130,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(observation.stationName,
+                          style: const TextStyle(fontSize: 12)),
+                      Text(descriptor,
+                          style: TextStyle(
+                              fontSize: 10, color: Colors.grey.shade600)),
+                    ],
+                  )),
               Expanded(
                   child: Text(snow == null ? '—' : '${snow.toStringAsFixed(0)} cm',
                       style: const TextStyle(fontSize: 12))),
               Expanded(
-                  child: Text(temp == null ? '—' : '${temp.toStringAsFixed(1)} °C',
-                      style: const TextStyle(fontSize: 12))),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: tempBg,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    child: Text(temp == null ? '—' : '${temp.toStringAsFixed(1)} °C',
+                        style: const TextStyle(fontSize: 12)),
+                  )),
               Expanded(
                   child: Text(wind == null ? '—' : '${wind.toStringAsFixed(1)} m/s',
                       style: const TextStyle(fontSize: 12))),
@@ -712,8 +754,10 @@ class _HomePageState extends State<HomePage> {
           padding: const EdgeInsets.symmetric(vertical: 2),
           child: Row(
             children: [
-              const SizedBox(width: 60, child: Text('—',
-                  style: TextStyle(fontSize: 12))),
+              SizedBox(
+                  width: 130,
+                  child: Text('— ($descriptor)',
+                      style: const TextStyle(fontSize: 12))),
               Expanded(
                 child: Text(
                   'fetch failed: $reason',
