@@ -21,6 +21,7 @@ import 'dart:async';
 import 'package:latlong2/latlong.dart';
 
 import 'akita_map.dart';
+import 'corridor_row.dart';
 import 'her_position.dart';
 import 'jma_fetch.dart';
 import 'route_fetch.dart';
@@ -646,26 +647,43 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Header row
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4),
+        const Padding(
+          padding: EdgeInsets.only(bottom: 4),
           child: Row(
             children: [
-              const SizedBox(width: 130, child: Text('Station',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              const Expanded(child: Text('Snow',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              const Expanded(child: Text('Temp',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              const Expanded(child: Text('Wind',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-              const SizedBox(width: 70, child: Text('Observed',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+              SizedBox(
+                width: corridorStationColumnWidth,
+                child: Text('Station',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+              Expanded(
+                child: Text('Snow',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+              Expanded(
+                child: Text('Temp',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+              Expanded(
+                child: Text('Wind',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+              SizedBox(
+                width: corridorObservedColumnWidth,
+                child: Text('Observed',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
         ),
         const Divider(height: 4),
         for (var i = 0; i < results.length; i++)
-          _corridorRow(results[i], corridorStations[i].descriptor, tempMin, tempMax),
+          CorridorRow(
+            result: results[i],
+            descriptor: corridorStations[i].descriptor,
+            tempMin: tempMin,
+            tempMax: tempMax,
+          ),
         const SizedBox(height: 4),
         Text(
           'Source: JMA AMeDAS — verbatim relay per station, no derivation. '
@@ -681,93 +699,6 @@ class _HomePageState extends State<HomePage> {
         ),
       ],
     );
-  }
-
-  Widget _corridorRow(
-    JmaResult result,
-    String descriptor,
-    double? tempMin,
-    double? tempMax,
-  ) {
-    switch (result) {
-      case JmaSuccess(:final observation):
-        final snow = observation.snowDepthCm;
-        final temp = observation.temperatureCelsius;
-        final wind = observation.windMetersPerSecond;
-        final ts = observation.observedAtJstKey;
-        String obsTime = ts;
-        if (ts.length == 14) {
-          obsTime = '${ts.substring(8, 10)}:${ts.substring(10, 12)}';
-        }
-        // Temp gradient color: cold = light blue, warm = light orange.
-        // Single-station-resolved (no spread) renders neutral grey.
-        Color tempBg = Colors.transparent;
-        if (temp != null && tempMin != null && tempMax != null && tempMax > tempMin) {
-          final t = (temp - tempMin) / (tempMax - tempMin);  // 0 = coldest, 1 = warmest
-          tempBg = Color.lerp(
-            Colors.blue.shade100,
-            Colors.orange.shade100,
-            t,
-          )!;
-        }
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(
-            children: [
-              SizedBox(
-                  width: 130,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(observation.stationName,
-                          style: const TextStyle(fontSize: 12)),
-                      Text(descriptor,
-                          style: TextStyle(
-                              fontSize: 10, color: Colors.grey.shade600)),
-                    ],
-                  )),
-              Expanded(
-                  child: Text(snow == null ? '—' : '${snow.toStringAsFixed(0)} cm',
-                      style: const TextStyle(fontSize: 12))),
-              Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: tempBg,
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: Text(temp == null ? '—' : '${temp.toStringAsFixed(1)} °C',
-                        style: const TextStyle(fontSize: 12)),
-                  )),
-              Expanded(
-                  child: Text(wind == null ? '—' : '${wind.toStringAsFixed(1)} m/s',
-                      style: const TextStyle(fontSize: 12))),
-              SizedBox(
-                  width: 70,
-                  child: Text('$obsTime JST',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade700))),
-            ],
-          ),
-        );
-      case JmaFailure(:final reason):
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(
-            children: [
-              SizedBox(
-                  width: 130,
-                  child: Text('— ($descriptor)',
-                      style: const TextStyle(fontSize: 12))),
-              Expanded(
-                child: Text(
-                  'fetch failed: $reason',
-                  style: TextStyle(fontSize: 11, color: Colors.red.shade700),
-                ),
-              ),
-            ],
-          ),
-        );
-    }
   }
 
   String _formatFetched(DateTime fetchedAt, int minutesStale) {

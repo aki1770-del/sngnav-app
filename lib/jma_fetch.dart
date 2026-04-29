@@ -32,6 +32,11 @@ const String akitaStationId = '32402';
 /// Each entry carries (stationId, name-JA, lat, lon, descriptor) so HER
 /// has geographic context per row. Slice-3 update orders by latitude
 /// descending (north → south) for geographic intuition.
+///
+/// Descriptor is in Japanese to match the kanji station names — the
+/// named first customer reads kanji natively, and a mixed-script row
+/// (kanji name + English geographic context) imposes a translation
+/// step she should not have to perform on a snow-zone commute.
 const List<({
   String id,
   String name,
@@ -39,11 +44,11 @@ const List<({
   double lon,
   String descriptor,
 })> corridorStations = [
-  (id: '32286', name: '男鹿', lat: 39.911, lon: 139.900, descriptor: 'north coast'),
-  (id: '32402', name: '秋田', lat: 39.717, lon: 140.098, descriptor: 'city'),
-  (id: '32551', name: '大曲', lat: 39.490, lon: 140.495, descriptor: 'central inland'),
-  (id: '32466', name: '横手', lat: 39.320, lon: 140.555, descriptor: 'south inland'),
-  (id: '32691', name: '湯沢', lat: 39.187, lon: 140.463, descriptor: 'south mountain'),
+  (id: '32286', name: '男鹿', lat: 39.911, lon: 139.900, descriptor: '北・海沿い'),
+  (id: '32402', name: '秋田', lat: 39.717, lon: 140.098, descriptor: '市街地'),
+  (id: '32551', name: '大曲', lat: 39.490, lon: 140.495, descriptor: '中央内陸'),
+  (id: '32466', name: '横手', lat: 39.320, lon: 140.555, descriptor: '南・内陸'),
+  (id: '32691', name: '湯沢', lat: 39.187, lon: 140.463, descriptor: '南・山間'),
 ];
 
 /// Verbatim JMA observation as fetched. No interpretation.
