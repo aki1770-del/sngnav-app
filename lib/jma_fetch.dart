@@ -25,16 +25,20 @@ const String akitaStationId = '32402';
 
 /// Curated AMeDAS station list along Akita prefecture's main inhabited
 /// corridor (Oga peninsula → Akita-shi → Omagari → Yokote → Yuzawa).
-/// Slice 3 first try: hardcoded; not yet filtered by HER's actual route.
+/// IDs verified against JMA's amedastable.json via Explore agent
+/// 2026-04-29. Initial Slice-3 hardcoding used 3 wrong IDs (32441 /
+/// 32486 / 32414) that 404'd in the live fetch — V14 honesty surfaced
+/// the failure per row and a verify-first lookup against the canonical
+/// table fixed it. Lesson saved in feedback memory.
 ///
 /// Each entry is (stationId, stationName-JA). Coordinates are deferred
 /// until route-corridor filtering becomes a real need (a future slice).
 const List<({String id, String name})> corridorStations = [
   (id: '32402', name: '秋田'),       // Akita-shi
-  (id: '32441', name: '大曲'),       // Omagari
+  (id: '32551', name: '大曲'),       // Omagari
   (id: '32466', name: '横手'),       // Yokote
-  (id: '32486', name: '湯沢'),       // Yuzawa
-  (id: '32414', name: '男鹿'),       // Oga peninsula
+  (id: '32691', name: '湯沢'),       // Yuzawa
+  (id: '32286', name: '男鹿'),       // Oga peninsula
 ];
 
 /// Verbatim JMA observation as fetched. No interpretation.
