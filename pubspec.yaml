@@ -13,7 +13,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  navigation_safety_core: ^0.4.1
+  navigation_safety_core: ^0.6.0
   flutter_map: ^7.0.0
   latlong2: ^0.9.1
   http: ^1.2.0
