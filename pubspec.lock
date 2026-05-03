@@ -57,6 +57,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.19.1"
+  condition_aggregator:
+    dependency: "direct main"
+    description:
+      name: condition_aggregator
+      sha256: ef4d7cc6fbe1d1c94d36526442fb4b08a3e0ce6f6a66c6dc94647a87f8324b77
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.3"
   crypto:
     dependency: transitive
     description:
@@ -352,6 +360,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
+  noaa_nws_adapter:
+    dependency: "direct main"
+    description:
+      name: noaa_nws_adapter
+      sha256: "8f38818e068bd069bcbcc50f84bd73e9da2a5f0827a8fc0e959051811c8de83b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.3"
   path:
     dependency: transitive
     description:

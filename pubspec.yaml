@@ -21,6 +21,8 @@ dependencies:
   routing_engine: ^0.3.0
   fleet_hazard: ^0.3.0
   snow_rendering: ^0.1.0
+  condition_aggregator: ^0.0.3
+  noaa_nws_adapter: ^0.0.3
   flutter_map: ^7.0.0
   latlong2: ^0.9.1
   http: ^1.2.0
