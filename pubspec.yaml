@@ -19,6 +19,7 @@ dependencies:
   adaptive_reroute: ^0.1.0
   route_condition_forecast: ^0.1.0
   routing_engine: ^0.3.0
+  fleet_hazard: ^0.3.0
   flutter_map: ^7.0.0
   latlong2: ^0.9.1
   http: ^1.2.0

@@ -122,7 +122,7 @@ packages:
     source: hosted
     version: "1.1.1"
   fleet_hazard:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: fleet_hazard
       sha256: "003bec938c8179a2fa6a5b00ca1f713134fbd2ae23839ada5861ec3e091f5267"
