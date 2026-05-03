@@ -413,6 +413,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  snow_rendering:
+    dependency: "direct main"
+    description:
+      name: snow_rendering
+      sha256: "870be73d78190d78700cb13c5b7f7a3eff00f29d6d392b5e0a1e11dbfeb7ef44"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.0"
   source_span:
     dependency: transitive
     description:
