@@ -13,7 +13,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  navigation_safety_core: ^0.7.1
+  navigation_safety_core: ^0.8.0
   driving_conditions: ^0.3.0
   driving_weather: ^0.3.0
   adaptive_reroute: ^0.1.0
