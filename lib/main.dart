@@ -12,9 +12,12 @@
 /// The app surfaces information; it does not control the vehicle.
 library;
 
+import 'package:condition_aggregator/condition_aggregator.dart'
+    show AdvisoryAggregateResult;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:navigation_safety_core/navigation_safety_core.dart';
+import 'package:noaa_nws_adapter/noaa_nws_adapter.dart' show NoaaNwsClient;
 
 import 'dart:async';
 
@@ -25,6 +28,17 @@ import 'corridor_row.dart';
 import 'her_position.dart';
 import 'jma_fetch.dart';
 import 'route_fetch.dart';
+import 'services/advisory_service.dart';
+import 'services/jma_advisory_provider_factory.dart';
+import 'services/noaa_advisory_provider.dart';
+import 'widgets/advisory_cards.dart';
+
+/// Shared User-Agent for publisher-facing HTTP — concrete contact
+/// substring is required by both NWS (api.weather.gov) and JMA
+/// (data.jma.go.jp) best-practice. The publisher uses it only for
+/// rate-limit accounting + security contact.
+const String kSngnavAppUserAgent =
+    '(sngnav-app, https://github.com/aki1770-del/sngnav)';
 
 void main() {
   runApp(const SngnavApp());
@@ -81,13 +95,30 @@ class _HomePageState extends State<HomePage> {
   PositionFix? _herFix;
   StreamSubscription<PositionFix>? _herSub;
 
-  // Slice 2d — dev-only mock position. V14: amber dot, never blue, so
+  // Slice 2d — dev-only mock position. Amber dot, never blue, so
   // mock cannot be visually mistaken for real GPS.
   bool _isMockPosition = false;
+
+  // Slice — multi-source advisory ingestion (NWS + JMA).
+  late final AdvisoryService _advisoryService;
+  late final NoaaNwsClient _nwsClient;
+  Future<void>? _advisoryInitFuture;
+  AdvisoryAggregateResult? _advisoryResult;
+  bool _advisoryLoading = false;
+  String? _advisoryErrorMessage;
+  // Last (lat, lon) used for an advisory fetch — refresh-only-on-change.
+  double? _lastAdvisoryLat;
+  double? _lastAdvisoryLon;
 
   @override
   void initState() {
     super.initState();
+    _nwsClient = NoaaNwsClient(userAgent: kSngnavAppUserAgent);
+    _advisoryService = AdvisoryService(providers: [
+      NoaaAdvisoryProvider(client: _nwsClient),
+      buildJmaAdvisoryProvider(userAgent: kSngnavAppUserAgent),
+    ]);
+    _advisoryInitFuture = _advisoryService.init();
     _refreshJma();
     _refreshCorridor();
   }
@@ -95,6 +126,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _herSub?.cancel();
+    _nwsClient.close();
     super.dispose();
   }
 
@@ -107,21 +139,80 @@ class _HomePageState extends State<HomePage> {
     _herSub = herPositionStream().listen((fix) {
       if (!mounted) return;
       setState(() => _herFix = fix);
+      _maybeRefreshAdvisoriesForFix(fix);
     });
   }
 
   void _useMockPosition() {
     _herSub?.cancel();
     _herSub = null;
+    final mockFix = PositionAvailable(
+      latitude: akitaStation.latitude,
+      longitude: akitaStation.longitude,
+      accuracyMeters: 35,
+      timestamp: DateTime.now(),
+    );
     setState(() {
       _isMockPosition = true;
-      _herFix = PositionAvailable(
-        latitude: akitaStation.latitude,
-        longitude: akitaStation.longitude,
-        accuracyMeters: 35,
-        timestamp: DateTime.now(),
-      );
+      _herFix = mockFix;
     });
+    _maybeRefreshAdvisoriesForFix(mockFix);
+  }
+
+  /// Re-fetches advisories when the caller's lat/lon changes
+  /// materially (>=0.01 degree, ~1 km). Avoids re-fetching every GPS
+  /// tick — the publisher's record cadence is minutes-class, not
+  /// seconds-class. Also gates re-fetch on init completing.
+  void _maybeRefreshAdvisoriesForFix(PositionFix fix) {
+    if (fix is! PositionAvailable) return;
+    final lat = fix.latitude;
+    final lon = fix.longitude;
+    if (_lastAdvisoryLat != null && _lastAdvisoryLon != null) {
+      if ((lat - _lastAdvisoryLat!).abs() < 0.01 &&
+          (lon - _lastAdvisoryLon!).abs() < 0.01) {
+        return;
+      }
+    }
+    _lastAdvisoryLat = lat;
+    _lastAdvisoryLon = lon;
+    _refreshAdvisories(lat, lon);
+  }
+
+  Future<void> _refreshAdvisories(double latitude, double longitude) async {
+    setState(() {
+      _advisoryLoading = true;
+      _advisoryErrorMessage = null;
+    });
+    try {
+      await _advisoryInitFuture;
+      final result = await _advisoryService.fetchAtPoint(
+        latitude: latitude,
+        longitude: longitude,
+      );
+      if (!mounted) return;
+      setState(() {
+        _advisoryResult = result;
+        _advisoryLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _advisoryErrorMessage = e.toString();
+        _advisoryLoading = false;
+      });
+    }
+  }
+
+  void _onAdvisoryRefreshTapped() {
+    final lat = _lastAdvisoryLat;
+    final lon = _lastAdvisoryLon;
+    if (lat == null || lon == null) {
+      // No fix yet — fall back to Akita station (consistent with
+      // mock-position default).
+      _refreshAdvisories(akitaStation.latitude, akitaStation.longitude);
+    } else {
+      _refreshAdvisories(lat, lon);
+    }
   }
 
   void _clearPosition() {
@@ -358,6 +449,16 @@ class _HomePageState extends State<HomePage> {
             _section(
               title: 'Corridor weather — Akita prefecture spine',
               child: _corridorPanel(),
+            ),
+            const SizedBox(height: 16),
+            _section(
+              title: 'Active advisories — NWS + JMA (publisher verbatim)',
+              child: AdvisoryCards(
+                loading: _advisoryLoading,
+                result: _advisoryResult,
+                errorMessage: _advisoryErrorMessage,
+                onRefresh: _onAdvisoryRefreshTapped,
+              ),
             ),
             const SizedBox(height: 16),
             const _Footer(),
