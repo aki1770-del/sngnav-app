@@ -356,10 +356,10 @@ packages:
     dependency: "direct main"
     description:
       name: navigation_safety_core
-      sha256: a31d8201fb51836d55bdd88cc5ec70e10c99ac341536a64b32f20510ee9caef7
+      sha256: aa4099821a49a10be0ae9eb6d2d42eb1ec28dd2ac8327e2a7dd1b224eb1c2348
       url: "https://pub.dev"
     source: hosted
-    version: "0.8.0"
+    version: "0.7.1"
   nested:
     dependency: transitive
     description:

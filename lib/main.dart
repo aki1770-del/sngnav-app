@@ -77,21 +77,6 @@ class _HomePageState extends State<HomePage> {
   // Throttle behavior trace.
   final List<_FireAttempt> _attempts = [];
 
-  // LoomFitTelemetry — emit-only stream owned at the integrator boundary.
-  // Per loom_fit_telemetry.dart class-doc: the package observes its own
-  // firing decisions; the integrator owns storage / display / consent.
-  // sngnav-app's role is to subscribe + render development-class
-  // observability (calibration substrate, NOT driver-facing advice).
-  late final LoomFitTelemetry _telemetry;
-  StreamSubscription<LoomFitTelemetryRecord>? _telemetrySub;
-  // Rolling list of recent telemetry records, bounded to last 16.
-  final List<LoomFitTelemetryRecord> _telemetryRecords = [];
-  // Rolling fired-timestamp window for the alertSequence schema field.
-  // Maintained at the integrator boundary because AlertDensityThrottle
-  // does not expose its internal window (and per the package's
-  // emit-only / no-data-harvest design, it should not).
-  final List<DateTime> _firedTimestampsWindow = [];
-
   // JMA observation state.
   JmaResult? _jmaResult;
   bool _jmaLoading = false;
@@ -128,17 +113,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _telemetry = LoomFitTelemetry();
-    _telemetrySub = _telemetry.records.listen((record) {
-      if (!mounted) return;
-      setState(() {
-        _telemetryRecords.add(record);
-        // Bound to last 16 records (rolling).
-        if (_telemetryRecords.length > 16) {
-          _telemetryRecords.removeAt(0);
-        }
-      });
-    });
     _nwsClient = NoaaNwsClient(userAgent: kSngnavAppUserAgent);
     _advisoryService = AdvisoryService(providers: [
       NoaaAdvisoryProvider(client: _nwsClient),
@@ -152,8 +126,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _herSub?.cancel();
-    _telemetrySub?.cancel();
-    _telemetry.dispose();
     _nwsClient.close();
     super.dispose();
   }
@@ -318,9 +290,6 @@ class _HomePageState extends State<HomePage> {
   void _fireAlertSequence() {
     final throttle = AlertDensityThrottle.forProfile(_profile);
     final now = DateTime.now();
-    // Reset the window for this new burst; last-burst observation
-    // gives the cleanest per-burst telemetry trace.
-    _firedTimestampsWindow.clear();
     setState(() {
       _attempts.clear();
       // Fire 8 attempts in rapid sequence.
@@ -332,31 +301,6 @@ class _HomePageState extends State<HomePage> {
           relativeSeconds: i * 5,
           fired: fired,
         ));
-        if (fired) {
-          _firedTimestampsWindow.add(t);
-        }
-        // Emit one telemetry record per shouldFire decision. Outcome
-        // disambiguation rule (per LoomFitOutcome doc-comments):
-        //   - i == 0 + fired → coldStart (first alert in session).
-        //   - severity == critical + fired → criticalBypass. The burst
-        //     uses warning, so this branch does not fire here.
-        //   - fired non-cold-start non-critical → fired.
-        //   - !fired → droppedByThrottle.
-        final LoomFitOutcome outcome;
-        if (fired && i == 0) {
-          outcome = LoomFitOutcome.coldStart;
-        } else if (fired) {
-          outcome = LoomFitOutcome.fired;
-        } else {
-          outcome = LoomFitOutcome.droppedByThrottle;
-        }
-        _telemetry.record(LoomFitTelemetryRecord(
-          profileClass: _profile,
-          ambientThreshold: 'rapid-burst-${i + 1}',
-          alertSequence: List<DateTime>.unmodifiable(_firedTimestampsWindow),
-          responseLatency: null,
-          outcome: outcome,
-        ));
       }
     });
   }
@@ -365,14 +309,6 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final cap = AlertDensityThrottle.defaultCapFor(_profile);
     final glossary = RoadSurfaceConditionGlossary.forConditionAndProfile(
-      _condition,
-      _profile,
-    );
-    // Action-coupled explainer for current (condition, profile) tuple.
-    // Action string is rendered VERBATIM per AAA Article 17 (β) — the
-    // package owns the wording (advisory mood, JAF/MLIT vocabulary,
-    // per-profile verbosity). The app must not paraphrase or restyle.
-    final explainer = AlertExplainer.forConditionAndProfile(
       _condition,
       _profile,
     );
@@ -437,33 +373,6 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Action-coupled explainer (current condition × profile)',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Verbatim per AAA Article 17 (β): publisher voice
-                  // preserved; no app-side paraphrase or truncation.
-                  Text(
-                    explainer.action,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 6),
-                  _kv('Verbosity', explainer.verbosity.name),
-                  _kv('Locale', explainer.localeTag),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Source: navigation_safety_core AlertExplainer — verbatim '
-                    'relay from JAF / MLIT / NEXCO public driver-guidance.',
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            _section(
               title: 'Alert density throttle',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -495,11 +404,6 @@ class _HomePageState extends State<HomePage> {
                     ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-            _section(
-              title: 'LoomFit telemetry — developer / calibration trace',
-              child: _loomFitTelemetryPanel(),
             ),
             const SizedBox(height: 16),
             _section(
@@ -592,54 +496,6 @@ class _HomePageState extends State<HomePage> {
                   Text('$k:', style: TextStyle(color: Colors.grey.shade700))),
           Expanded(child: Text(v)),
         ],
-      ),
-    );
-  }
-
-  /// Renders the rolling LoomFitTelemetry record list as
-  /// development-class observability. AAA Article 17 (β) discipline:
-  /// this panel is calibration substrate (insight #105), NOT
-  /// driver-facing-class advice — section header + body framing must
-  /// keep that boundary visible.
-  Widget _loomFitTelemetryPanel() {
-    if (_telemetryRecords.isEmpty) {
-      return Text(
-        'No records yet. Fire alerts via the throttle panel above to '
-        'populate this calibration trace.',
-        style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-      );
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Text(
-          'For developer / calibration use only — NOT driver-facing. '
-          'Schema per loom_fit_telemetry.dart: profileClass × '
-          'ambientThreshold × outcome × first 2 fired-window timestamps.',
-          style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
-        ),
-        const SizedBox(height: 6),
-        for (final r in _telemetryRecords) _telemetryRecordRow(r),
-        const SizedBox(height: 4),
-        Text(
-          'Source: navigation_safety_core LoomFitTelemetry — emit-only '
-          'broadcast stream; no data leaves this app surface.',
-          style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
-        ),
-      ],
-    );
-  }
-
-  Widget _telemetryRecordRow(LoomFitTelemetryRecord r) {
-    final fmt = DateFormat('HH:mm:ss');
-    final firstTwo = r.alertSequence.take(2).map(fmt.format).join(', ');
-    final seqText = r.alertSequence.isEmpty ? '(empty window)' : firstTwo;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
-      child: Text(
-        '${r.outcome.name} · ${r.profileClass.name} · '
-        '${r.ambientThreshold ?? "(no threshold)"} · seq=[$seqText]',
-        style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
       ),
     );
   }
