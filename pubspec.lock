@@ -68,9 +68,10 @@ packages:
   condition_aggregator_jma:
     dependency: "direct main"
     description:
-      path: "../../../../SNGNav/packages/condition_aggregator_jma"
-      relative: true
-    source: path
+      name: condition_aggregator_jma
+      sha256: "59e16514abda720f314aad8b4c97e0ba00cebaf397e46277cd0c8270db4479d8"
+      url: "https://pub.dev"
+    source: hosted
     version: "0.1.0"
   crypto:
     dependency: transitive
