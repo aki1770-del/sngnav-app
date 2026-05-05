@@ -74,6 +74,21 @@ class _HomePageState extends State<HomePage> {
   // Mocked road-surface condition for Slice 0.
   RoadSurfaceCondition _condition = RoadSurfaceCondition.ice;
 
+  // Vehicle-class state for NSC #3 wiring (0.9.0). null = unknown / no
+  // signal (per VehicleClassProvider library doc convention; thresholds
+  // fall back to per-profile baseline). Demo dropdown lets the
+  // edge-developer reviewer surface the kei-car-at-65 cohort default
+  // override that NSC ships pre-loaded.
+  String? _vehicleClassToken;
+
+  // VehicleThresholdOverrides registry pre-loaded with HER kei-car-at-65
+  // cohort default per NSC 0.9.0. Selecting 'kei-car' in the dropdown
+  // produces a +50m / +1°C caution-adding-only delta vs baseline.
+  // Other tokens (compact-sedan / 4wd / commercial-light) demonstrate
+  // no-op fallback when no override is registered.
+  final VehicleThresholdOverrides _vehicleOverrides =
+      VehicleThresholdOverrides.withKeiCarDefault();
+
   // Throttle behavior trace.
   final List<_FireAttempt> _attempts = [];
 
@@ -420,6 +435,51 @@ class _HomePageState extends State<HomePage> {
                           child: Text(c.name),
                         ))
                     .toList(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _section(
+              title: 'Vehicle class (HER cohort: kei-car-at-65 default)',
+              child: DropdownButton<String?>(
+                value: _vehicleClassToken,
+                isExpanded: true,
+                onChanged: (v) {
+                  setState(() => _vehicleClassToken = v);
+                },
+                items: const [
+                  DropdownMenuItem<String?>(
+                    value: null,
+                    child: Text('unknown / no signal (baseline)'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'kei-car',
+                    child: Text(
+                      'kei-car (HER cohort default — overrides registered)',
+                    ),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'compact-sedan',
+                    child: Text('compact-sedan (no override registered)'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: '4wd',
+                    child: Text('4wd (no override registered)'),
+                  ),
+                  DropdownMenuItem<String?>(
+                    value: 'commercial-light',
+                    child: Text('commercial-light (no override registered)'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _section(
+              title: 'Threshold preview (current profile × selected vehicle class)',
+              child: _ThresholdPreview(
+                profile: _profile,
+                vehicleClassToken: _vehicleClassToken,
+                vehicleOverrides: _vehicleOverrides,
+                kvBuilder: _kv,
               ),
             ),
             const SizedBox(height: 16),
@@ -998,6 +1058,96 @@ class _Footer extends StatelessWidget {
         style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
         textAlign: TextAlign.center,
       ),
+    );
+  }
+}
+
+/// Side-by-side threshold preview surfacing baseline vs with-vehicle
+/// configs from `NavigationSafetyConfig.forProfileWithContext`.
+///
+/// Renders the warning visibility floor and warning temperature floor
+/// with delta annotations when the selected vehicle-class token has a
+/// registered override (e.g. `'kei-car'` → +50m / +1°C). Tokens with no
+/// registered override produce identical with-vehicle and baseline
+/// rows, demonstrating the no-op fallback semantics of
+/// `applyOverrideForToken`.
+///
+/// AAA Article 17 (β) discipline: kei-car deltas are reported verbatim
+/// from NSC 0.9.0 CHANGELOG; the design-default-hypothesis flag is
+/// preserved verbatim in the provenance footer.
+class _ThresholdPreview extends StatelessWidget {
+  final DriverProfile profile;
+  final String? vehicleClassToken;
+  final VehicleThresholdOverrides vehicleOverrides;
+  final Widget Function(String, String) kvBuilder;
+
+  const _ThresholdPreview({
+    required this.profile,
+    required this.vehicleClassToken,
+    required this.vehicleOverrides,
+    required this.kvBuilder,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final baseline = NavigationSafetyConfig.forProfileWithContext(profile);
+    final withVehicle = NavigationSafetyConfig.forProfileWithContext(
+      profile,
+      context: DrivingContext(vehicleClassToken: vehicleClassToken),
+      vehicleOverrides: vehicleOverrides,
+    );
+
+    final visibilityDelta =
+        withVehicle.warningVisibilityMeters - baseline.warningVisibilityMeters;
+    final temperatureDelta = withVehicle.warningTemperatureCelsius -
+        baseline.warningTemperatureCelsius;
+
+    String formatVisibility(int meters, int delta) {
+      if (delta == 0) return '$meters m';
+      final sign = delta > 0 ? '+' : '';
+      return '$meters m ($sign$delta)';
+    }
+
+    String formatTemperature(int celsius, int delta) {
+      if (delta == 0) return '$celsius °C';
+      final sign = delta > 0 ? '+' : '';
+      return '$celsius °C ($sign$delta)';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        kvBuilder(
+          'Baseline warning visibility',
+          '${baseline.warningVisibilityMeters} m',
+        ),
+        kvBuilder(
+          'With-vehicle warning visibility',
+          formatVisibility(
+            withVehicle.warningVisibilityMeters,
+            visibilityDelta,
+          ),
+        ),
+        kvBuilder(
+          'Baseline warning temperature',
+          '${baseline.warningTemperatureCelsius} °C',
+        ),
+        kvBuilder(
+          'With-vehicle warning temperature',
+          formatTemperature(
+            withVehicle.warningTemperatureCelsius,
+            temperatureDelta,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Source: navigation_safety_core 0.9.0 — '
+          'VehicleThresholdOverrides.withKeiCarDefault(). Kei-car deltas '
+          '(+50 m / +1 °C) are design-default-hypotheses pending '
+          'field-measurement validation per CHANGELOG.md 0.9.0 entry.',
+          style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+        ),
+      ],
     );
   }
 }
