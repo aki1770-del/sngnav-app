@@ -120,7 +120,7 @@ void main() {
       );
       expect(
         find.text(
-          'Threshold preview (current profile × selected vehicle class)',
+          'Threshold preview (profile × vehicle × driver-state)',
         ),
         findsOneWidget,
       );

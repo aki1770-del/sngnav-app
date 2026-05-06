@@ -15,11 +15,34 @@ library;
 import 'package:condition_aggregator/condition_aggregator.dart'
     show AdvisoryAggregateResult;
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:map_viewport_bloc/map_viewport_bloc.dart'
+    show
+        RenderFidelity,
+        ViewportBudgetReset,
+        ViewportRenderBudgetBloc,
+        ViewportRenderConfig,
+        ViewportRenderState;
+import 'package:navigation_safety/navigation_safety.dart'
+    show
+        AlertExplainerExpandableSheet,
+        BudgetExhausted,
+        BudgetResetReason,
+        BudgetWarning,
+        GlanceBudgetEvent,
+        GlanceBudgetTracker,
+        GlanceEvent,
+        GlanceModalClass;
 import 'package:navigation_safety_core/navigation_safety_core.dart';
 import 'package:noaa_nws_adapter/noaa_nws_adapter.dart' show NoaaNwsClient;
+import 'package:offline_tiles/offline_tiles.dart' as offline_tiles;
+import 'package:snow_rendering/snow_rendering.dart' as snow_rendering;
+import 'package:voice_guidance/voice_guidance.dart'
+    show BudgetAwarePaceProfile, VoiceGuidanceConfig;
 
 import 'dart:async';
+import 'dart:ui' show FrameTiming;
 
 import 'package:latlong2/latlong.dart';
 
@@ -129,6 +152,48 @@ class _HomePageState extends State<HomePage> {
   // mock cannot be visually mistaken for real GPS.
   bool _isMockPosition = false;
 
+  // Sub-bundle 2 — DriverState-axis scaffolding inputs (NSC 0.10.0 #28/#29/#30).
+  // All three are advisory inputs to forDriverContext; null means
+  // "integrator has no signal" and the factory falls back to the
+  // per-profile + live-context baseline.
+  CircadianPhase? _circadianPhase;
+  SessionState? _sessionState;
+  Confidence? _confidence;
+  // Driver-always-drives invariant: high-confidence cap-loosening is
+  // ONLY permitted with affirmative driver confirmation. Default false.
+  bool _isHighConfidenceConfirmed = false;
+  // Sub-bundle 2 sliders for SessionState compose-fields.
+  int _consecutiveDrivingDays = 0;
+  CumulativeFatigueClass _cumulativeFatigue = CumulativeFatigueClass.rested;
+
+  // Sub-bundle 3 — GlanceBudgetTracker + voice-pace + alert-explainer-sheet.
+  // The tracker accumulates simulated glance events; integrator owns the
+  // event source per package contract.
+  late final GlanceBudgetTracker _glanceBudget;
+  StreamSubscription<GlanceBudgetEvent>? _glanceBudgetSub;
+  // Most-recent budget-event observed (for surface rendering).
+  GlanceBudgetEvent? _lastGlanceEvent;
+  // Voice-guidance config with budget-aware pace opt-in (see voice_guidance
+  // 0.6.0 budget_aware_pace_profile.dart). Held for display-only; this
+  // demo does NOT wire a TTS engine (sngnav-app is alpha visual surface).
+  final VoiceGuidanceConfig _voiceConfig = const VoiceGuidanceConfig(
+    budgetAwarePace: BudgetAwarePaceProfile(),
+  );
+  // Number of glance events recorded so far in the simulation.
+  int _glanceEventsRecorded = 0;
+
+  // Sub-bundle 4 — PerformanceBudget + DataBudget + ViewportRenderBudgetBloc.
+  // Per the package contracts: integrator constructs all three with
+  // per-profile config; bloc subscribes to the two budget streams via
+  // attachPerformanceBudgetStream / attachDataBudgetStream and emits
+  // a composed ViewportRenderState with RenderFidelity.
+  offline_tiles.PerformanceBudget? _perfBudget;
+  snow_rendering.DataBudget? _dataBudget;
+  ViewportRenderBudgetBloc? _viewportBloc;
+  // Counts of simulated frames / fetches recorded in the panel.
+  int _framesRecorded = 0;
+  int _fetchesRecorded = 0;
+
   // Slice — multi-source advisory ingestion (NWS + JMA).
   late final AdvisoryService _advisoryService;
   late final NoaaNwsClient _nwsClient;
@@ -154,6 +219,15 @@ class _HomePageState extends State<HomePage> {
         }
       });
     });
+    // Sub-bundle 3: GlanceBudgetTracker (default 12s NHTSA budget).
+    _glanceBudget = GlanceBudgetTracker();
+    _glanceBudgetSub = _glanceBudget.budgetEvents.listen((event) {
+      if (!mounted) return;
+      setState(() => _lastGlanceEvent = event);
+    });
+    // Sub-bundle 4: PerformanceBudget + DataBudget + viewport bloc.
+    // Construct per the active default profile (ageingRural per V21).
+    _rebuildSubBundle4For(_profile);
     _nwsClient = NoaaNwsClient(userAgent: kSngnavAppUserAgent);
     _advisoryService = AdvisoryService(providers: [
       NoaaAdvisoryProvider(client: _nwsClient),
@@ -164,11 +238,43 @@ class _HomePageState extends State<HomePage> {
     _refreshCorridor();
   }
 
+  /// Sub-bundle 4 — (re)build PerformanceBudget + DataBudget +
+  /// ViewportRenderBudgetBloc for the active profile. Called from
+  /// initState and from the profile dropdown when the cohort changes
+  /// (per-cohort budgets and floor differ; the bloc must be reconfigured).
+  void _rebuildSubBundle4For(DriverProfile profile) {
+    // Tear down prior instances if any (profile change path).
+    _perfBudget?.dispose();
+    _dataBudget?.dispose();
+    _viewportBloc?.close();
+    final perf = offline_tiles.PerformanceBudget(
+      config: offline_tiles.PerformanceBudgetConfig.forProfile(profile),
+    );
+    final data = snow_rendering.DataBudget(
+      config: snow_rendering.DataBudgetConfig.forProfile(profile),
+    );
+    final bloc = ViewportRenderBudgetBloc(
+      config: ViewportRenderConfig.forProfile(profile),
+    );
+    bloc.attachPerformanceBudgetStream(perf.budgetEvents);
+    bloc.attachDataBudgetStream(data.budgetEvents);
+    _perfBudget = perf;
+    _dataBudget = data;
+    _viewportBloc = bloc;
+    _framesRecorded = 0;
+    _fetchesRecorded = 0;
+  }
+
   @override
   void dispose() {
     _herSub?.cancel();
     _telemetrySub?.cancel();
     _telemetry.dispose();
+    _glanceBudgetSub?.cancel();
+    _glanceBudget.dispose();
+    _perfBudget?.dispose();
+    _dataBudget?.dispose();
+    _viewportBloc?.close();
     _nwsClient.close();
     super.dispose();
   }
@@ -410,7 +516,16 @@ class _HomePageState extends State<HomePage> {
                 value: _profile,
                 isExpanded: true,
                 onChanged: (v) {
-                  if (v != null) setState(() => _profile = v);
+                  if (v != null) {
+                    setState(() {
+                      _profile = v;
+                      // Sub-bundle 4: per-cohort budgets + floor change
+                      // when the profile changes; tear down + rebuild
+                      // the trio so the active demo reflects the new
+                      // cohort defaults.
+                      _rebuildSubBundle4For(v);
+                    });
+                  }
                 },
                 items: DriverProfile.values
                     .map((p) => DropdownMenuItem(
@@ -474,11 +589,21 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Threshold preview (current profile × selected vehicle class)',
+              title: 'Driver state inputs (NSC 0.10.0 — #28 / #29 / #30)',
+              child: _driverStateInputs(),
+            ),
+            const SizedBox(height: 16),
+            _section(
+              title: 'Threshold preview '
+                  '(profile × vehicle × driver-state)',
               child: _ThresholdPreview(
                 profile: _profile,
                 vehicleClassToken: _vehicleClassToken,
                 vehicleOverrides: _vehicleOverrides,
+                circadianPhase: _circadianPhase,
+                sessionState: _sessionState,
+                confidence: _confidence,
+                isHighConfidenceConfirmed: _isHighConfidenceConfirmed,
                 kvBuilder: _kv,
               ),
             ),
@@ -560,6 +685,19 @@ class _HomePageState extends State<HomePage> {
             _section(
               title: 'LoomFit telemetry — developer / calibration trace',
               child: _loomFitTelemetryPanel(),
+            ),
+            const SizedBox(height: 16),
+            _section(
+              title: 'Glance budget + voice pace + alert expandable '
+                  '(navigation_safety 0.9.0 / voice_guidance 0.6.0)',
+              child: _glanceBudgetPanel(),
+            ),
+            const SizedBox(height: 16),
+            _section(
+              title: 'Render budget viewport '
+                  '(offline_tiles 0.5.0 / snow_rendering 0.2.0 / '
+                  'map_viewport_bloc 0.4.0)',
+              child: _renderBudgetPanel(),
             ),
             const SizedBox(height: 16),
             _section(
@@ -1010,6 +1148,427 @@ class _HomePageState extends State<HomePage> {
     final fmt = DateFormat('HH:mm');
     return '${fmt.format(fetchedAt)} ($minutesStale min ago)';
   }
+
+  // ===== Sub-bundle 2 — Driver state inputs panel =====
+
+  Widget _driverStateInputs() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // CircadianPhase dropdown.
+        const Text('Circadian phase (#28; multiplier 1.0–1.5×)',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        DropdownButton<CircadianPhase?>(
+          value: _circadianPhase,
+          isExpanded: true,
+          onChanged: (v) => setState(() => _circadianPhase = v),
+          items: <DropdownMenuItem<CircadianPhase?>>[
+            const DropdownMenuItem(
+              value: null,
+              child: Text('(no signal — baseline)'),
+            ),
+            for (final p in CircadianPhase.values)
+              DropdownMenuItem(
+                value: p,
+                child: Text('${p.name} (×${p.multiplier.toStringAsFixed(2)})'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // SessionState compose-fields (consecutive days + fatigue class).
+        const Text('Session state (#29; consecutive days + fatigue class)',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        Row(
+          children: [
+            const Text('Days:'),
+            Expanded(
+              child: Slider(
+                value: _consecutiveDrivingDays.toDouble(),
+                min: 0,
+                max: 14,
+                divisions: 14,
+                label: '$_consecutiveDrivingDays',
+                onChanged: (v) => _updateSessionState(days: v.round()),
+              ),
+            ),
+            Text('$_consecutiveDrivingDays'),
+          ],
+        ),
+        DropdownButton<CumulativeFatigueClass>(
+          value: _cumulativeFatigue,
+          isExpanded: true,
+          onChanged: (v) {
+            if (v != null) _updateSessionState(fatigue: v);
+          },
+          items: CumulativeFatigueClass.values
+              .map((f) => DropdownMenuItem(
+                    value: f,
+                    child: Text(f.name),
+                  ))
+              .toList(),
+        ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                _sessionState == null
+                    ? 'Session state: (no signal)'
+                    : 'Session state: ${_sessionState!.consecutiveDrivingDays}d '
+                        '· ${_sessionState!.cumulativeFatigue.name}',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+              ),
+            ),
+            TextButton(
+              onPressed: _sessionState == null
+                  ? null
+                  : () => setState(() => _sessionState = null),
+              child: const Text('Clear'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // Confidence dropdown + confirmation toggle.
+        const Text(
+            'Confidence (#30; cap-override-with-confirmation pattern)',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        DropdownButton<Confidence?>(
+          value: _confidence,
+          isExpanded: true,
+          onChanged: (v) {
+            setState(() {
+              _confidence = v;
+              // Driver-always-drives: clear confirmation when confidence
+              // changes away from .high so a stale confirm cannot
+              // silently re-attach to a future .high state.
+              if (v != Confidence.high) {
+                _isHighConfidenceConfirmed = false;
+              }
+            });
+          },
+          items: const <DropdownMenuItem<Confidence?>>[
+            DropdownMenuItem(
+              value: null,
+              child: Text('(no signal — no cap modification)'),
+            ),
+            DropdownMenuItem(
+              value: Confidence.low,
+              child: Text('low (auto-tighten cap)'),
+            ),
+            DropdownMenuItem(
+              value: Confidence.medium,
+              child: Text('medium (no cap modification)'),
+            ),
+            DropdownMenuItem(
+              value: Confidence.high,
+              child: Text('high (requires confirmation to loosen)'),
+            ),
+          ],
+        ),
+        if (_confidence == Confidence.high)
+          SwitchListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              'High-confidence confirmation',
+              style: TextStyle(fontSize: 12),
+            ),
+            subtitle: Text(
+              _isHighConfidenceConfirmed
+                  ? 'Driver has confirmed high-confidence; cap MAY loosen.'
+                  : 'Driver has NOT confirmed; treated as medium (no-op).',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+            ),
+            value: _isHighConfidenceConfirmed,
+            onChanged: (v) =>
+                setState(() => _isHighConfidenceConfirmed = v),
+          ),
+        const SizedBox(height: 4),
+        Text(
+          'All inputs are advisory; the package never auto-actuates the '
+          'vehicle (driver-always-drives invariant). Magnitudes are '
+          'design-default-hypotheses pending field validation '
+          '(KNOWN_LIMITATIONS.md DriverState-scaffolding section, 0.10.0).',
+          style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+        ),
+      ],
+    );
+  }
+
+  void _updateSessionState({
+    int? days,
+    CumulativeFatigueClass? fatigue,
+  }) {
+    setState(() {
+      if (days != null) _consecutiveDrivingDays = days;
+      if (fatigue != null) _cumulativeFatigue = fatigue;
+      _sessionState = SessionState(
+        consecutiveDrivingDays: _consecutiveDrivingDays,
+        cumulativeFatigue: _cumulativeFatigue,
+      );
+    });
+  }
+
+  // ===== Sub-bundle 3 — Glance budget + voice pace + alert expandable =====
+
+  Widget _glanceBudgetPanel() {
+    final consumed = _glanceBudget.consumed;
+    final remaining = _glanceBudget.remainingBudget;
+    final total = _glanceBudget.totalBudget;
+    final remainingRatio = total.inMicroseconds == 0
+        ? 0.0
+        : remaining.inMicroseconds / total.inMicroseconds;
+    // Compute effective voice pace at the current ratio per the
+    // budgetAwarePace profile (caution-add-only; pace ≤ 1.0×).
+    final pace = _voiceConfig.budgetAwarePace
+            ?.paceForRemainingRatio(remainingRatio) ??
+        1.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'NHTSA Phase 2 — 12-second total off-road glance budget per task. '
+          'Tap "Simulate glance" to record an 800ms visual glance event '
+          'against the budget; budget warning fires at 75% consumed; '
+          'exhausted fires at 100%. Voice-pace is dynamically interpolated '
+          'between minPace=0.7× and maxPace=1.0× based on remaining ratio.',
+          style: TextStyle(fontSize: 11),
+        ),
+        const SizedBox(height: 6),
+        _kv('Total budget',
+            '${(total.inMilliseconds / 1000).toStringAsFixed(1)} s'),
+        _kv('Consumed',
+            '${(consumed.inMilliseconds / 1000).toStringAsFixed(1)} s '
+                '($_glanceEventsRecorded events)'),
+        _kv('Remaining',
+            '${(remaining.inMilliseconds / 1000).toStringAsFixed(1)} s '
+                '(${(remainingRatio * 100).toStringAsFixed(0)}%)'),
+        _kv('Last event', _formatGlanceEvent(_lastGlanceEvent)),
+        _kv('Effective voice pace', '${pace.toStringAsFixed(2)}× baseline'),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            ElevatedButton(
+              onPressed: _simulateGlanceEvent,
+              child: const Text('Simulate glance (800 ms)'),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: _resetGlanceBudget,
+              child: const Text('Reset trip'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // AlertExplainerExpandableSheet — per-cohort default expansion.
+        AlertExplainerExpandableSheet(
+          condition: _condition,
+          profile: _profile,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Source: navigation_safety 0.9.0 GlanceBudgetTracker + '
+          'AlertExplainerExpandableSheet; voice_guidance 0.6.0 '
+          'BudgetAwarePaceProfile. All advisory; driver-always-drives.',
+          style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+        ),
+      ],
+    );
+  }
+
+  String _formatGlanceEvent(GlanceBudgetEvent? event) {
+    if (event == null) return '(no event yet)';
+    return switch (event) {
+      BudgetWarning(:final consumed, :final remaining) =>
+        'BudgetWarning · consumed=${consumed.inMilliseconds}ms · '
+            'remaining=${remaining.inMilliseconds}ms',
+      BudgetExhausted(:final consumed, :final overshoot) =>
+        'BudgetExhausted · consumed=${consumed.inMilliseconds}ms · '
+            'overshoot=${overshoot.inMilliseconds}ms',
+    };
+  }
+
+  void _simulateGlanceEvent() {
+    _glanceBudget.record(GlanceEvent(
+      timestamp: DateTime.now(),
+      duration: const Duration(milliseconds: 800),
+      modalClass: GlanceModalClass.visual,
+    ));
+    setState(() => _glanceEventsRecorded += 1);
+  }
+
+  void _resetGlanceBudget() {
+    _glanceBudget.reset(BudgetResetReason.tripStart);
+    setState(() {
+      _glanceEventsRecorded = 0;
+      _lastGlanceEvent = null;
+    });
+  }
+
+  // ===== Sub-bundle 4 — Render budget viewport panel =====
+
+  Widget _renderBudgetPanel() {
+    final perf = _perfBudget;
+    final data = _dataBudget;
+    final bloc = _viewportBloc;
+    if (perf == null || data == null || bloc == null) {
+      return const Text('(initializing render-budget trio…)');
+    }
+    final perfSnap = perf.budgetSnapshot;
+    final dataSnap = data.budgetSnapshot;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'PerformanceBudget per-frame budget = '
+          '${perf.config.frameBudget.inMicroseconds / 1000} ms '
+          '(per-cohort lenient-direction default). '
+          'DataBudget per-cycle budget = '
+          '${(data.config.budgetBytes / (1024 * 1024)).toStringAsFixed(1)} '
+          'MB (per-cohort tighter-direction default). '
+          'ViewportRenderBudgetBloc composes both into a RenderFidelity '
+          'recommendation; per-cohort floor prevents drop below cohort '
+          'minimum.',
+          style: const TextStyle(fontSize: 11),
+        ),
+        const SizedBox(height: 6),
+        _kv('Last frame total',
+            '${perfSnap.consumed.inMicroseconds} µs '
+                '($_framesRecorded recorded)'),
+        _kv('Frame remaining',
+            '${perfSnap.remaining.inMicroseconds} µs'),
+        _kv('Data consumed',
+            '${dataSnap.consumedBytes} B '
+                '($_fetchesRecorded fetches)'),
+        _kv('Data remaining', '${dataSnap.remainingBytes} B'),
+        _kv('Floor (per-cohort)', bloc.config.floor.name),
+        const SizedBox(height: 6),
+        BlocBuilder<ViewportRenderBudgetBloc, ViewportRenderState>(
+          bloc: bloc,
+          builder: (context, state) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _kv('RenderFidelity',
+                    _renderFidelityLabel(state.fidelity)),
+                _kv('Perf warning seen',
+                    state.performanceWarningSeen.toString()),
+                _kv('Perf exhausted seen',
+                    state.performanceExhaustedSeen.toString()),
+                _kv('Data warning seen',
+                    state.dataWarningSeen.toString()),
+                _kv('Data exhausted seen',
+                    state.dataExhaustedSeen.toString()),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            ElevatedButton(
+              onPressed: () => _simulateFrame(overBudget: false),
+              child: const Text('Frame (in budget)'),
+            ),
+            ElevatedButton(
+              onPressed: () => _simulateFrame(overBudget: true),
+              child: const Text('Frame (over budget)'),
+            ),
+            ElevatedButton(
+              onPressed: () => _simulateDataFetch(bytes: 524288),
+              child: const Text('Fetch 512 KB'),
+            ),
+            ElevatedButton(
+              onPressed: () => _simulateDataFetch(bytes: 4 * 1024 * 1024),
+              child: const Text('Fetch 4 MB (exhaust)'),
+            ),
+            TextButton(
+              onPressed: _resetViewportCycle,
+              child: const Text('Reset cycle'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Caution-add-direction-wins: any Exhausted → fidelity drops to '
+          'low (clamped by per-cohort floor); any Warning → medium; both '
+          'normal → high. Bloc never auto-raises fidelity post-drop — '
+          'caution-add-only invariant. Source: offline_tiles 0.5.0 / '
+          'snow_rendering 0.2.0 / map_viewport_bloc 0.4.0.',
+          style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+        ),
+      ],
+    );
+  }
+
+  String _renderFidelityLabel(RenderFidelity f) {
+    switch (f) {
+      case RenderFidelity.high:
+        return 'high (all layers full quality)';
+      case RenderFidelity.medium:
+        return 'medium (drop non-essential / soften)';
+      case RenderFidelity.low:
+        return 'low (safety-critical only)';
+    }
+  }
+
+  void _simulateFrame({required bool overBudget}) {
+    final perf = _perfBudget;
+    if (perf == null) return;
+    // Synthesize a FrameTiming with totalSpan-equivalent shape.
+    // FrameTiming exposes only build/raster timestamps; we use the
+    // tracker's record(timing) entry which reads timing.totalSpan.
+    // Build a synthetic FrameTiming that covers a target duration via
+    // timestamp deltas.
+    final budget = perf.config.frameBudget.inMicroseconds;
+    final totalMicros = overBudget ? budget * 2 : budget ~/ 2;
+    final timing = _syntheticFrameTiming(totalMicros);
+    perf.record(timing);
+    setState(() => _framesRecorded += 1);
+  }
+
+  void _simulateDataFetch({required int bytes}) {
+    final data = _dataBudget;
+    if (data == null) return;
+    data.record(snow_rendering.DataFetchEvent(
+      timestamp: DateTime.now(),
+      bytesFetched: bytes,
+    ));
+    setState(() => _fetchesRecorded += 1);
+  }
+
+  void _resetViewportCycle() {
+    final perf = _perfBudget;
+    final data = _dataBudget;
+    final bloc = _viewportBloc;
+    if (perf == null || data == null || bloc == null) return;
+    perf.reset(offline_tiles.BudgetResetReason.renderCycleStart);
+    data.reset(snow_rendering.BudgetResetReason.renderCycleStart);
+    bloc.add(const ViewportBudgetReset());
+    setState(() {
+      _framesRecorded = 0;
+      _fetchesRecorded = 0;
+    });
+  }
+}
+
+/// Build a synthetic FrameTiming covering a target totalSpan in
+/// microseconds. Used by sub-bundle 4 simulation buttons; the
+/// PerformanceBudget tracker reads `timing.totalSpan` per its public
+/// API contract. We construct a FrameTiming whose timestamps span the
+/// target duration so totalSpan equals the target.
+FrameTiming _syntheticFrameTiming(int totalMicros) {
+  // FrameTiming.totalSpan = rasterFinish - vsyncStart (per dart:ui).
+  // Equal-spacing midpoints satisfy the inner ordering invariants.
+  return FrameTiming(
+    vsyncStart: 0,
+    buildStart: 0,
+    buildFinish: totalMicros ~/ 2,
+    rasterStart: totalMicros ~/ 2,
+    rasterFinish: totalMicros,
+    rasterFinishWallTime: totalMicros,
+    frameNumber: 1,
+  );
 }
 
 class _FireAttempt {
@@ -1050,7 +1609,10 @@ class _Footer extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(
         'sngnav-app 0.0.5 — Slice 3 try-first. '
-        'Built on navigation_safety_core 0.9.0 (pub.dev). '
+        'Built on navigation_safety_core 0.10.0 + navigation_safety 0.9.0 '
+        '+ voice_guidance 0.6.0 + driving_conditions 0.5.0 '
+        '+ offline_tiles 0.5.0 + snow_rendering 0.2.0 '
+        '+ map_viewport_bloc 0.4.0 (pub.dev). '
         'Akita station chosen because HER\'s mother lives there (V21). '
         'GPS shows position with honest accuracy; mock dot is amber (dev). '
         'Routing via OSRM public demo (NOT snow-aware yet). '
@@ -1079,12 +1641,22 @@ class _ThresholdPreview extends StatelessWidget {
   final DriverProfile profile;
   final String? vehicleClassToken;
   final VehicleThresholdOverrides vehicleOverrides;
+  // Sub-bundle 2 — DriverState-axis scaffolding inputs (NSC 0.10.0).
+  // All four are advisory; null falls back to baseline+vehicle layer.
+  final CircadianPhase? circadianPhase;
+  final SessionState? sessionState;
+  final Confidence? confidence;
+  final bool isHighConfidenceConfirmed;
   final Widget Function(String, String) kvBuilder;
 
   const _ThresholdPreview({
     required this.profile,
     required this.vehicleClassToken,
     required this.vehicleOverrides,
+    required this.circadianPhase,
+    required this.sessionState,
+    required this.confidence,
+    required this.isHighConfidenceConfirmed,
     required this.kvBuilder,
   });
 
@@ -1096,11 +1668,30 @@ class _ThresholdPreview extends StatelessWidget {
       context: DrivingContext(vehicleClassToken: vehicleClassToken),
       vehicleOverrides: vehicleOverrides,
     );
+    // Sub-bundle 2: compose baseline + vehicle + driver-state via
+    // forDriverContext. DriverState.alert is the conservative default
+    // (no state-axis adjustment) when the integrator has no live-state
+    // signal; the per-input null-safety handling lives in the factory.
+    final withDriverState = NavigationSafetyConfig.forDriverContext(
+      DriverContext(profile: profile, state: DriverState.alert),
+      environmentalContext: DrivingContext(vehicleClassToken: vehicleClassToken),
+      vehicleOverrides: vehicleOverrides,
+      circadianPhase: circadianPhase,
+      sessionState: sessionState,
+      confidence: confidence,
+      isHighConfidenceConfirmed: isHighConfidenceConfirmed,
+    );
 
     final visibilityDelta =
         withVehicle.warningVisibilityMeters - baseline.warningVisibilityMeters;
     final temperatureDelta = withVehicle.warningTemperatureCelsius -
         baseline.warningTemperatureCelsius;
+    // Sub-bundle 2 driver-state row: delta vs baseline+vehicle.
+    final driverStateVisibilityDelta = withDriverState.warningVisibilityMeters -
+        withVehicle.warningVisibilityMeters;
+    final driverStateCapDelta =
+        (withDriverState.alertsPerMinuteCapOverride ?? 0) -
+            (withVehicle.alertsPerMinuteCapOverride ?? 0);
 
     String formatVisibility(int meters, int delta) {
       if (delta == 0) return '$meters m';
@@ -1129,6 +1720,13 @@ class _ThresholdPreview extends StatelessWidget {
           ),
         ),
         kvBuilder(
+          '+ driver-state warning visibility',
+          formatVisibility(
+            withDriverState.warningVisibilityMeters,
+            driverStateVisibilityDelta,
+          ),
+        ),
+        kvBuilder(
           'Baseline warning temperature',
           '${baseline.warningTemperatureCelsius} °C',
         ),
@@ -1139,12 +1737,21 @@ class _ThresholdPreview extends StatelessWidget {
             temperatureDelta,
           ),
         ),
+        kvBuilder(
+          '+ driver-state alerts/min cap',
+          withDriverState.alertsPerMinuteCapOverride == null
+              ? '(no override)'
+              : '${withDriverState.alertsPerMinuteCapOverride!.toStringAsFixed(1)} '
+                  '${driverStateCapDelta == 0 ? "" : "(${driverStateCapDelta > 0 ? "+" : ""}${driverStateCapDelta.toStringAsFixed(1)})"}',
+        ),
         const SizedBox(height: 4),
         Text(
-          'Source: navigation_safety_core 0.9.0 — '
-          'VehicleThresholdOverrides.withKeiCarDefault(). Kei-car deltas '
-          '(+50 m / +1 °C) are design-default-hypotheses pending '
-          'field-measurement validation per CHANGELOG.md 0.9.0 entry.',
+          'Source: navigation_safety_core 0.10.0 — '
+          'forDriverContext composes baseline + vehicle + circadian-phase '
+          '+ session-state + confidence (cap-override-with-confirmation '
+          'pattern). All deltas are caution-add-only per package '
+          'invariants. Magnitudes are design-default-hypotheses pending '
+          'field validation per KNOWN_LIMITATIONS.md.',
           style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
         ),
       ],
