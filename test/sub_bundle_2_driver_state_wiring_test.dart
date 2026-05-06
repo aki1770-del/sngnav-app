@@ -7,7 +7,6 @@
 // confirmation pattern. Tests verify behaviour at the API boundary
 // per AAA Article 17 (β); no driver-facing wording exercised.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navigation_safety_core/navigation_safety_core.dart';
 

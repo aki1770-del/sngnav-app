@@ -5,7 +5,6 @@
 // AAA Article 17 (β): tests verify behaviour at the integrator surface;
 // driver-facing wording is package-owned and not exercised here.
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navigation_safety/navigation_safety.dart';
 import 'package:voice_guidance/voice_guidance.dart';
