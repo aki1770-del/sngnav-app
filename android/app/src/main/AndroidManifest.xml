@@ -1,4 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Required so live weather/routing fetches work in RELEASE builds.
+         (debug/profile manifests declare INTERNET separately and merge it
+         into those variants; release uses only this main manifest.) -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Foreground-only location: shows HER live position dot on the snow map
+         while driving. NO ACCESS_BACKGROUND_LOCATION by design (the app is
+         foreground-only; background tracking would be a dignity over-reach). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="sngnav_app"
         android:name="${applicationName}"

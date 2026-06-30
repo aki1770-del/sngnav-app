@@ -1609,9 +1609,9 @@ class _Footer extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(
         'sngnav-app 0.0.5 — Slice 3 try-first. '
-        'Built on navigation_safety_core 0.10.0 + navigation_safety 0.9.0 '
-        '+ voice_guidance 0.6.0 + driving_conditions 0.5.0 '
-        '+ offline_tiles 0.5.0 + snow_rendering 0.2.0 '
+        'Built on navigation_safety_core 0.10.5 + navigation_safety 0.9.0 '
+        '+ voice_guidance 0.6.3 + driving_conditions 0.5.3 '
+        '+ offline_tiles 0.5.0 + snow_rendering 0.2.5 '
         '+ map_viewport_bloc 0.4.0 (pub.dev). '
         'Akita station chosen because HER\'s mother lives there (V21). '
         'GPS shows position with honest accuracy; mock dot is amber (dev). '
@@ -1746,7 +1746,7 @@ class _ThresholdPreview extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'Source: navigation_safety_core 0.10.0 — '
+          'Source: navigation_safety_core 0.10.5 — '
           'forDriverContext composes baseline + vehicle + circadian-phase '
           '+ session-state + confidence (cap-override-with-confirmation '
           'pattern). All deltas are caution-add-only per package '

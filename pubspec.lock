@@ -5,10 +5,10 @@ packages:
     dependency: "direct main"
     description:
       name: adaptive_reroute
-      sha256: b5ce939036c007d31f3f0c24709ef250064e0ce076d569b11d7818366232db60
+      sha256: c058b74bca62fabd5fb97b0b379f0f1997b10b783bd17bd385fc77079d39e7be
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.0"
+    version: "0.1.3"
   args:
     dependency: transitive
     description:
@@ -77,18 +77,26 @@ packages:
     dependency: "direct main"
     description:
       name: condition_aggregator
-      sha256: ef4d7cc6fbe1d1c94d36526442fb4b08a3e0ce6f6a66c6dc94647a87f8324b77
+      sha256: "99e205e92380cd6c72eb259caa9ea38a19f8f6c37d35dd69119ead8c5d019a82"
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.3"
+    version: "0.0.7"
+  condition_aggregator_digitraffic:
+    dependency: transitive
+    description:
+      name: condition_aggregator_digitraffic
+      sha256: a5a8d00e3e50a5fef6cdffeeef7bf1ceecfa359110845218605e98649a0247fa
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.0.6"
   condition_aggregator_jma:
     dependency: "direct main"
     description:
       name: condition_aggregator_jma
-      sha256: f173c5b8e3f6e6c65bf18ad7da39b3508180d040e4aff8e2613cb1204b443faa
+      sha256: b19ee8c50d501ca75dfc05870ca349f6c8862bcea35b09a9a5299b058ac63cfa
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.1"
+    version: "0.3.0"
   crypto:
     dependency: transitive
     description:
@@ -125,18 +133,18 @@ packages:
     dependency: "direct main"
     description:
       name: driving_conditions
-      sha256: f9f3dbc322088906b2c5b4dbf1139837345c7d5aee91bf4040d791266051d16b
+      sha256: c0dc8d62a9e695daa9dc33ee61f9cd0c6c3a0bf30609b797bb326b67a5dde85a
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.0"
+    version: "0.5.3"
   driving_weather:
     dependency: "direct main"
     description:
       name: driving_weather
-      sha256: "6b7d518f0d76ecf8a3c308700850572906123c74b63bbea7034702334f0809ba"
+      sha256: "14a150138caedd27faf419d1684d755114e679232c5a28c88a26128bcd19bdbd"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.0"
+    version: "0.4.3"
   equatable:
     dependency: transitive
     description:
@@ -181,10 +189,10 @@ packages:
     dependency: "direct main"
     description:
       name: fleet_hazard
-      sha256: "003bec938c8179a2fa6a5b00ca1f713134fbd2ae23839ada5861ec3e091f5267"
+      sha256: fca444f39b45c75cbe9696ce4a08756d8390533f8754f5cf4b9143e68cd70d25
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.0"
+    version: "0.4.1"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -460,10 +468,10 @@ packages:
     dependency: "direct main"
     description:
       name: navigation_safety_core
-      sha256: "7b78d2515306201853e203d5135aad7dbe95c7a1606b41af2c942f202e7843f7"
+      sha256: "172ba601f351d5598e1271206f2fffd13823e521087c56d671dd20f3687d1a85"
       url: "https://pub.dev"
     source: hosted
-    version: "0.10.0"
+    version: "0.10.5"
   nested:
     dependency: transitive
     description:
@@ -560,14 +568,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
-  petitparser:
-    dependency: transitive
-    description:
-      name: petitparser
-      sha256: "91bd59303e9f769f108f8df05e371341b15d59e995e6806aefab827b58336675"
-      url: "https://pub.dev"
-    source: hosted
-    version: "7.0.2"
   platform:
     dependency: transitive
     description:
@@ -620,18 +620,18 @@ packages:
     dependency: "direct main"
     description:
       name: route_condition_forecast
-      sha256: "7e2637afca1f7e1b1411f06f43749baf222dbbef3fd2d4e96f10557711e489de"
+      sha256: bc98a1f65856797a9e34adbdaa725f132ec6d3e544123c7d2a0666b4d4a12a17
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.0"
+    version: "0.1.3"
   routing_engine:
     dependency: "direct main"
     description:
       name: routing_engine
-      sha256: "665819f99f2277eec26f33469ccc1f95379f1dc4c356a6d4a0ea5f581270c597"
+      sha256: "6a8abe237d2df2d472030c58b9519bf645ea38b6265c371dcd45bf726a1a2822"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.0"
+    version: "0.4.2"
   sky_engine:
     dependency: transitive
     description: flutter
@@ -641,10 +641,10 @@ packages:
     dependency: "direct main"
     description:
       name: snow_rendering
-      sha256: d90034725f05fbcd20abbe59092593a21e0fa43d0409b7269bd19d4064a4ae8e
+      sha256: "22d534c31c2f25dc9864c59e61b43019299de80280977d01a4537d97988302b8"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.0"
+    version: "0.2.5"
   source_span:
     dependency: transitive
     description:
@@ -745,10 +745,10 @@ packages:
     dependency: "direct main"
     description:
       name: voice_guidance
-      sha256: df792b74c4361176ca29fb9607ed57430632fc1650c3165876ffcdcc09171aa0
+      sha256: "658e200180346ddf0aa39cf93b4f5bf3798c42641a06f41d0105e898a9c97552"
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.0"
+    version: "0.6.3"
   web:
     dependency: transitive
     description:
@@ -773,14 +773,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.0"
-  xml:
-    dependency: transitive
-    description:
-      name: xml
-      sha256: "971043b3a0d3da28727e40ed3e0b5d18b742fa5a68665cca88e74b7876d5e025"
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.6.1"
   yaml:
     dependency: transitive
     description:

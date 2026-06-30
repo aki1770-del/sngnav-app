@@ -50,6 +50,43 @@ class PositionUnavailable extends PositionFix {
   const PositionUnavailable(this.reason);
 }
 
+/// Finite-coordinate chokepoint guard.
+///
+/// HER-trace: a degraded / NaN / Inf GPS fix must NEVER become a
+/// confidently-wrong dot on the map. The accuracy field is the loom's
+/// honesty (see library doc); a non-finite coordinate is the loom lying.
+/// Worse: the app pins flutter_map 8.3.0, whose `Crs.checkLatLng` THROWS on
+/// a non-finite `LatLng` (`Exception('LatLng is not finite: ...')`,
+/// flutter_map issue #2178) — a single bad fix would crash HER entire map
+/// subtree. So this single ingest chokepoint converts any non-finite sample
+/// into the honest "position unavailable" state INSTEAD of a position.
+///
+/// This is the same #161 NaN-GPS class the sibling SNGNav repo guards at its
+/// LocationBloc chokepoint (fixed 2026-06-27). It drops NO valid coordinate
+/// and masks nothing: a real bad fix surfaces as honestly-unavailable, never
+/// as a wrong dot. Zero accuracy is suspicious but `isFinite`, so it is left
+/// to flow (the accuracy circle tells that truth) — only non-finite is
+/// guarded, matching the sibling pattern.
+PositionFix fixFromSample({
+  required double latitude,
+  required double longitude,
+  required double accuracyMeters,
+  required DateTime timestamp,
+}) {
+  if (!(latitude.isFinite && longitude.isFinite && accuracyMeters.isFinite)) {
+    return PositionUnavailable(
+      'Degraded GPS fix — non-finite coordinate '
+      '(lat=$latitude, lon=$longitude, acc=$accuracyMeters)',
+    );
+  }
+  return PositionAvailable(
+    latitude: latitude,
+    longitude: longitude,
+    accuracyMeters: accuracyMeters,
+    timestamp: timestamp,
+  );
+}
+
 /// Streams HER position with accuracy. Emits [PositionUnavailable] on
 /// permission denial, service-disabled, or stream error — never silently
 /// stalls on a stale fix.
@@ -88,7 +125,10 @@ Stream<PositionFix> herPositionStream() {
           distanceFilter: 5,
         ),
       ).listen(
-        (p) => controller.add(PositionAvailable(
+        // Finite-coordinate chokepoint: a degraded/NaN/Inf fix becomes an
+        // honest PositionUnavailable, never a confidently-wrong dot that
+        // would also crash flutter_map 8.3.0's checkLatLng. See fixFromSample.
+        (p) => controller.add(fixFromSample(
           latitude: p.latitude,
           longitude: p.longitude,
           accuracyMeters: p.accuracy,
