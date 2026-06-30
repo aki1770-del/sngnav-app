@@ -61,8 +61,17 @@ void main() {
       ));
       final zones = svc.currentZones(now: now);
       expect(zones, hasLength(1));
-      expect(zones.first.reports.map((r) => r.vehicleId), contains('V-new'));
-      expect(zones.first.reports.map((r) => r.vehicleId), isNot(contains('V-old')));
+      // fleet_hazard 0.5.0 anonymizes the aggregate: the retained observations
+      // no longer carry vehicleId (the D4 re-identification key was removed), so
+      // verify the stale report aged out via the non-re-identifying surface —
+      // exactly one observation remains, contributed by exactly one vehicle, and
+      // it is the FRESH one (V-new's timestamp), not the stale V-old.
+      expect(zones.first.reports, hasLength(1));
+      expect(zones.first.vehicleCount, 1);
+      expect(
+        zones.first.reports.single.timestamp,
+        now.subtract(const Duration(minutes: 1)),
+      );
     });
 
     test('non-hazard reports do not generate zones', () {
