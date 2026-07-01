@@ -17,6 +17,16 @@ import 'package:noaa_nws_adapter/noaa_nws_adapter.dart'
         WinterAlert;
 import 'package:sngnav_app/services/advisory_service.dart';
 import 'package:sngnav_app/services/noaa_advisory_provider.dart';
+import 'package:sngnav_app/services/provider_coverage.dart';
+
+/// An all-covering predicate — these fan-out/merge/error-isolation tests
+/// are ABOUT the aggregation behaviour, independent of region-gating, so
+/// every provider covers every point here. Region-gating has its own suite
+/// in advisory_coverage_test.dart.
+bool _anywhere(double lat, double lon) => true;
+
+CoveredProvider _cover(AdvisoryProvider p) =>
+    CoveredProvider(provider: p, covers: _anywhere);
 
 class _FakeProvider implements AdvisoryProvider {
   _FakeProvider({required this.advisories, required this.src});
@@ -76,7 +86,7 @@ void main() {
         src: AdvisorySource.metNorway,
         advisories: [adv('Blizzard Warning', AdvisorySeverity.extreme)],
       );
-      final svc = AdvisoryService(providers: [fake1, fake2]);
+      final svc = AdvisoryService(providers: [_cover(fake1), _cover(fake2)]);
       await svc.init();
       final result = await svc.fetchAtPoint(latitude: 47.9, longitude: -97.0);
       expect(result.advisories, hasLength(2));
@@ -95,7 +105,7 @@ void main() {
         src: AdvisorySource.metNorway,
         advisories: const [],
       )..fetchShouldThrow = true;
-      final svc = AdvisoryService(providers: [ok, bad]);
+      final svc = AdvisoryService(providers: [_cover(ok), _cover(bad)]);
       await svc.init();
       final result = await svc.fetchAtPoint(latitude: 47.9, longitude: -97.0);
       expect(result.advisories, hasLength(1));
@@ -108,10 +118,10 @@ void main() {
 
     test('fetchAtPoint before init throws StateError', () async {
       final svc = AdvisoryService(providers: [
-        _FakeProvider(
+        _cover(_FakeProvider(
           src: AdvisorySource.nwsUnitedStates,
           advisories: const [],
-        ),
+        )),
       ]);
       expect(
         () => svc.fetchAtPoint(latitude: 0.0, longitude: 0.0),

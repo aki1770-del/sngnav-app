@@ -116,22 +116,34 @@ class AppL10n {
     return reason;
   }
 
-  // ===== Data-flow disclosure (task 3) =====
+  // ===== Data-flow disclosure (task 3) — REGION-ACCURATE =====
   //
-  // Honesty-traced to real code: coordinates are sent to the NWS + JMA
-  // publishers only when the caller's position moves >= ~0.01 deg (~1 km)
-  // (see _maybeRefreshAdvisoriesForFix in main.dart); they are held only in
-  // memory (never persisted) and go ONLY to the public weather publishers,
-  // never to any server this app runs (there is none). Foreground-only per
-  // AndroidManifest.xml (no ACCESS_BACKGROUND_LOCATION).
+  // Honesty-traced to real code: coordinates are sent only when the caller's
+  // position moves >= ~0.01 deg (~1 km) (see _maybeRefreshAdvisoriesForFix in
+  // main.dart), and are REGION-GATED — a coordinate goes ONLY to the publisher
+  // whose coverage includes it (AdvisoryService.fetchAtPoint +
+  // services/provider_coverage.dart: a Japan point → 気象庁/JMA only, NWS is
+  // never contacted; a US point → NWS only). They are held only in memory
+  // (never persisted) and never sent to any server this app runs (there is
+  // none). Foreground-only per AndroidManifest.xml (no ACCESS_BACKGROUND_LOCATION).
+  //
+  // The JA copy names 気象庁/JMA (the only service a Japanese-point driver's
+  // coordinate reaches) and states that out-of-region services are not
+  // contacted — it does NOT claim her coordinate goes to the NWS, because the
+  // code will not call it. The EN copy is truthful for both regions (JMA in
+  // Japan; NWS in the US) and states the same not-contacted-out-of-region fact.
 
   String get locationDisclosure => _ja
-      ? '現在地を共有すると、周辺の気象情報を取得するため、走行約1kmごとに現在の座標が'
-          '公的な気象機関（気象庁・NWS）へ送信されます。共有は任意で、アプリの使用中のみ'
-          '行われ、端末に保存されず、本アプリ独自のサーバーへ送信されることはありません。'
-      : 'When you share your location, your coordinates are sent to public '
-          'weather services (JMA / NWS) about once per kilometre of travel, '
-          'to fetch nearby advisories. It is opt-in, used only while the app '
+      ? '現在地を共有すると、周辺の気象情報を取得するため、走行約1kmごとに現在の座標が、'
+          'その地域を管轄する公的な気象機関へ送信されます（日本国内では気象庁）。'
+          '管轄外の気象機関へ座標が送信されることはありません。共有は任意で、'
+          'アプリの使用中のみ行われ、端末に保存されず、'
+          '本アプリ独自のサーバーへ送信されることはありません。'
+      : 'When you share your location, your coordinates are sent — about once '
+          'per kilometre of travel — only to the public weather service that '
+          'covers your area (the JMA in Japan; the NWS in the United States), '
+          'to fetch nearby advisories. A service that does not cover your '
+          'location is never contacted. It is opt-in, used only while the app '
           'is open, is not stored on your device, and is never sent to this '
           "app's own servers.";
 

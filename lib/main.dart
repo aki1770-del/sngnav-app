@@ -64,6 +64,7 @@ import 'services/drive_hud_controller.dart';
 import 'services/drive_hud_localizer.dart';
 import 'services/jma_advisory_provider_factory.dart';
 import 'services/noaa_advisory_provider.dart';
+import 'services/provider_coverage.dart';
 import 'widgets/advisory_cards.dart';
 
 /// Shared User-Agent for publisher-facing HTTP — concrete contact
@@ -356,9 +357,19 @@ class _HomePageState extends State<HomePage> {
     // Construct per the active default profile (ageingRural per V21).
     _rebuildSubBundle4For(_profile);
     _nwsClient = NoaaNwsClient(userAgent: kSngnavAppUserAgent);
+    // Region-gate each provider to the geography its publisher actually
+    // covers, so HER Akita point goes ONLY to JMA and the US NWS endpoint
+    // is never called (no HTTP-400 error card, and no coordinate leaked to
+    // a service that cannot help her). See services/provider_coverage.dart.
     _advisoryService = AdvisoryService(providers: [
-      NoaaAdvisoryProvider(client: _nwsClient),
-      buildJmaAdvisoryProvider(userAgent: kSngnavAppUserAgent),
+      CoveredProvider(
+        provider: NoaaAdvisoryProvider(client: _nwsClient),
+        covers: nwsCoverage,
+      ),
+      CoveredProvider(
+        provider: buildJmaAdvisoryProvider(userAgent: kSngnavAppUserAgent),
+        covers: jmaCoverage,
+      ),
     ]);
     _advisoryInitFuture = _advisoryService.init();
     _refreshJma();

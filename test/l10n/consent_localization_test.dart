@@ -114,6 +114,32 @@ void main() {
     });
   });
 
+  group('Data-flow disclosure is REGION-ACCURATE (region-gate fix)', () {
+    const ja = AppL10n(Locale('ja'));
+    const en = AppL10n(Locale('en'));
+
+    test('JA names 気象庁 and does NOT claim HER coords go to the NWS', () {
+      final d = ja.locationDisclosure;
+      // The service a Japanese-point coordinate actually reaches.
+      expect(d, contains('気象庁'));
+      // It must NOT tell a Japanese driver her coordinate goes to the NWS —
+      // the code region-gates so NWS is never called for a Japan point.
+      expect(d, isNot(contains('NWS')));
+      // It states out-of-region services are not contacted.
+      expect(d, contains('管轄外'));
+      expect(d, contains('送信されることはありません'));
+    });
+
+    test('EN is truthful for both regions and states region-gating', () {
+      final d = en.locationDisclosure;
+      expect(d, contains('JMA'));
+      expect(d, contains('NWS'));
+      // States the load-bearing gating fact (out-of-region → not contacted).
+      expect(d.toLowerCase(), contains('never contacted'));
+      expect(d.toLowerCase(), contains('opt-in'));
+    });
+  });
+
   group('Advisory ordering + NWS de-emphasis (task 4)', () {
     testWidgets('ja surface leads with JMA and de-emphasizes NWS',
         (tester) async {
