@@ -18,6 +18,9 @@ jobs:
           channel: stable
           flutter-version: '3.41.4'
 
+      - name: Assert Android manifest perms (WS1 dead-HER-dot blocker guard)
+        run: bash tool/assert_manifest_perms.sh
+
       - name: Resolve dependencies
         run: flutter pub get
 
@@ -26,3 +29,31 @@ jobs:
 
       - name: Test
         run: flutter test
+
+  # Proves the APK actually builds on an SDK-bearing runner (the local dev env
+  # has no Android SDK, so this build is verified in CI, not on the author's
+  # machine — honest per OPS-066). The perm-assert also gates here so a manifest
+  # that lost the WS1 perms fails BEFORE a dead APK is ever produced.
+  android-build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.41.4'
+
+      - name: Assert Android manifest perms (WS1 blocker guard)
+        run: bash tool/assert_manifest_perms.sh
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Build debug APK
+        run: flutter build apk --debug

@@ -6,7 +6,7 @@ Alpha-stage navigation companion for snow-zone commuting in Hokkaido / Tohoku, J
 
 The first edge-developer use of the [navigation_safety_core](https://pub.dev/packages/navigation_safety_core) package family from pub.dev. Built by the same team that ships those packages — eating our own dog food while learning what fails.
 
-Slice 0 (this commit) demonstrates:
+Alongside the safety stack above, the app also includes the original integrator demos:
 
 - A `DriverProfile` selector wired to `AlertDensityThrottle` from `navigation_safety_core 0.4.1`
 - The throttle's per-profile cap visualized — fire 8 sequential alerts, see which fire and which throttle for the selected profile
@@ -19,7 +19,9 @@ The default profile is `ageingRural`. The default station is Akita. Both choices
 
 **This is alpha software in active development.** It is not for production navigation. The driver remains responsible for all driving decisions. The app surfaces information; it does not control the vehicle.
 
-There is no map. No routing. No navigation in the GPS sense. No alerts on a real device. No telemetry. No consent flow. No real-user beta. Slice 0 is foundation — these arrive in subsequent slices.
+It now carries a map (network OpenStreetMap tiles), GPS self-positioning (with a finite-position guard and honest dead-reckoning → `lost` degradation — never a confidently-wrong dot), routing, a live compound-failure drive-caution HUD (走行を継続 / 停車の検討), audio + haptic alert delivery (code-complete; **not yet verified on a real device** — see `docs/DEVICE_VERIFICATION.md`), a deny-by-default Japanese consent gate with a data-flow disclosure, and JMA/NWS advisory cards (JMA-first for a Japanese driver). No telemetry. No real-user beta. No vehicle control.
+
+**Honest current limitations:** on-device HEAR / FEEL / SEE is **deferred** — no Android device has verified the audio / haptic / GPS-dot yet (the suite is green + rendered on desktop, which is code-complete, *not* reach). The map basemap is network tiles, so it **blanks when the network is lost** (an offline basemap is escalated, not yet wired — the exact compound-failure case the alert channels are chosen to survive). App chrome outside the consent + advisory surfaces is still English.
 
 The aspirational target is the November 2026 winter driving season, when real beta-testers in HER's cohort might use a working version on real snow roads. Whether that target is met depends on what fails between now and then.
 
