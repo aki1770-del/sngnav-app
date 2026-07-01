@@ -43,6 +43,12 @@ dependencies:
     sdk: flutter
   compound_failure_advisor: ^0.1.1
   localization_fallback: ^0.1.1
+  # Offline-basemap PoC wiring (Chair Option A, 2026-07-01): read the bundled
+  # placeholder MBTiles archive + write it to a temp file for sqlite3 to open.
+  # Both are already transitively present via offline_tiles; declared directly
+  # so app code may import them (depend_on_referenced_packages).
+  mbtiles: ^0.5.0
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
@@ -51,3 +57,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    # HONEST PLACEHOLDER offline basemap (wiring PoC) — grid+text tiles, NOT
+    # real Akita cartography. Regenerate via tool/make_placeholder_mbtiles.py.
+    # Real Akita/Tohoku raster tiles are EIE's Geofabrik ODbL-render production.
+    - assets/tiles/akita_offline_placeholder.mbtiles

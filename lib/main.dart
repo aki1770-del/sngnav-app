@@ -53,6 +53,7 @@ import 'actuators/alert_actuators.dart';
 import 'actuators/alert_announcer.dart';
 import 'actuators/mobile_alert_actuators.dart';
 import 'akita_map.dart';
+import 'services/offline_basemap.dart';
 import 'l10n/app_localizations.dart';
 import 'corridor_row.dart';
 import 'her_position.dart';
@@ -239,6 +240,15 @@ class _HomePageState extends State<HomePage> {
   PositionFix? _herFix;
   StreamSubscription<PositionFix>? _herSub;
 
+  // Offline-basemap PoC (Chair Option A, 2026-07-01). Loaded once at init from
+  // the bundled PLACEHOLDER MBTiles asset, then handed to AkitaMap so the Akita
+  // corridor renders OFFLINE-FIRST (network only for uncovered tiles) — the
+  // basemap no longer goes fully blank when the network is gone. Null until
+  // loaded / on any failure ⇒ plain network basemap (honest degradation). The
+  // bundled tiles are HONEST PLACEHOLDERS, not real cartography; real Akita
+  // raster coverage is EIE's production.
+  offline_tiles.OfflineTileProvider? _offlineBaseProvider;
+
   // Slice 2d — dev-only mock position. Amber dot, never blue, so
   // mock cannot be visually mistaken for real GPS.
   bool _isMockPosition = false;
@@ -310,6 +320,10 @@ class _HomePageState extends State<HomePage> {
     _actuators = widget.actuators ?? defaultAlertActuators();
     _announcer = AlertAnnouncer(actuators: _actuators);
     unawaited(_actuators.keepAwake(true));
+    // Offline-basemap PoC — load the bundled placeholder MBTiles archive and
+    // hand the resulting OfflineTileProvider to AkitaMap. Async + fail-soft:
+    // a null result leaves the basemap on the plain network layer.
+    unawaited(_loadOfflineBasemap());
     // WS6 — inject the app's SINGLE actuator + announcer into the drive brain
     // (it never resolves its own — one actuator, one wakelock owner). A rising
     // caution rung fires _announcer.announce (audio + haptic). Listen so the
@@ -378,11 +392,25 @@ class _HomePageState extends State<HomePage> {
     _fetchesRecorded = 0;
   }
 
+  Future<void> _loadOfflineBasemap() async {
+    final provider = await loadAkitaOfflineTileProvider();
+    if (!mounted) {
+      // Widget gone before load finished — release the archive we opened.
+      await provider?.dispose();
+      return;
+    }
+    if (provider != null) {
+      setState(() => _offlineBaseProvider = provider);
+    }
+  }
+
   @override
   void dispose() {
     // WS5 — release the screen wakelock when this surface leaves (foreground-
     // only contract). No-op on desktop/test.
     unawaited(_actuators.keepAwake(false));
+    // Close the offline MBTiles archive (sqlite3) + its network provider.
+    unawaited(_offlineBaseProvider?.dispose());
     _driveHud.removeListener(_onDriveHudChanged);
     _driveHud.dispose();
     _herSub?.cancel();
@@ -1124,6 +1152,7 @@ class _HomePageState extends State<HomePage> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AkitaMap(
+                    baseTileProvider: _offlineBaseProvider,
                     origin: _origin,
                     destination: _destination,
                     routePoints: switch (_routeResult) {

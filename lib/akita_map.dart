@@ -28,6 +28,7 @@ class AkitaMap extends StatelessWidget {
     this.herPosition,
     this.herAccuracyMeters,
     this.isHerPositionMock = false,
+    this.baseTileProvider,
   });
 
   final double height;
@@ -38,6 +39,13 @@ class AkitaMap extends StatelessWidget {
   final LatLng? herPosition;
   final double? herAccuracyMeters;
   final bool isHerPositionMock;
+
+  /// Optional offline-first basemap provider (offline_tiles'
+  /// OfflineTileProvider). When supplied, the base TileLayer serves tiles from
+  /// the bundled MBTiles archive first and falls back to the network for
+  /// uncovered tiles. When null, the basemap is plain network (prior
+  /// behaviour). See KNOWN_LIMITATION on the TileLayer below.
+  final TileProvider? baseTileProvider;
 
   @override
   Widget build(BuildContext context) {
@@ -54,19 +62,24 @@ class AkitaMap extends StatelessWidget {
             onTap: onTap == null ? null : (_, latlng) => onTap!(latlng),
           ),
           children: [
-            // KNOWN_LIMITATION (WS5 / BOD-17 ruling 2): the basemap is a
-            // NETWORK tile layer. In HER worst-case — unexpected snow with
-            // Maps AND GPS down and no cell signal — these tiles will not
-            // load, so the basemap goes blank. An OFFLINE basemap (bundled /
-            // pre-cached tiles via the offline_tiles catalog package) is the
-            // right fix but is ESCALATED (deferred) per BOD-17 — a tileset
-            // provenance/licensing decision (OSM tile-usage policy + ODbL)
-            // precedes any wiring, so it is deliberately NOT wired in this
-            // arc. The alert channels WS5 adds
-            // (audio + haptic) are chosen precisely because they do NOT
-            // depend on the basemap rendering — the hazard still reaches her
-            // when the map is blank.
+            // KNOWN_LIMITATION (WS5 / BOD-17 ruling 2 → offline PoC 2026-07-01):
+            // the basemap is a NETWORK tile layer. In HER worst-case —
+            // unexpected snow with Maps AND GPS down and no cell signal —
+            // network tiles will not load, so the basemap goes blank. The
+            // OFFLINE basemap fix (bundled MBTiles via the offline_tiles
+            // OfflineTileProvider) is now WIRED as a proof-of-concept: when
+            // [baseTileProvider] is supplied, the Akita corridor renders from a
+            // bundled archive OFFLINE-FIRST, network only for uncovered tiles.
+            // HONEST BOUND: the bundled tiles are PLACEHOLDERS (grid + text,
+            // NOT real Akita cartography) — this PoC proves the WIRING
+            // mechanism (schema + provider consumption + non-blank offline
+            // render). REAL Akita/Tohoku raster coverage is EIE's Geofabrik
+            // ODbL-render production. The WS5 alert channels (audio + haptic)
+            // remain chosen precisely because they do NOT depend on the basemap
+            // rendering — the hazard still reaches her even when the map is
+            // blank.
             TileLayer(
+              tileProvider: baseTileProvider,
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'dev.aki1770del.sngnav_app',
               maxZoom: 19,
