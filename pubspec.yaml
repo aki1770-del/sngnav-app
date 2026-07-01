@@ -32,9 +32,17 @@ dependencies:
   flutter_bloc: ^9.0.0
   latlong2: ^0.9.1
   http: ^1.2.0
-  intl: ^0.19.0
+  intl: ^0.20.2
   geolocator: ^13.0.0
   cupertino_icons: ^1.0.8
+  flutter_tts: ^4.2.5
+  vibration: ^3.2.0
+  wakelock_plus: ^1.6.1
+  navigation_safety_enums: ^0.1.4
+  flutter_localizations:
+    sdk: flutter
+  compound_failure_advisor: ^0.1.1
+  localization_fallback: ^0.1.1
 
 dev_dependencies:
   flutter_test:

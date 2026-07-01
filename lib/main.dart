@@ -12,10 +12,13 @@
 /// The app surfaces information; it does not control the vehicle.
 library;
 
+import 'package:compound_failure_advisor/compound_failure_advisor.dart'
+    show AdvisoryLevel, DriveAction;
 import 'package:condition_aggregator/condition_aggregator.dart'
-    show AdvisoryAggregateResult;
+    show AdvisoryAggregateResult, AdvisorySeverity;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:map_viewport_bloc/map_viewport_bloc.dart'
     show
@@ -46,12 +49,18 @@ import 'dart:ui' show FrameTiming;
 
 import 'package:latlong2/latlong.dart';
 
+import 'actuators/alert_actuators.dart';
+import 'actuators/alert_announcer.dart';
+import 'actuators/mobile_alert_actuators.dart';
 import 'akita_map.dart';
+import 'l10n/app_localizations.dart';
 import 'corridor_row.dart';
 import 'her_position.dart';
 import 'jma_fetch.dart';
 import 'route_fetch.dart';
 import 'services/advisory_service.dart';
+import 'services/drive_hud_controller.dart';
+import 'services/drive_hud_localizer.dart';
 import 'services/jma_advisory_provider_factory.dart';
 import 'services/noaa_advisory_provider.dart';
 import 'widgets/advisory_cards.dart';
@@ -67,24 +76,75 @@ void main() {
   runApp(const SngnavApp());
 }
 
+/// WS5 — app-level severity for a mocked road-surface condition, used to gate
+/// the audio+haptic announcement. ice / wet-ice (アイスバーン — the most
+/// slippery, HER's whiteout worst-case) are `critical`; snow / slush / wet /
+/// loose-gravel are `warning`; dry / unknown are `info` (announced on neither
+/// channel, matching the voice gate). Top-level + public so the WS5 tests can
+/// assert the mapping directly.
+AlertSeverity severityForCondition(RoadSurfaceCondition condition) {
+  switch (condition) {
+    case RoadSurfaceCondition.ice:
+    case RoadSurfaceCondition.wetIce:
+      return AlertSeverity.critical;
+    case RoadSurfaceCondition.snow:
+    case RoadSurfaceCondition.slush:
+    case RoadSurfaceCondition.wet:
+    case RoadSurfaceCondition.looseGravel:
+      return AlertSeverity.warning;
+    case RoadSurfaceCondition.unknown:
+    case RoadSurfaceCondition.dry:
+      return AlertSeverity.info;
+  }
+}
+
 class SngnavApp extends StatelessWidget {
-  const SngnavApp({super.key});
+  /// [actuators] is injectable so tests (and future device harnesses) can
+  /// supply a fake/real actuator layer; production leaves it null and the app
+  /// picks [defaultAlertActuators] (mobile -> real, everywhere else -> no-op).
+  ///
+  /// [locale] overrides the device locale (null = follow the device). It is a
+  /// testability + future device-harness hook: the WS7 tests pump the consent
+  /// gate under `Locale('ja')` to prove HER surface renders in Japanese.
+  const SngnavApp({super.key, this.actuators, this.locale});
+
+  final AlertActuators? actuators;
+  final Locale? locale;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'sngnav-app (alpha)',
+      // WS7 — force locale when supplied (tests / device harness); otherwise
+      // follow the device. supportedLocales lists ja FIRST so a device set to
+      // neither ja nor en falls back to HER tongue, not English.
+      locale: locale,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
         useMaterial3: true,
       ),
-      home: const HomePage(),
+      // HER reads Japanese. The Global*Localizations delegates localize the
+      // Material/Cupertino/Widgets chrome (date pickers, tooltips, semantics)
+      // for ja + en; AppL10n (WS7) localizes the app's own dignity-bearing
+      // consent / status / disclosure strings. Catalog driver-facing prose
+      // (AlertExplainer / glossary / DriveHudLocalizer) localizes itself.
+      localizationsDelegates: const [
+        AppL10n.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('ja'), Locale('en')],
+      home: HomePage(actuators: actuators),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, this.actuators});
+
+  /// Injectable actuator layer (null -> [defaultAlertActuators]).
+  final AlertActuators? actuators;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -111,6 +171,37 @@ class _HomePageState extends State<HomePage> {
   // no-op fallback when no override is registered.
   final VehicleThresholdOverrides _vehicleOverrides =
       VehicleThresholdOverrides.withKeiCarDefault();
+
+  // WS5 — the actuator layer that makes a hazard alert REACH HER (audio +
+  // haptic) and holds the screen awake. On desktop/test this is a no-op, so
+  // the render-SEE ceiling stays intact; on android/ios it drives the real
+  // plugins. Until WS5 the app never spoke: voice_guidance reached her as
+  // silence. _announcer enforces the OPS-059 floor (audio AND haptic on the
+  // same severity gate).
+  late final AlertActuators _actuators;
+  late final AlertAnnouncer _announcer;
+
+  // WS6 — the live in-drive compound-failure caution brain. It is fed HER real
+  // position samples (from the GPS listener below), the mocked visibility band
+  // (no real visibility sensor yet — honestly labeled in the panel), and the
+  // REAL area advisory the app already fetched; it raises an advisory-only
+  // caution rung and — the MOMENT the rung RISES — auto-announces on the SAME
+  // single _actuators / _announcer as WS5 (injected, so there is exactly ONE
+  // actuator + ONE wakelock owner for the whole app). Rendered below in
+  // Japanese for HER, so it is on-screen (render-SEE on desktop) AND reaches
+  // her eyes-off on a phone. On-device HEAR/FEEL is DEFERRED (OPS-066).
+  late final DriveHudController _driveHud;
+  static const DriveHudLocalizer _driveHudText = DriveHudLocalizer();
+  // Mocked visibility band for the in-drive demo. Metres, or null = "no
+  // reading" (a first-class unknown the advisor honours). Defaults to a clear
+  // demo value so merely sharing location does not auto-announce; HER real
+  // whiteout is what the degraded bands model.
+  double? _mockVisibilityMeters = 1500;
+  // Simulated GPS-blackout clock: the timestamp of the last fed trusted fix,
+  // advanced by _blackoutSeconds each "simulate blackout" press so the honest
+  // dot can degrade trusted → dead-reckoning → lost off a device.
+  DateTime? _driveHudBaseTime;
+  int _blackoutSeconds = 0;
 
   // Throttle behavior trace.
   final List<_FireAttempt> _attempts = [];
@@ -208,6 +299,28 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    // WS5 — construct the actuator layer + announcer. Hold the screen awake
+    // while this navigation surface is active so a driver glancing at a live
+    // hazard never finds a dark screen. Foreground-only: released in dispose;
+    // NO background wakelock. (Product tension noted in AndroidManifest.xml:
+    // a true multi-hour screen-off drive would need a foreground service, and
+    // FOREGROUND_SERVICE_LOCATION is declared for a user-visible ongoing-drive
+    // notification — never silent background location tracking, which we
+    // refuse for dignity, hence NO ACCESS_BACKGROUND_LOCATION.)
+    _actuators = widget.actuators ?? defaultAlertActuators();
+    _announcer = AlertAnnouncer(actuators: _actuators);
+    unawaited(_actuators.keepAwake(true));
+    // WS6 — inject the app's SINGLE actuator + announcer into the drive brain
+    // (it never resolves its own — one actuator, one wakelock owner). A rising
+    // caution rung fires _announcer.announce (audio + haptic). Listen so the
+    // on-screen WS6 panel repaints when the estimate / caution changes.
+    _driveHud = DriveHudController(
+      actuators: _actuators,
+      announcer: _announcer,
+      text: _driveHudText,
+      localeTag: 'ja',
+    );
+    _driveHud.addListener(_onDriveHudChanged);
     _telemetry = LoomFitTelemetry();
     _telemetrySub = _telemetry.records.listen((record) {
       if (!mounted) return;
@@ -267,6 +380,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    // WS5 — release the screen wakelock when this surface leaves (foreground-
+    // only contract). No-op on desktop/test.
+    unawaited(_actuators.keepAwake(false));
+    _driveHud.removeListener(_onDriveHudChanged);
+    _driveHud.dispose();
     _herSub?.cancel();
     _telemetrySub?.cancel();
     _telemetry.dispose();
@@ -289,6 +407,7 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
       setState(() => _herFix = fix);
       _maybeRefreshAdvisoriesForFix(fix);
+      _feedDriveHud(fix);
     });
   }
 
@@ -306,6 +425,256 @@ class _HomePageState extends State<HomePage> {
       _herFix = mockFix;
     });
     _maybeRefreshAdvisoriesForFix(mockFix);
+    _feedDriveHud(mockFix);
+  }
+
+  // ===== WS6 — feed the live drive brain + the on-screen caution panel =====
+
+  void _onDriveHudChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  /// Map the app's real aggregated advisory result to the advisor's mirror
+  /// [AdvisoryLevel] — the single MOST-severe active advisory in force, or
+  /// `null` when there is none (or only an `unknown`-severity one). The advisor
+  /// does NOT aggregate; it consumes the one severity the integrator selects.
+  AdvisoryLevel? _topAdvisoryLevel(AdvisoryAggregateResult? result) {
+    if (result == null || result.advisories.isEmpty) return null;
+    var top = AdvisorySeverity.unknown;
+    for (final a in result.advisories) {
+      if (a.severity.index > top.index) top = a.severity;
+    }
+    return switch (top) {
+      AdvisorySeverity.unknown => null,
+      AdvisorySeverity.minor => AdvisoryLevel.minor,
+      AdvisorySeverity.moderate => AdvisoryLevel.moderate,
+      AdvisorySeverity.severe => AdvisoryLevel.severe,
+      AdvisorySeverity.extreme => AdvisoryLevel.extreme,
+    };
+  }
+
+  /// Push the app's live environment (real advisory + mocked visibility; speed
+  /// is unknown — the fix carries none) onto the drive brain, then feed the
+  /// position sample. [DriveHudController.onPositionFix] recomputes the caution
+  /// and, if the rung RISES, auto-announces on the single _announcer.
+  void _feedDriveHud(PositionFix fix) {
+    // Set the environment fields directly (no recompute yet), so onPositionFix
+    // does the single recompute+announce with the current environment.
+    _driveHud.visibilityMeters = _mockVisibilityMeters;
+    _driveHud.visibilityAgeSeconds = _mockVisibilityMeters == null ? null : 0;
+    _driveHud.advisorySeverity = _topAdvisoryLevel(_advisoryResult);
+    _driveHud.speedMetersPerSecond = null;
+    // A fresh trusted fix resets the blackout clock; a PositionUnavailable
+    // (denied / revoked / error / non-finite) degrades honestly toward lost.
+    if (fix is PositionAvailable) {
+      _driveHudBaseTime = fix.timestamp;
+      _blackoutSeconds = 0;
+    }
+    _driveHud.onPositionFix(fix);
+  }
+
+  /// Recompute the caution when the mocked visibility band changes (no new
+  /// position). [DriveHudController.updateEnvironment] recomputes + re-announces
+  /// on a rung rise if an estimate already exists.
+  void _onVisibilityChanged(double? meters) {
+    setState(() => _mockVisibilityMeters = meters);
+    _driveHud.updateEnvironment(
+      visibilityMeters: _mockVisibilityMeters,
+      visibilityAgeSeconds: _mockVisibilityMeters == null ? null : 0,
+      advisorySeverity: _topAdvisoryLevel(_advisoryResult),
+      speedMetersPerSecond: null,
+    );
+  }
+
+  /// Simulate +60 s of GPS blackout: advance the honest position with [poll] so
+  /// the dot degrades trusted → dead-reckoning → lost off a device (defaults:
+  /// lost past 120 s or a 500 m radius). Combined with a low-visibility band,
+  /// this is the compound failure that raises the caution to its ceiling and
+  /// auto-announces. Enabled only once a trusted baseline fix exists.
+  void _simulateGpsBlackout() {
+    final base = _driveHudBaseTime;
+    if (base == null) return;
+    _blackoutSeconds += 60;
+    _driveHud.poll(now: base.add(Duration(seconds: _blackoutSeconds)));
+  }
+
+  // Visibility bands for the mocked in-drive control. metres, or null =
+  // "no reading" (a first-class unknown).
+  static const List<(String, double?)> _visibilityBands = [
+    ('クリア ~1.5 km（demo default）', 1500),
+    ('視界低下 ~700 m', 700),
+    ('視界不良 ~300 m', 300),
+    ('ホワイトアウト ~80 m', 80),
+    ('測定なし（不明）', null),
+  ];
+
+  Widget _driveHudPanel() {
+    final estimate = _driveHud.estimate;
+    final advice = _driveHud.advice;
+    final hasBaseline = _herFix is PositionAvailable;
+
+    final (Color bannerColor, Color textColor) = switch (advice?.action) {
+      DriveAction.considerStopping => (Colors.red.shade100, Colors.red.shade900),
+      DriveAction.heightenedCaution => (
+          Colors.amber.shade100,
+          Colors.amber.shade900
+        ),
+      _ => (Colors.grey.shade200, Colors.grey.shade800),
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Fuses HER honest position (localization_fallback: GPS → dead '
+          'reckoning → lost, never a confident wrong dot) with visibility + the '
+          'real area advisory (compound_failure_advisor). The MOMENT the caution '
+          'rung RISES it auto-announces on the SAME audio + haptic channel as '
+          'WS5 — no manual button. Share a location above, then lower the '
+          'visibility band and/or simulate a GPS blackout to see it rise.',
+          style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+        ),
+        const SizedBox(height: 10),
+        // Mocked visibility band (no real sensor yet — honest).
+        const Text('Mocked visibility band (no visibility sensor yet)',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        DropdownButton<double?>(
+          key: const Key('drive-hud-visibility'),
+          value: _mockVisibilityMeters,
+          isExpanded: true,
+          onChanged: _onVisibilityChanged,
+          items: [
+            for (final (label, meters) in _visibilityBands)
+              DropdownMenuItem<double?>(value: meters, child: Text(label)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            ElevatedButton.icon(
+              key: const Key('drive-hud-blackout-button'),
+              onPressed: hasBaseline ? _simulateGpsBlackout : null,
+              icon: const Icon(Icons.gps_off),
+              label: const Text('Simulate GPS blackout (+60 s)'),
+            ),
+            const SizedBox(width: 8),
+            if (_blackoutSeconds > 0)
+              Text('blackout: ${_blackoutSeconds}s',
+                  style: TextStyle(
+                      fontSize: 12, color: Colors.orange.shade900)),
+          ],
+        ),
+        if (!hasBaseline)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              'Share a location (Akita mock or GPS) above to start the drive '
+              'brain.',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+            ),
+          ),
+        const SizedBox(height: 12),
+        if (estimate == null || advice == null)
+          Text('(no position fed yet)',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 12))
+        else ...[
+          // The honest position line.
+          _kv('現在地の信頼度',
+              _driveHudText.modeLabel(estimate.mode, 'ja')),
+          _kv('誤差',
+              _driveHudText.radiusLabel(estimate.confidenceRadiusMeters, 'ja')),
+          const SizedBox(height: 8),
+          // The caution headline banner (JA), coloured by rung.
+          Container(
+            key: const Key('drive-hud-caution-banner'),
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: bannerColor,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _driveHudText.actionHeadline(advice.action, 'ja'),
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (advice.action != DriveAction.continueDriving) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _driveHudText.spokenGuidance(advice.action, 'ja'),
+                    style: TextStyle(color: textColor, fontSize: 14),
+                  ),
+                ],
+                if (advice.compounding) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    '⚠ 危険が重なっています（現在地不確か＋視界不良）',
+                    style: TextStyle(
+                      color: textColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Why (reasons) + first-class unknowns, localized for HER.
+          if (advice.reasons.isNotEmpty)
+            _kv(
+              '理由',
+              [for (final r in advice.reasons) _driveHudText.reasonLabel(r, 'ja')]
+                  .join(' · '),
+            ),
+          if (advice.unknowns.isNotEmpty)
+            _kv(
+              '不明な点',
+              [
+                for (final u in advice.unknowns)
+                  _driveHudText.unknownLabel(u, 'ja')
+              ].join(' · '),
+            ),
+          if (advice.sightStoppingSpeedHintMps != null)
+            _kv(
+              '目安速度',
+              _driveHudText.sightHintLabel(
+                  advice.sightStoppingSpeedHintMps!, 'ja'),
+            ),
+          const SizedBox(height: 8),
+          // Announce status — honest reach bounds.
+          Text(
+            switch (advice.action) {
+              DriveAction.considerStopping =>
+                'Auto-fires audio + haptic (critical) on rung rise. '
+                    'On-device HEAR/FEEL not verified in this env.',
+              DriveAction.heightenedCaution =>
+                'Auto-fires audio + haptic (warning) on rung rise. '
+                    'On-device HEAR/FEEL not verified in this env.',
+              DriveAction.continueDriving =>
+                'Continue — nothing announced (parity with the voice gate).',
+            },
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+          ),
+        ],
+        const SizedBox(height: 6),
+        Text(
+          'Position is REAL (HER GPS, honestly degraded); area advisory is REAL '
+          '(NWS + JMA); visibility is MOCKED (no sensor yet); speed is unknown. '
+          'Advisory-only, driver-always-drives; the ceiling is "consider '
+          'stopping", never "turn back". Source: localization_fallback 0.1.1 + '
+          'compound_failure_advisor 0.1.1 (pub.dev).',
+          style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+        ),
+      ],
+    );
   }
 
   /// Re-fetches advisories when the caller's lat/lon changes
@@ -434,6 +803,27 @@ class _HomePageState extends State<HomePage> {
       _routeResult = result;
       _routeLoading = false;
     });
+  }
+
+  /// WS5 — deliver the current (condition, profile) hazard to the driver on
+  /// the audio + haptic channels. This is the seam that ends the silence:
+  /// the guidance the driver hears/feels is the catalog's action-coupled
+  /// [AlertExplainer] string, spoken VERBATIM (AAA Article 17 β; the app must
+  /// not paraphrase). Severity is derived from the road-surface condition;
+  /// [AlertAnnouncer.announce] gates BOTH channels on `>= warning` so a
+  /// whiteout-class critical fires audio AND haptic (OPS-059 floor).
+  void _announceCurrentAlert() {
+    final explainer = AlertExplainer.forConditionAndProfile(
+      _condition,
+      _profile,
+    );
+    unawaited(
+      _announcer.announce(
+        severity: severityForCondition(_condition),
+        text: explainer.action,
+        localeTag: explainer.localeTag,
+      ),
+    );
   }
 
   void _fireAlertSequence() {
@@ -644,8 +1034,36 @@ class _HomePageState extends State<HomePage> {
                       fontSize: 11,
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  // WS5 — the button that ends the silence. Speaks the guidance
+                  // aloud AND fires the tactile cue (OPS-059 floor: audio for
+                  // eyes-off, haptic for deaf/HoH or roaring-wind whiteout).
+                  // On desktop/test this is a no-op (NoOpAlertActuators).
+                  // Label + helper are localized (D4 — HER reads Japanese).
+                  ElevatedButton.icon(
+                    key: const Key('announce-alert-button'),
+                    onPressed: _announceCurrentAlert,
+                    icon: const Icon(Icons.campaign_outlined),
+                    label: Text(AppL10n.of(context).announceToDriver),
+                  ),
+                  Text(
+                    severityForCondition(_condition).index >=
+                            AlertSeverity.warning.index
+                        ? AppL10n.of(context).announceFiresHelper(
+                            severityForCondition(_condition).name)
+                        : AppL10n.of(context).announceInfoHelper,
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 11,
+                    ),
+                  ),
                 ],
               ),
+            ),
+            const SizedBox(height: 16),
+            _section(
+              title: 'Live drive — compound-failure caution (WS6, auto)',
+              child: _driveHudPanel(),
             ),
             const SizedBox(height: 16),
             _section(
@@ -930,34 +1348,55 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _herStatusLine() {
-    // Initial state: no mode active.
+    final l = AppL10n.of(context);
+    // Initial state: no mode active. Deny-by-default — nothing touches GPS
+    // until HER deliberate tap. The localized disclosure sits here so she can
+    // read WHERE her coordinates go BEFORE she grants (task 3).
     if (_herSub == null && !_isMockPosition) {
-      return Row(
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Text(
-              'Location not yet shared.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l.locationNotShared,
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+              ),
+              TextButton(
+                key: const Key('share-location-button'),
+                onPressed: _shareLocation,
+                child: Text(l.shareMyLocation),
+              ),
+              TextButton(
+                key: const Key('use-mock-button'),
+                onPressed: _useMockPosition,
+                child: Text(l.useAkitaMock),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: _shareLocation,
-            child: const Text('Share my location'),
-          ),
-          TextButton(
-            onPressed: _useMockPosition,
-            child: const Text('Use Akita mock (dev)'),
+          const SizedBox(height: 4),
+          Text(
+            key: const Key('location-disclosure'),
+            l.locationDisclosure,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
           ),
         ],
       );
     }
     // Mock-mode active.
     if (_isMockPosition) {
+      final acc = switch (_herFix) {
+        PositionAvailable(:final accuracyMeters) =>
+          accuracyMeters.toStringAsFixed(0),
+        _ => '35',
+      };
       return Row(
         children: [
           Expanded(
             child: Text(
-              'Mock position · Akita station ±35 m (DEV — not real GPS)',
+              l.mockPositionStatus(acc),
               style: TextStyle(
                 fontSize: 12,
                 color: Colors.amber.shade900,
@@ -967,7 +1406,7 @@ class _HomePageState extends State<HomePage> {
           ),
           TextButton(
             onPressed: _clearPosition,
-            child: const Text('Clear'),
+            child: Text(l.clear),
           ),
         ],
       );
@@ -976,15 +1415,15 @@ class _HomePageState extends State<HomePage> {
     final fix = _herFix;
     final (text, color) = switch (fix) {
       null => (
-        'Locating you…',
+        l.locatingYou,
         Colors.grey.shade600,
       ),
       PositionAvailable(:final accuracyMeters) => (
-        'You are here · ±${accuracyMeters.toStringAsFixed(0)} m',
+        l.youAreHere(accuracyMeters.toStringAsFixed(0)),
         Colors.blueGrey.shade700,
       ),
       PositionUnavailable(:final reason) => (
-        'GPS unavailable — $reason. The map remains; the route panel still works by tap.',
+        l.gpsUnavailable(reason),
         Colors.grey.shade700,
       ),
     };
@@ -995,7 +1434,7 @@ class _HomePageState extends State<HomePage> {
         ),
         TextButton(
           onPressed: _clearPosition,
-          child: const Text('Stop'),
+          child: Text(l.stop),
         ),
       ],
     );

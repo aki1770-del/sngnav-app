@@ -54,6 +54,18 @@ class AkitaMap extends StatelessWidget {
             onTap: onTap == null ? null : (_, latlng) => onTap!(latlng),
           ),
           children: [
+            // KNOWN_LIMITATION (WS5 / BOD-17 ruling 2): the basemap is a
+            // NETWORK tile layer. In HER worst-case — unexpected snow with
+            // Maps AND GPS down and no cell signal — these tiles will not
+            // load, so the basemap goes blank. An OFFLINE basemap (bundled /
+            // pre-cached tiles via the offline_tiles catalog package) is the
+            // right fix but is ESCALATED (deferred) per BOD-17 — a tileset
+            // provenance/licensing decision (OSM tile-usage policy + ODbL)
+            // precedes any wiring, so it is deliberately NOT wired in this
+            // arc. The alert channels WS5 adds
+            // (audio + haptic) are chosen precisely because they do NOT
+            // depend on the basemap rendering — the hazard still reaches her
+            // when the map is blank.
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'dev.aki1770del.sngnav_app',

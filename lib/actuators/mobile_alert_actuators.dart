@@ -1,0 +1,132 @@
+/// WS5 — the mobile (android/ios) implementation of [AlertActuators].
+///
+/// Every plugin call in this file is guarded twice: the factory
+/// [defaultAlertActuators] only constructs this class on a mobile target, and
+/// every method ALSO re-checks [_isMobilePlatform] before touching a plugin.
+/// The belt-and-suspenders is deliberate — flutter_tts / vibration /
+/// wakelock_plus have no linux-desktop implementation, and the desktop
+/// render-SEE ceiling (`flutter run -d linux`) MUST stay intact. On any
+/// non-mobile target these methods are pure no-ops.
+///
+/// **Honesty (OPS-066 / AAE-1).** Not verified on an Android device in this
+/// environment. Code-complete; on-device HEAR / FEEL / keep-awake is DEFERRED.
+library;
+
+import 'dart:io' show Platform;
+
+import 'package:flutter/foundation.dart';
+import 'package:navigation_safety_enums/navigation_safety_enums.dart'
+    show HapticCuePattern, HapticCuePatternRendering;
+import 'package:vibration/vibration.dart';
+import 'package:voice_guidance/voice_guidance.dart'
+    show FlutterTtsEngine, TtsEngine;
+import 'package:wakelock_plus/wakelock_plus.dart';
+
+import 'alert_actuators.dart';
+
+/// True only on a real android/ios target (never web, never desktop, and —
+/// load-bearing — never under the flutter_test binding).
+///
+/// The flutter_test binary reports `TargetPlatform.android` by default yet has
+/// no plugin engine, so a target-only guard would let a test build/call the
+/// real flutter_tts / vibration / wakelock plugins. We therefore treat the
+/// test binding (the `FLUTTER_TEST` env var the harness sets) as non-mobile:
+/// the factory returns a [NoOpAlertActuators] under test, and even a direct
+/// [MobileAlertActuators] construction never touches a real plugin (its
+/// methods early-return here, and its TTS engine is built lazily — see below).
+bool get _isMobilePlatform {
+  if (kIsWeb) return false;
+  // `dart:io` Platform is safe here — the kIsWeb guard above already excludes
+  // the one target where it is unavailable.
+  if (Platform.environment.containsKey('FLUTTER_TEST')) return false;
+  // Equality form (not an exhaustive switch) so new TargetPlatform values —
+  // e.g. this SDK's linux_arm64 — never silently break the guard: anything
+  // that is not android/ios is treated as non-mobile (no plugin call).
+  final target = defaultTargetPlatform;
+  return target == TargetPlatform.android || target == TargetPlatform.iOS;
+}
+
+/// Returns the actuator appropriate for the current platform: a real
+/// [MobileAlertActuators] on android/ios, else a [NoOpAlertActuators].
+///
+/// This is the single wiring point the app calls; keeping the platform choice
+/// here (not scattered at call sites) is what lets the whole app stay desktop-
+/// and test-safe.
+AlertActuators defaultAlertActuators() =>
+    _isMobilePlatform ? MobileAlertActuators() : const NoOpAlertActuators();
+
+/// Drives the real phone actuators. Reuses `voice_guidance`'s
+/// [FlutterTtsEngine] for speech (it already wraps flutter_tts and guards
+/// `MissingPluginException` + maps the normalized speaking-rate scale), and
+/// the `vibration` / `wakelock_plus` static APIs for the tactile + keep-awake
+/// channels.
+class MobileAlertActuators implements AlertActuators {
+  /// [ttsEngine] is injectable for tests; when null the catalog's
+  /// flutter_tts-backed engine is built LAZILY on the first real mobile
+  /// `speak()` — never in the constructor, so constructing this class off a
+  /// device (a test, or a mis-wire) never eagerly builds the real plugin
+  /// engine. On any non-mobile / test target `speak()` early-returns before
+  /// touching the engine, so it is never built there at all.
+  MobileAlertActuators({TtsEngine? ttsEngine}) : _injectedTts = ttsEngine;
+
+  final TtsEngine? _injectedTts;
+  TtsEngine? _resolvedTts;
+
+  /// The TTS engine, resolved on first use. An injected engine (tests) is used
+  /// as-is; otherwise the real [FlutterTtsEngine] is built here — reached ONLY
+  /// from `speak()` after its `_isMobilePlatform` guard has passed.
+  TtsEngine get _tts => _resolvedTts ??= (_injectedTts ?? FlutterTtsEngine());
+
+  @override
+  Future<void> speak(String text, {required String localeTag}) async {
+    if (!_isMobilePlatform) return;
+    if (text.trim().isEmpty) return;
+    try {
+      await _tts.setLanguage(ttsLocaleTagFor(localeTag));
+      await _tts.speak(text);
+    } catch (_) {
+      // Never let a TTS fault crash the surface a driver is relying on.
+      // (FlutterTtsEngine already swallows MissingPluginException; this is
+      // the outer safety net for any other platform-channel fault.)
+    }
+  }
+
+  @override
+  Future<void> haptic(HapticCuePattern pattern) async {
+    if (!_isMobilePlatform) return;
+    if (!pattern.isTactile) return; // none -> no sensation (info-class)
+    try {
+      if (await Vibration.hasVibrator()) {
+        await Vibration.vibrate(pattern: _waveformFor(pattern));
+      }
+    } catch (_) {
+      // A missing vibrator / platform fault must not crash the drive surface.
+    }
+  }
+
+  @override
+  Future<void> keepAwake(bool enabled) async {
+    if (!_isMobilePlatform) return;
+    try {
+      await WakelockPlus.toggle(enable: enabled);
+    } catch (_) {}
+  }
+
+  /// Android waveform `[initialWaitMs, vibrateMs, waitMs, vibrateMs, ...]`
+  /// built from the catalog grammar's [HapticCuePattern.pulseCount]
+  /// (warning = 2 measured pulses, critical = 3 urgent pulses). The two
+  /// announced tiers are distinguishable by COUNT — so a deaf driver can tell
+  /// "reduce speed" (warning) from "consider stopping" (critical) — and by
+  /// a longer per-pulse duration on critical (a second distinguishing axis),
+  /// per HapticCuePattern's cited deaf/HoH-driver rationale.
+  List<int> _waveformFor(HapticCuePattern pattern) {
+    final onMs = pattern == HapticCuePattern.critical ? 350 : 200;
+    const gapMs = 150;
+    final wave = <int>[0];
+    for (var i = 0; i < pattern.pulseCount; i++) {
+      wave.add(onMs);
+      if (i < pattern.pulseCount - 1) wave.add(gapMs);
+    }
+    return wave;
+  }
+}

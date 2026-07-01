@@ -8,6 +8,24 @@
          foreground-only; background tracking would be a dignity over-reach). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- WS5 actuator channel: WAKE_LOCK holds the screen on so a driver
+         glancing at a live hazard never finds a dark screen (wakelock_plus). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- WS5 foreground-service perms: DECLARED ONLY. No foreground Service is
+         implemented yet — the app is currently foreground-only and does NOT
+         keep running when backgrounded. These permissions are pre-declared so
+         that a future, follow-on foreground Service (an explicit, user-visible,
+         driver-initiated ongoing-drive session presenting a USER-VISIBLE
+         ongoing-drive notification) can be added without a manifest change.
+         PRODUCT TENSION (deliberate, dignity-load-bearing): a foreground
+         SERVICE with FOREGROUND_SERVICE_LOCATION WOULD be able to read location
+         while the app is not on screen — which is *exactly* the shape of
+         background tracking we refuse. If/when that Service is built it will be
+         user-visible and driver-initiated ONLY, and we STILL withhold
+         ACCESS_BACKGROUND_LOCATION: no silent, notification-less background
+         location. Today the perms sit unused by any Service. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <application
         android:label="sngnav_app"
         android:name="${applicationName}"

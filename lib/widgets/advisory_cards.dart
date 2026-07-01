@@ -8,16 +8,21 @@
 /// translation; foreign-tourist UX (future slice) glosses alongside,
 /// never replaces.
 ///
-/// Empty state: "No active advisories at this location." Honest
-/// no-data render — does NOT fall back to a stale snapshot.
+/// The publisher content (event class, headline, area, ...) is verbatim and
+/// NOT translated; the app-owned STATE strings (empty / loading / error /
+/// fetch actions) are localized for HER via [AppL10n] (D4).
 ///
-/// Loading state: spinner. Error state: Exception class + message
-/// surfaced through the per-publisher `providerErrors` channel.
+/// Empty state: an honest localized no-data line — does NOT fall back to a
+/// stale snapshot. Loading state: spinner. Error state: the exception message
+/// surfaced (verbatim) behind a localized prefix, plus the per-publisher
+/// `providerErrors` channel.
 library;
 
 import 'package:condition_aggregator/condition_aggregator.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
+import '../l10n/app_localizations.dart';
 
 class AdvisoryCards extends StatelessWidget {
   const AdvisoryCards({
@@ -35,6 +40,10 @@ class AdvisoryCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // D4 — these app-owned STATE strings render on HER Japanese surface; route
+    // them through the l10n (the publisher-verbatim advisory content below is
+    // NOT translated — that is faithful relay, not app chrome).
+    final l = AppL10n.of(context);
     if (loading && result == null) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 8),
@@ -49,7 +58,7 @@ class AdvisoryCards extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             color: Colors.red.shade50,
             child: Text(
-              'Advisory fetch failed: $errorMessage',
+              l.advisoryFetchFailed(errorMessage!),
               style: TextStyle(color: Colors.red.shade900),
             ),
           ),
@@ -57,7 +66,7 @@ class AdvisoryCards extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: onRefresh,
-              child: const Text('Retry'),
+              child: Text(l.retry),
             ),
           ),
         ],
@@ -66,21 +75,33 @@ class AdvisoryCards extends StatelessWidget {
     final r = result;
     if (r == null) {
       return Row(children: [
-        const Text('(no fetch yet)'),
+        Text(l.advisoryNoFetchYet),
         const Spacer(),
-        TextButton(onPressed: onRefresh, child: const Text('Fetch')),
+        TextButton(onPressed: onRefresh, child: Text(l.advisoryFetch)),
       ]);
     }
+    // WS7 (task 4) — for HER Japanese surface, LEAD with the authoritative
+    // Japanese publisher (JMA / 気象庁). The English NWS card is unreadable
+    // noise for an Akita driver, so it is ordered AFTER JMA and de-emphasized
+    // (never hidden — dropping a safety card would be dishonest; it is present,
+    // dimmed, and captioned as English reference). English locale keeps the
+    // publisher's returned order.
+    final isJa = Localizations.localeOf(context).languageCode == 'ja';
+    final ordered = isJa ? _jmaFirst(r.advisories) : r.advisories;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (r.advisories.isEmpty)
           Text(
-            'No active advisories at this location.',
+            l.advisoryNoneActive,
             style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
           )
         else
-          ...r.advisories.map((a) => _AdvisoryCard(advisory: a)),
+          ...ordered.map((a) => _AdvisoryCard(
+                advisory: a,
+                deEmphasize:
+                    isJa && a.source == AdvisorySource.nwsUnitedStates,
+              )),
         if (r.providerErrors.isNotEmpty) ...[
           const SizedBox(height: 8),
           for (final err in r.providerErrors)
@@ -89,7 +110,8 @@ class AdvisoryCards extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 4),
               color: Colors.amber.shade50,
               child: Text(
-                'Publisher ${_sourceLabel(err.source)} errored: ${err.message}',
+                l.advisoryPublisherErrored(
+                    _sourceLabel(err.source), err.message),
                 style: TextStyle(color: Colors.amber.shade900, fontSize: 11),
               ),
             ),
@@ -98,23 +120,44 @@ class AdvisoryCards extends StatelessWidget {
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: onRefresh,
-            child: const Text('Re-fetch'),
+            child: Text(l.advisoryReFetch),
           ),
         ),
       ],
     );
   }
+
+  /// Stable partition: JMA (気象庁) advisories to the front, everything else
+  /// after, each group keeping the publisher's returned order. Used only on
+  /// the Japanese surface so HER reads the authoritative Japanese source first.
+  static List<Advisory> _jmaFirst(List<Advisory> list) {
+    final jma = <Advisory>[];
+    final rest = <Advisory>[];
+    for (final a in list) {
+      if (a.source == AdvisorySource.jmaJapan) {
+        jma.add(a);
+      } else {
+        rest.add(a);
+      }
+    }
+    return [...jma, ...rest];
+  }
 }
 
 class _AdvisoryCard extends StatelessWidget {
-  const _AdvisoryCard({required this.advisory});
+  const _AdvisoryCard({required this.advisory, this.deEmphasize = false});
 
   final Advisory advisory;
+
+  /// When true (HER ja surface, English NWS card), the card is dimmed and
+  /// captioned as English reference material — present but not the primary
+  /// read. Never hides the card (dropping safety data would be dishonest).
+  final bool deEmphasize;
 
   @override
   Widget build(BuildContext context) {
     final fmt = DateFormat('yyyy-MM-dd HH:mm');
-    return Container(
+    final card = Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -124,6 +167,13 @@ class _AdvisoryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (deEmphasize) ...[
+            Text(
+              AppL10n.of(context).englishReferenceNote,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 10),
+            ),
+            const SizedBox(height: 4),
+          ],
           Row(
             children: [
               Text(
@@ -203,6 +253,8 @@ class _AdvisoryCard extends StatelessWidget {
         ],
       ),
     );
+    // De-emphasized (English NWS on HER ja surface): dim but keep present.
+    return deEmphasize ? Opacity(opacity: 0.55, child: card) : card;
   }
 }
 
