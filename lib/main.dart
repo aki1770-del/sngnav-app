@@ -39,6 +39,8 @@ import 'package:navigation_safety/navigation_safety.dart'
         GlanceModalClass;
 import 'package:navigation_safety_core/navigation_safety_core.dart';
 import 'package:noaa_nws_adapter/noaa_nws_adapter.dart' show NoaaNwsClient;
+import 'package:routing_engine/routing_engine.dart'
+    show OsrmRoutingEngine, RouteManeuver, RouteRequest, RoutingException;
 import 'package:offline_tiles/offline_tiles.dart' as offline_tiles;
 import 'package:snow_rendering/snow_rendering.dart' as snow_rendering;
 import 'package:voice_guidance/voice_guidance.dart'
@@ -62,6 +64,7 @@ import 'route_fetch.dart';
 import 'services/advisory_service.dart';
 import 'services/drive_hud_controller.dart';
 import 'services/drive_hud_localizer.dart';
+import 'services/maneuver_narration.dart';
 import 'services/jma_advisory_provider_factory.dart';
 import 'services/noaa_advisory_provider.dart';
 import 'services/provider_coverage.dart';
@@ -236,6 +239,15 @@ class _HomePageState extends State<HomePage> {
   LatLng? _destination;
   RouteResult? _routeResult;
   bool _routeLoading = false;
+
+  // (e) honest maneuver narration — the real step list parsed by the
+  // ALREADY-BUILT OsrmRoutingEngine pipeline (steps=true), plus the NEXT
+  // actionable maneuver surfaced in the drive flow. `_lastManeuverNarration`
+  // holds the most recent gated decision (spoken / hedged / suppressed) so the
+  // panel can show, honestly, what the announcer did.
+  List<RouteManeuver> _routeManeuvers = const [];
+  RouteManeuver? _nextManeuver;
+  ManeuverNarration? _lastManeuverNarration;
 
   // HER position — Slice 2c. The passenger sits down quietly.
   PositionFix? _herFix;
@@ -807,6 +819,7 @@ class _HomePageState extends State<HomePage> {
         _origin = point;
         _destination = null;
         _routeResult = null;
+        _clearManeuverState();
       });
       return;
     }
@@ -820,6 +833,7 @@ class _HomePageState extends State<HomePage> {
       _origin = point;
       _destination = null;
       _routeResult = null;
+      _clearManeuverState();
     });
   }
 
@@ -828,7 +842,16 @@ class _HomePageState extends State<HomePage> {
       _origin = null;
       _destination = null;
       _routeResult = null;
+      _clearManeuverState();
     });
+  }
+
+  /// Clear the parsed maneuver list + next maneuver + last narration decision.
+  /// Called inside a `setState` when the route is reset/replaced.
+  void _clearManeuverState() {
+    _routeManeuvers = const [];
+    _nextManeuver = null;
+    _lastManeuverNarration = null;
   }
 
   Future<void> _fetchRoute() async {
@@ -836,12 +859,74 @@ class _HomePageState extends State<HomePage> {
     final d = _destination;
     if (o == null || d == null) return;
     setState(() => _routeLoading = true);
-    final result = await fetchDrivingRoute(origin: o, destination: d);
+
+    // Route via the ALREADY-BUILT OsrmRoutingEngine maneuver pipeline: it
+    // requests `steps=true` and parses the real maneuver list. ONE fetch yields
+    // BOTH the polyline (for the map, via `result.shape`) and the honest
+    // maneuver list (for (e) narration). We keep the app's own `RouteSuccess`
+    // shape so the existing map + forecast wiring is untouched. No new feature
+    // is added to routing_engine — it stays in maintenance-mode; this is pure
+    // app-layer wiring to its existing surface.
+    final engine = OsrmRoutingEngine(baseUrl: _osrmDemoBaseUrl);
+    RouteResult result;
+    var maneuvers = const <RouteManeuver>[];
+    try {
+      final r = await engine.calculateRoute(
+        RouteRequest(origin: o, destination: d, language: 'ja-JP'),
+      );
+      result = RouteSuccess(
+        points: r.shape,
+        distanceMeters: r.totalDistanceKm * 1000.0,
+        durationSeconds: r.totalTimeSeconds,
+        fetchedAt: DateTime.now(),
+      );
+      maneuvers = r.maneuvers;
+    } on RoutingException catch (e) {
+      // Surface the failure reason; never fall back to a stale cached route.
+      result = RouteFailure(e.message);
+    } catch (e) {
+      result = RouteFailure('network/parse error: $e');
+    } finally {
+      await engine.dispose();
+    }
+
     if (!mounted) return;
     setState(() {
       _routeResult = result;
+      _routeManeuvers = maneuvers;
+      _nextManeuver = nextActionableManeuver(maneuvers);
+      _lastManeuverNarration = null;
       _routeLoading = false;
     });
+  }
+
+  /// Public OSRM demo base — same server the app has always used, now driven
+  /// through OsrmRoutingEngine so we get the parsed maneuver list too.
+  static const String _osrmDemoBaseUrl = 'https://router.project-osrm.org';
+
+  /// Whether the next maneuver coincides with an ice / low-visibility hazard, so
+  /// the icy-turn advisory should be coupled onto the narration. Reuses the
+  /// app's existing road-surface condition AND the live drive-HUD advice
+  /// (visibility + area-advisory fusion) — no new hazard source.
+  bool _maneuverCoincidesWithHazard() {
+    // Couple the icy-turn advisory ONLY on a genuinely slippery surface — NOT
+    // on any heightened-caution state. A dry-road gpsSuspect must never raise a
+    // false CRITICAL "the turn may be icy / 路面が凍結"; low visibility is warned
+    // separately by the drive HUD, not mis-narrated as ice here.
+    return isSlipperySurface(_condition);
+  }
+
+  /// Narrate the next maneuver through the drive HUD's announcer, GATED on the
+  /// live honest position mode (SPEAK / HEDGE / SUPPRESS). Records the decision
+  /// so the panel can show what actually happened.
+  void _narrateNextManeuver() {
+    final next = _nextManeuver;
+    if (next == null) return;
+    final decision = _driveHud.narrateNextManeuver(
+      next,
+      icyTurn: _maneuverCoincidesWithHazard(),
+    );
+    setState(() => _lastManeuverNarration = decision);
   }
 
   /// WS5 — deliver the current (condition, profile) hazard to the driver on
@@ -1194,6 +1279,11 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
+              title: 'Next maneuver — honest confidence-gated narration',
+              child: _maneuverNarrationPanel(),
+            ),
+            const SizedBox(height: 16),
+            _section(
               title: 'JMA AMeDAS — Akita-shi (station 32402)',
               child: _jmaPanel(),
             ),
@@ -1538,6 +1628,142 @@ class _HomePageState extends State<HomePage> {
     final h = mins ~/ 60;
     final m = mins % 60;
     return '${h}h ${m}m';
+  }
+
+  /// (e) The next maneuver, narrated ONLY when the honest position allows it.
+  ///
+  /// The panel reflects the SAME gate the announcer uses, so what is shown
+  /// on-screen matches what would be spoken — including SUPPRESSION, because a
+  /// wrong "turn right" is confidently-wrong whether heard OR seen.
+  Widget _maneuverNarrationPanel() {
+    final next = _nextManeuver;
+    if (next == null) {
+      return Text(
+        _routeResult is RouteSuccess
+            ? 'No turn-by-turn maneuvers in this route.'
+            : 'Tap A then B above to fetch a route; the next maneuver appears '
+                'here, narrated only when the position is trustworthy.',
+        style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+      );
+    }
+
+    final mode = _driveHud.estimate?.mode;
+    final icy = _maneuverCoincidesWithHazard();
+    final preview = _driveHud.previewNextManeuver(next, icyTurn: icy);
+
+    final (Color bg, Color fg, String tier) = switch (preview.confidence) {
+      NarrationConfidence.speak => (
+          Colors.green.shade100,
+          Colors.green.shade900,
+          'SPEAK — GPS trusted',
+        ),
+      NarrationConfidence.hedge => (
+          Colors.amber.shade100,
+          Colors.amber.shade900,
+          'HEDGE — GPS suspect',
+        ),
+      NarrationConfidence.suppressed => (
+          Colors.blueGrey.shade100,
+          Colors.blueGrey.shade900,
+          'SUPPRESSED — position not trusted',
+        ),
+    };
+
+    // When suppressed there is NO maneuver phrase to show (the decision carries
+    // empty text by construction) — show the honest "guidance paused" line, not
+    // a turn.
+    final herLine = preview.confidence == NarrationConfidence.suppressed
+        ? 'この曲がり角の案内は保留しています（現在地が信頼できません）。'
+        : preview.text;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'The NEXT maneuver (parsed by OsrmRoutingEngine, steps=true), narrated '
+          'ONLY when the honest position allows it. A turn is never spoken '
+          'against a drifting or lost dot — the confidently-wrong instruction '
+          'this gate refuses. Simulate a GPS blackout in the drive panel above '
+          'to watch SPEAK → SUPPRESS.',
+          style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        if (mode != null)
+          _kv('現在地の信頼度', _driveHudText.modeLabel(mode, 'ja')),
+        _kv('Maneuvers parsed', '${_routeManeuvers.length} '
+            '(next: ${next.index + 1})'),
+        // NOTE: the raw ENGLISH engine instruction is deliberately NOT rendered
+        // to HER — it would both leak English to a JA driver (D4) and show a
+        // confident "turn" string even when the position gate suppresses it.
+        // HER sees only the gated, JA-localized narration banner below.
+        const SizedBox(height: 8),
+        Container(
+          key: const Key('maneuver-narration-banner'),
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                tier,
+                style: TextStyle(
+                  color: fg,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(herLine, style: TextStyle(color: fg, fontSize: 15)),
+              if (preview.icyCoupled &&
+                  preview.confidence != NarrationConfidence.suppressed) ...[
+                const SizedBox(height: 4),
+                Text(
+                  '❄ icy-turn advisory coupled',
+                  style: TextStyle(
+                    color: fg,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            ElevatedButton.icon(
+              key: const Key('maneuver-narrate-button'),
+              onPressed: _narrateNextManeuver,
+              icon: const Icon(Icons.record_voice_over),
+              label: const Text('Narrate next maneuver (gated)'),
+            ),
+            const SizedBox(width: 8),
+            if (_lastManeuverNarration != null)
+              Expanded(
+                child: Text(
+                  _lastManeuverNarration!.shouldAnnounce
+                      ? 'Announced (${_lastManeuverNarration!.confidence.name}) '
+                          '— audio + haptic.'
+                      : 'Suppressed — nothing announced (honest silence).',
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Turn-trigger TIMING and whether HER HEARS the line are device-'
+          'observable and NOT verified in this env (no device). Not a '
+          '"guidance works" claim.',
+          style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+        ),
+      ],
+    );
   }
 
   Widget _corridorPanel() {

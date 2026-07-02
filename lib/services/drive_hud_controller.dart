@@ -31,12 +31,14 @@ import 'package:flutter/foundation.dart';
 import 'package:localization_fallback/localization_fallback.dart';
 import 'package:navigation_safety_core/navigation_safety_core.dart'
     show AlertSeverity;
+import 'package:routing_engine/routing_engine.dart' show RouteManeuver;
 
 import '../actuators/alert_actuators.dart';
 import '../actuators/alert_announcer.dart';
 import '../her_position.dart';
 import 'drive_hud_localizer.dart';
 import 'drive_safety_fusion.dart';
+import 'maneuver_narration.dart';
 
 /// Live in-drive controller. Observe [estimate] + [advice] via [ChangeNotifier].
 class DriveHudController extends ChangeNotifier {
@@ -66,6 +68,7 @@ class DriveHudController extends ChangeNotifier {
       localizer: DriveLocalizer(controller: localization),
       announcer: announcer ?? AlertAnnouncer(actuators: actuators),
       text: text,
+      narrator: ManeuverNarrator(text: text),
       localeTag: localeTag,
     );
   }
@@ -74,14 +77,17 @@ class DriveHudController extends ChangeNotifier {
     required DriveLocalizer localizer,
     required AlertAnnouncer announcer,
     required DriveHudLocalizer text,
+    required ManeuverNarrator narrator,
     required this.localeTag,
   })  : _localizer = localizer,
         _announcer = announcer,
-        _text = text;
+        _text = text,
+        _narrator = narrator;
 
   final DriveLocalizer _localizer;
   final AlertAnnouncer _announcer;
   final DriveHudLocalizer _text;
+  final ManeuverNarrator _narrator;
 
   /// BCP-47-ish tag for the driver-facing surface (defaults to `ja` — HER).
   final String localeTag;
@@ -187,6 +193,67 @@ class DriveHudController extends ChangeNotifier {
       ));
     }
     _lastAnnouncedAction = action;
+  }
+
+  // --- (e) honest confidence-gated maneuver narration ---
+
+  /// Narrate the NEXT [maneuver] through the SAME announcer as the caution,
+  /// GATED on the live honest position mode.
+  ///
+  /// This is the HER differentiator: a turn is spoken ONLY when the dot is
+  /// trustworthy.
+  ///  - `gpsTrusted` → SPEAK the JA turn plainly.
+  ///  - `gpsSuspect` → HEDGE (softened, "please confirm").
+  ///  - `deadReckoning` / `lost` → SUPPRESS — the announcer is NOT fired, so no
+  ///    "turn now" is ever spoken against a drifting/lost position.
+  ///
+  /// **Fail-safe:** if no position has been fed yet ([estimate] is null) the
+  /// mode is treated as [LocalizationMode.lost] → SUPPRESS. The app never
+  /// speaks a turn before it knows where she is.
+  ///
+  /// [icyTurn] couples the icy-turn advisory when the maneuver coincides with an
+  /// ice / low-visibility hazard (reuses the localizer's advisory register).
+  ///
+  /// Returns the [ManeuverNarration] decision (for the HUD + tests). Announcing
+  /// is fire-and-forget through the app's single [AlertAnnouncer] — whose own
+  /// `>= warning` gate is a second backstop: a suppressed decision carries
+  /// `info` severity and empty text, so even a mis-wired call could not speak.
+  ManeuverNarration narrateNextManeuver(
+    RouteManeuver maneuver, {
+    required bool icyTurn,
+  }) {
+    final mode = _estimate?.mode ?? LocalizationMode.lost;
+    final decision = _narrator.decide(
+      maneuver: maneuver,
+      mode: mode,
+      icyTurn: icyTurn,
+      localeTag: localeTag,
+    );
+    if (decision.shouldAnnounce) {
+      unawaited(_announcer.announce(
+        severity: decision.severity,
+        text: decision.text,
+        localeTag: localeTag,
+      ));
+    }
+    return decision;
+  }
+
+  /// A side-effect-FREE preview of what [narrateNextManeuver] would decide right
+  /// now, for the on-screen HUD (which must reflect the gate honestly — showing
+  /// "turn right" on-screen against a lost dot is the same confidently-wrong
+  /// hazard, just visual). Does NOT fire the announcer.
+  ManeuverNarration previewNextManeuver(
+    RouteManeuver maneuver, {
+    required bool icyTurn,
+  }) {
+    final mode = _estimate?.mode ?? LocalizationMode.lost;
+    return _narrator.decide(
+      maneuver: maneuver,
+      mode: mode,
+      icyTurn: icyTurn,
+      localeTag: localeTag,
+    );
   }
 
   /// Map the advisory-only caution rung to the actuator severity gate.

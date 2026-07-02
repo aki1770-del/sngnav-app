@@ -133,4 +133,79 @@ class DriveHudLocalizer {
         ? '見える範囲で止まれる目安 約 $kmh km/h'
         : 'Stop-within-sight guide ~$kmh km/h';
   }
+
+  // --- (e) maneuver narration text — localized by engine-agnostic TYPE ---
+  //
+  // `OsrmRoutingEngine` emits ENGLISH instruction strings; passing those to HER
+  // is a D4 breach, so the app narrates from the engine-agnostic maneuver TYPE
+  // token instead, localized here (JA for HER). Kept faithful + calm: a plain
+  // upcoming-turn statement, never a barked command.
+
+  /// The short maneuver noun for [type] (e.g. `right` → 右折 / "a right turn"),
+  /// used to compose both the confident and hedged sentences.
+  String _maneuverNoun(String type, bool ja) => switch (type) {
+        'left' => ja ? '左折' : 'a left turn',
+        'slight_left' => ja ? '斜め左方向' : 'a slight left',
+        'sharp_left' => ja ? '左への急カーブ' : 'a sharp left',
+        'right' => ja ? '右折' : 'a right turn',
+        'slight_right' => ja ? '斜め右方向' : 'a slight right',
+        'sharp_right' => ja ? '右への急カーブ' : 'a sharp right',
+        'straight' => ja ? '直進' : 'continuing straight',
+        'u_turn_left' || 'u_turn_right' || 'uturn' => ja ? 'Uターン' : 'a U-turn',
+        'roundabout_enter' ||
+        'roundabout' ||
+        'rotary' =>
+          ja ? 'ロータリー' : 'the roundabout',
+        'merge' => ja ? '合流' : 'a merge',
+        'ramp_left' => ja ? '左のランプ' : 'the left ramp',
+        'ramp_right' => ja ? '右のランプ' : 'the right ramp',
+        _ => ja ? '次の案内' : 'the next maneuver',
+      };
+
+  /// A CONFIDENT (trusted-GPS) maneuver line for HER, localized by [type].
+  ///
+  /// Plain and calm — " this ahead " not "TURN NOW". `depart`/`arrive` get their
+  /// own sentences; everything else composes from [_maneuverNoun].
+  String maneuverInstruction(String type, String localeTag) {
+    final ja = _isJa(localeTag);
+    switch (type) {
+      case 'depart':
+        return ja ? 'ルート案内を開始します。' : 'Starting route guidance.';
+      case 'arrive':
+        return ja ? 'まもなく目的地です。' : 'You are arriving at your destination.';
+      case 'straight':
+        return ja ? 'このまま直進します。' : 'Continue straight ahead.';
+      default:
+        final noun = _maneuverNoun(type, ja);
+        return ja ? 'この先、$noun です。' : 'Ahead, take $noun.';
+    }
+  }
+
+  /// A HEDGED (suspect-GPS) maneuver line: it names the same [type] but softens
+  /// it to a possibility and tells HER to confirm before acting — because the
+  /// position is not trusted, the app must NOT assert the turn as fact.
+  String hedgedManeuverInstruction(String type, String localeTag) {
+    final ja = _isJa(localeTag);
+    if (type == 'arrive') {
+      return ja
+          ? '現在地が不確かですが、まもなく目的地の付近です。位置をご確認ください。'
+          : 'Position is uncertain, but you may be nearing your destination — '
+              'please confirm.';
+    }
+    final noun = _maneuverNoun(type, ja);
+    return ja
+        ? '現在地が不確かです。この先 $noun の可能性がありますが、位置をご確認のうえご判断ください。'
+        : 'Position is uncertain — $noun may be coming; please confirm before '
+            'acting.';
+  }
+
+  /// Couple the icy-turn advisory onto an already-built maneuver line, when the
+  /// maneuver coincides with an ice / low-visibility hazard. Reuses the calm,
+  /// advisory-only register of the rest of this localizer.
+  String icyManeuverCoupling(String maneuverText, String localeTag) {
+    final ja = _isJa(localeTag);
+    return ja
+        ? '$maneuverText この曲がり角は路面が凍結している可能性があります。'
+        : '$maneuverText The turn may be icy.';
+  }
 }
