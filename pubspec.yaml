@@ -13,16 +13,27 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # CAPPED (AAE-3, measured 2026-07-05 via pub.dev API): core ^0.11.x is
+  # UNREACHABLE hosted — SIX siblings pin navigation_safety_core ^0.10.0:
+  # voice_guidance 0.7.2, navigation_safety 0.9.3, offline_tiles 0.5.3,
+  # map_viewport_bloc 0.4.3, driving_conditions 0.5.4, snow_rendering 0.2.5.
+  # Needs a coordinated catalog-side republish wave against core ^0.11.x
+  # (FDD lane) before this app can float. Do NOT force past the resolver.
   navigation_safety_core: ^0.10.0
   navigation_safety: ^0.9.0
-  voice_guidance: ^0.6.0
+  voice_guidance: ^0.7.2
   offline_tiles: ^0.5.0
   map_viewport_bloc: ^0.4.0
   driving_conditions: ^0.5.0
   driving_weather: ^0.4.0
-  adaptive_reroute: ^0.1.0
+  adaptive_reroute: ^0.1.5
   route_condition_forecast: ^0.1.0
-  routing_engine: ^0.4.0
+  # CAPPED (AAE-3, measured 2026-07-05): routing_engine ^0.5.0 is blocked by
+  # route_condition_forecast 0.1.4 (pins routing_engine ^0.4.0; needs a
+  # catalog-side republish against ^0.5.x). voice_guidance 0.7.2 and
+  # adaptive_reroute 0.1.5 already allow <0.6.0. Floor raised to the latest
+  # reachable 0.4.x line.
+  routing_engine: ^0.4.2
   fleet_hazard: ^0.5.0
   snow_rendering: ^0.2.0
   condition_aggregator: ^0.0.3

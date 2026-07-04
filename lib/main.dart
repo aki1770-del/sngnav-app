@@ -1231,13 +1231,13 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 16),
             _section(
               title: 'Glance budget + voice pace + alert expandable '
-                  '(navigation_safety 0.9.0 / voice_guidance 0.6.0)',
+                  '(navigation_safety 0.9.0 / voice_guidance 0.7.2)',
               child: _glanceBudgetPanel(),
             ),
             const SizedBox(height: 16),
             _section(
               title: 'Render budget viewport '
-                  '(offline_tiles 0.5.0 / snow_rendering 0.2.0 / '
+                  '(offline_tiles 0.5.0 / snow_rendering 0.2.5 / '
                   'map_viewport_bloc 0.4.0)',
               child: _renderBudgetPanel(),
             ),
@@ -2072,7 +2072,7 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 4),
         Text(
           'Source: navigation_safety 0.9.0 GlanceBudgetTracker + '
-          'AlertExplainerExpandableSheet; voice_guidance 0.6.0 '
+          'AlertExplainerExpandableSheet; voice_guidance 0.7.2 '
           'BudgetAwarePaceProfile. All advisory; driver-always-drives.',
           style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
         ),
@@ -2199,7 +2199,7 @@ class _HomePageState extends State<HomePage> {
           'low (clamped by per-cohort floor); any Warning → medium; both '
           'normal → high. Bloc never auto-raises fidelity post-drop — '
           'caution-add-only invariant. Source: offline_tiles 0.5.0 / '
-          'snow_rendering 0.2.0 / map_viewport_bloc 0.4.0.',
+          'snow_rendering 0.2.5 / map_viewport_bloc 0.4.0.',
           style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
         ),
       ],

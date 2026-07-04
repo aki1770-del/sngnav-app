@@ -5,10 +5,10 @@ packages:
     dependency: "direct main"
     description:
       name: adaptive_reroute
-      sha256: b48d1ed801844befebfa60a891505ab2e44af8990774fefb252703574e7b7ea8
+      sha256: "002545745d5633b2b086da2bdcf6efba34ef62c2f22c0046b47aaa88651f5918"
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.4"
+    version: "0.1.5"
   args:
     dependency: transitive
     description:
@@ -846,10 +846,10 @@ packages:
     dependency: "direct main"
     description:
       name: voice_guidance
-      sha256: "658e200180346ddf0aa39cf93b4f5bf3798c42641a06f41d0105e898a9c97552"
+      sha256: "372140002f83ad17d820fdd5274df3bb0c32766707b607f0a8b6e7f1c9b3b1ec"
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.3"
+    version: "0.7.2"
   wakelock_plus:
     dependency: "direct main"
     description:
