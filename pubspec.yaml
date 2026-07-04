@@ -28,12 +28,12 @@ dependencies:
   driving_weather: ^0.4.0
   adaptive_reroute: ^0.1.5
   route_condition_forecast: ^0.1.0
-  # CAPPED (AAE-3, measured 2026-07-05): routing_engine ^0.5.0 is blocked by
-  # route_condition_forecast 0.1.4 (pins routing_engine ^0.4.0; needs a
-  # catalog-side republish against ^0.5.x). voice_guidance 0.7.2 and
-  # adaptive_reroute 0.1.5 already allow <0.6.0. Floor raised to the latest
-  # reachable 0.4.x line.
-  routing_engine: ^0.4.2
+  # CAP RELEASED (2026-07-05): route_condition_forecast 0.1.5 widened its
+  # routing_engine range, unblocking 0.5.0 — the language-honoring
+  # turn-by-turn line (Japanese by default; the instruction the voice lane
+  # speaks verbatim). On-device OPS-066 verification still owed before any
+  # "reaches HER" claim (docs/on_device_verify_checklist.md).
+  routing_engine: ^0.5.0
   fleet_hazard: ^0.5.0
   snow_rendering: ^0.2.0
   condition_aggregator: ^0.0.3

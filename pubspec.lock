@@ -705,18 +705,18 @@ packages:
     dependency: "direct main"
     description:
       name: route_condition_forecast
-      sha256: "7f05e2477e6463030e312bd857d640dab308970339efd538f720cbf18ffb329f"
+      sha256: c795e52efa5f752ab3d5ccd052979d96d19205dc7bc2e3d7a98c810740359654
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.4"
+    version: "0.1.5"
   routing_engine:
     dependency: "direct main"
     description:
       name: routing_engine
-      sha256: "6a8abe237d2df2d472030c58b9519bf645ea38b6265c371dcd45bf726a1a2822"
+      sha256: "30ae45d8e81e25e7bd9b6ed039883e898ef3dfb68562c101ac2d143ed5c80f0f"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.2"
+    version: "0.5.0"
   sky_engine:
     dependency: transitive
     description: flutter
