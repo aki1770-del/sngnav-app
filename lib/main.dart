@@ -65,7 +65,11 @@ import 'services/advisory_service.dart';
 import 'services/drive_hud_controller.dart';
 import 'services/drive_hud_localizer.dart';
 import 'services/maneuver_narration.dart';
+import 'services/invisible_ice_watch.dart';
 import 'services/jma_advisory_provider_factory.dart';
+import 'package:snow_rendering/snow_rendering.dart'
+    show invisibleBlackIceAnnouncement;
+
 import 'build_info.dart';
 import 'services/noaa_advisory_provider.dart';
 import 'services/provider_coverage.dart';
@@ -230,6 +234,11 @@ class _HomePageState extends State<HomePage> {
   // JMA observation state.
   JmaResult? _jmaResult;
   bool _jmaLoading = false;
+
+  // BETA_PLAN W1 — invisible-ice (radiative-frost) watch state over the
+  // live JMA observation. _invisibleIceAnnounced is the transition gate.
+  InvisibleIceWatchResult? _invisibleIceResult;
+  bool _invisibleIceAnnounced = false;
 
   // Slice 3 — corridor stations along Akita prefecture's inhabited spine.
   List<JmaResult>? _corridorResults;
@@ -801,7 +810,36 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _jmaResult = result;
       _jmaLoading = false;
+      if (result is JmaSuccess) {
+        _invisibleIceResult = evaluateInvisibleIceWatch(result.observation);
+      } else {
+        _invisibleIceResult = InvisibleIceWatchResult.unknown;
+      }
     });
+    _announceInvisibleIceTransition();
+  }
+
+  /// BETA_PLAN W1 — the invisible-ice (radiative-frost) watch over the
+  /// live JMA observation. Transition-gated: announces ONCE when the
+  /// measured window turns on (clear/unknown → watch), never repeats on
+  /// every fetch while the window persists (the cry-wolf discipline the
+  /// SNGNav status bar uses). Spoken text is the catalog's
+  /// possibility-graded looks-wet line, VERBATIM (AAA Article 17 β —
+  /// the app does not paraphrase catalog strings); warning tier, not
+  /// critical, because the detection is a dew-point inference, not a
+  /// surface measurement.
+  void _announceInvisibleIceTransition() {
+    final fired = _invisibleIceResult == InvisibleIceWatchResult.watch;
+    if (fired && !_invisibleIceAnnounced) {
+      unawaited(
+        _announcer.announce(
+          severity: AlertSeverity.warning,
+          text: invisibleBlackIceAnnouncement.jaSpokenText,
+          localeTag: 'ja-JP',
+        ),
+      );
+    }
+    _invisibleIceAnnounced = fired;
   }
 
   Future<void> _refreshCorridor() async {
@@ -1430,6 +1468,18 @@ class _HomePageState extends State<HomePage> {
             _kv('Wind', wind == null ? '—' : '${wind.toStringAsFixed(1)} m/s'),
             _kv('Snow depth', snow == null ? '—' : '${snow.toStringAsFixed(0)} cm'),
             _kv('Fetched', _formatFetched(observation.fetchedAt, stale)),
+            // BETA_PLAN W1 — the invisible-ice watch verdict, rendered with
+            // the same honest-unknown discipline as the fields above.
+            _kv(
+              '路面凍結ウォッチ',
+              switch (_invisibleIceResult) {
+                InvisibleIceWatchResult.watch =>
+                  '⚠ ブラックアイスバーンのおそれ（放射冷却の窓）',
+                InvisibleIceWatchResult.clear => '該当なし',
+                InvisibleIceWatchResult.unknown || null =>
+                  '判定不能（気温・湿度・降水の観測値が不足）',
+              },
+            ),
             const SizedBox(height: 8),
             Text(
               'Source: JMA AMeDAS — verbatim relay only, no derivation.',

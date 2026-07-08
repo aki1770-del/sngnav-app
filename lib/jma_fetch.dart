@@ -71,6 +71,12 @@ class JmaObservation {
   /// Snow depth in cm (JMA-reported value, may be null when no snow).
   final double? snowDepthCm;
 
+  /// Precipitation over the last 10 minutes in mm (JMA-reported value).
+  /// `0.0` is a MEASURED "no precipitation right now"; `null` means the
+  /// station did not report the field — callers must treat null as
+  /// unknown, never as dry (the invisible-ice watch abstains on null).
+  final double? precipitation10mMm;
+
   /// Visibility in meters (JMA-reported value, often null at AMeDAS stations).
   final int? visibilityMeters;
 
@@ -87,6 +93,7 @@ class JmaObservation {
     required this.humidityPercent,
     required this.windMetersPerSecond,
     required this.snowDepthCm,
+    required this.precipitation10mMm,
     required this.visibilityMeters,
     required this.observedAtJstKey,
     required this.fetchedAt,
@@ -183,6 +190,7 @@ Future<JmaResult> fetchLatestObservation({
       humidityPercent: extractInt('humidity'),
       windMetersPerSecond: extractDouble('wind'),
       snowDepthCm: extractDouble('snow'),
+      precipitation10mMm: extractDouble('precipitation10m'),
       visibilityMeters: extractInt('visibility'),
       observedAtJstKey: latestKey,
       fetchedAt: DateTime.now(),

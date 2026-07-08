@@ -24,6 +24,7 @@ JmaObservation _obs({
     humidityPercent: 70,
     windMetersPerSecond: wind,
     snowDepthCm: snow,
+    precipitation10mMm: null,
     visibilityMeters: null,
     observedAtJstKey: observed,
     fetchedAt: DateTime(2026, 4, 28, 22, 0),

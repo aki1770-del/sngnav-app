@@ -112,16 +112,26 @@ void main() {
     });
   });
 
-  group('grounding: a non-finite coord WOULD crash flutter_map 8.3.0', () {
-    test('flutter_map Crs.latLngToOffset throws on a non-finite LatLng', () {
+  group('grounding: a non-finite coord POISONS flutter_map silently', () {
+    test('flutter_map Crs.latLngToOffset yields a non-finite offset for a '
+        'non-finite LatLng (8.3.1 semantics)', () {
       // latlong2 constructs a non-finite LatLng without complaint...
       const bad = LatLng(double.nan, 136.8815);
-      // ...and the pinned flutter_map 8.3.0 then THROWS at the throw site
-      // (Crs.checkLatLng -> "LatLng is not finite"). This is the crash the
-      // ingest guard exists to prevent ever reaching.
+      // ...and flutter_map 8.3.1 no longer THROWS on it (8.3.0 did, at
+      // Crs.checkLatLng): it silently returns a non-finite offset, which
+      // renders as a corrupt/vanished marker with no error anywhere. That
+      // is STRICTLY WORSE than the old crash — a silent wrong dot instead
+      // of a loud failure — so the ingest guard upstream is now the ONLY
+      // line of defense. This test documents the poison so a future
+      // flutter_map bump that changes the semantics again fails loudly
+      // here instead of silently shifting the failure mode.
+      final offset = const Epsg3857().latLngToOffset(bad, 13);
       expect(
-        () => const Epsg3857().latLngToOffset(bad, 13),
-        throwsA(isA<Exception>()),
+        offset.dx.isFinite && offset.dy.isFinite,
+        isFalse,
+        reason: 'flutter_map accepted a non-finite LatLng and returned a '
+            'finite offset — semantics changed again; re-ground this test '
+            'and re-verify the ingest guard is still the right defense.',
       );
     });
 
