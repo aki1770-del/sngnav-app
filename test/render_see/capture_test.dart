@@ -76,9 +76,21 @@ Future<ByteData> _fontBytes(String path) async {
   return ByteData.view(Uint8List.fromList(bytes).buffer);
 }
 
+/// Load whichever of [paths] exist on this host. Env-honest: a CI runner
+/// without the CJK system fonts must not CRASH the suite (the render-see
+/// captures are desktop-host evidence generators); it renders with the
+/// default test font instead and says so — a tofu PNG on CI is harmless
+/// because nobody affirms CI PNGs as OPS-066 evidence.
 Future<void> _loadFamily(String family, List<String> paths) async {
+  final present = paths.where((p) => File(p).existsSync()).toList();
+  if (present.isEmpty) {
+    // ignore: avoid_print
+    print('render_see: no CJK system font on this host — ja glyph '
+        'fidelity NOT verified in this environment (fonts sought: $paths)');
+    return;
+  }
   final loader = FontLoader(family);
-  for (final p in paths) {
+  for (final p in present) {
     loader.addFont(_fontBytes(p));
   }
   await loader.load();
