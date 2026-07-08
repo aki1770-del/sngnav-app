@@ -38,11 +38,12 @@
 library;
 
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show FontLoader, MethodChannel;
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_test/flutter_test.dart';
+
+import 'render_see_env.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 import 'package:localization_fallback/localization_fallback.dart'
     show LocalizationMode;
@@ -54,30 +55,7 @@ import 'package:sngnav_app/services/maneuver_narration.dart';
 
 import '../support/fake_alert_actuators.dart';
 
-Future<ByteData> _fontBytes(String path) async {
-  final bytes = await File(path).readAsBytes();
-  return ByteData.view(Uint8List.fromList(bytes).buffer);
-}
 
-/// Load whichever of [paths] exist on this host. Env-honest: a CI runner
-/// without the CJK system fonts must not CRASH the suite (the render-see
-/// captures are desktop-host evidence generators); it renders with the
-/// default test font instead and says so — a tofu PNG on CI is harmless
-/// because nobody affirms CI PNGs as OPS-066 evidence.
-Future<void> _loadFamily(String family, List<String> paths) async {
-  final present = paths.where((p) => File(p).existsSync()).toList();
-  if (present.isEmpty) {
-    // ignore: avoid_print
-    print('render_see: no CJK system font on this host — ja glyph '
-        'fidelity NOT verified in this environment (fonts sought: $paths)');
-    return;
-  }
-  final loader = FontLoader(family);
-  for (final p in present) {
-    loader.addFont(_fontBytes(p));
-  }
-  await loader.load();
-}
 
 /// The driver-facing localizer, exactly as the panel uses it (JA for HER).
 const _text = DriveHudLocalizer();
@@ -200,8 +178,9 @@ void main() {
 
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
-    await _loadFamily('Roboto', [ipa, droid]);
-    await _loadFamily('NotoCJK', [ipa, droid]);
+    final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
+    if (!cjkLoaded) installNoopGoldenComparator();
+    await loadCjkFamily('NotoCJK', [ipa, droid]);
     final tmp = await Directory.systemTemp.createTemp('fm_cache_maneuver_see');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(

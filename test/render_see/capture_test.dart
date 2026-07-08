@@ -14,13 +14,14 @@
 library;
 
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:condition_aggregator/condition_aggregator.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show FontLoader, MethodChannel;
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'render_see_env.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 import 'package:sngnav_app/services/advisory_service.dart';
@@ -71,30 +72,7 @@ class _ThrowingNws implements AdvisoryProvider {
       throw Exception('HTTP 400 — NWS has no Japan coverage');
 }
 
-Future<ByteData> _fontBytes(String path) async {
-  final bytes = await File(path).readAsBytes();
-  return ByteData.view(Uint8List.fromList(bytes).buffer);
-}
 
-/// Load whichever of [paths] exist on this host. Env-honest: a CI runner
-/// without the CJK system fonts must not CRASH the suite (the render-see
-/// captures are desktop-host evidence generators); it renders with the
-/// default test font instead and says so — a tofu PNG on CI is harmless
-/// because nobody affirms CI PNGs as OPS-066 evidence.
-Future<void> _loadFamily(String family, List<String> paths) async {
-  final present = paths.where((p) => File(p).existsSync()).toList();
-  if (present.isEmpty) {
-    // ignore: avoid_print
-    print('render_see: no CJK system font on this host — ja glyph '
-        'fidelity NOT verified in this environment (fonts sought: $paths)');
-    return;
-  }
-  final loader = FontLoader(family);
-  for (final p in present) {
-    loader.addFont(_fontBytes(p));
-  }
-  await loader.load();
-}
 
 void main() {
   // IPAGothic is a single-face TTF covering BOTH Latin/ASCII and Japanese
@@ -108,8 +86,9 @@ void main() {
     // Register the font under BOTH the app's default family (Roboto) and an
     // explicit family, so (a) the real SngnavApp tree renders CJK+Latin and
     // (b) the harness-built advisory surface can request it directly.
-    await _loadFamily('Roboto', [ipa, droid]);
-    await _loadFamily('NotoCJK', [ipa, droid]);
+    final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
+    if (!cjkLoaded) installNoopGoldenComparator();
+    await loadCjkFamily('NotoCJK', [ipa, droid]);
     // flutter_map's built-in tile cache calls path_provider on first build;
     // there is no plugin in a widget test, so it throws an intermittent
     // unhandled async error. Give it a real temp dir so the call succeeds.
