@@ -66,6 +66,7 @@ import 'services/drive_hud_controller.dart';
 import 'services/drive_hud_localizer.dart';
 import 'services/maneuver_narration.dart';
 import 'services/jma_advisory_provider_factory.dart';
+import 'build_info.dart';
 import 'services/noaa_advisory_provider.dart';
 import 'services/provider_coverage.dart';
 import 'widgets/advisory_cards.dart';
@@ -1231,14 +1232,13 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(height: 16),
             _section(
               title: 'Glance budget + voice pace + alert expandable '
-                  '(navigation_safety 0.9.0 / voice_guidance 0.7.2)',
+                  '(navigation_safety / voice_guidance)',
               child: _glanceBudgetPanel(),
             ),
             const SizedBox(height: 16),
             _section(
               title: 'Render budget viewport '
-                  '(offline_tiles 0.5.0 / snow_rendering 0.2.5 / '
-                  'map_viewport_bloc 0.4.0)',
+                  '(offline_tiles / snow_rendering / map_viewport_bloc)',
               child: _renderBudgetPanel(),
             ),
             const SizedBox(height: 16),
@@ -2071,8 +2071,8 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 4),
         Text(
-          'Source: navigation_safety 0.9.0 GlanceBudgetTracker + '
-          'AlertExplainerExpandableSheet; voice_guidance 0.7.2 '
+          'Source: navigation_safety GlanceBudgetTracker + '
+          'AlertExplainerExpandableSheet; voice_guidance '
           'BudgetAwarePaceProfile. All advisory; driver-always-drives.',
           style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
         ),
@@ -2198,8 +2198,8 @@ class _HomePageState extends State<HomePage> {
           'Caution-add-direction-wins: any Exhausted → fidelity drops to '
           'low (clamped by per-cohort floor); any Warning → medium; both '
           'normal → high. Bloc never auto-raises fidelity post-drop — '
-          'caution-add-only invariant. Source: offline_tiles 0.5.0 / '
-          'snow_rendering 0.2.5 / map_viewport_bloc 0.4.0.',
+          'caution-add-only invariant. Source: offline_tiles / '
+          'snow_rendering / map_viewport_bloc (resolved versions: pubspec.lock).',
           style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
         ),
       ],
@@ -2313,11 +2313,11 @@ class _Footer extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(
-        'sngnav-app 0.0.5 — Slice 3 try-first. '
-        'Built on navigation_safety_core 0.10.5 + navigation_safety 0.9.0 '
-        '+ voice_guidance 0.6.3 + driving_conditions 0.5.3 '
-        '+ offline_tiles 0.5.0 + snow_rendering 0.2.5 '
-        '+ map_viewport_bloc 0.4.0 (pub.dev). '
+        'sngnav-app $appVersion. '
+        'Built on the SNGNav package family from pub.dev '
+        '(navigation_safety_core, navigation_safety, voice_guidance, '
+        'driving_conditions, offline_tiles, snow_rendering, '
+        'map_viewport_bloc — resolved versions in pubspec.lock). '
         'Akita station chosen because HER\'s mother lives there (V21). '
         'GPS shows position with honest accuracy; mock dot is amber (dev). '
         'Routing via OSRM public demo (NOT snow-aware yet). '
@@ -2451,7 +2451,7 @@ class _ThresholdPreview extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'Source: navigation_safety_core 0.10.5 — '
+          'Source: navigation_safety_core — '
           'forDriverContext composes baseline + vehicle + circadian-phase '
           '+ session-state + confidence (cap-override-with-confirmation '
           'pattern). All deltas are caution-add-only per package '
