@@ -35,10 +35,19 @@ device + an emulator API-level spread (30/34/36). The beta notes MUST say so —
 the app's central ice promise cannot fire in Akita until ~November. The beta
 declaration MUST carry: "drive-loop verified; ice-mission verification
 scheduled for first snow, ~2026-11" — the drive-loop claim and the
-mission-loop claim are never conflated. August–September Tohoku is
-downpour/typhoon season (PHIL-001's sharpening covers every unexpected
-weather turmoil): whether a downpour/typhoon advisory surface enters W3 scope
-is surfaced to the Chair as an option, not silently added.
+mission-loop claim are never conflated.
+
+**Chair ratification (2026-07-09, verbatim): the downpour/typhoon surface IS
+in scope.** *"yes. it is good to proceed in august because we are in a turmoil
+atmosphere and it means we do not assume but measure the actual weather. Not
+our historical data. Sakichi vision says measure first. pull andon when you
+broke thread. ask why it happened. Think deeply about root cause. Once you
+find root cause you are allowed to proceed. Do not proceed when no root cause
+surfaces. VAA is reponsible for that process overall."*
+Two bindings follow: (1) the W3 turmoil surface is built on MEASURED actual
+weather — live JMA observations (the measured `precipitation10m`/wind fields
+already wired) + live JMA warnings — never on historical/seasonal assumption;
+(2) the beta arc runs under the stop-and-root-cause gate below, VAA-owned.
 
 **Claim boundary (TFA condition 1)**: beta text may claim phone-reach on the
 verified matrix ONLY — never the PHIL-001 IVI-hardware rung, whose
@@ -84,6 +93,13 @@ N=1 tester, device-matrix N=1") or move the date; never relabel. **C5 (ja
 floor) and the OPS-059 accessibility floor are NOT rescope currency** (AAA
 F2): only date, tester-count, and device-matrix may shrink.
 
+**Stop-and-root-cause gate (Chair-voice 2026-07-09; VAA owns the process):**
+any broken thread in the beta arc — a red suite, a device-hour failure, a
+false claim caught, a tester-reported defect — STOPS that lane (Andon), gets
+asked WHY to root cause (5-Whys, measured not narrated per §11), and the lane
+may proceed ONLY once a root cause has surfaced. No root cause surfaced = no
+proceed; the stop and the root cause are both logged in the gate history.
+
 **Weekly gate protocol (fix #7)**: Friday, ~30 min: re-read this scoreboard
 against evidence, run the OPS-068 review scaled to the week's diff (full
 multi-lens only for safety-class changes), log the gate verdict in this file's
@@ -121,6 +137,12 @@ accounts). A beta tester sends feedback the way she sends a photo.
 ### CHECKPOINT Tue 2026-07-22 — GO / RESCOPE (rule above)
 
 ### W3 → gate Fri 2026-07-25
+- [ ] **Turmoil surface (Chair-ratified 2026-07-09): measured downpour/typhoon
+      in-drive caution** — live JMA measured fields (precipitation10m, wind)
+      + live JMA warnings drive it; same honesty grammar as the ice watch
+      (derived-and-labeled, possibility-graded, abstain-on-missing → 判定不能,
+      transition-gated). The August tester tests a surface the season can
+      actually fire. NO historical/seasonal assumption anywhere in the gate.
 - [ ] **ENTRY GATE (CT's load-bearing correction): OPS-062 claims-vs-reality
       pass runs BEFORE first tester contact** — README front door, store
       text, in-app captions re-read against verified reality. (Two defects
