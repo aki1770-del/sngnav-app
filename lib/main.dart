@@ -63,6 +63,7 @@ import 'jma_fetch.dart';
 import 'route_fetch.dart';
 import 'services/advisory_service.dart';
 import 'services/drive_hud_controller.dart';
+import 'services/error_log.dart';
 import 'services/drive_hud_localizer.dart';
 import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
@@ -82,7 +83,13 @@ import 'widgets/advisory_cards.dart';
 const String kSngnavAppUserAgent =
     '(sngnav-app, https://github.com/aki1770-del/sngnav)';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // W2 — crash boundary + local error log (services/error_log.dart): every
+  // uncaught error is appended to a size-capped on-device file. NO network,
+  // NO telemetry — the log leaves the device only via the future
+  // user-initiated ログを共有 action. Never blocks boot (best-effort install).
+  await installCrashBoundary();
   runApp(const SngnavApp());
 }
 
@@ -1364,19 +1371,44 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// Key/value row with an adaptive label column.
+  ///
+  /// W2 ladder fix (a) — the old fixed 110-px label column mangled long
+  /// labels: 路面凍結ウォッチ wrapped MID-WORD (ladder_out/api30/03_jma_card.png)
+  /// and the threshold-preview labels stacked one word per line
+  /// (05b_airplane_top.png). The label is now measured at the live text
+  /// scale: short labels keep the exact 110-px column (no visual change),
+  /// longer ones take their natural single-line width, capped at 60% of the
+  /// row so the value column always keeps room (word-boundary wrap beyond
+  /// the cap — never a forced mid-word break at 110).
   Widget _kv(String k, String v) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-              width: 110,
-              child:
-                  Text('$k:', style: TextStyle(color: Colors.grey.shade700))),
-          Expanded(child: Text(v)),
-        ],
-      ),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final labelStyle = TextStyle(color: Colors.grey.shade700);
+        final painter = TextPainter(
+          text: TextSpan(
+            text: '$k:',
+            style: DefaultTextStyle.of(context).style.merge(labelStyle),
+          ),
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout();
+        var labelWidth = painter.width + 8; // breathing room before value
+        painter.dispose();
+        if (labelWidth < 110) labelWidth = 110;
+        if (constraints.hasBoundedWidth &&
+            labelWidth > constraints.maxWidth * 0.6) {
+          labelWidth = constraints.maxWidth * 0.6;
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: labelWidth, child: Text('$k:', style: labelStyle)),
+            Expanded(child: Text(v)),
+          ],
+        );
+      }),
     );
   }
 
@@ -1540,28 +1572,42 @@ class _HomePageState extends State<HomePage> {
     // until HER deliberate tap. The localized disclosure sits here so she can
     // read WHERE her coordinates go BEFORE she grants (task 3).
     if (_herSub == null && !_isMockPosition) {
+      // W2 ladder fix (a) — ladder_out/api30/02b_location_consent.png showed
+      // the status line ("Location not yet shared.") crammed into a
+      // one-syllable-wide column beside the two consent buttons. The most
+      // trust-carrying line on the card must read as a sentence: it now gets
+      // the FULL card width, and the actions sit on their own row below,
+      // Wrap-ping instead of squeezing when the screen is narrow.
+      // liveRegion: assistive tech announces the consent-state line when it
+      // changes (OPS-059 floor — the state change must reach eyes-off users).
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  l.locationNotShared,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              l.locationNotShared,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                TextButton(
+                  key: const Key('share-location-button'),
+                  onPressed: _shareLocation,
+                  child: Text(l.shareMyLocation),
                 ),
-              ),
-              TextButton(
-                key: const Key('share-location-button'),
-                onPressed: _shareLocation,
-                child: Text(l.shareMyLocation),
-              ),
-              TextButton(
-                key: const Key('use-mock-button'),
-                onPressed: _useMockPosition,
-                child: Text(l.useAkitaMock),
-              ),
-            ],
+                TextButton(
+                  key: const Key('use-mock-button'),
+                  onPressed: _useMockPosition,
+                  child: Text(l.useAkitaMock),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 4),
           Text(

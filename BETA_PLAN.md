@@ -136,7 +136,17 @@ accounts). A beta tester sends feedback the way she sends a photo.
 
 ### W2 → gate Fri 2026-07-18
 - [ ] Device hour #1 evidence processed; fix-list burned (A2)
-- [ ] **Ladder fix-list (VAA-seen 2026-07-09)**: (a) consent-card label
+- [x] **Ladder fix-list — BUILT by CT, VAA own-eyes-audited, landed
+      2026-07-09**: (a) consent status line reflowed full-width above its
+      buttons (ja render SEEN: one dignified sentence) + liveRegion
+      semantics; (b) the a11y "zero-size consent targets" claim was
+      REFUTED by CT's measurement (standard hidden-semantics for
+      scrolled-out nodes — FINDINGS.md correction appended) and a
+      semantics-floor test pins the contract anyway; (c) shared _kv
+      narrow-label pattern fixed adaptively (threshold render SEEN:
+      word-boundary wrap). Audit note: the same render shows core 0.10.5's
+      flat-certainty 凍結路面です still live — fresh visual proof of what
+      the staged NSC 0.10.6 publish buys. ORIGINAL ITEM: (a) consent-card label
       column mangles its most trust-carrying line one-syllable-per-line
       ("Loca/tion/not/yet/shar/ed." — 02b_location_consent.png) and the
       路面凍結ウォッチ label wraps mid-word — widen/reflow the label column;
@@ -155,7 +165,7 @@ accounts). A beta tester sends feedback the way she sends a photo.
       gains that step; the beta notes state the dependency honestly.
 - [ ] Play internal track created + first signed build uploaded (A4)
 - [ ] Offline basemap PoC → default (bundled Akita MBTiles); emulator airplane-mode pass
-- [ ] Crash boundary + on-device local error log
+- [x] Crash boundary + on-device local error log (LocalErrorLog, size-capped, no network — the read surface for W3's ログを共有; 5 tests)
 - [ ] pretrip_source ^0.5.0 wave STAGED → PENDING PUBLISH (A3)
 
 ### CHECKPOINT Tue 2026-07-22 — GO / RESCOPE (rule above)

@@ -55,3 +55,11 @@ All artifacts under `ladder_out/api30/`. Every claim below cites an artifact or 
 01_consent_gate.png, 02_map_consent_card.png, 02b_location_consent.png, 02c_after_share_tap.png, 02_main.png, 03_consent_buttons.png, 03_jma_card.png, 03b_announce_tts.png, 04_alerts.png, 05_airplane.png, 05b_airplane_top.png, tts_logcat.txt, logcat_tail.txt, boot_time.txt, emulator_console.log, ui_dump_01..21.xml.
 
 Nothing committed, nothing pushed, no app source modified. `ladder_out/` is untracked output only.
+
+---
+## CORRECTION (2026-07-09, CT fix-lane measurement; appended — evidence-of-record is never silently edited)
+The Defect-2 accessibility claim ("consent actions clickable=false, bounds [0,0][0,0]") is REFUTED:
+all 8 ui_dumps show the consent buttons clickable="true"; dump 14 has real on-screen bounds
+[173,1069][553,1201] (the ladder itself tapped them). The zero-size nodes were Flutter's standard
+hidden-semantics for scrolled-out content (the "Next maneuver" card shows the same), not a defect.
+A semantics-floor widget test now pins the contract regardless (location_consent_semantics_test.dart).
