@@ -178,6 +178,12 @@ accounts). A beta tester sends feedback the way she sends a photo.
   `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/work/nsc-0.10.6`
   *(after publish, sngnav-app takes it with a plain `flutter pub upgrade` —
   its `^0.10.0` pin admits 0.10.6)*
+- `pretrip_source_digitraffic 0.2.3` + `pretrip_source_jma 0.2.1` +
+  `pretrip_source_met_norway 0.2.2` (constraint-widen to pretrip ^0.5.0;
+  staged + committed SNGNav `16aa60c`; analyze/tests/dry-run clean) —
+  `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/SNGNav/packages/pretrip_source_digitraffic`
+  `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/SNGNav/packages/pretrip_source_jma`
+  `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/SNGNav/packages/pretrip_source_met_norway`
 
 ## Gate history
 - 2026-07-09 (v2 adoption): C4 ✅. W1 substantially complete 2 days early;
