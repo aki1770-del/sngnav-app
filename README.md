@@ -6,12 +6,13 @@ Alpha-stage navigation companion for snow-zone commuting in Hokkaido / Tohoku, J
 
 The first edge-developer use of the [navigation_safety_core](https://pub.dev/packages/navigation_safety_core) package family from pub.dev. Built by the same team that ships those packages — eating our own dog food while learning what fails.
 
-Alongside the safety stack above, the app also includes the original integrator demos:
+Alongside the safety stack above, the app also includes the original integrator demos (package versions resolve per `pubspec.lock` — the copy below names packages, never pins):
 
-- A `DriverProfile` selector wired to `AlertDensityThrottle` from `navigation_safety_core 0.4.1`
+- A `DriverProfile` selector wired to `AlertDensityThrottle` from `navigation_safety_core`
 - The throttle's per-profile cap visualized — fire 8 sequential alerts, see which fire and which throttle for the selected profile
 - A `RoadSurfaceConditionGlossary` panel showing per-profile vocabulary (kanji-native for ageing-rural, simplified for foreign-tourist, etc.)
-- One real-data fetch from JMA AMeDAS — current observation at the Akita-shi station (32402): temperature, humidity, wind, snow depth, observation time
+- Real-data fetches from JMA AMeDAS — current observation at the Akita-shi station (32402) plus a five-station corridor: temperature, humidity, wind, snow depth, 10-min precipitation, observation time
+- **路面凍結ウォッチ (invisible-ice watch)** — the measured JMA fields run through the catalog's shared radiative-frost classifier; when the clear-morning black-ice window is detected the app shows and speaks the possibility-graded ブラックアイスバーン line (a derived inference, labeled as such — never presented as a JMA statement; missing fields read 判定不能, never "clear")
 
 The default profile is `ageingRural`. The default station is Akita. Both choices are deliberate — the first customer we serve is the most-vulnerable cohort member.
 

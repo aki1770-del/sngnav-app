@@ -1481,8 +1481,15 @@ class _HomePageState extends State<HomePage> {
               },
             ),
             const SizedBox(height: 8),
+            // Honesty split (CT Joel-Test catch, 2026-07-09 vision audit):
+            // the observation fields above are verbatim relay; the watch row
+            // is NOT — it is a derived classification. One caption claiming
+            // "no derivation" under both was a false claim on the safety
+            // surface.
             Text(
-              'Source: JMA AMeDAS — verbatim relay only, no derivation.',
+              'Source: JMA AMeDAS — observation fields are verbatim relay. '
+              '路面凍結ウォッチ is DERIVED from them (shared radiative-frost '
+              'classifier) — an inference, not a JMA statement.',
               style: TextStyle(
                 color: Colors.grey.shade700,
                 fontSize: 12,

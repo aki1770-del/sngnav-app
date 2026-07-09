@@ -31,6 +31,20 @@ plausible path by the mid-month checkpoint triggers the rescope rule below.
 device + an emulator API-level spread (30/34/36). The beta notes MUST say so —
 "works on HER cohort's phones" is not claimable from N=1.
 
+**Season honesty (2026-07-09 audit, VPM doubt #2)**: the gate lands in August;
+the app's central ice promise cannot fire in Akita until ~November. The beta
+declaration MUST carry: "drive-loop verified; ice-mission verification
+scheduled for first snow, ~2026-11" — the drive-loop claim and the
+mission-loop claim are never conflated. August–September Tohoku is
+downpour/typhoon season (PHIL-001's sharpening covers every unexpected
+weather turmoil): whether a downpour/typhoon advisory surface enters W3 scope
+is surfaced to the Chair as an option, not silently added.
+
+**Claim boundary (TFA condition 1)**: beta text may claim phone-reach on the
+verified matrix ONLY — never the PHIL-001 IVI-hardware rung, whose
+Destination-Re-anchoring Andon stays held until a measured rung renders on
+real embedded hardware.
+
 ## Method mechanics (v2 fixes #2–#8)
 
 **Chair-hands register (fix #2) — every Chair dependency is a dated ask with a
@@ -43,7 +57,7 @@ fallback, not ambient background:**
 | A3. **Batched publish session** — NSC 0.10.6 + pretrip_source wave + anything staged (one sitting, commands listed by me) | 2026-07-18 | app ships beta on current published versions; graded-ICE string slips to post-beta |
 | A4. Play Console account + ~US$25 (OPS-067 consent) | **2026-07-15** (moved UP from W3 — external review latency, fix #5) | no channel → C3 unmeetable → rescope rule fires at checkpoint |
 | A5. Device hour #2 (full drive-loop + airplane-mode) | 2026-07-29 | C1/C2 partial from hour #1 evidence; beta date honesty-adjusted |
-| A6. Beta-tester conversation STARTS (not "invite at the end") | 2026-07-22 | Komada-as-tester is the floor (N=1 tester, said honestly) |
+| A6. **The tester question — "who is she, by name, and has she said yes?"** (VPM doubt #1: the board's own diagnosis is downstream-pull; this is the plan's ONLY pull item — it gets criterion-grade falsifiability, not a soft verb) | **asked by 2026-07-14, answered by 2026-07-18** | Komada-as-tester is the floor (N=1, said honestly) — and if no real HER-cohort human is reachable by 07-22, THAT finding surfaces to the Chair at the checkpoint as a finding, not a footnote |
 
 **Verify-early-verify-late (fix #3)**: hardware verification is decoupled from
 feature completion — device hour #1 runs on whatever the APK does TODAY;
@@ -58,16 +72,25 @@ TTS attempt logged) → screenshot each state → OPS-066 affirm the renders.
 API-level spread exists precisely because the TTS_SERVICE-class bug
 (Android-11+-only package-visibility) is invisible on old APIs.
 
-**Mid-month checkpoint (fix #7) — 2026-07-22, decision rule written down:**
-count criteria with evidence-or-clear-path. ≥4 of 6 → GO (finish the month).
-<4 → RESCOPE with the Chair same-day: either shrink the beta definition
-HONESTLY (e.g., "internal beta, N=1 tester, device-matrix N=1") or move the
-date; never relabel. This is the §11 measure applied to the plan itself.
+**Mid-month checkpoint (fix #7; tightened by the 2026-07-09 vision audit) —
+2026-07-22, decision rule written down:** count criteria with EVIDENCE only —
+"clear path" is struck (it is a story the pen tells itself; the narration
+seam VPM and TFA independently named). A criterion with zero evidence on
+07-22 counts red regardless of its story. The count gets a SEPARATED READ
+(ORS or Vice-SEO) beside the plan-author's own — the author does not solely
+grade its own ≥4/6. ≥4 of 6 → GO (finish the month). <4 → RESCOPE with the
+Chair same-day: shrink the beta definition HONESTLY (e.g., "internal beta,
+N=1 tester, device-matrix N=1") or move the date; never relabel. **C5 (ja
+floor) and the OPS-059 accessibility floor are NOT rescope currency** (AAA
+F2): only date, tester-count, and device-matrix may shrink.
 
 **Weekly gate protocol (fix #7)**: Friday, ~30 min: re-read this scoreboard
 against evidence, run the OPS-068 review scaled to the week's diff (full
 multi-lens only for safety-class changes), log the gate verdict in this file's
-history section, roll reds forward visibly.
+history section, roll reds forward visibly. **Standing test before any review
+round beyond the first (VPM doubt #4): "could a device-hour or a tester
+answer this question instead?" If yes, the empirical hour outranks the review
+round — sibling verifiers cannot supply a stranger's hour with the phone.**
 
 **Batched publish sessions (fix #6)**: package releases queue in a PENDING
 PUBLISH list here; the Chair publishes in ONE sitting per batch (A3), each
@@ -98,7 +121,19 @@ accounts). A beta tester sends feedback the way she sends a photo.
 ### CHECKPOINT Tue 2026-07-22 — GO / RESCOPE (rule above)
 
 ### W3 → gate Fri 2026-07-25
+- [ ] **ENTRY GATE (CT's load-bearing correction): OPS-062 claims-vs-reality
+      pass runs BEFORE first tester contact** — README front door, store
+      text, in-app captions re-read against verified reality. (Two defects
+      the audit already caught are fixed as of 2026-07-09: the false
+      "no derivation" caption under the derived watch row; the 0.4.1-era
+      README front matter.) W4's re-read remains as confirmation.
 - [ ] Remaining English chrome → ja-primary; OPS-059 floor re-audit (C5)
+- [ ] **Locale-aware spoken alerts (AAA F1, correction-class)**: announce
+      paths currently hardcode ja while enSpokenText parity sits published
+      one import away — select spoken line + localeTag by locale, or bound
+      it explicitly ("spoken alerts are Japanese-only in this beta") in the
+      store text and beta notes. The eyes-off channel must not silently
+      degrade for a named cohort.
 - [ ] "ログを共有" share-log feedback action (C6)
 - [ ] Store listing (honest-bounds style, ja-primary) + privacy statement page
 - [ ] Tester onboarding text (ja); A6 conversation concluded
