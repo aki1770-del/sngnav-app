@@ -618,7 +618,13 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         const SizedBox(height: 8),
-        Row(
+        // Wrap, not Row: at phone width the long button label + the live
+        // blackout counter cannot both be honored at natural size — a fixed
+        // Row overflows (caught by the w2 phone-geometry capture on CI).
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             ElevatedButton.icon(
               key: const Key('drive-hud-blackout-button'),
@@ -626,7 +632,6 @@ class _HomePageState extends State<HomePage> {
               icon: const Icon(Icons.gps_off),
               label: const Text('Simulate GPS blackout (+60 s)'),
             ),
-            const SizedBox(width: 8),
             if (_blackoutSeconds > 0)
               Text('blackout: ${_blackoutSeconds}s',
                   style: TextStyle(
