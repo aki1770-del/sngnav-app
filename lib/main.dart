@@ -2158,13 +2158,17 @@ class _HomePageState extends State<HomePage> {
         _kv('Last event', _formatGlanceEvent(_lastGlanceEvent)),
         _kv('Effective voice pace', '${pace.toStringAsFixed(2)}× baseline'),
         const SizedBox(height: 8),
-        Row(
+        // Wrap, not Row: same phone-width overflow class as the blackout
+        // button (probe-caught) — two natural-size buttons cannot both be
+        // honored at 393 logical under wide font metrics.
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
           children: [
             ElevatedButton(
               onPressed: _simulateGlanceEvent,
               child: const Text('Simulate glance (800 ms)'),
             ),
-            const SizedBox(width: 8),
             TextButton(
               onPressed: _resetGlanceBudget,
               child: const Text('Reset trip'),
