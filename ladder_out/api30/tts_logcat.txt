@@ -1,0 +1,54 @@
+07-09 20:35:07.751  9042  9244 I TTS.VoiceGenerator: Get absoluteFilePath null
+07-09 20:35:07.752  9042  9244 I chatty  : uid=10130(com.google.android.tts) Binder:9042_5 identical 4 lines
+07-09 20:35:07.752  9042  9244 I TTS.VoiceGenerator: Get absoluteFilePath null
+07-09 20:35:07.752  9042  9244 W TTS.Dispatcher: The requested voice is not available for this app identifier
+07-09 20:35:07.752  9042  9244 I TTS.GoogleTTSServiceImp: currentLocale = ja-JP
+07-09 20:35:07.753  9042  9244 W TTS.Dispatcher: The requested voice is not available for this app identifier
+07-09 20:35:07.753  9042  9244 I TTS.GoogleTTSServiceImp: currentLocale = ja-JP
+07-09 20:35:07.754  9042  9244 W TTS.Dispatcher: The requested voice is not available for this app identifier
+07-09 20:35:07.754  9042  9244 I TTS.GoogleTTSServiceImp: currentLocale = ja-JP
+07-09 20:35:07.754  9042  9244 W TTS.Dispatcher: The requested voice is not available for this app identifier
+07-09 20:35:07.754  9042  9244 I TTS.GoogleTTSServiceImp: For default lang ja-jp is name ja-JP-language (ja-jp-x-jab-server)
+07-09 20:35:07.755  9042  9060 W TTS.Dispatcher: The requested voice is not available for this app identifier
+07-09 20:35:07.755  9042  9060 I TTS.GoogleTTSServiceImp: currentLocale = ja-JP
+07-09 20:35:07.755  9042  9073 I TTS.VoiceDataDownloader: voicesToFetch ja-jp
+07-09 20:35:07.756  9042  9073 I TTS.VoiceDataDownloader: fetchVoiceInternal ja-jp
+07-09 20:35:07.756  9042  9073 W TTS.Dispatcher: No local or network voice found, failing dispatch
+07-09 20:35:07.756  9042  9072 I TTS.VoiceDataDownloader: Superpacks created and default voices checked.
+07-09 20:35:07.756  9042  9072 I TTS.VoiceDataManager: start to download voice ja-jp
+07-09 20:35:07.756  9042  9072 I TTS.VoiceDataDownloader: Download of ja-jp started.
+07-09 20:35:07.756  9042  9072 I TTS.VoiceDataDownloader: Registered slicing strategy for ja-jp
+07-09 20:35:07.756  9042  9072 I TTS.VoiceDataDownloader: Getting pack name ja-jp-x-htm-r15
+07-09 20:35:07.757  9042  9072 I TTS.VoiceDataDownloader: Adding pack ja-jp-x-htm-r15 to superpack.
+07-09 20:35:07.757  9042  9072 I TTS.VoiceDataDownloader: Getting pack name ja-jp-x-mfk-r15
+07-09 20:35:07.757  9042  9072 I TTS.VoiceDataDownloader: Adding pack ja-jp-x-mfk-r15 to superpack.
+07-09 20:35:07.757  9042  9072 I TTS.VoiceDataDownloader: Getting pack name ja-jp-x-jab-r15
+07-09 20:35:07.757  9042  9072 I TTS.VoiceDataDownloader: Adding pack ja-jp-x-jab-r15 to superpack.
+07-09 20:35:07.757  9042  9072 I TTS.VoiceDataDownloader: Getting pack name ja-jp-x-jac-r15
+07-09 20:35:07.757  9042  9072 I TTS.VoiceDataDownloader: Adding pack ja-jp-x-jac-r15 to superpack.
+07-09 20:35:07.757  9042  9072 I TTS.VoiceDataDownloader: Getting pack name ja-jp-x-jad-r15
+07-09 20:35:07.757  9042  9072 I TTS.VoiceDataDownloader: Adding pack ja-jp-x-jad-r15 to superpack.
+07-09 20:35:07.757  9042  9072 I TTS.VoiceDataDownloader: Getting pack name ja-jp-x-jaa-r15
+07-09 20:35:07.757  9042  9072 I TTS.VoiceDataDownloader: Adding pack ja-jp-x-jaa-r15 to superpack.
+07-09 20:35:07.757  9042  9072 I TTS.VoiceDataDownloader: Syncing superpack ja-jp
+07-09 20:35:07.845  9042  9073 I TTS.GoogleTTSServiceImp: Synthesis request for locale jpn-JPN and name ja-JP-language
+07-09 20:35:07.845  9042  9073 I TTS.VoiceDataManager: Downloading ja-jp ...
+07-09 20:35:07.846  9042  9073 I chatty  : uid=10130(com.google.android.tts) SynthThread identical 2 lines
+07-09 20:35:07.846  9042  9073 I TTS.VoiceDataManager: Downloading ja-jp ...
+07-09 20:35:07.846  9042  9073 W TTS.Dispatcher: Local voice not installed, we will not be able to do local fallback
+07-09 20:35:07.846  9042  9073 I TTS.GoogleTTSServiceImp: TTS dispatch: ja-jp-x-jab-server
+07-09 20:35:07.868  9042  9075 I SP      : Requesting download of URL https://redirector.gvt1.com/edgedl/android/tts/v22/ja-jp/ja-jp-x-htm-r15.zvoice to ja-jp-x-htm-r15.zvoice.fetched (constraints: m:b)
+07-09 20:35:07.868  9042  9075 I SP      : Requesting download of URL https://redirector.gvt1.com/edgedl/android/tts/v22/ja-jp/ja-jp-x-mfk-r15.zvoice to ja-jp-x-mfk-r15.zvoice.fetched (constraints: m:b)
+07-09 20:35:07.868  9042  9075 I SP      : Requesting download of URL https://redirector.gvt1.com/edgedl/android/tts/v22/ja-jp/ja-jp-x-jab-r15.zvoice to ja-jp-x-jab-r15.zvoice.fetched (constraints: m:b)
+07-09 20:35:07.869  9042  9075 I SP      : Requesting download of URL https://redirector.gvt1.com/edgedl/android/tts/v22/ja-jp/ja-jp-x-jac-r15.zvoice to ja-jp-x-jac-r15.zvoice.fetched (constraints: m:b)
+07-09 20:35:07.869  9042  9075 I SP      : Requesting download of URL https://redirector.gvt1.com/edgedl/android/tts/v22/ja-jp/ja-jp-x-jad-r15.zvoice to ja-jp-x-jad-r15.zvoice.fetched (constraints: m:b)
+07-09 20:35:07.869  9042  9075 I SP      : Requesting download of URL https://redirector.gvt1.com/edgedl/android/tts/v22/ja-jp/ja-jp-x-jaa-r15.zvoice to ja-jp-x-jaa-r15.zvoice.fetched (constraints: m:b)
+07-09 20:35:09.576  9001  9370 D TTS     : Utterance ID has started: d9c0b8b0-5a38-4862-884e-6fad83104292
+07-09 20:35:18.859  9042 10269 I chatty  : uid=10130(com.google.android.tts) identical 2 lines
+07-09 20:35:19.538  9001  9020 D TTS     : Utterance ID has completed: d9c0b8b0-5a38-4862-884e-6fad83104292
+07-09 20:35:46.891  9042  9072 I TTS.VoiceDataDownloader: Superpack download completed.
+07-09 20:35:46.891  9042  9072 I TTS.VoiceDataDownloader: Download ja-jp Success true
+07-09 20:35:46.891  9042  9072 I TTS.VoiceDataManager: Downloaded voice ja-jp
+07-09 20:35:46.900  9042  9072 I TTS.VoiceDataDownloader: getAvailableVoicesInfo en-us
+07-09 20:35:46.901  9042  9072 I TTS.VoiceDataDownloader: getAvailableVoicesInfo ja-jp
+07-09 20:35:46.901  9042  9072 I TTS.VoiceGenerator: Cache cleared

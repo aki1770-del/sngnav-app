@@ -1,0 +1,730 @@
+--------- beginning of main
+07-09 20:38:04.403  1440 10599 I CheckinUtil: Classify the device as Phone. [CONTEXT service_id=130 ]
+07-09 20:38:04.404 10647 10647 D CellBroadcastReceiver: Skip setting default values of shared preference.
+07-09 20:38:04.404 10647 10647 D CellBroadcastReceiver: Default interval 2 did not change.
+07-09 20:38:04.405 10647 10647 D CellBroadcastReceiver: disable launcher activity: com.android.cellbroadcastreceiver.CellBroadcastListLauncherActivity
+07-09 20:38:04.405 10647 10647 D CellBroadcastReceiver: Start Cell Broadcast configuration for intent=ACTION_ENABLE_CHANNELS
+--------- beginning of system
+07-09 20:38:04.405   520  2184 D ConnectivityService: requestNetwork for uid/pid:10147/10743 NetworkRequest [ TRACK_DEFAULT id=52, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Uid: 10147 AdministratorUids: [] RequestorUid: 10147 RequestorPackageName: com.google.android.youtube] ]
+07-09 20:38:04.406   520   685 D ConnectivityService: NetReassign [52 : null → 104]
+07-09 20:38:04.406   520   679 D UntrustedWifiNetworkFactory: got request NetworkRequest [ TRACK_DEFAULT id=52, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Uid: 10147 AdministratorUids: [] RequestorUid: 10147 RequestorPackageName: com.google.android.youtube] ] with score 10 and providerId 2
+07-09 20:38:04.406   520   679 D WifiNetworkFactory: got request NetworkRequest [ TRACK_DEFAULT id=52, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Uid: 10147 AdministratorUids: [] RequestorUid: 10147 RequestorPackageName: com.google.android.youtube] ] with score 10 and providerId 2
+07-09 20:38:04.406   520   685 D ConnectivityService: NetReassign [no changes]
+07-09 20:38:04.407 10720 10837 I DynamiteModule: Considering local module com.google.android.gms.ads.dynamite:0 and remote module com.google.android.gms.ads.dynamite:21400
+07-09 20:38:04.407 10720 10837 I DynamiteModule: Selected remote version of com.google.android.gms.ads.dynamite, version >= 21400
+07-09 20:38:04.412 10743 10803 W android.youtub: Unsupported class loader
+07-09 20:38:04.412   757   757 V KeyguardUpdateMonitor: onSubscriptionInfoChanged()
+07-09 20:38:04.413   757   757 V KeyguardUpdateMonitor: SubInfo:{id=1 iccId=89014103211118510720 simSlotIndex=0 carrierId=1 displayName=T-Mobile carrierName=T-Mobile nameSource=3 iconTint=-16746133 number=+15555215554 dataRoaming=0 iconBitmap=android.graphics.Bitmap@bf03c mcc=310 mnc=260 countryIso=us isEmbedded=false nativeAccessRules=null cardString=89014103211118510720 cardId=-1 isOpportunistic=false groupUUID=null isGroupDisabled=false profileClass=-1 ehplmns=null hplmns=null subscriptionType=0 groupOwner=null carrierConfigAccessRules=null areUiccApplicationsEnabled=true}
+07-09 20:38:04.414  1125  1125 D TelephonyProvider: subIdString = 1 subId = 1
+07-09 20:38:04.415 10743 10805 V NativeCrypto: Registering com/google/android/gms/org/conscrypt/NativeCrypto's 286 native methods...
+07-09 20:38:04.418  1125  1125 D PhoneSwitcherNetworkRequstListener: got request NetworkRequest [ TRACK_DEFAULT id=52, [ Capabilities: INTERNET&NOT_RESTRICTED&TRUSTED Uid: 10147 AdministratorUids: [] RequestorUid: 10147 RequestorPackageName: com.google.android.youtube] ] with score 10 and providerId 2
+07-09 20:38:04.418  1125  1125 D Telephony: isEmergencyPreferredAccount: subId=1, activeData=1
+07-09 20:38:04.418  1125  1125 D Telephony: isEmergencyPreferredAccount: Device does not require preference.
+07-09 20:38:04.418 10613 10613 I Dialer  : VvmOmtpService - onCellServiceConnected
+07-09 20:38:04.419 10613 10613 I Dialer  : VoicemailModule.provideVoicemailClient - providing VoicemailClientImpl
+07-09 20:38:04.422   757   757 V KeyguardUpdateMonitor: onSubscriptionInfoChanged()
+07-09 20:38:04.423   757   757 V KeyguardUpdateMonitor: SubInfo:{id=1 iccId=89014103211118510720 simSlotIndex=0 carrierId=1 displayName=T-Mobile carrierName=T-Mobile nameSource=3 iconTint=-16746133 number=+15555215554 dataRoaming=0 iconBitmap=android.graphics.Bitmap@2afc1c5 mcc=310 mnc=260 countryIso=us isEmbedded=false nativeAccessRules=null cardString=89014103211118510720 cardId=-1 isOpportunistic=false groupUUID=null isGroupDisabled=false profileClass=-1 ehplmns=null hplmns=null subscriptionType=0 groupOwner=null carrierConfigAccessRules=null areUiccApplicationsEnabled=true}
+07-09 20:38:04.424  1125  1125 D Telephony: isEmergencyPreferredAccount: subId=1, activeData=1
+07-09 20:38:04.424  1125  1125 D Telephony: isEmergencyPreferredAccount: Device does not require preference.
+07-09 20:38:04.427  3224  7879 I CarrierServices: [112] ehg.a: KEY_CONFIG_IMS_PACKAGE_OVERRIDE_STRING: com.google.android.ims
+07-09 20:38:04.428 10743 10803 W android.youtub: Unsupported class loader
+07-09 20:38:04.428   520  3481 E system_server: Invalid class loader spec: =UnsupportedClassLoaderContext=
+07-09 20:38:04.428   520  3481 E PackageDexUsage: Unsupported context?
+07-09 20:38:04.429 10743 10803 I DynamiteModule: Considering local module com.google.android.gms.ads.dynamite:0 and remote module com.google.android.gms.ads.dynamite:21400
+07-09 20:38:04.440 10613 10613 I Dialer  : VvmTaskReceiver - task received
+07-09 20:38:04.440 10613 10613 I Dialer  : VvmTaskReceiver - scheduling new job
+07-09 20:38:04.441 10613 10613 I Dialer  : TaskSchedulerJobService - scheduling job with 1 tasks
+07-09 20:38:04.441 10613 10613 I Dialer  : TaskSchedulerJobService - running job instantly.
+07-09 20:38:04.443 10613 10613 I Dialer  : TaskSchedulerJobService - job 1 scheduled
+07-09 20:38:04.447 10743 10803 I DynamiteModule: Selected remote version of com.google.android.gms.ads.dynamite, version >= 21400
+07-09 20:38:04.449  1055 10602 D NetworkMonitor/104: PROBE_HTTPS https://www.google.com/generate_204 time=597ms ret=204 request={Connection=[close], User-Agent=[Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.32 Safari/537.36]} headers={null=[HTTP/1.1 204 No Content], Alt-Svc=[h3=":443"; ma=2592000,h3-29=":443"; ma=2592000], Connection=[close], Content-Length=[0], Cross-Origin-Resource-Policy=[cross-origin], Date=[Thu, 09 Jul 2026 11:38:05 GMT], X-Android-Received-Millis=[1783597084449], X-Android-Response-Source=[NETWORK 204], X-Android-Selected-Protocol=[http/1.1], X-Android-Sent-Millis=[1783597084148]}
+07-09 20:38:04.457  1055 10600 D NetworkMonitor/104: isCaptivePortal: isSuccessful()=true isPortal()=false RedirectUrl=null isPartialConnectivity()=false Time=725ms
+07-09 20:38:04.457 10647 10697 D CellBroadcastConfigService: Enable CellBroadcast on sub 1
+07-09 20:38:04.459   520   685 D ConnectivityService: [104 CELLULAR] validation passed
+07-09 20:38:04.459   520   685 D ConnectivityService: NetReassign [no changes]
+07-09 20:38:04.462   520   557 I GnssNetworkConnectivityHandler: updateNetworkState, state=CLOSED, connected=true, network=104, capabilities=[ Transports: CELLULAR Capabilities: MMS&SUPL&DUN&FOTA&IMS&CBS&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED LinkUpBandwidth>=15000Kbps LinkDnBandwidth>=30000Kbps Specifier: <TelephonyNetworkSpecifier [mSubId = 1]> AdministratorUids: [] RequestorUid: -1 RequestorPackageName: null], apn: epc.tmobile.com, availableNetworkCount: 1
+07-09 20:38:04.462   520   685 D ConnectivityService: Setting DNS servers for network 104 to [/10.0.2.3]
+07-09 20:38:04.462   520   685 D DnsManager: sendDnsConfigurationForNetwork(104, [10.0.2.3], [], 1800, 25, 8, 64, 0, 0, , [10.0.2.3])
+07-09 20:38:04.463  3224  3284 I CarrierServices: [59] dji.a: FiST: Wifi connectivity status false
+07-09 20:38:04.463  3224  3641 I CarrierServices: [90] drv.a: (PEv2-SM): DisabledState: event Connectivity event
+07-09 20:38:04.465  3224  3284 I CarrierServices: [59] djm.d: Connected state: [1], networkType: [MOBILE]
+07-09 20:38:04.466   308 10896 W resolv  : Validating DnsTlsServer on netId 104
+07-09 20:38:04.468   308 10896 W resolv  : SSL_connect ssl error =5, mark 0xf0068: Connection refused
+07-09 20:38:04.468   308 10896 W resolv  : Validation failed
+07-09 20:38:04.473  1246 10608 E GmsTaskScheduler: sendWakeUpEvent called on SchedulerClientBroadcastStrategy
+07-09 20:38:04.484 10720 10837 I DynamiteLoaderV2: [71] AdsFdrDynamite.integ
+07-09 20:38:04.490 10743 10803 I DynamiteLoaderV2: [71] AdsFdrDynamite.integ
+07-09 20:38:04.491 10720 10837 W s.youtube.musi: Unsupported class loader
+07-09 20:38:04.492 10720 10816 W s.youtube.musi: Accessing hidden field Ljava/util/Collections$SynchronizedCollection;->mutex:Ljava/lang/Object; (greylist-max-o, reflection, denied)
+07-09 20:38:04.492 10720 10816 W s.youtube.musi: Accessing hidden method Ljava/util/Collections$SynchronizedSet;-><init>(Ljava/util/Set;Ljava/lang/Object;)V (greylist-max-o, reflection, denied)
+07-09 20:38:04.493 10720 10720 V MediaRouter: Selecting route: RouteInfo{ name=Phone, description=null, status=null, category=RouteCategory{ name=System types=ROUTE_TYPE_LIVE_AUDIO ROUTE_TYPE_LIVE_VIDEO  groupable=false }, supportedTypes=ROUTE_TYPE_LIVE_AUDIO ROUTE_TYPE_LIVE_VIDEO , presentationDisplay=null }
+07-09 20:38:04.494 10720 10816 W s.youtube.musi: Accessing hidden method Ljava/util/Collections$SynchronizedCollection;-><init>(Ljava/util/Collection;Ljava/lang/Object;)V (greylist-max-o, reflection, denied)
+07-09 20:38:04.495   520   554 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.net.conn.NETWORK_CONDITIONS_MEASURED flg=0x10 (has extras) } to com.google.android.gms/.chimera.GmsIntentOperationService$PersistentTrustedReceiver
+07-09 20:38:04.497 10613 10613 I Dialer  : TaskSchedulerJobService - starting 1
+07-09 20:38:04.508 10743 10803 W android.youtub: Unsupported class loader
+07-09 20:38:04.511  1440 10599 I Checkin : [AndroidCheckinProtoModule] Checkin reason type: 8 attempt count: 1.
+07-09 20:38:04.513 10743 10743 V MediaRouter: Selecting route: RouteInfo{ name=Phone, description=null, status=null, category=RouteCategory{ name=System types=ROUTE_TYPE_LIVE_AUDIO ROUTE_TYPE_LIVE_VIDEO  groupable=false }, supportedTypes=ROUTE_TYPE_LIVE_AUDIO ROUTE_TYPE_LIVE_VIDEO , presentationDisplay=null }
+07-09 20:38:04.515 10613 10613 I Dialer  : VvmTaskExecutor - onStartJob
+07-09 20:38:04.515 10613 10613 I Dialer  : Task.createTask - create task:com.android.voicemail.impl.ActivationTask
+07-09 20:38:04.520 10570 10570 V AvrcpMediaPlayerList: onActiveSessionsChanged: number of controllers: 0
+07-09 20:38:04.522 10613 10909 I Dialer  : VvmTaskExecutor - executing task com.android.voicemail.impl.ActivationTask@adf03cf
+07-09 20:38:04.522 10720 10788 I ProviderInstaller: Installed default security provider GmsCore_OpenSSL
+07-09 20:38:04.523 10613 10909 I Dialer  : PreOMigrationHandler - ComponentInfo{com.android.phone/com.android.services.telephony.TelephonyConnectionService}, ***, UserHandle{0} already migrated
+07-09 20:38:04.523   436   436 W ServiceManager: Permission failure: android.permission.SYSTEM_CAMERA from uid=10147 pid=10743
+07-09 20:38:04.524   436   436 I chatty  : uid=1047(cameraserver) /system/bin/cameraserver identical 2 lines
+07-09 20:38:04.524   436   436 W ServiceManager: Permission failure: android.permission.SYSTEM_CAMERA from uid=10147 pid=10743
+07-09 20:38:04.527 10720 10720 V MediaRouter: Selecting route: RouteInfo{ name=Phone, description=null, status=null, category=RouteCategory{ name=System types=ROUTE_TYPE_LIVE_AUDIO ROUTE_TYPE_LIVE_VIDEO  groupable=false }, supportedTypes=ROUTE_TYPE_LIVE_AUDIO ROUTE_TYPE_LIVE_VIDEO , presentationDisplay=null }
+07-09 20:38:04.541 10570 10570 I AvrcpBrowsedPlayerWrapper: onConnected: com.google.android.apps.youtube.music is connected
+07-09 20:38:04.541 10570 10570 D AvrcpBrowsablePlayerConnector: Browse player callback called: package=com.google.android.apps.youtube.music : status=0
+07-09 20:38:04.541 10570 10570 D AvrcpBrowsablePlayerConnector: Received a message: msg.what=1
+07-09 20:38:04.541 10570 10570 I AvrcpBrowsablePlayerConnector: Checking root contents for com.google.android.apps.youtube.music
+07-09 20:38:04.541 10720 10837 W s.youtube.musi: Unsupported class loader
+07-09 20:38:04.541   520   554 E system_server: Invalid class loader spec: =UnsupportedClassLoaderContext=
+07-09 20:38:04.541   520   554 E PackageDexUsage: Unsupported context?
+07-09 20:38:04.545  8078  8100 I VoicemailNotifier: receivers for android.intent.action.PROVIDER_CHANGED :[]
+07-09 20:38:04.548 10570 10570 I AvrcpBrowsedPlayerWrapper: onConnected: com.google.android.apps.youtube.music is connected
+07-09 20:38:04.548 10570 10570 I AvrcpBrowsedPlayerWrapper: getFolderItems: Connected to browsable player: com.google.android.apps.youtube.music
+07-09 20:38:04.548 10613 10909 I Dialer  : VvmActivationTask - VVM content provider configured - vvm_type_cvvm
+07-09 20:38:04.549 10613 10909 I Dialer  : OmtpVvmCarrierCfgHlpr - OmtpEvent:CONFIG_ACTIVATING
+07-09 20:38:04.557  8078  8100 I VoicemailNotifier: receivers for android.intent.action.PROVIDER_CHANGED :[]
+07-09 20:38:04.561 10720 10837 D DynamitePackage: Instantiated singleton DynamitePackage.
+07-09 20:38:04.561 10720 10837 D DynamitePackage: Instantiating com.google.android.gms.ads.adshield.ChimeraAdShieldCreatorImpl
+07-09 20:38:04.564  1125  1733 D SmsNumberUtils: enter filterDestAddr. destAddr="[BajqU4K5_YhSYbs-7QUn0dOwcmI]"
+07-09 20:38:04.565  1125  1733 D SmsNumberUtils: destAddr is not formatted.
+07-09 20:38:04.565  1125  1733 D SmsNumberUtils: leave filterDestAddr, new destAddr="[BajqU4K5_YhSYbs-7QUn0dOwcmI]"
+07-09 20:38:04.581 10720 10792 I FA      : App measurement disabled by setAnalyticsCollectionEnabled(false)
+07-09 20:38:04.583 10720 10792 I FA      : App measurement initialized, version: 28015
+07-09 20:38:04.583 10720 10792 I FA      : To enable debug logging run: adb shell setprop log.tag.FA VERBOSE
+07-09 20:38:04.583 10720 10792 I FA      : To enable faster debug mode event logging run:
+07-09 20:38:04.583 10720 10792 I FA      :   adb shell setprop debug.firebase.analytics.app com.google.android.apps.youtube.music
+07-09 20:38:04.603 10743 10855 W android.youtub: Long monitor contention with owner yt-background2-1 (10800) at java.lang.Object bfyf.get()(PG:5) waiters=0 in java.lang.Object bfyf.get() for 147ms
+07-09 20:38:04.603  9222  9959 E libc    : Access denied finding property "persist.adb.tls_server.enable"
+07-09 20:38:04.603  9222  9959 E libc    : Access denied finding property "service.adb.tls.port"
+07-09 20:38:04.607 10570 10570 V AvrcpMediaPlayerList: onActiveSessionsChanged: number of controllers: 0
+07-09 20:38:04.611  1440  1461 W SQLiteLog: (28) double-quoted string literal: "1783424284611"
+07-09 20:38:04.611  1440  1461 W SQLiteLog: (28) double-quoted string literal: "1"
+07-09 20:38:04.600  9222  9222 W Binder:9222_6: type=1400 audit(0.0:291): avc: denied { read } for name="u:object_r:system_adbd_prop:s0" dev="tmpfs" ino=9365 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:system_adbd_prop:s0 tclass=file permissive=0 app=com.google.android.gms
+07-09 20:38:04.600  9222  9222 W Binder:9222_6: type=1400 audit(0.0:292): avc: denied { read } for name="u:object_r:adbd_prop:s0" dev="tmpfs" ino=9225 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:adbd_prop:s0 tclass=file permissive=0 app=com.google.android.gms
+07-09 20:38:04.621 10743 10743 V MediaRouter: Selecting route: RouteInfo{ name=Phone, description=null, status=null, category=RouteCategory{ name=System types=ROUTE_TYPE_LIVE_AUDIO ROUTE_TYPE_LIVE_VIDEO  groupable=false }, supportedTypes=ROUTE_TYPE_LIVE_AUDIO ROUTE_TYPE_LIVE_VIDEO , presentationDisplay=null }
+07-09 20:38:04.623 10570 10570 I AvrcpBrowsedPlayerWrapper: onConnected: com.google.android.youtube is connected
+07-09 20:38:04.623 10570 10570 D AvrcpBrowsablePlayerConnector: Browse player callback called: package=com.google.android.youtube : status=0
+07-09 20:38:04.623 10570 10570 D AvrcpBrowsablePlayerConnector: Received a message: msg.what=1
+07-09 20:38:04.623 10570 10570 I AvrcpBrowsablePlayerConnector: Checking root contents for com.google.android.youtube
+--------- beginning of kernel
+07-09 20:38:04.684     0     0 E ICMPv6  : RA: ndisc_router_discovery failed to add default route
+07-09 20:38:04.674 10720 10843 E GoogleTagManager: Invalid macro: _gtm.loadEventEnabled
+07-09 20:38:04.684 10743 10805 I ProviderInstaller: Installed default security provider GmsCore_OpenSSL
+07-09 20:38:04.690 10570 10570 I AvrcpBrowsedPlayerWrapper: onConnected: com.google.android.youtube is connected
+07-09 20:38:04.690 10570 10570 I AvrcpBrowsedPlayerWrapper: getFolderItems: Connected to browsable player: com.google.android.youtube
+07-09 20:38:04.704 10743 10803 W android.youtub: Unsupported class loader
+07-09 20:38:04.704   520   554 E system_server: Invalid class loader spec: =UnsupportedClassLoaderContext=
+07-09 20:38:04.706 10743 10803 D DynamitePackage: Instantiated singleton DynamitePackage.
+07-09 20:38:04.706 10743 10803 D DynamitePackage: Instantiating com.google.android.gms.ads.adshield.ChimeraAdShieldCreatorImpl
+07-09 20:38:04.707 10743 10895 I FA      : App measurement disabled by setAnalyticsCollectionEnabled(false)
+07-09 20:38:04.708 10743 10895 I FA      : App measurement initialized, version: 26017
+07-09 20:38:04.708 10743 10895 I FA      : To enable debug logging run: adb shell setprop log.tag.FA VERBOSE
+07-09 20:38:04.708 10743 10895 I FA      : To enable faster debug mode event logging run:
+07-09 20:38:04.708 10743 10895 I FA      :   adb shell setprop debug.firebase.analytics.app com.google.android.youtube
+07-09 20:38:04.754  1440  3954 W SQLiteLog: (28) double-quoted string literal: "1783424284754"
+07-09 20:38:04.754  1440  3954 W SQLiteLog: (28) double-quoted string literal: "1"
+07-09 20:38:04.789 10720 10963 E GoogleTagManager: Invalid macro: _gtm.loadEventEnabled
+07-09 20:38:04.813 10720 10822 E GoogleTagManager: Unsupported Value Escaping: 3
+07-09 20:38:04.815 10720 10822 I chatty  : uid=10138(com.google.android.apps.youtube.music) yt-background8- identical 1 line
+07-09 20:38:04.816 10720 10822 E GoogleTagManager: Unsupported Value Escaping: 3
+07-09 20:38:05.110 10743 10903 W android.youtub: Long monitor contention with owner initCrit3-2 (10803) at java.lang.String xhc.c()(PG:31) waiters=0 in java.lang.String xhc.c() for 368ms
+07-09 20:38:05.111  1246 10897 E GmsTaskScheduler: sendWakeUpEvent called on SchedulerClientBroadcastStrategy
+07-09 20:38:05.139 10570 10570 V AvrcpMediaPlayerList: mPackageChangedBroadcastReceiver: action: android.intent.action.PACKAGE_CHANGED
+07-09 20:38:05.139 10570 10570 D AvrcpMediaPlayerList: Name of package changed: com.google.android.gms
+07-09 20:38:04.705   520   554 E PackageDexUsage: Unsupported context?
+07-09 20:38:05.156   520   557 I RoleManagerService: Granting default roles...
+07-09 20:38:05.157  1125  1125 D CarrierSvcBindHelper: No carrier app for: 0
+07-09 20:38:05.176   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:05.176   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:05.177   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:05.177   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:05.178   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:05.178   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:05.178  1440  2349 I Icing   : IndexChimeraService.getServiceInterface callingPackage=com.google.android.gms componentName=AppsCorpus serviceId=36 [CONTEXT service_id=21 ]
+07-09 20:38:05.178   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:05.178   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:05.179   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:05.179   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:05.183  1440 11035 I Icing   : updateResources: need to parse abvr{com.google.android.gms} [CONTEXT service_id=21 ]
+07-09 20:38:05.188   520   612 I InputReader: Reconfiguring input devices, changes=KEYBOARD_LAYOUTS | 
+07-09 20:38:05.189  1246 10601 I Fitness : OnPackageChangedOperation got intent: Intent { act=android.intent.action.PACKAGE_CHANGED dat=package:com.google.android.gms flg=0x45000010 cmp=com.google.android.gms/.chimera.PersistentIntentOperationService (has extras) } [CONTEXT service_id=17 ]
+07-09 20:38:05.194  1246 10703 I Fitness : FitCleanupIntentOperation received Intent android.intent.action.PACKAGE_CHANGED [CONTEXT service_id=17 ]
+07-09 20:38:05.203  8874  8896 I PermissionControllerServiceImpl: Updating user sensitive for uid 10121
+07-09 20:38:05.209   317  1239 I bt      : system/bt/vendor_libs/test_vendor_lib/model/devices/scripted_beacon.cc:113 set_state: Events file not opened yet, for event: 2
+07-09 20:38:05.218   317  1239 I bt      : system/bt/vendor_libs/test_vendor_lib/model/devices/scripted_beacon.cc:113 set_state: Events file not opened yet, for event: 3
+07-09 20:38:05.221  1246  8192 I GCoreUlr: WorldUpdater received intent Intent { act=com.google.android.location.reporting.ACTION_UPDATE_WORLD cmp=com.google.android.gms/com.google.android.location.reporting.service.DispatchingService (has extras) } with receiverAction android.location.PROVIDERS_CHANGED
+07-09 20:38:05.224  1246  8192 I GCoreUlr: WorldUpdater:android.location.PROVIDERS_CHANGED: Ensuring that reporting is stopped because of reasons: (no Google accounts)
+07-09 20:38:05.226  1246  8192 I GCoreUlr: Unbound from all signal providers.
+07-09 20:38:05.228  1440 11035 I Icing   : Usage reports ok 0, Failed Usage reports 0, indexed 0, rejected 0 [CONTEXT service_id=21 ]
+07-09 20:38:05.229  1440  2349 I Icing   : IndexChimeraService.getServiceInterface callingPackage=com.google.android.gms componentName=null serviceId=30 [CONTEXT service_id=21 ]
+07-09 20:38:05.230  1440 11035 I Icing   : Indexing com.google.android.gms-apps from com.google.android.gms [CONTEXT service_id=21 ]
+07-09 20:38:05.232  1440 11035 I Icing   : Indexing done com.google.android.gms-apps [CONTEXT service_id=21 ]
+07-09 20:38:05.234   520   520 I Telecom : DefaultDialerCache: Refreshing default dialer for user 0: now com.android.dialer: DDC.oR@APw
+07-09 20:38:05.235  1246  1246 I GeofencerStateMachine: sendQueryLocationOptIn
+07-09 20:38:05.236  1246  1246 I GeofencerStateMachine: sendQueryLocationOptIn
+07-09 20:38:05.237  1246  8192 I GCoreUlr: DispatchingService ignoring Intent { act=android.net.wifi.WIFI_STATE_CHANGED flg=0x4000010 (has extras) } because ULR inactive
+07-09 20:38:05.239  1440 11035 I Icing   : Usage reports ok 0, Failed Usage reports 0, indexed 0, rejected 0 [CONTEXT service_id=21 ]
+07-09 20:38:05.242  1246  8192 I GCoreUlr: WorldUpdater received intent Intent { act=com.google.android.location.reporting.ACTION_UPDATE_WORLD cmp=com.google.android.gms/com.google.android.location.reporting.service.DispatchingService (has extras) } with receiverAction android.location.PROVIDERS_CHANGED
+07-09 20:38:05.244  1246  8192 I GCoreUlr: WorldUpdater:android.location.PROVIDERS_CHANGED: Ensuring that reporting is stopped because of reasons: (no Google accounts)
+07-09 20:38:05.248  1246  8192 I GCoreUlr: Unbound from all signal providers.
+07-09 20:38:05.256  1246  1246 I GCoreUlr: Unbound from all signal providers.
+07-09 20:38:05.256  1246  1246 I GCoreUlr: Stopping handler for UlrDispSvcFast
+07-09 20:38:05.720  1246 10751 I NearbyDiscovery: Show notifications: 0 total, no changes since last shown, no-op. [CONTEXT service_id=49 ]
+07-09 20:38:05.795  1440 10599 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+07-09 20:38:05.804  1440 10599 W Conscrypt: 	at com.google.android.gms.org.conscrypt.Platform.setSocketWriteTimeout(:com.google.android.gms@201817023@20.18.17 (040800-311416286):2)
+07-09 20:38:05.804  1440 10599 W Conscrypt: 	at com.google.android.gms.org.conscrypt.ConscryptFileDescriptorSocket.setSoWriteTimeout(:com.google.android.gms@201817023@20.18.17 (040800-311416286):0)
+07-09 20:38:05.859  1440 10599 W Conscrypt: Could not set socket write timeout: java.net.SocketException: Socket closed
+07-09 20:38:05.859  1440 10599 W Conscrypt: 	at com.google.android.gms.org.conscrypt.Platform.setSocketWriteTimeout(:com.google.android.gms@201817023@20.18.17 (040800-311416286):2)
+07-09 20:38:05.859  1440 10599 W Conscrypt: 	at com.google.android.gms.org.conscrypt.ConscryptFileDescriptorSocket.setSoWriteTimeout(:com.google.android.gms@201817023@20.18.17 (040800-311416286):0)
+07-09 20:38:06.169  1440 10599 I CheckinResponseProcess: From server: 1510 gservices [full] [CONTEXT service_id=130 ]
+07-09 20:38:06.205 10743 10764 D CompatibilityChangeReporter: Compat change id reported: 150939131; UID 10147; state: DISABLED
+07-09 20:38:06.205 10720 10915 D CompatibilityChangeReporter: Compat change id reported: 150939131; UID 10138; state: DISABLED
+07-09 20:38:06.207  9864  9885 D CompatibilityChangeReporter: Compat change id reported: 150939131; UID 10123; state: DISABLED
+07-09 20:38:06.207  1908  2429 I GservicesProvider: main update completed
+07-09 20:38:06.219  1440 10599 I Checkin : [CheckinRequestProcessor] Default Task : Checkin Succeeded: https://android.googleapis.com/checkin (fragment #1).
+07-09 20:38:06.230  3224  7879 W CarrierServices: [112] dvk.a: No config URL. RCS will be disabled!
+07-09 20:38:06.233  7165 10688 W BugleRcsEngine: [172] wxm.a: No config URL. RCS will be disabled!
+07-09 20:38:06.237  1440 10599 I Checkin : [CheckinOperation] Checkin Operation finished with result: 0 finish time: 44492393.
+07-09 20:38:06.238  3224  3224 I CarrierServices: [2] ekb.d: Carrier Services GServices flags:
+07-09 20:38:06.238  3224  3224 I CarrierServices:    carrier_services_security_flags_ec_api_white_listed_packages: com.google.android.apps.messaging,com.google.android.dialer,com.google.android.ims.client.sampleapp,com.android.contacts,com.lge.rcscall,com.android.incallui,com.huawei.incallui.appfeature.rcsfeature
+07-09 20:38:06.238  3224  3224 I CarrierServices:    carrier_services_security_flags_ec_api_white_listed_signatures: B28C3EDB665DF32686224DF800F603E9959BBE4E,0980A12BE993528C19107BC21AD811478C63CEFC,B38FA7B5ECFAEC44620A020752B07E063B3120A8,203997BC46B8792DC9747ABD230569071F9A0439,EDA6413C3E3A95492114FE07CD953AD897E40D1A,760EBB9F4200B3DFB1B817B40FF0563A3C150D39,5B368CFF2DA2686996BC95EAC190EAA4F5630FE5,01D845B26B688D8EF647205A5944E9407E52E06E,27196E386B875E76ADF700E7EA84E4C6EEE33DFA,1CDD04F1E4A732BB0352FDFAEE26D2315526DF85,025D5212BF3B5F5CDA6117A518721D70A94D84E0
+07-09 20:38:06.238  3224  3224 I CarrierServices:    carrier_services_security_flags_test_service_white_listed_packages: com.google.android.ims.mobly.snippets
+07-09 20:38:06.238  3224  3224 I CarrierServices:    carrier_services_security_flags_test_service_white_listed_signatures: AE41481F52E0F58DF2806D5A38EB3DBCA5AE02B0,E165542B31953CC282AA4EF2F4D5F07F7663A2A2
+07-09 20:38:06.238  3224  3224 I CarrierServices:    carrier_services_security_flags_white_listed_packages: com.google.android.apps.messaging,com.google.android.dialer,com.google.android.ims.client.sampleapp,com.android.contacts,com.lge.rcscall,com.android.incallui,com.huawei.incallui.appfeature.rcsfeature
+07-09 20:38:06.238  3224  3224 I CarrierServices:    carrier_services_security_flags_white_listed_signatures: B28C3EDB665DF32686224DF800F603E9959BBE4E,0980A12BE993528C19107BC21AD811478C63CEFC,B38FA7B5ECFAEC44620A020752B07E063B3120A8,203997BC46B8792DC9747ABD230569071F9A0439,EDA6413C3E3A95492114FE07CD953AD897E40D1A,760EBB9F4200B3DFB1B817B40FF0563A3C150D39,5B368CFF2DA2686996BC95EAC190EAA4F5630FE5,01D845B26B688D8EF647205A5944E9407E52E06E,27196E386B875E76ADF700E7EA84E4C6EEE33DFA,1CDD04F1E4A732BB0352FDFAEE26D2315526DF85,025D5212BF3B5F5CDA6117A518721D70A94D84E0
+07-09 20:38:06.238  3224  3224 I CarrierServices:    carrier_services_sip_flags_should_use_tycho_version_for_sip_header: true
+07-09 20:38:06.238  3224  3224 I CarrierServices:    carrier_services_video_share_disabled_user_agent_substrings: SM-G930,SM-G935,SM-A320
+07-09 20:38:06.238  3224  3224 I CarrierServices: ====================
+07-09 20:38:06.239  3224  3224 D PrimesShutdown: BroadcastReceiver: action = com.google.gservices.intent.action.GSERVICES_CHANGED
+07-09 20:38:06.249  3224  7879 D CarrierServices: log_saver already enabled
+07-09 20:38:06.252  3224  7879 I CarrierServices: [112] ehg.a: KEY_CONFIG_IMS_PACKAGE_OVERRIDE_STRING: com.google.android.ims
+07-09 20:38:06.254  7165 10688 D BugleRcsEngine: log_saver already enabled
+07-09 20:38:06.275  1246 10704 I NetRec  : [1228] akje.a: onConfigChanged()
+07-09 20:38:06.275  1246 11037 I Herrevad: [1243] abjt.a: updateListenState
+07-09 20:38:06.275  9864  9864 I BgTaskExecutorImpl: Starting NONEXCLUSIVE background task UPDATE_GSERVICES_CONFIG.
+07-09 20:38:06.276  1246 10601 I Auth    : [AuthManaged,PasswordComplexityHelperImpl] Updating password complexity components state.
+07-09 20:38:06.277   520  3481 W ActivityManager: Unable to start service Intent { act=com.google.android.gms.auth.key.retrieval.service.START pkg=com.google.android.gms } U=0: not found
+07-09 20:38:06.278  1246 10601 I Auth    : [AuthManaged,PasswordComplexityHelperImpl] Disabling com.google.android.gms.auth.managed.admin.DeviceAdminReceiver
+07-09 20:38:06.278  1246 10704 I NetRec  : [1228] akje.a: Cancelling all NetRec GCM tasks
+07-09 20:38:06.278   520   554 W ActivityManager: Unbind failed: could not find connection for android.os.BinderProxy@ed588f3
+07-09 20:38:06.278  9864 11065 I GservicesUpdateTask: Updating Gservices keys
+07-09 20:38:06.278  1246 10703 I NetRec  : [1227] ClearDatabaseService.onHandleIntent: Clearing score cache
+07-09 20:38:06.279  1440  2233 E GmsClient: unable to connect to service: com.google.android.gms.auth.key.retrieval.service.START on com.google.android.gms
+07-09 20:38:06.279  1246 10601 I Auth    : [AuthManaged,PasswordComplexityHelperImpl] Disabling com.google.android.gms.auth.managed.ui.SetNewPasswordActivity
+07-09 20:38:06.284  1440 10599 I GmsModuleFndr: Beginning GMS chimera module scan
+07-09 20:38:06.285  1440 10599 I ModuleSetMgr: Computing pending module set with APKs: [[AdsFdrDynamite.integ:21460000000], [Cronetdynamite:201817040800], [Dynamiteloader:201817040000], [Dynamitemodulesa:201817040000], [Dynamitemodulesc:201817040000], [Googlecertificates:201817040000], [Mapsdynamite:201817040000], [Measurementdynamite:201817040000]]
+07-09 20:38:06.294  1440 10599 I ModuleSetMgr: Pending container module APKs: []
+07-09 20:38:06.294  1440 10599 I ModuleSetMgr: Pending non-container module APKs: []
+07-09 20:38:06.307   520  3478 D CompatibilityChangeReporter: Compat change id reported: 135634846; UID 10116; state: DISABLED
+07-09 20:38:06.307   520   567 D CompatibilityChangeReporter: Compat change id reported: 143937733; UID 10116; state: ENABLED
+07-09 20:38:06.311 10743 10906 W YouTube : Could not parse proto error payload.
+07-09 20:38:06.311 10743 10906 W YouTube : aqqb: Protocol message contained an invalid tag (zero).
+07-09 20:38:06.311 10743 10906 W YouTube : 	at aqpn.parsePartialFrom(PG:98)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at aqpn.parseFrom(PG:73)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at aacl.d(PG:37)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at aacl.<init>(PG:17)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at abuo.c(PG:106)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at znq.a(PG:62)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at zmp.run(Unknown Source:18)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at zdm.run(PG:13)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at java.lang.Thread.run(Thread.java:923)
+07-09 20:38:06.311 10743 10906 W YouTube : Could not parse json error payload.
+07-09 20:38:06.311 10743 10906 W YouTube : org.json.JSONException: Value <!doctype of type java.lang.String cannot be converted to JSONObject
+07-09 20:38:06.311 10743 10906 W YouTube : 	at org.json.JSON.typeMismatch(JSON.java:112)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at org.json.JSONObject.<init>(JSONObject.java:169)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at org.json.JSONObject.<init>(JSONObject.java:182)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at aacl.c(PG:19)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at aack.get(Unknown Source:1)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at aovy.a(PG:6)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at aacl.<init>(PG:17)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at abuo.c(PG:106)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at znq.a(PG:62)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at zmp.run(Unknown Source:18)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at zdm.run(PG:13)
+07-09 20:38:06.311 10743 10906 W YouTube : 	at java.lang.Thread.run(Thread.java:923)
+07-09 20:38:06.312 10743 10813 W YouTube : Failed to fetch mobile data plan config.
+07-09 20:38:06.312 10743 10813 W YouTube : abwi: java.util.concurrent.ExecutionException: aacl: 
+07-09 20:38:06.312 10743 10813 W YouTube : 	at abwa.b(PG:18)
+07-09 20:38:06.312 10743 10813 W YouTube : 	at aaeh.run(Unknown Source:7)
+07-09 20:38:06.312 10743 10813 W YouTube : 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:462)
+07-09 20:38:06.312 10743 10813 W YouTube : 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+07-09 20:38:06.312 10743 10813 W YouTube : 	at java.util.concurrent.ScheduledThreadPoolExecutor$ScheduledFutureTask.run(ScheduledThreadPoolExecutor.java:301)
+07-09 20:38:06.312 10743 10813 W YouTube : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+07-09 20:38:06.312 10743 10813 W YouTube : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+07-09 20:38:06.312 10743 10813 W YouTube : 	at zdm.run(PG:13)
+07-09 20:38:06.312 10743 10813 W YouTube : 	at java.lang.Thread.run(Thread.java:923)
+07-09 20:38:06.312 10743 10813 W YouTube : Caused by: java.util.concurrent.ExecutionException: aacl: 
+07-09 20:38:06.312 10743 10813 W YouTube : 	at apmr.a(PG:135)
+07-09 20:38:06.312 10743 10813 W YouTube : 	at apmr.get(PG:89)
+07-09 20:38:06.312 10743 10813 W YouTube : 	at abwa.b(PG:17)
+07-09 20:38:06.312 10743 10813 W YouTube : 	... 8 more
+07-09 20:38:06.312 10743 10813 W YouTube : Caused by: aacl: 
+07-09 20:38:06.312 10743 10813 W YouTube : 	at abuo.c(PG:106)
+07-09 20:38:06.312 10743 10813 W YouTube : 	at znq.a(PG:62)
+07-09 20:38:06.312 10743 10813 W YouTube : 	at zmp.run(Unknown Source:18)
+07-09 20:38:06.312 10743 10813 W YouTube : 	... 4 more
+07-09 20:38:06.312 10743 10813 W YouTube : Caused by: btc
+07-09 20:38:06.312 10743 10813 W YouTube : 	at zmp.run(Unknown Source:6)
+07-09 20:38:06.312 10743 10813 W YouTube : 	... 4 more
+07-09 20:38:06.314   309   309 D Zygote  : Forked child process 11071
+07-09 20:38:06.316   520   567 I ActivityManager: Start proc 11071:com.google.android.partnersetup/u0a116 for broadcast {com.google.android.partnersetup/com.google.android.partnersetup.RlzPingBroadcastReceiver}
+07-09 20:38:06.317  1246  8192 I GCoreUlr: WorldUpdater received intent Intent { act=com.google.android.location.reporting.ACTION_UPDATE_WORLD cmp=com.google.android.gms/com.google.android.location.reporting.service.DispatchingService (has extras) } with receiverAction com.google.gservices.intent.action.GSERVICES_CHANGED
+07-09 20:38:06.319 11071 11071 W id.partnersetu: Unexpected CPU variant for X86 using defaults: x86_64
+07-09 20:38:06.322   419   432 I adbd    : jdwp connection from 11071
+07-09 20:38:06.323  1246  8192 I GCoreUlr: WorldUpdater:com.google.gservices.intent.action.GSERVICES_CHANGED: Ensuring that reporting is stopped because of reasons: (no Google accounts)
+07-09 20:38:06.325  1246  8192 I GCoreUlr: Unbound from all signal providers.
+07-09 20:38:06.329  1246  8192 I GCoreUlr: DispatchingService ignoring Intent { act=android.net.wifi.WIFI_STATE_CHANGED flg=0x4000010 (has extras) } because ULR inactive
+07-09 20:38:06.331 11071 11071 I id.partnersetu: The ClassLoaderContext is a special shared library.
+07-09 20:38:06.331  1246  1246 I GCoreUlr: Unbound from all signal providers.
+07-09 20:38:06.331  1246  1246 I GCoreUlr: Stopping handler for UlrDispSvcFast
+07-09 20:38:06.335 11071 11071 I id.partnersetu: The ClassLoaderContext is a special shared library.
+07-09 20:38:06.335 11071 11071 D nativeloader: classloader namespace configured for unbundled product apk. library_path=/product/priv-app/PartnerSetupPrebuilt/lib/x86_64:/product/lib64:/system/product/lib64
+07-09 20:38:06.336  1440 11027 I ChromeSync: [Sync,SyncIntentOperation] Handling the intent: Intent { act=com.google.gservices.intent.action.GSERVICES_CHANGED flg=0x1000010 cmp=com.google.android.gms/.chimera.GmsIntentOperationService$PersistentInternalReceiver }.
+07-09 20:38:06.337  1440  2349 I GmsModuleFndr: Beginning GMS chimera module scan
+07-09 20:38:06.339  1440  2349 I ModuleSetMgr: Computing pending module set with APKs: [[AdsFdrDynamite.integ:21460000000], [Cronetdynamite:201817040800], [Dynamiteloader:201817040000], [Dynamitemodulesa:201817040000], [Dynamitemodulesc:201817040000], [Googlecertificates:201817040000], [Mapsdynamite:201817040000], [Measurementdynamite:201817040000]]
+07-09 20:38:06.342  1440  2349 I ModuleSetMgr: Pending container module APKs: []
+07-09 20:38:06.342  1440  2349 I ModuleSetMgr: Pending non-container module APKs: []
+07-09 20:38:06.349 11071 11071 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+07-09 20:38:06.349 11071 11071 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+07-09 20:38:06.362  1440 11033 I MdiSyncModule: flag handling is skipping irrelevant intent.
+07-09 20:38:06.371  1440 11028 I MS_Utils: version of com.google.android.apps.maps = 1043701040
+07-09 20:38:06.378  1246  1246 I GeofencerStateMachine: sendQueryLocationOptIn
+07-09 20:38:06.396  1246  1246 I GeofencerStateMachine: sendQueryLocationOptIn
+07-09 20:38:06.399  1440 11030 I SystemUpdate: [Installation,ReceiverIntentOperation] Received intent: Intent { act=com.google.gservices.intent.action.GSERVICES_CHANGED flg=0x1000010 cmp=com.google.android.gms/.chimera.GmsIntentOperationService$PersistentInternalReceiver }.
+07-09 20:38:06.402  1246  1246 I GeofencerStateMachine: sendQueryLocationOptIn
+07-09 20:38:06.408  1246  1246 I chatty  : uid=10121 com.google.android.gms.persistent identical 1 line
+07-09 20:38:06.414  1246  1246 I GeofencerStateMachine: sendQueryLocationOptIn
+07-09 20:38:06.414  1440 11028 I SystemUpdate: [Execution,InstallationEventIntentOperation] Handling event of type 2.
+07-09 20:38:06.414   436   436 W ServiceManager: Permission failure: android.permission.SYSTEM_CAMERA from uid=10121 pid=1440
+07-09 20:38:06.415   436   436 I chatty  : uid=1047(cameraserver) /system/bin/cameraserver identical 2 lines
+07-09 20:38:06.415   436   436 W ServiceManager: Permission failure: android.permission.SYSTEM_CAMERA from uid=10121 pid=1440
+07-09 20:38:06.416  1440 11027 I OcrModelUpStIntentOp: Updating ocr activity enabled=true (phenotypeFlag=true, lowRamDevice=false, prereqCheck=true)
+07-09 20:38:06.416  1440 11031 I SystemUpdate: [Execution,InstallationIntentOperation] Received intent: Intent { act=com.google.android.gms.update.INSTALL_UPDATE cat=[targeted_intent_op_prefix:.update.execution.InstallationIntentOperation] cmp=com.google.android.gms/.chimera.GmsIntentOperationService }.
+07-09 20:38:06.416  1440 11031 I SystemUpdate: [Execution,ExecutionManager] Action finished-execution executed for 0.00 seconds.
+07-09 20:38:06.417  1440 11027 W DynamiteModule: Local module descriptor class for com.google.android.gms.vision.dynamite.ocr not found.
+07-09 20:38:06.417  1440 11027 W ProviderHelper: Unknown dynamite feature vision.dynamite.ocr
+07-09 20:38:06.419  1440 11027 I DynamiteModule: Considering local module com.google.android.gms.vision.dynamite.ocr:0 and remote module com.google.android.gms.vision.dynamite.ocr:0
+07-09 20:38:06.419  1440 11027 W ProviderHelper: Ignoring optional dynamite feature vision.ocr
+07-09 20:38:06.419  1440 11027 W DynamiteModule: Local module descriptor class for com.google.android.gms.vision.ocr not found.
+07-09 20:38:06.419  1440 11027 I DynamiteModule: Considering local module com.google.android.gms.vision.ocr:0 and remote module com.google.android.gms.vision.ocr:0
+07-09 20:38:06.419  1440 11027 E Vision  : Error loading module com.google.android.gms.vision.ocr optional module true: vvs: No acceptable module found. Local version is 0 and remote version is 0.
+07-09 20:38:06.420  1440 11027 W TextNativeHandle: Native handle not yet available. Reverting to no-op handle.
+07-09 20:38:06.420  1440 11027 W DynamiteModule: Local module descriptor class for com.google.android.gms.vision.dynamite.ocr not found.
+07-09 20:38:06.420  1440 11027 W ProviderHelper: Unknown dynamite feature vision.dynamite.ocr
+07-09 20:38:06.420  1440 11027 I DynamiteModule: Considering local module com.google.android.gms.vision.dynamite.ocr:0 and remote module com.google.android.gms.vision.dynamite.ocr:0
+07-09 20:38:06.420  1440 11027 W ProviderHelper: Ignoring optional dynamite feature vision.ocr
+07-09 20:38:06.420  1440 11027 W DynamiteModule: Local module descriptor class for com.google.android.gms.vision.ocr not found.
+07-09 20:38:06.420  1440 11027 I DynamiteModule: Considering local module com.google.android.gms.vision.ocr:0 and remote module com.google.android.gms.vision.ocr:0
+07-09 20:38:06.420  1440 11027 E Vision  : Error loading module com.google.android.gms.vision.ocr optional module true: vvs: No acceptable module found. Local version is 0 and remote version is 0.
+07-09 20:38:06.421  1440 11027 I OcrModelUpStIntentOp: Downloading text recognizer
+07-09 20:38:06.423  1246  1246 I GeofencerStateMachine: sendQueryLocationOptIn
+07-09 20:38:06.447  1246  1246 I chatty  : uid=10121 com.google.android.gms.persistent identical 4 lines
+07-09 20:38:06.452  1246  1246 I GeofencerStateMachine: sendQueryLocationOptIn
+07-09 20:38:06.468  1440 11030 I Vision  : Requesting optional module download of ocr.
+07-09 20:38:06.468  1440 11030 I Vision  : Checking for download completion for 44502624 -- ocr
+07-09 20:38:06.469  1440 11030 I Vision  : Requesting optional module download of ocr.
+07-09 20:38:06.469  1440 11030 I Vision  : Checking for download completion for 44502626 -- ocr
+07-09 20:38:07.183   520  3483 I system_server: oneway function results will be dropped but finished with status OK and parcel size 4
+07-09 20:38:07.183   520  3481 I system_server: oneway function results will be dropped but finished with status OK and parcel size 4
+07-09 20:38:07.666   520  3483 D WifiNl80211Manager: Scan result ready event
+07-09 20:38:07.666   520  3483 D WifiNative: Scan result ready event
+07-09 20:38:07.671   520   679 D WifiClientModeImpl: CMD_START_CONNECT  my state DisconnectedState nid=0 roam=false
+07-09 20:38:07.678   520   679 W LastMileLogger: Failed to open free_buffer pseudo-file: /sys/kernel/debug/tracing/instances/wifi/free_buffer: open failed: ENOENT (No such file or directory)
+07-09 20:38:07.678   520   679 W LastMileLogger: Failed to arm fail-safe.
+07-09 20:38:07.678   520   679 I WifiClientModeImpl: Connecting with 02:15:b2:00:00:00 as the mac address
+07-09 20:38:07.678   449   449 W wificond: Scan is not started. Ignore abort request
+07-09 20:38:07.679   520   679 D SupplicantStaIfaceHal: connectToNetwork "AndroidWifi"NONE
+07-09 20:38:07.679   520   679 I SupplicantStaIfaceHal: addSupplicantStaNetwork via HIDL
+07-09 20:38:07.683 10593 10593 I wpa_supplicant: wlan0: SME: Trying to authenticate with 00:13:10:85:fe:01 (SSID='AndroidWifi' freq=2447 MHz)
+07-09 20:38:07.736     0     0 I wlan0   : authenticate with 00:13:10:85:fe:01
+07-09 20:38:07.736     0     0 I wlan0   : send auth to 00:13:10:85:fe:01 (try 1/3)
+07-09 20:38:07.686 10593 10593 I wpa_supplicant: wlan0: Trying to associate with 00:13:10:85:fe:01 (SSID='AndroidWifi' freq=2447 MHz)
+07-09 20:38:07.738     0     0 I wlan0   : authenticated
+07-09 20:38:07.739     0     0 I         : mac80211_hwsim hwsim0 wlan0: disabling HT as WMM/QoS is not supported by the AP
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: Could not register for notifications with InnerTube: 
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: rff: java.util.concurrent.ExecutionException: qjl: Precondition check failed.
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at rex.b(PG:18)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at uqp.f(PG:65)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at uqp.g(PG:134)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at uqp.b(PG:99)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at uqn.run(Unknown Source:1)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:462)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at ywx.run(Unknown Source:1)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at pqt.run(PG:13)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at java.lang.Thread.run(Thread.java:923)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: Caused by: java.util.concurrent.ExecutionException: qjl: Precondition check failed.
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at zsp.a(PG:135)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at zsp.get(PG:91)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at rex.b(PG:17)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	... 11 more
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: Caused by: qjl: Precondition check failed.
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at rdu.b(PG:106)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at pyo.a(PG:61)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at pxo.run(Unknown Source:17)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	... 4 more
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: Caused by: bjj
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	at pxo.run(Unknown Source:13)
+07-09 20:38:07.688 10720 11096 W YouTubeMusic: 	... 4 more
+07-09 20:38:07.689  1246 10751 I NearbyDiscovery: FastPairHandler: Received action android.net.wifi.STATE_CHANGE [CONTEXT service_id=49 ]
+07-09 20:38:07.740     0     0 I         : mac80211_hwsim hwsim0 wlan0: disabling VHT as WMM/QoS is not supported by the AP
+07-09 20:38:07.744     0     0 I wlan0   : associate with 00:13:10:85:fe:01 (try 1/3)
+07-09 20:38:07.948     0     0 I wlan0   : associate with 00:13:10:85:fe:01 (try 2/3)
+07-09 20:38:07.950     0     0 I wlan0   : RX AssocResp from 00:13:10:85:fe:01 (capab=0x401 status=0 aid=1)
+07-09 20:38:07.951     0     0 I wlan0   : associated
+07-09 20:38:07.899 10593 10593 I wpa_supplicant: wlan0: Associated with 00:13:10:85:fe:01
+07-09 20:38:07.899 10593 10593 I wpa_supplicant: wlan0: CTRL-EVENT-CONNECTED - Connection to 00:13:10:85:fe:01 completed [id=0 id_str=%7B%22configKey%22%3A%22%5C%22AndroidWifi%5C%22NONE%22%2C%22creatorUid%22%3A%221000%22%7D]
+07-09 20:38:07.899 10593 10593 I wpa_supplicant: wlan0: CTRL-EVENT-SUBNET-STATUS-UPDATE status=0
+07-09 20:38:07.902   520   679 D ConnectivityService: registerNetworkAgent NetworkAgentInfo{ ni{[type: WIFI[], state: UNKNOWN/IDLE, reason: (unspecified), extra: , failover: false, available: true, roaming: false]}  network{105}  nethandle{454377263117}  lp{{InterfaceName: wlan0 LinkAddresses: [ ] DnsAddresses: [ ] Domains: null MTU: 0 Routes: [ ]}}  nc{[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED LinkUpBandwidth>=54000Kbps LinkDnBandwidth>=54000Kbps OwnerUid: 1000 SSID: "AndroidWifi" RequestorUid: -1 RequestorPackageName: null]}  Score{20}  everValidated{false}  lastValidated{false}  created{false} lingering{false} explicitlySelected{false} acceptUnvalidated{false} everCaptivePortalDetected{false} lastCaptivePortalDetected{false} partialConnectivity{false} acceptPartialConnectivity{false} clat{mBaseIface: null, mIface: null, mState: IDLE} }
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: stopIpClient IpClientWithPreConnection: false
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: java.lang.Throwable
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: 	at com.android.server.wifi.ClientModeImpl.stopIpClient(ClientModeImpl.java:1070)
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: 	at com.android.server.wifi.ClientModeImpl.stopDhcpSetup(ClientModeImpl.java:1085)
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: 	at com.android.server.wifi.ClientModeImpl.startIpClient(ClientModeImpl.java:6533)
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: 	at com.android.server.wifi.ClientModeImpl.access$6800(ClientModeImpl.java:163)
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: 	at com.android.server.wifi.ClientModeImpl$ObtainingIpState.enter(ClientModeImpl.java:5131)
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: 	at com.android.wifi.x.com.android.internal.util.StateMachine$SmHandler.invokeEnterMethods(StateMachine.java:1037)
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: 	at com.android.wifi.x.com.android.internal.util.StateMachine$SmHandler.performTransitions(StateMachine.java:879)
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: 	at com.android.wifi.x.com.android.internal.util.StateMachine$SmHandler.handleMessage(StateMachine.java:819)
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: 	at android.os.Looper.loop(Looper.java:223)
+07-09 20:38:07.903   520   679 V WifiClientModeImpl: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+07-09 20:38:07.903  1246 10751 I NearbyDiscovery: FastPairHandler: Received action android.net.wifi.STATE_CHANGE [CONTEXT service_id=49 ]
+07-09 20:38:07.909   520   685 D ConnectivityService: [105 WIFI] EVENT_NETWORK_INFO_CHANGED, going from UNKNOWN to UNKNOWN
+07-09 20:38:07.909   520   685 D ConnectivityService: NetReassign [no changes]
+07-09 20:38:07.910   308   914 E Netd    : no such netId 105
+07-09 20:38:07.914  1055 10672 D DhcpClient: l2key: W175fc0a5d8e1cc5e lease address: /10.0.2.16 lease expiry: 1783682219420 current time: 1783597087914
+07-09 20:38:07.915  1055 10672 D DhcpClient: Broadcasting DHCPREQUEST ciaddr=0.0.0.0 request=10.0.2.16 serverid=null
+07-09 20:38:07.916  1055 10672 D DhcpClient: Received packet: 02:15:b2:00:00:00 ACK: your new IP /10.0.2.16, netmask /255.255.255.0, gateways [/10.0.2.2] DNS servers: /10.0.2.3 , lease time 86400
+07-09 20:38:07.916  1055 10672 D DhcpClient: Confirmed lease: android.net.networkstack.DhcpResults@e412205 DHCP server /10.0.2.2 Vendor info null lease 86400 seconds Servername 
+07-09 20:38:07.920  1055 10672 D DhcpClient: Scheduling renewal in 43199s
+07-09 20:38:07.920  1055 10672 D DhcpClient: Scheduling rebind in 75599s
+07-09 20:38:07.920  1055 10672 D DhcpClient: Scheduling expiry in 86399s
+07-09 20:38:07.924  1246  1246 I GeofencerStateMachine: sendWifiConnectivityChanged: connectivity=true
+07-09 20:38:07.925   520   679 W WifiScoreReport: Cannot start external scoring netId=105 currentNetId=105 sessionId=1053
+07-09 20:38:07.926   520  3483 D WifiMemoryStoreImpl: Set cluster Gd6beff0690a0385a for W175fc0a5d8e1cc5e: SUCCESS
+07-09 20:38:07.926  1246 10751 I NearbyDiscovery: FastPairHandler: Received action android.net.wifi.STATE_CHANGE [CONTEXT service_id=49 ]
+07-09 20:38:07.932   520  2023 D WifiMemoryStoreImpl: Set cluster Gd6beff0690a0385a for Wd6beff0690a0385a: SUCCESS
+07-09 20:38:07.947   308   914 E Netd    : no such netId 105
+07-09 20:38:07.948   520   685 E ConnectivityService: Exception in networkAddRouteParcel for non-gateway: android.os.ServiceSpecificException: Machine is not on the network (code 64)
+07-09 20:38:07.948   520   685 E ConnectivityService: Exception in networkAddRouteParcel for gateway: android.os.ServiceSpecificException: Machine is not on the network (code 64)
+07-09 20:38:07.980   520   685 D ConnectivityService: Setting DNS servers for network 105 to [/10.0.2.3]
+07-09 20:38:08.023   520   685 D ConnectivityService: [105 WIFI] EVENT_NETWORK_INFO_CHANGED, going from UNKNOWN to CONNECTED
+07-09 20:38:08.023   520   685 D DnsManager: sendDnsConfigurationForNetwork(105, [10.0.2.3], [], 1800, 25, 8, 64, 0, 0, , [])
+07-09 20:38:08.024   520   685 W DnsManager: updatePrivateDns(105, PrivateDnsConfig{true:/[]})
+07-09 20:38:08.024   520   685 D ConnectivityService: Setting DNS servers for network 105 to [/10.0.2.3]
+07-09 20:38:08.024   520   685 D DnsManager: sendDnsConfigurationForNetwork(105, [10.0.2.3], [], 1800, 25, 8, 64, 0, 0, , [10.0.2.3])
+07-09 20:38:07.948   308   914 E Netd    : no such netId 105
+07-09 20:38:08.024   308 11099 W resolv  : Validating DnsTlsServer on netId 105
+07-09 20:38:08.024   520   685 D ConnectivityService: Adding iface wlan0 to network 105
+07-09 20:38:08.024   308 11099 W resolv  : Validation failed
+07-09 20:38:08.026   520   685 D ConnectivityService: Setting DNS servers for network 105 to [/10.0.2.3]
+07-09 20:38:08.026   520   685 D DnsManager: sendDnsConfigurationForNetwork(105, [10.0.2.3], [], 1800, 25, 8, 64, 0, 0, , [10.0.2.3])
+07-09 20:38:08.026   308 11100 W resolv  : Validating DnsTlsServer on netId 105
+07-09 20:38:08.049   520   685 D ConnectivityService: NetReassign [no changes]
+07-09 20:38:08.049   520   679 D WifiClientModeImpl: Received signal strength thresholds: []
+07-09 20:38:08.050   520   679 E WifiVendorHal: stopRssiMonitoring(l.2078) failed {.code = ERROR_NOT_AVAILABLE, .description = }
+07-09 20:38:08.468  1055 11103 D NetworkMonitor/105: PROBE_DNS connectivitycheck.gstatic.com 416ms OK 142.251.24.94
+07-09 20:38:08.471  1055 11102 D NetworkMonitor/105: PROBE_DNS www.google.com 420ms OK 142.251.154.119,142.251.155.119,142.251.151.119,142.251.156.119,142.251.150.119,142.251.153.119,142.251.157.119,142.251.152.119
+07-09 20:38:08.667   308   914 E Netd    : Error adding route ::/0 -> fe80::2 wlan0 to table 1012: File exists
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: Could not register for notifications with InnerTube: 
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: rff: java.util.concurrent.ExecutionException: qjl: Precondition check failed.
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at rex.b(PG:18)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at uqp.f(PG:65)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at uqp.g(PG:134)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at uqp.b(PG:99)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at uqn.run(Unknown Source:1)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:462)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at ywx.run(Unknown Source:1)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at pqt.run(PG:13)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at java.lang.Thread.run(Thread.java:923)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: Caused by: java.util.concurrent.ExecutionException: qjl: Precondition check failed.
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at zsp.a(PG:135)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at zsp.get(PG:91)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at rex.b(PG:17)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	... 11 more
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: Caused by: qjl: Precondition check failed.
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at rdu.b(PG:106)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at pyo.a(PG:61)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at pxo.run(Unknown Source:17)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	... 4 more
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: Caused by: bjj
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	at pxo.run(Unknown Source:13)
+07-09 20:38:09.286 10720 11096 W YouTubeMusic: 	... 4 more
+07-09 20:38:09.467  1055 11103 D NetworkMonitor/105: PROBE_HTTP http://connectivitycheck.gstatic.com/generate_204 time=997ms ret=204 request={Connection=[close], User-Agent=[Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.32 Safari/537.36]} headers={null=[HTTP/1.1 204 No Content], Connection=[close], Content-Length=[0], Cross-Origin-Resource-Policy=[cross-origin], Date=[Thu, 09 Jul 2026 11:38:10 GMT], X-Android-Received-Millis=[1783597089467], X-Android-Response-Source=[NETWORK 204], X-Android-Selected-Protocol=[http/1.1], X-Android-Sent-Millis=[1783597088967]}
+07-09 20:38:09.536  1055 11102 D NetworkMonitor/105: PROBE_HTTPS https://www.google.com/generate_204 time=1065ms ret=204 request={Connection=[close], User-Agent=[Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.32 Safari/537.36]} headers={null=[HTTP/1.1 204 No Content], Alt-Svc=[h3=":443"; ma=2592000,h3-29=":443"; ma=2592000], Connection=[close], Content-Length=[0], Cross-Origin-Resource-Policy=[cross-origin], Date=[Thu, 09 Jul 2026 11:38:10 GMT], X-Android-Received-Millis=[1783597089536], X-Android-Response-Source=[NETWORK 204], X-Android-Selected-Protocol=[http/1.1], X-Android-Sent-Millis=[1783597089468]}
+07-09 20:38:09.538  1055 11101 D NetworkMonitor/105: isCaptivePortal: isSuccessful()=true isPortal()=false RedirectUrl=null isPartialConnectivity()=false Time=1487ms
+07-09 20:38:09.538   520   566 W BroadcastQueue: Background execution not allowed: receiving Intent { act=android.net.conn.NETWORK_CONDITIONS_MEASURED flg=0x10 (has extras) } to com.google.android.gms/.chimera.GmsIntentOperationService$PersistentTrustedReceiver
+07-09 20:38:09.538   520   685 D ConnectivityService: [105 WIFI] validation passed
+07-09 20:38:09.539   520   685 D ConnectivityService: NetReassign [15 : 104 → 105, 9 : 104 → 105, 47 : 104 → 105, 27 : 104 → 105, 13 : 104 → 105, 11 : 104 → 105, 52 : 104 → 105, 50 : 104 → 105, 1 : 104 → 105, 38 : 104 → 105, 12 : 104 → 105]
+07-09 20:38:09.550   520   685 D ConnectivityService: Switching to new default network: NetworkAgentInfo{ ni{[type: WIFI[], state: CONNECTED/CONNECTED, reason: (unspecified), extra: , failover: false, available: true, roaming: false]}  network{105}  nethandle{454377263117}  lp{{InterfaceName: wlan0 LinkAddresses: [ fe80::347e:9334:1985:ee18/64,10.0.2.16/24,fec0::954a:3bae:d21b:5ae1/64,fec0::f8e0:a632:9c2:dce3/64 ] DnsAddresses: [ /10.0.2.3 ] Domains: null MTU: 0 ServerAddress: /10.0.2.2 TcpBufferSizes: 524288,1048576,2097152,262144,524288,1048576 Routes: [ fe80::/64 -> :: wlan0 mtu 0,::/0 -> fe80::2 wlan0 mtu 0,fec0::/64 -> :: wlan0 mtu 0,10.0.2.0/24 -> 0.0.0.0 wlan0 mtu 0,0.0.0.0/0 -> 10.0.2.2 wlan0 mtu 0 ]}}  nc{[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED LinkUpBandwidth>=37000Kbps LinkDnBandwidth>=37000Kbps SignalStrength: -50 OwnerUid: 1000 SSID: "AndroidWifi" RequestorUid: -1 RequestorPackageName: null]}  Score{60}  everValidated{true}  lastValidated{true}  created{true} lingering{false} explicitlySelected{false} acceptUnvalidated{false} everCaptivePortalDetected{false} lastCaptivePortalDetected{false} partialConnectivity{false} acceptPartialConnectivity{false} clat{mBaseIface: null, mIface: null, mState: IDLE} }
+07-09 20:38:09.584   520  1050 D NetworkTimeUpdateService: New default network 105; checking time.
+07-09 20:38:09.584   520   685 D ConnectivityService: Lingering [104 CELLULAR] for 30000ms
+07-09 20:38:09.585   520   685 D ConnectivityService: Sending DISCONNECTED broadcast for type 0 [104 CELLULAR] isDefaultNetwork=true
+07-09 20:38:09.585   520   685 D ConnectivityService: Sending CONNECTED broadcast for type 1 [105 WIFI] isDefaultNetwork=true
+07-09 20:38:09.587   520   685 D ConnectivityService: Setting DNS servers for network 105 to [/10.0.2.3]
+07-09 20:38:09.587  1647  1647 I DeviceStatusMonitor: DeviceStatusMonitor$1.onReceive():51 onReceive() : Action = android.net.conn.CONNECTIVITY_CHANGE
+07-09 20:38:09.587   520   685 D DnsManager: sendDnsConfigurationForNetwork(105, [10.0.2.3], [], 1800, 25, 8, 64, 0, 0, , [10.0.2.3])
+07-09 20:38:09.588   520   557 I GnssNetworkConnectivityHandler: updateNetworkState, state=CLOSED, connected=true, network=105, capabilities=[ Transports: WIFI Capabilities: NOT_METERED&INTERNET&NOT_RESTRICTED&TRUSTED&NOT_VPN&VALIDATED&NOT_ROAMING&FOREGROUND&NOT_CONGESTED&NOT_SUSPENDED LinkUpBandwidth>=37000Kbps LinkDnBandwidth>=37000Kbps SignalStrength: -50 OwnerUid: 1000 AdministratorUids: [] SSID: "AndroidWifi" RequestorUid: -1 RequestorPackageName: null], apn: , availableNetworkCount: 2
+07-09 20:38:09.591  1246 10751 I NearbyDiscovery: FastPairHandler: Received action android.net.conn.CONNECTIVITY_CHANGE [CONTEXT service_id=49 ]
+07-09 20:38:09.591   520   679 W LastMileLogger: Failed to stop event tracing: /sys/kernel/debug/tracing/instances/wifi/tracing_on: open failed: ENOENT (No such file or directory)
+07-09 20:38:09.595  1647  1647 I DeviceStatusMonitor: DeviceStatusMonitor.notifyIfNetworkChanged():148 notifyIfNetworkChanged: newState = NON_METERED, airplaneModeOn = false, notifyAnyway = false
+07-09 20:38:09.595  1647  1647 I DeviceStatusMonitor: DeviceStatusMonitor$1.onReceive():51 onReceive() : Action = android.net.conn.CONNECTIVITY_CHANGE
+07-09 20:38:09.595  1647 10490 I NetworkInfoNotification: NetworkInfoNotification$Listener.onReceive():84 onNetworkAvailable: networkState = NON_METERED, isAirplaneModeOn = false
+07-09 20:38:09.598   520  2023 D WifiMemoryStoreImpl: Set cluster Gd6beff0690a0385a for W175fc0a5d8e1cc5e: SUCCESS
+07-09 20:38:09.599  1246 10751 I NearbyDiscovery: FastPairHandler: Received action android.net.conn.CONNECTIVITY_CHANGE [CONTEXT service_id=49 ]
+07-09 20:38:09.601  3224  3284 I CarrierServices: [59] dji.a: FiST: Wifi connectivity status true
+07-09 20:38:09.602  3224  3641 I CarrierServices: [90] drv.a: (PEv2-SM): DisabledState: event Connectivity event
+07-09 20:38:09.602  3224  3284 I CarrierServices: [59] djm.d: Connected state: [1], networkType: [WIFI]
+07-09 20:38:09.603   757   757 W View    : requestLayout() improperly called by com.android.keyguard.AlphaOptimizedLinearLayout{bdadf28 V.E...... ......ID 7,0-48,61 #7f0a050b app:id/wifi_group} during layout: running second layout pass
+07-09 20:38:09.603  1647  1647 I DeviceStatusMonitor: DeviceStatusMonitor.notifyIfNetworkChanged():148 notifyIfNetworkChanged: newState = NON_METERED, airplaneModeOn = false, notifyAnyway = false
+07-09 20:38:09.603  1647  1647 I NetworkInfoNotification: NetworkInfoNotification$Listener.onReceive():84 onNetworkAvailable: networkState = NON_METERED, isAirplaneModeOn = false
+07-09 20:38:09.603   757   757 W View    : requestLayout() improperly called by com.android.keyguard.AlphaOptimizedLinearLayout{cd07c5b V.E...... ......ID 7,0-48,61 #7f0a050b app:id/wifi_group} during layout: running second layout pass
+07-09 20:38:09.604  3224  3284 I CarrierServices: [59] dji.a: FiST: Wifi connectivity status true
+07-09 20:38:09.605  3224  3641 I CarrierServices: [90] drv.a: (PEv2-SM): DisabledState: event Connectivity event
+07-09 20:38:09.605   757   757 W View    : requestLayout() improperly called by com.android.keyguard.AlphaOptimizedLinearLayout{6f3c5a5 V.E...... ......ID 7,0-48,61 #7f0a050b app:id/wifi_group} during layout: running second layout pass
+07-09 20:38:09.606  3224  3284 I CarrierServices: [59] djm.d: Connected state: [1], networkType: [WIFI]
+07-09 20:38:09.610  3224  3284 I CarrierServices: [59] dji.a: FiST: Wifi connectivity status true
+07-09 20:38:09.612  3224  3641 I CarrierServices: [90] drv.a: (PEv2-SM): DisabledState: event Connectivity event
+07-09 20:38:09.613  3224  3284 I CarrierServices: [59] djm.d: Connected state: [1], networkType: [WIFI]
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: Exception thrown while unbinding
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: java.lang.IllegalArgumentException: Service not registered: lbw@d5d1c0e
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1757)
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: 	at android.app.ContextImpl.unbindService(ContextImpl.java:1874)
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:792)
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: 	at kcy.b(PG:30)
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: 	at kcy.a(PG:26)
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: 	at lbx.q(PG:48)
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: 	at lbi.a(PG:5)
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: 	at ksz.run(PG:5)
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:462)
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+07-09 20:38:09.725 10720 10792 W ConnectionTracker: 	at kyl.run(PG:26)
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: Exception thrown while unbinding
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: java.lang.IllegalArgumentException: Service not registered: tel@d9ba179
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: 	at android.app.LoadedApk.forgetServiceDispatcher(LoadedApk.java:1757)
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: 	at android.app.ContextImpl.unbindService(ContextImpl.java:1874)
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: 	at android.content.ContextWrapper.unbindService(ContextWrapper.java:792)
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: 	at sib.b(PG:29)
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: 	at sib.a(PG:25)
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: 	at tem.q(PG:48)
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: 	at tdx.a(PG:5)
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: 	at svs.run(PG:5)
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:462)
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+07-09 20:38:09.785 10743 10895 W ConnectionTracker: 	at tbd.run(PG:36)
+07-09 20:38:10.201  1246 10751 I NearbyDiscovery: FastPairScanner2: Stopping scan [CONTEXT service_id=49 ]
+07-09 20:38:10.201  1246 10751 D BluetoothAdapter: isLeEnabled(): ON
+07-09 20:38:10.202  1246 10751 D BluetoothAdapter: isLeEnabled(): ON
+07-09 20:38:10.203 10570 10684 I bt_stack: [INFO:gatt_api.cc(947)] GATT_Register 5b5dffc2-cecd-e2f4-9533-9f49d7cdf23e
+07-09 20:38:10.203 10570 10684 I bt_stack: [INFO:gatt_api.cc(967)] allocated gatt_if=5
+07-09 20:38:10.203  1246  2660 D BluetoothLeScanner: onScannerRegistered() - status=0 scannerId=5 mScannerId=0
+07-09 20:38:10.204  1246 10751 I NearbyDiscovery: FastPairScanner2: Starting LOW_POWER_SCANNING scanning [CONTEXT service_id=49 ]
+07-09 20:38:10.334  1246  1485 I BeaconBle: Client requested scan, settings=BleSettings [scanMode=ZERO_POWER, callbackType=ALL_MATCHES, reportDelayMillis=0, 5 filters, 1 clients, callingClientName=Nearby] [CONTEXT service_id=111 ]
+07-09 20:38:10.337  1246  1485 I BeaconBle: Stopping scan on delegate scanner. BT state: 12 [CONTEXT service_id=111 ]
+07-09 20:38:10.337  1246  1485 D BluetoothAdapter: isLeEnabled(): ON
+07-09 20:38:10.341  1246  1485 I BeaconBle: Resetting - new scanner available: true [CONTEXT service_id=111 ]
+07-09 20:38:10.341  1246  1485 I BeaconBle: ZERO_POWER is disabled. [CONTEXT service_id=111 ]
+07-09 20:38:10.341  1246  1485 I BeaconBle: 'L' hardware scan: scan stopped, no powered clients [CONTEXT service_id=111 ]
+07-09 20:38:10.539  1246 11112 I NetworkManagementSocketTagger: tagSocketFd(-1, 805307399, -1) failed with errno-9
+07-09 20:38:10.539  1246 11112 W GCM     : socket file descriptor unavailable.
+07-09 20:38:11.538  1246 11112 E WakeLock: GCM_HB_ALARM release without a matched acquire!
+07-09 20:38:11.538  1246 11112 W WakeLock: GCM_HB_ALARM counter does not exist
+07-09 20:38:11.571  1246 11112 E GmsTaskScheduler: sendWakeUpEvent called on SchedulerClientBroadcastStrategy
+07-09 20:38:11.705  1246 11116 W WakeLock: GCM_CONN_ALARM counter does not exist
+07-09 20:38:11.709  1246 11116 E GmsTaskScheduler: sendWakeUpEvent called on SchedulerClientBroadcastStrategy
+07-09 20:38:14.012 10570 10570 D AvrcpBrowsablePlayerConnector: Received a message: msg.what=2
+07-09 20:38:14.012 10570 10570 V AvrcpBrowsablePlayerConnector: Timed out waiting for players
+07-09 20:38:14.012 10570 10570 I AvrcpBrowsablePlayerConnector: Successfully connected to 0 browsable players.
+07-09 20:38:14.012 10570 10570 I AvrcpMediaPlayerList: init: Browsable Player list size is 0
+07-09 20:38:14.012 10570 10570 D AvrcpMediaPlayerList: Initializing list of current media players
+07-09 20:38:14.739   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.739   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.739   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.739   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.740   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.740   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.741   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.741   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.741   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.741   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.742   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.742   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.742   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.742   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.742   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.742   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.742   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.742   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.742   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.742   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.742   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.742   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.743   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.743   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.744   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:14.744   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: Could not register for notifications with InnerTube: 
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: rff: java.util.concurrent.ExecutionException: qjl: Precondition check failed.
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at rex.b(PG:18)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at uqp.f(PG:65)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at uqp.g(PG:134)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at uqp.b(PG:99)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at uqn.run(Unknown Source:1)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:462)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at ywx.run(Unknown Source:1)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at pqt.run(PG:13)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at java.lang.Thread.run(Thread.java:923)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: Caused by: java.util.concurrent.ExecutionException: qjl: Precondition check failed.
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at zsp.a(PG:135)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at zsp.get(PG:91)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at rex.b(PG:17)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	... 11 more
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: Caused by: qjl: Precondition check failed.
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at rdu.b(PG:106)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at pyo.a(PG:61)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at pxo.run(Unknown Source:17)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	... 4 more
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: Caused by: bjj
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	at pxo.run(Unknown Source:13)
+07-09 20:38:14.806 10720 11096 W YouTubeMusic: 	... 4 more
+07-09 20:38:15.075   520   565 I UsageStatsService: User[0] Flushing usage stats to disk
+07-09 20:38:15.863 10593 10593 I wpa_supplicant: wlan0: CTRL-EVENT-BEACON-LOSS 
+07-09 20:38:16.208   520   520 D CompatibilityChangeReporter: Compat change id reported: 135634846; UID 10118; state: DISABLED
+07-09 20:38:16.208   520   567 D CompatibilityChangeReporter: Compat change id reported: 143937733; UID 10118; state: DISABLED
+07-09 20:38:16.212   309   309 D Zygote  : Forked child process 11118
+07-09 20:38:16.213   520   567 I ActivityManager: Start proc 11118:com.google.android.configupdater/u0a118 for service {com.google.android.configupdater/com.google.android.configupdater.MainJobService}
+07-09 20:38:16.215 11118 11118 W d.configupdate: Unexpected CPU variant for X86 using defaults: x86_64
+07-09 20:38:16.217   419   432 I adbd    : jdwp connection from 11118
+07-09 20:38:16.222 11118 11118 D ApplicationLoaders: Returning zygote-cached class loader: /system/framework/android.test.base.jar
+07-09 20:38:16.237 11118 11118 I d.configupdate: The ClassLoaderContext is a special shared library.
+07-09 20:38:16.237 11118 11118 D nativeloader: classloader namespace configured for unbundled product apk. library_path=/product/priv-app/ConfigUpdater/lib/x86_64:/product/lib64:/system/product/lib64
+07-09 20:38:16.256 11118 11118 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+07-09 20:38:16.257 11118 11118 D NetworkSecurityConfig: No Network Security Config specified, using platform default
+07-09 20:38:18.553   520   679 D WifiConfigStore: Writing to stores completed in 5 ms.
+07-09 20:38:18.582  1440 11161 I Vision  : Requesting optional module download of ocr.
+07-09 20:38:18.582  1440 11161 I Vision  : Exceeded maximum feature download tries for ocr
+07-09 20:38:18.582  1440 11161 W Vision  : Request of optional module download of ocr failed.
+07-09 20:38:18.582  1440 11161 I Vision  : Checking for download completion for 44514739 -- ocr
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: Could not register for notifications with InnerTube: 
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: rff: java.util.concurrent.ExecutionException: qjl: Precondition check failed.
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at rex.b(PG:18)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at uqp.f(PG:65)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at uqp.g(PG:134)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at uqp.b(PG:99)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at uqn.run(Unknown Source:1)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:462)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at ywx.run(Unknown Source:1)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at pqt.run(PG:13)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at java.lang.Thread.run(Thread.java:923)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: Caused by: java.util.concurrent.ExecutionException: qjl: Precondition check failed.
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at zsp.a(PG:135)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at zsp.get(PG:91)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at rex.b(PG:17)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	... 11 more
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: Caused by: qjl: Precondition check failed.
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at rdu.b(PG:106)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at pyo.a(PG:61)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at pxo.run(Unknown Source:17)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	... 4 more
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: Caused by: bjj
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	at pxo.run(Unknown Source:13)
+07-09 20:38:21.146 10720 11096 W YouTubeMusic: 	... 4 more
+07-09 20:38:23.799 10593 10593 I wpa_supplicant: wlan0: CTRL-EVENT-BEACON-LOSS 
+07-09 20:38:23.959   520  3479 D WifiNl80211Manager: Scan result ready event
+07-09 20:38:23.959   520  3479 D WifiNative: Scan result ready event
+07-09 20:38:28.899   520  2023 I ActivityManager: Killing 8580:android.process.media/u0a81 (adj 985): empty #17
+07-09 20:38:28.902   309   309 I Zygote  : Process 8580 exited due to signal 9 (Killed)
+07-09 20:38:28.942  1440 11163 I Vision  : Requesting optional module download of ocr.
+07-09 20:38:28.943   520   568 I libprocessgroup: Successfully killed process cgroup uid 10081 pid 8580 in 43ms
+07-09 20:38:28.953  1440 11163 I Vision  : Checking for download completion for 44525110 -- ocr
+07-09 20:38:28.957  1440 11164 E ConfigFileUtils: Failed to read config file: /data/user_de/0/com.google.android.gms/app_chimera/next_container.pb: open failed: ENOENT (No such file or directory)
+07-09 20:38:28.969  1440 11164 I ChmraDebugLogger: [73] 1801
+07-09 20:38:28.971  1440 11164 I ChmraDebugLogger: [30] [VisionOcr.optional:201817000800] permitMetered=true,
+07-09 20:38:28.972  1440 11164 W ChimeraConfigService: Retry attempt was throttled.
+07-09 20:38:31.391   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.391   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.392   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.392   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.392   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.392   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.393   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.393   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.393   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.393   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.394   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.394   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.394   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.394   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.395   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.395   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.395   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.395   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.396   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.396   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.396   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.396   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.397   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.397   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.397   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.397   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.398   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.398   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.398   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.398   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.399   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.399   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.399   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.399   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.399   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.399   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.400   520   531 W JavaBinder: BinderProxy is being destroyed but the application did not call unlinkToDeath to unlink all of its death recipients beforehand.  Releasing leaked death recipient: com.android.server.AlarmManagerService$2
+07-09 20:38:31.400   520   531 I BpBinder: onLastStrongRef automatically unlinking death recipients: <uncached descriptor>
+07-09 20:38:31.639   520  2023 D WifiNl80211Manager: Scan result ready event
+07-09 20:38:31.639   520  2023 D WifiNative: Scan result ready event
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: Could not register for notifications with InnerTube: 
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: rff: java.util.concurrent.ExecutionException: qjl: Precondition check failed.
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at rex.b(PG:18)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at uqp.f(PG:65)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at uqp.g(PG:134)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at uqp.b(PG:99)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at uqn.run(Unknown Source:1)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:462)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at java.util.concurrent.FutureTask.run(FutureTask.java:266)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at ywx.run(Unknown Source:1)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:641)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at pqt.run(PG:13)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at java.lang.Thread.run(Thread.java:923)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: Caused by: java.util.concurrent.ExecutionException: qjl: Precondition check failed.
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at zsp.a(PG:135)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at zsp.get(PG:91)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at rex.b(PG:17)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	... 11 more
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: Caused by: qjl: Precondition check failed.
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at rdu.b(PG:106)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at pyo.a(PG:61)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at pxo.run(Unknown Source:17)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	... 4 more
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: Caused by: bjj
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	at pxo.run(Unknown Source:13)
+07-09 20:38:34.100 10720 11096 W YouTubeMusic: 	... 4 more

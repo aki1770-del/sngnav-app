@@ -124,11 +124,35 @@ accounts). A beta tester sends feedback the way she sends a photo.
 - [x] Invisible-ice watch + verbatim ja announcement + honest-unknown row (`67e1eb8`)
 - [x] Release-signing scaffold + version-rot loom (`6b7179e`)
 - [x] CI green incl. env-honest render_see (`b2b6649`)
-- [ ] Emulator ladder pass #1 (API 30/34/36, screenshots affirmed)
+- [x] Emulator ladder pass #1 — **API 30 FULL WALK RAN** (CT 2026-07-09;
+      VAA own-eyes-reviewed the renders; ladder_out/FINDINGS.md): install ✓,
+      live JMA fetch ✓ (秋田 26.7°C/71%, 該当なし correctly), throttle 2/6 ✓,
+      TTS bind+speak CONFIRMED with ZERO package-visibility errors (the
+      9aad0d5 manifest fix works on API 30; no audibility claim, -no-audio),
+      airplane-mode no-crash ✓, 0 FATAL. API 34/36 SKIPPED honestly (images
+      not installed; persistent SDK now at /home/komada/android-sdk so the
+      wipe-loss cannot recur — android-34 image re-enables 4 existing AVDs).
 - [ ] NSC 0.10.6 STAGED (graded ICE/wetIce ja strings, 0.10.x line) → PENDING PUBLISH (A3)
 
 ### W2 → gate Fri 2026-07-18
 - [ ] Device hour #1 evidence processed; fix-list burned (A2)
+- [ ] **Ladder fix-list (VAA-seen 2026-07-09)**: (a) consent-card label
+      column mangles its most trust-carrying line one-syllable-per-line
+      ("Loca/tion/not/yet/shar/ed." — 02b_location_consent.png) and the
+      路面凍結ウォッチ label wraps mid-word — widen/reflow the label column;
+      (b) **OPS-059 correction-class**: consent actions report zero-size /
+      non-clickable semantics to assistive tech (ui_dump evidence) — real
+      Semantics targets before any tester; (c) threshold-preview labels
+      same wrap class. (Consent-gate "regression" REFUTED by measurement:
+      the card is locale-following — ja on HER ja-locale phone; the
+      emulator ran en. The brief overstated the README claim — VAA's
+      brief-authoring error, recorded.)
+- [ ] **TTS offline-voice check (D3-load-bearing ladder finding)**: fresh
+      API-30 image had NO local ja voice — the confirmed utterance rode a
+      SERVER voice fallback (ja-jp-x-jab-server). On HER offline worst case
+      that is silence. Device hours must verify a LOCAL ja voice is
+      installed (Settings→TTS→download offline ja) and DEVICE_VERIFICATION
+      gains that step; the beta notes state the dependency honestly.
 - [ ] Play internal track created + first signed build uploaded (A4)
 - [ ] Offline basemap PoC → default (bundled Akita MBTiles); emulator airplane-mode pass
 - [ ] Crash boundary + on-device local error log
@@ -186,6 +210,12 @@ accounts). A beta tester sends feedback the way she sends a photo.
   `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/SNGNav/packages/pretrip_source_met_norway`
 
 ## Gate history
+- 2026-07-09 (ladder return): W1 emulator item CLOSED as API-30-full +
+  34/36-honest-SKIP. Stop-and-root-cause note: the ladder stalled once
+  (agent continuation died after boot); root cause = watcher fired into a
+  dead continuation + adb absent from PATH; resumed with absolute paths;
+  persistent SDK root removes the original wiped-/tmp cause. Proceeded
+  only after both causes surfaced (Chair's 2026-07-09 discipline).
 - 2026-07-09 (v2 adoption): C4 ✅. W1 substantially complete 2 days early;
   emulator ladder + NSC 0.10.6 staging are the W1 remainder.
 
