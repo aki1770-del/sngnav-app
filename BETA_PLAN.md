@@ -115,6 +115,12 @@ accounts). A beta tester sends feedback the way she sends a photo.
 *(commands appended here as packages stage; each publish is followed by the
 062(C) live-version assert)*
 - `vehicle_condition_fusion 0.4.0` — `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/SNGNav/packages/vehicle_condition_fusion`
+- `navigation_safety_core 0.10.6` (graded ICE/wetIce, 0.10.x line; staged from
+  the released 0.10.5 source at `/home/komada/work/nsc-0.10.6`; 304/304 tests,
+  analyze clean, dry-run 0 warnings) —
+  `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/work/nsc-0.10.6`
+  *(after publish, sngnav-app takes it with a plain `flutter pub upgrade` —
+  its `^0.10.0` pin admits 0.10.6)*
 
 ## Gate history
 - 2026-07-09 (v2 adoption): C4 ✅. W1 substantially complete 2 days early;
