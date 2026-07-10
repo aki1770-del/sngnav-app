@@ -64,6 +64,7 @@ import 'route_fetch.dart';
 import 'services/advisory_service.dart';
 import 'services/drive_hud_controller.dart';
 import 'services/error_log.dart';
+import 'services/log_share.dart';
 import 'services/drive_hud_localizer.dart';
 import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
@@ -87,10 +88,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // W2 — crash boundary + local error log (services/error_log.dart): every
   // uncaught error is appended to a size-capped on-device file. NO network,
-  // NO telemetry — the log leaves the device only via the future
-  // user-initiated ログを共有 action. Never blocks boot (best-effort install).
-  await installCrashBoundary();
-  runApp(const SngnavApp());
+  // NO telemetry — the log leaves the device only via the user-initiated
+  // ログを共有 action (C6, the feedback card near the footer). Never blocks
+  // boot (best-effort install; a null log renders the action honestly
+  // disabled).
+  final errorLog = await installCrashBoundary();
+  runApp(SngnavApp(errorLog: errorLog));
 }
 
 /// WS5 — app-level severity for a mocked road-surface condition, used to gate
@@ -123,10 +126,26 @@ class SngnavApp extends StatelessWidget {
   /// [locale] overrides the device locale (null = follow the device). It is a
   /// testability + future device-harness hook: the WS7 tests pump the consent
   /// gate under `Locale('ja')` to prove HER surface renders in Japanese.
-  const SngnavApp({super.key, this.actuators, this.locale});
+  ///
+  /// [errorLog] is the crash-boundary log handle from [installCrashBoundary]
+  /// (main() passes it in; tests inject a temp-dir-backed log). It feeds the
+  /// C6 ログを共有 action; null renders that action honestly disabled.
+  ///
+  /// [logShareSink] overrides the share exit door (production null ->
+  /// [shareLogViaShareSheet]; widget tests inject a recording fake so the
+  /// platform share channel is never touched in the test binding).
+  const SngnavApp({
+    super.key,
+    this.actuators,
+    this.locale,
+    this.errorLog,
+    this.logShareSink,
+  });
 
   final AlertActuators? actuators;
   final Locale? locale;
+  final LocalErrorLog? errorLog;
+  final LogShareSink? logShareSink;
 
   @override
   Widget build(BuildContext context) {
@@ -152,16 +171,31 @@ class SngnavApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('ja'), Locale('en')],
-      home: HomePage(actuators: actuators),
+      home: HomePage(
+        actuators: actuators,
+        errorLog: errorLog,
+        logShareSink: logShareSink,
+      ),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, this.actuators});
+  const HomePage({
+    super.key,
+    this.actuators,
+    this.errorLog,
+    this.logShareSink,
+  });
 
   /// Injectable actuator layer (null -> [defaultAlertActuators]).
   final AlertActuators? actuators;
+
+  /// Crash-boundary log handle (C6 ログを共有; null -> action disabled).
+  final LocalErrorLog? errorLog;
+
+  /// Injectable share exit door (null -> [shareLogViaShareSheet]).
+  final LogShareSink? logShareSink;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -1353,6 +1387,11 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 16),
+            _section(
+              title: AppL10n.of(context).logShareSectionTitle,
+              child: _logSharePanel(),
+            ),
+            const SizedBox(height: 16),
             const _Footer(),
           ],
         ),
@@ -1374,6 +1413,88 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  /// C6 ログを共有 — the beta feedback card (BETA_PLAN fix #8, criterion C6).
+  ///
+  /// A tester sends the local error log the way she sends a photo: one tap,
+  /// the OS share sheet, a receiver of her own choice. Consent-preserving by
+  /// construction: the share fires ONLY from the tap (no auto-telemetry, no
+  /// accounts), and the payload is strictly build-header + error log — the
+  /// log stores no location history and the action adds none
+  /// (services/log_share.dart). Styled like the location-consent card:
+  /// liveRegion status line above, actions Wrap-ped below (phone-width
+  /// overflow discipline), disclosure last.
+  Widget _logSharePanel() {
+    final l = AppL10n.of(context);
+    final log = widget.errorLog;
+    final status = log == null
+        ? l.logShareUnavailable
+        : (_logHasRecords(log) ? l.logShareHasRecords : l.logShareEmpty);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // liveRegion: assistive tech announces the log-state line when it
+        // changes (OPS-059 floor — parity with the consent card).
+        Semantics(
+          liveRegion: true,
+          child: Text(
+            status,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          ),
+        ),
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TextButton(
+                key: const Key('share-log-button'),
+                onPressed: log == null ? null : _shareLog,
+                child: Text(l.shareLog),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          key: const Key('log-share-disclosure'),
+          l.logShareDisclosure,
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+        ),
+      ],
+    );
+  }
+
+  /// O(1) stat (not a full read) — the status line re-renders on every
+  /// build; reading the whole 200 KB log each frame would be waste. A stat
+  /// failure degrades to "no records" honestly (matching readAll()'s
+  /// empty-on-error contract).
+  bool _logHasRecords(LocalErrorLog log) {
+    try {
+      return log.file.existsSync() && log.file.lengthSync() > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Composes header + log text and hands it to the injected sink
+  /// (production: the platform share sheet). Payload composition is pure
+  /// (services/log_share.dart) so tests pin it without a device; the OS
+  /// share sheet itself is on-device verify DEFERRED (OPS-066, AAE
+  /// env-bound).
+  Future<void> _shareLog() async {
+    final log = widget.errorLog;
+    if (log == null) return;
+    final payload = composeLogSharePayload(logText: log.readAll());
+    try {
+      await (widget.logShareSink ?? shareLogViaShareSheet)(payload);
+    } catch (_) {
+      // A share-sheet failure must never take the app down — the log
+      // itself still holds the evidence for a later retry (parity with
+      // LocalErrorLog's never-throws discipline).
+    }
   }
 
   /// Key/value row with an adaptive label column.

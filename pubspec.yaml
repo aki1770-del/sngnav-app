@@ -60,6 +60,7 @@ dependencies:
   # so app code may import them (depend_on_referenced_packages).
   mbtiles: ^0.5.0
   path_provider: ^2.1.5
+  share_plus: ^13.2.0
 
 dev_dependencies:
   flutter_test:

@@ -8,8 +8,9 @@
 /// evidence of WHY must survive on the device so she (or a beta tester) can
 /// share it deliberately — the W3 "ログを共有" action. Honest bounds:
 /// - NO network, NO telemetry, NO auto-upload. The log leaves the device
-///   ONLY via a future user-initiated share action (BETA_PLAN fix #8,
-///   consent-preserving by construction).
+///   ONLY via the user-initiated ログを共有 share action
+///   (services/log_share.dart; BETA_PLAN fix #8, consent-preserving by
+///   construction).
 /// - Size-capped (~200 KB): when the cap is exceeded the OLDEST entries are
 ///   dropped at an entry boundary (ring-buffer discipline) — the log can
 ///   never grow to fill her storage.
