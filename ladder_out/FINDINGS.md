@@ -63,3 +63,17 @@ all 8 ui_dumps show the consent buttons clickable="true"; dump 14 has real on-sc
 [173,1069][553,1201] (the ladder itself tapped them). The zero-size nodes were Flutter's standard
 hidden-semantics for scrolled-out content (the "Next maneuver" card shows the same), not a defect.
 A semantics-floor widget test now pins the contract regardless (location_consent_semantics_test.dart).
+
+---
+## APPENDED 2026-07-10 — Airplane-mode pass on the REAL offline basemap (VAA; emulator sngnav_api30)
+
+Asset under test: akita_offline.mbtiles (cut tohoku-260709; sea fill + network-honest shields + bridge/tunnel styling; 1,552 tiles / 16.3MB). Airplane mode enabled BEFORE first app launch (`settings get global airplane_mode_on` → 1) — cold offline. Artifacts: `ladder_out/api30_offline_v2/`.
+
+**TWO REACH-CLASS DEFECTS FOUND AND FIXED (this is what the pass exists for — every prior render was host-decoded):**
+
+1. **Missing native sqlite (silent)**: `package:sqlite3` had no bundled `libsqlite3.so` (no `sqlite3_flutter_libs` dependency); Android forbids loading the system copy; `MbTiles()` threw; the `catch (_)` swallowed it; the map fell back to network tiles and was **BLANK in airplane mode on-device** while every host test painted it (`03_map_fixed.png` grey card + 16× `Failed host lookup: tile.openstreetmap.org` in logcat). FIX: `sqlite3_flutter_libs` added; the catch now logs WHY (`offline basemap unavailable...`). Evidence the fix bites: `07_farpan.png` — 盛岡 area rendered entirely from the archive, **zero** network tile requests.
+2. **Launch-race (cold-start grey)**: the offline provider loads async; tiles created before it arrives fail on network and flutter_map never reloads them on provider swap — the initial viewport stayed grey until a >keep-buffer pan (`04_map_fixed2.png`, `05_pan_west.png` grey; `07_farpan.png` painting after a far pan). FIX: `TileLayer(key: ValueKey(identityHashCode(baseTileProvider)))` remounts the layer when the provider arrives. Evidence: `09_map_coldstart.png` — cold-offline start paints 秋田市 at FIRST sight: sea fill + coastline west, 雄物川 bridge casings, 国道7/13 blue plates, E7 green, 県道56/62 hexagons, unverified 25/41 grey, © OpenStreetMap contributors.
+
+Crash scan: 0 FATAL / 0 AndroidRuntime exceptions across the whole pass; app pid alive end-to-end. JMA card degraded honestly offline (visible error + "Cached data is NOT shown — staleness must be visible", `08_coldstart_fixed.png`).
+
+**Honest bounds**: emulator (x86_64, swiftshader), not a physical device — HEAR/FEEL and real-GPS remain device-hour items; the tunnel-dash span (国道46) was verified in host tile renders, not specifically walked on-device this pass; the double-tap zoom probe (`06_doubletap.png`) was consumed by the route A/B tap feature (map taps set route points — noted as walk-ergonomics, not judged).

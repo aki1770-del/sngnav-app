@@ -79,6 +79,13 @@ class AkitaMap extends StatelessWidget {
             // rendering — the hazard still reaches her even when the map is
             // blank.
             TileLayer(
+              // Remount when the offline provider arrives: the provider loads
+              // async after first build, and flutter_map never reloads tiles
+              // already created (and failed on the network path) on a provider
+              // swap — on a cold offline start the initial viewport stayed
+              // grey until the user panned far beyond the keep-buffer. Caught
+              // by the 2026-07-10 emulator airplane-mode pass.
+              key: ValueKey(identityHashCode(baseTileProvider)),
               tileProvider: baseTileProvider,
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'dev.aki1770del.sngnav_app',

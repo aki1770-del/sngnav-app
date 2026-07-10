@@ -174,12 +174,20 @@ accounts). A beta tester sends feedback the way she sends a photo.
       rivers + labels, zero network); 217/217 tests green. REMAINING:
       emulator airplane-mode pass with the real tiles (fold into the next
       ladder run / device hour).
-- [ ] Emulator airplane-mode pass on the real offline basemap (next ladder
-      run) — explicitly on the FINAL 2026-07-10 asset (sea fill + shields +
-      structures): walk coast z9 (男鹿), a shielded z12 corridor (大仙 area:
-      国道13 blue vs unverified grey), a tunnel span (国道46), and the
-      coverage edge (データ範囲外 tint) — every prior render was host-decoded;
-      the Android engine has not yet drawn these bytes
+- [x] **Emulator airplane-mode pass on the real offline basemap — RAN
+      2026-07-10, and it caught exactly what it existed to catch** (evidence:
+      ladder_out/FINDINGS.md appended section + api30_offline_v2/): the
+      offline map had NEVER rendered on the Android engine — (1) missing
+      bundled native sqlite (no sqlite3_flutter_libs) made MbTiles() throw,
+      silently swallowed → map BLANK in airplane mode on-device while every
+      host test painted it; (2) launch-race: tiles created before the async
+      provider load never reload on provider swap → cold-start viewport
+      stayed grey until a far pan. Both FIXED same-turn (dependency +
+      honest failure log + TileLayer remount key). Cold-offline start now
+      paints 秋田市 at first sight: sea fill, 雄物川 bridge casings,
+      国道7/13 plates, E7 green, 県道56/62 hexagons, unverified grey. 0
+      FATAL. Honest bounds: emulator not device (HEAR/FEEL/GPS = device
+      hour); tunnel span verified in host tiles, not walked on-device.
 - [x] **Tohoku-extract deep dive + vision-alignment gate (2026-07-10,
       Chair-ratified composite)** — gate record:
       `../outputs/audits/vision_alignment_tohoku_extract_deep_dive_2026_07_10.md`.

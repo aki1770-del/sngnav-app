@@ -33,6 +33,7 @@ library;
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:mbtiles/mbtiles.dart';
 import 'package:offline_tiles/offline_tiles.dart';
@@ -86,7 +87,14 @@ Future<OfflineTileProvider?> loadAkitaOfflineTileProvider() async {
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
     final tempDir = await getTemporaryDirectory();
     return buildOfflineTileProviderFromBytes(bytes, tempDir: tempDir);
-  } catch (_) {
+  } catch (e) {
+    // Degradation must be honest, never silent: a swallowed error here left
+    // the map blank in airplane mode on-device while host tests painted it
+    // (missing bundled native sqlite lib; caught by the 2026-07-10 emulator
+    // airplane-mode pass). The null return still fail-softs to the network
+    // basemap — but the WHY now reaches the log so a blank offline map is
+    // diagnosable in one read.
+    debugPrint('offline basemap unavailable, falling back to network: $e');
     return null;
   }
 }

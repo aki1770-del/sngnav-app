@@ -1,0 +1,27 @@
+07-10 21:34:56.773 12535 12572 I flutter : [IMPORTANT:flutter/shell/platform/android/android_context_gl_impeller.cc(104)] Using the Impeller rendering backend (OpenGLES).
+07-10 21:34:56.871 12535 12579 I flutter : The Dart VM service is listening on http://127.0.0.1:39935/ZTPOy_Uq4Io=/
+07-10 21:34:58.593 12535 12535 I flutter :   [1m[flutter_map][0m
+07-10 21:34:58.593 12535 12535 I flutter :     We want to help keep OpenStreetMap available for everyone. Our examples
+07-10 21:34:58.593 12535 12535 I flutter :     and demo app use the public tile servers, but they are NOT free to use by
+07-10 21:34:58.593 12535 12535 I flutter :     everyone! Please review whether the OpenStreetMap tile servers are suitable
+07-10 21:34:58.593 12535 12535 I flutter :     for your project.
+07-10 21:34:58.593 12535 12535 I flutter :     See:
+07-10 21:34:58.593 12535 12535 I flutter :       * https://operations.osmfoundation.org/policies/tiles (OSM Tile Usage Policy)
+07-10 21:34:58.593 12535 12535 I flutter :       * https://docs.fleaflet.dev/osm-warn for more information about this warning
+07-10 21:34:59.761 12535 12535 I flutter : ClientException with SocketException: Failed host lookup: 'tile.openstreetmap.org' (OS Error: No address associated with hostname, errno = 7), uri=https://tile.openstreetmap.org/12/3642/1555.png
+07-10 21:34:59.776 12535 12535 I flutter : ClientException with SocketException: Failed host lookup: 'tile.openstreetmap.org' (OS Error: No address associated with hostname, errno = 7), uri=https://tile.openstreetmap.org/12/3642/1553.png
+07-10 21:34:59.776 12535 12535 I flutter : ClientException with SocketException: Failed host lookup: 'tile.openstreetmap.org' (OS Error: No address associated with hostname, errno = 7), uri=https://tile.openstreetmap.org/12/3642/1554.png
+07-10 21:34:59.777 12535 12535 I flutter : ClientException with SocketException: Failed host lookup: 'tile.openstreetmap.org' (OS Error: No address associated with hostname, errno = 7), uri=https://tile.openstreetmap.org/12/3641/1554.png
+07-10 21:34:59.777 12535 12535 I flutter : ClientException with SocketException: Failed host lookup: 'tile.openstreetmap.org' (OS Error: No address associated with hostname, errno = 7), uri=https://tile.openstreetmap.org/12/3643/1554.png
+07-10 21:34:59.778 12535 12535 I flutter : ClientException with SocketException: Failed host lookup: 'tile.openstreetmap.org' (OS Error: No address associated with hostname, errno = 7), uri=https://tile.openstreetmap.org/12/3641/1555.png
+07-10 21:34:59.778 12535 12535 I flutter : ClientException with SocketException: Failed host lookup: 'tile.openstreetmap.org' (OS Error: No address associated with hostname, errno = 7), uri=https://tile.openstreetmap.org/12/3643/1555.png
+07-10 21:34:59.779 12535 12535 I flutter : ClientException with SocketException: Failed host lookup: 'tile.openstreetmap.org' (OS Error: No address associated with hostname, errno = 7), uri=https://tile.openstreetmap.org/12/3643/1553.png
+07-10 21:34:59.779 12535 12535 I flutter : ClientException with SocketException: Failed host lookup: 'tile.openstreetmap.org' (OS Error: No address associated with hostname, errno = 7), uri=https://tile.openstreetmap.org/12/3641/1553.png
+07-10 21:34:59.868 12535 12535 I flutter :   [1m[flutter_map][0m
+07-10 21:34:59.868 12535 12535 I flutter :     We want to help keep OpenStreetMap available for everyone. Our examples
+07-10 21:34:59.868 12535 12535 I flutter :     and demo app use the public tile servers, but they are NOT free to use by
+07-10 21:34:59.868 12535 12535 I flutter :     everyone! Please review whether the OpenStreetMap tile servers are suitable
+07-10 21:34:59.868 12535 12535 I flutter :     for your project.
+07-10 21:34:59.868 12535 12535 I flutter :     See:
+07-10 21:34:59.868 12535 12535 I flutter :       * https://operations.osmfoundation.org/policies/tiles (OSM Tile Usage Policy)
+07-10 21:34:59.868 12535 12535 I flutter :       * https://docs.fleaflet.dev/osm-warn for more information about this warning

@@ -60,6 +60,13 @@ dependencies:
   # so app code may import them (depend_on_referenced_packages).
   mbtiles: ^0.5.0
   path_provider: ^2.1.5
+  # Bundles libsqlite3.so on Android/iOS. WITHOUT this, package:sqlite3
+  # cannot open the bundled MBTiles on a real device (Android forbids
+  # loading the system libsqlite3), MbTiles() throws, and the offline
+  # basemap silently fell back to network tiles — the map was BLANK in
+  # airplane mode on-device while every host-side test painted it.
+  # Caught by the 2026-07-10 emulator airplane-mode pass.
+  sqlite3_flutter_libs: ^0.5.24
 
 dev_dependencies:
   flutter_test:
