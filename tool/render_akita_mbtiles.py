@@ -6,8 +6,13 @@ water fill + rivers (blue), coastline, rail (dashed grey), roads by class,
 place labels (ja) at zoom-appropriate levels. 256px tiles rendered at 2x and
 downscaled for antialiasing. TMS row order per the MBTiles spec.
 
-Coverage: Akita prefecture bbox z8-z12, plus the app's Akita-city window
-(139.99..140.21, 39.63..39.81) at z13 — superset of the placeholder coverage.
+Coverage: Akita prefecture bbox z8-z12, plus z13 at the app's Akita-city
+window (139.99..140.21, 39.63..39.81). With a boundary JSON (argv[3], from
+extract_akita_boundary.py) z13 additionally covers, prefecture-wide, every
+tile that carries a motorway/trunk/primary road or a place label AND
+intersects the 秋田県 boundary — the PP4 rural deep-zoom dignity repair
+(vision-alignment gate 2026-07-10): the anchor cohort's rural roads get the
+same z13 the city has, without rendering neighbor-prefecture slivers.
 
 Data © OpenStreetMap contributors, ODbL 1.0 (Geofabrik Tohoku extract).
 """
@@ -186,9 +191,36 @@ def render_tile(tx, ty, z, content, fonts):
     return buf.getvalue()
 
 
-def main(extract_json, out_mbtiles):
+# z13 selective mode: road classes that earn a rural deep-zoom tile.
+Z13_SELECT_CLASSES = {'motorway', 'trunk', 'primary'}
+
+
+def load_boundary(boundary_json):
+    """秋田県 outer rings → prepared shapely geometry (import kept local so
+    the boundary-less render path needs no shapely)."""
+    from shapely.geometry import MultiPolygon, Polygon
+    from shapely.prepared import prep
+    with open(boundary_json) as f:
+        rings = json.load(f)
+    polys = [Polygon(r) for r in rings if len(r) >= 3]
+    return prep(MultiPolygon([p if p.is_valid else p.buffer(0)
+                              for p in polys]))
+
+
+def tile_bounds_lonlat(tx, ty, z):
+    n = 2.0 ** z
+    def lon(x):
+        return x / n * 360.0 - 180.0
+    def lat(y):
+        t = math.pi * (1 - 2 * y / n)
+        return math.degrees(math.atan(math.sinh(t)))
+    return lon(tx), lat(ty + 1), lon(tx + 1), lat(ty)
+
+
+def main(extract_json, out_mbtiles, boundary_json=None):
     with open(extract_json) as f:
         data = json.load(f)
+    boundary = load_boundary(boundary_json) if boundary_json else None
     fonts = {c: load_font(LABEL_SIZE[c] * SS) for c in LABEL_SIZE}
     if os.path.exists(out_mbtiles):
         os.remove(out_mbtiles)
@@ -199,24 +231,43 @@ def main(extract_json, out_mbtiles):
     db.execute('CREATE UNIQUE INDEX tile_index ON tiles'
                ' (zoom_level, tile_column, tile_row)')
 
+    if boundary is not None:
+        from shapely.geometry import box as shapely_box
+
     total = 0
     for z in range(8, 14):
         bbox = PREF if z <= 12 else CITY
         grid = tile_range(bbox, z)
-        buckets = bucket_features(data, z, grid)
         xt0, yt0, xt1, yt1 = grid
+        coords = {(tx, ty)
+                  for tx in range(xt0, xt1 + 1)
+                  for ty in range(yt0, yt1 + 1)}
+        if z == 13 and boundary is not None:
+            pgrid = tile_range(PREF, z)
+            buckets = bucket_features(data, z, pgrid)
+            for (tx, ty), content in buckets.items():
+                if (tx, ty) in coords:
+                    continue
+                if not (content['places']
+                        or any(c in Z13_SELECT_CLASSES
+                               for c, _ in content['lines'])):
+                    continue
+                if boundary.intersects(
+                        shapely_box(*tile_bounds_lonlat(tx, ty, z))):
+                    coords.add((tx, ty))
+        else:
+            buckets = bucket_features(data, z, grid)
         n = 0
-        for tx in range(xt0, xt1 + 1):
-            for ty in range(yt0, yt1 + 1):
-                content = buckets.get((tx, ty),
-                                      {'lines': [], 'water': [], 'places': []})
-                png = render_tile(tx, ty, z, content, fonts)
-                tms_y = (2 ** z - 1) - ty
-                db.execute('INSERT INTO tiles VALUES (?,?,?,?)',
-                           (z, tx, tms_y, sqlite3.Binary(png)))
-                n += 1
+        for tx, ty in sorted(coords):
+            content = buckets.get((tx, ty),
+                                  {'lines': [], 'water': [], 'places': []})
+            png = render_tile(tx, ty, z, content, fonts)
+            tms_y = (2 ** z - 1) - ty
+            db.execute('INSERT INTO tiles VALUES (?,?,?,?)',
+                       (z, tx, tms_y, sqlite3.Binary(png)))
+            n += 1
         total += n
-        print(f'z{z}: {n} tiles ({xt1-xt0+1}x{yt1-yt0+1})', flush=True)
+        print(f'z{z}: {n} tiles', flush=True)
 
     cut = data.get('source_cut', 'unpinned')
     meta = {
@@ -247,4 +298,7 @@ def main(extract_json, out_mbtiles):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
+    # argv[3] (optional): 秋田県 boundary JSON from extract_akita_boundary.py
+    # — enables the prefecture-wide selective z13 (PP4).
+    main(sys.argv[1], sys.argv[2],
+         sys.argv[3] if len(sys.argv) > 3 else None)

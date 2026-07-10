@@ -175,6 +175,15 @@ accounts). A beta tester sends feedback the way she sends a photo.
       emulator airplane-mode pass with the real tiles (fold into the next
       ladder run / device hour).
 - [ ] Emulator airplane-mode pass on the real offline basemap (next ladder run)
+- [x] **Tohoku-extract deep dive + vision-alignment gate (2026-07-10,
+      Chair-ratified composite)** — gate record:
+      `../outputs/audits/vision_alignment_tohoku_extract_deep_dive_2026_07_10.md`.
+      LANDED: 田沢湖/relation-lakes fix + cut pin (PP1+PP6); rural selective
+      z13 within 秋田県 boundary (PP4: 629 z13 tiles, asset 16.22MB — Chair
+      size-gate "meaningfully under +14MB" met at +6.06MB). QUEUED W3: route
+      shields (PP3). HOLDS recorded: sea-fill (PP2, tripwire), bridge/tunnel
+      styling (PP5-i), bridge-icing-from-raw-OSM (PP5-ii, unanimous —
+      cry-wolf risk), bbox-clip restraint (PP7).
 - [x] Crash boundary + on-device local error log (LocalErrorLog, size-capped, no network — the read surface for W3's ログを共有; 5 tests)
 - [ ] pretrip_source ^0.5.0 wave STAGED → PENDING PUBLISH (A3)
 

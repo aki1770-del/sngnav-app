@@ -11,9 +11,13 @@
 /// in a deliberately MINIMAL style, not a full OSM-carto render.  ***
 /// Rendered 2026-07-10 (EIE lane) from the Geofabrik Tohoku extract via
 /// `tool/render_akita_mbtiles.py`: roads by class, rail, rivers, water
-/// bodies, coastline, ja place labels. Coverage: Akita prefecture z8–z12 +
-/// the Akita-city window z13 (deeper zooms fall back to z12 via the
-/// resolver's lower-zoom fallback). No OSM tile server was contacted; data
+/// bodies, coastline, ja place labels. Coverage: Akita prefecture z8–z12;
+/// z13 at the Akita-city window PLUS, prefecture-wide, every tile carrying
+/// a motorway/trunk/primary road or a place label within the 秋田県 boundary
+/// (PP4 rural deep-zoom parity, 2026-07-10 — the rural anchor cohort gets
+/// the same z13 the city has; minor-road-only tiles and uncovered zooms
+/// fall back via the resolver's lower-zoom fallback). No OSM tile server
+/// was contacted; data
 /// © OpenStreetMap contributors, ODbL 1.0. Buildings, footpaths, POIs and
 /// sea fill are NOT rendered — the map orients (real roads, rivers, towns);
 /// it is not a substitute for full cartography.
