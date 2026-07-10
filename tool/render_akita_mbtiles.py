@@ -102,18 +102,22 @@ def bucket_features(data, z, grid):
     for poly in data['water']:
         if z < 9:
             continue
-        px = [lonlat_to_global_px(lon, lat, z) for lon, lat in poly]
-        xs = [p[0] for p in px]
-        ys = [p[1] for p in px]
+        opx = [lonlat_to_global_px(lon, lat, z) for lon, lat in poly['o']]
+        xs = [p[0] for p in opx]
+        ys = [p[1] for p in opx]
         # skip sub-pixel ponds
         if max(xs) - min(xs) < 2 and max(ys) - min(ys) < 2:
             continue
+        entry = {'o': opx,
+                 'i': [[lonlat_to_global_px(lon, lat, z) for lon, lat in ring]
+                       for ring in poly['i']]}
         for tx in range(max(xt0, int(min(xs) // TILE)),
                         min(xt1, int(max(xs) // TILE)) + 1):
             for ty in range(max(yt0, int(min(ys) // TILE)),
                             min(yt1, int(max(ys) // TILE)) + 1):
                 buckets.setdefault((tx, ty), {'lines': [], 'water': [],
-                                              'places': []})['water'].append(px)
+                                              'places': []})['water'].append(
+                    entry)
     for pl in data['places']:
         if z < LABEL_MINZOOM[pl['c']]:
             continue
@@ -141,9 +145,14 @@ def render_tile(tx, ty, z, content, fonts):
         return [((x - ox) * SS, (y - oy) * SS) for x, y in px]
 
     for poly in content['water']:
-        pts = to_local(poly)
+        pts = to_local(poly['o'])
         if len(pts) >= 3:
             draw.polygon(pts, fill=WATER)
+        # inner rings = islands: punch back to land
+        for ring in poly['i']:
+            ipts = to_local(ring)
+            if len(ipts) >= 3:
+                draw.polygon(ipts, fill=LAND)
     by_class = {}
     for cls, px in content['lines']:
         by_class.setdefault(cls, []).append(px)
@@ -209,8 +218,10 @@ def main(extract_json, out_mbtiles):
         total += n
         print(f'z{z}: {n} tiles ({xt1-xt0+1}x{yt1-yt0+1})', flush=True)
 
+    cut = data.get('source_cut', 'unpinned')
     meta = {
         'name': 'Akita offline basemap (OSM render)',
+        'source_cut': f'geofabrik/{cut}',
         'format': 'png',
         'minzoom': '8',
         'maxzoom': '13',
@@ -220,8 +231,9 @@ def main(extract_json, out_mbtiles):
         'version': '2',
         'attribution': '© OpenStreetMap contributors (ODbL 1.0)',
         'description': ('Real OpenStreetMap cartography for Akita prefecture '
-                        '(z8-z12) + Akita city window (z13), rendered from the '
-                        'Geofabrik Tohoku extract with a minimal pure-Python '
+                        '(z8-z12) + Akita city window (z13), rendered from '
+                        f'the Geofabrik Tohoku extract (cut {cut}) with a '
+                        'minimal pure-Python '
                         'style (roads by class, rail, rivers, water, '
                         'coastline, ja place labels). Data (c) OpenStreetMap '
                         'contributors, ODbL 1.0. Style is intentionally '

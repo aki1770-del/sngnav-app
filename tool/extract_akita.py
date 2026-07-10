@@ -77,22 +77,50 @@ class Handler(osmium.SimpleHandler):
             cls = 'river'
         elif tags.get('natural') == 'coastline':
             cls = 'coast'
-        elif tags.get('natural') == 'water' or tags.get('landuse') == 'reservoir':
-            pts = self._coords(w)
-            if len(pts) >= 3 and self._clip_hit(pts):
-                self.waterpoly.append(pts)
-            return
         if cls is None:
             return
         pts = self._coords(w)
         if len(pts) >= 2 and self._clip_hit(pts):
             self.lines.append({'c': cls, 'p': pts})
 
+    def area(self, a):
+        """Water bodies via assembled AREAS — closed ways AND multipolygon
+        relations. The way-only version missed every relation lake (田沢湖,
+        十和田湖, 宝仙湖, … — 393 relations in the Tohoku extract): the map
+        asserted land over Japan's deepest lake (PP1, vision-alignment gate
+        2026-07-10). Inner rings (islands) are kept and punched back to land
+        at render time."""
+        tags = a.tags
+        if not (tags.get('natural') == 'water'
+                or tags.get('landuse') == 'reservoir'):
+            return
+        for outer in a.outer_rings():
+            opts = []
+            for n in outer:
+                try:
+                    opts.append((round(n.lon, 6), round(n.lat, 6)))
+                except osmium.InvalidLocationError:
+                    continue
+            if len(opts) < 3 or not self._clip_hit(opts):
+                continue
+            inners = []
+            for inner in a.inner_rings(outer):
+                ipts = []
+                for n in inner:
+                    try:
+                        ipts.append((round(n.lon, 6), round(n.lat, 6)))
+                    except osmium.InvalidLocationError:
+                        continue
+                if len(ipts) >= 3:
+                    inners.append(ipts)
+            self.waterpoly.append({'o': opts, 'i': inners})
 
-def main(pbf, out):
+
+def main(pbf, out, cut='unpinned'):
     h = Handler()
     h.apply_file(pbf, locations=True, idx='flex_mem')
     data = {'bbox': [LON_MIN, LAT_MIN, LON_MAX, LAT_MAX],
+            'source_cut': cut,
             'lines': h.lines, 'water': h.waterpoly, 'places': h.places}
     with open(out, 'w') as f:
         json.dump(data, f, separators=(',', ':'))
@@ -105,4 +133,8 @@ def main(pbf, out):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
+    # argv[3]: the Geofabrik cut label (e.g. 'tohoku-260709') — PIN IT (PP6):
+    # 'tohoku-latest' is a moving target; the cut travels into the MBTiles
+    # metadata so the shipped map's provenance is reproducible.
+    main(sys.argv[1], sys.argv[2],
+         sys.argv[3] if len(sys.argv) > 3 else 'unpinned')
