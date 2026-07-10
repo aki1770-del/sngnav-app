@@ -1,4 +1,4 @@
-/// Offline-basemap PoC wiring (Chair Option A, 2026-07-01).
+/// Offline-basemap wiring (2026-07-01).
 ///
 /// HER worst-case is unexpected snow with Maps AND GPS down and no cell
 /// signal — the moment the NETWORK basemap goes blank. This wires the
@@ -9,18 +9,25 @@
 ///
 /// ***  HONEST BOUND — the bundled tiles are REAL OpenStreetMap cartography
 /// in a deliberately MINIMAL style, not a full OSM-carto render.  ***
-/// Rendered 2026-07-10 (EIE lane) from the Geofabrik Tohoku extract via
-/// `tool/render_akita_mbtiles.py`: roads by class, rail, rivers, water
-/// bodies, coastline, ja place labels. Coverage: Akita prefecture z8–z12;
-/// z13 at the Akita-city window PLUS, prefecture-wide, every tile carrying
-/// a motorway/trunk/primary road or a place label within the 秋田県 boundary
-/// (PP4 rural deep-zoom parity, 2026-07-10 — the rural anchor cohort gets
-/// the same z13 the city has; minor-road-only tiles and uncovered zooms
-/// fall back via the resolver's lower-zoom fallback). No OSM tile server
-/// was contacted; data
-/// © OpenStreetMap contributors, ODbL 1.0. Buildings, footpaths, POIs and
-/// sea fill are NOT rendered — the map orients (real roads, rivers, towns);
-/// it is not a substitute for full cartography.
+/// Rendered 2026-07-10 from the Geofabrik Tohoku extract (cut
+/// tohoku-260709, pinned in the archive metadata) via
+/// `tool/extract_akita.py` + `tool/render_akita_mbtiles.py` (runbook:
+/// `tool/README_TILES.md`). What it renders: sea fill polygonized from the
+/// OSM coastline; roads by class; route-number shields styled by verified
+/// network (国道 blue plate / 県道 blue hexagon / expressway green — a
+/// number whose network is NOT verified by an OSM route relation renders
+/// grey, claiming nothing); bridge casings + tunnel dashes at z12+ (map
+/// features, never warnings); rail, rivers, lakes (multipolygon relations
+/// included — 田沢湖 renders as water), ja place labels; and an explicit
+/// grey データ範囲外 tint outside the data bbox (never fake land or sea).
+/// Coverage: Akita prefecture z8–z12; z13 at the Akita-city window PLUS,
+/// prefecture-wide, every tile carrying a motorway/trunk/primary road or a
+/// place label within the 秋田県 boundary (rural deep-zoom parity —
+/// the rural anchor cohort gets the same z13 the city has; other tiles and
+/// deeper zooms fall back via the resolver's lower-zoom fallback). No OSM
+/// tile server was contacted; data © OpenStreetMap contributors, ODbL 1.0.
+/// Buildings, footpaths and POIs are NOT rendered — the map orients (real
+/// roads, rivers, towns); it is not a substitute for full cartography.
 library;
 
 import 'dart:io';

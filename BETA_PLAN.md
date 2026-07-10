@@ -174,7 +174,12 @@ accounts). A beta tester sends feedback the way she sends a photo.
       rivers + labels, zero network); 217/217 tests green. REMAINING:
       emulator airplane-mode pass with the real tiles (fold into the next
       ladder run / device hour).
-- [ ] Emulator airplane-mode pass on the real offline basemap (next ladder run)
+- [ ] Emulator airplane-mode pass on the real offline basemap (next ladder
+      run) — explicitly on the FINAL 2026-07-10 asset (sea fill + shields +
+      structures): walk coast z9 (男鹿), a shielded z12 corridor (大仙 area:
+      国道13 blue vs unverified grey), a tunnel span (国道46), and the
+      coverage edge (データ範囲外 tint) — every prior render was host-decoded;
+      the Android engine has not yet drawn these bytes
 - [x] **Tohoku-extract deep dive + vision-alignment gate (2026-07-10,
       Chair-ratified composite)** — gate record:
       `../outputs/audits/vision_alignment_tohoku_extract_deep_dive_2026_07_10.md`.

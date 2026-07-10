@@ -65,12 +65,18 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Direct sqlite reads in the offline-archive contract test (per-zoom tile
+  # counts + custom metadata keys the mbtiles API does not expose).
+  sqlite3: ^3.3.4
 
 flutter:
   uses-material-design: true
   assets:
     # REAL offline Akita basemap — OpenStreetMap cartography (minimal style):
-    # Akita prefecture z8-z12 + Akita-city window z13, rendered from the
-    # Geofabrik Tohoku extract via tool/extract_akita.py +
-    # tool/render_akita_mbtiles.py. Data (c) OpenStreetMap contributors, ODbL.
+    # Akita prefecture z8-z12; z13 at Akita city + prefecture-wide selective
+    # rural tiles (major road or town, clipped to the 秋田県 boundary). Sea
+    # fill, network-verified route shields (国道/県道/expressway), bridge/
+    # tunnel styling, lakes incl. multipolygon relations, ja labels, honest
+    # no-data tint. Pipeline + runbook: tool/README_TILES.md (cut pinned
+    # tohoku-260709). Data (c) OpenStreetMap contributors, ODbL.
     - assets/tiles/akita_offline.mbtiles

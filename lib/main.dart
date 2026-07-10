@@ -270,7 +270,7 @@ class _HomePageState extends State<HomePage> {
   PositionFix? _herFix;
   StreamSubscription<PositionFix>? _herSub;
 
-  // Offline basemap (Chair Option A, 2026-07-01; real tiles 2026-07-10).
+  // Offline basemap (2026-07-01; real tiles 2026-07-10).
   // Loaded once at init from the bundled MBTiles asset, then handed to
   // AkitaMap so Akita renders OFFLINE-FIRST (network only for uncovered
   // tiles) — the basemap no longer goes blank when the network is gone. Null

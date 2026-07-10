@@ -2,8 +2,7 @@
 """Extract the 秋田県 administrative boundary (multipolygon) from a Geofabrik
 Tohoku .osm.pbf → JSON [[outer_ring], ...] (rings of [lon, lat]).
 
-Used by render_akita_mbtiles.py's selective-z13 mode (PP4, vision-alignment
-gate 2026-07-10): rural deep-zoom tiles are clipped to the prefecture so
+Used by render_akita_mbtiles.py's selective-z13 mode (2026-07-10): rural deep-zoom tiles are clipped to the prefecture so
 neighbor-prefecture slivers in the bbox are not rendered for no cohort.
 
 Data © OpenStreetMap contributors, ODbL 1.0.

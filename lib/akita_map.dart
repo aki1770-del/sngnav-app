@@ -249,7 +249,7 @@ class _AttributionBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         color: Colors.white.withValues(alpha: 0.7),
         child: const Text(
-          '© OpenStreetMap | Routing © OSRM',
+          '© OpenStreetMap contributors | Routing © OSRM',
           style: TextStyle(fontSize: 10),
         ),
       ),

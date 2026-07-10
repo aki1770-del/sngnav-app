@@ -1,5 +1,4 @@
-/// OPS-066 render-SEE capture — OFFLINE basemap proof (Chair Option A,
-/// 2026-07-01).
+/// OPS-066 render-SEE capture — OFFLINE basemap proof (2026-07-01).
 ///
 /// Produces `render_out/05_offline_map_akita.png` so VAA can LOOK at the Akita
 /// map rendering tiles from the bundled MBTiles archive with NO network — the
