@@ -67,6 +67,9 @@ dependencies:
   # airplane mode on-device while every host-side test painted it.
   # Caught by the 2026-07-10 emulator airplane-mode pass.
   sqlite3_flutter_libs: ^0.5.24
+  # C6 ログを共有 — user-initiated share-sheet export of the local error
+  # log (text share; no FileProvider, no manifest change).
+  share_plus: ^13.2.0
 
 dev_dependencies:
   flutter_test:

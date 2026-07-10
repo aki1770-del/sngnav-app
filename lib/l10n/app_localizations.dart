@@ -207,6 +207,52 @@ class AppL10n {
   String advisoryPublisherErrored(String publisher, String message) => _ja
       ? '配信元 $publisher でエラー: $message'
       : 'Publisher $publisher errored: $message';
+
+  // ===== C6 ログを共有 — beta feedback share-log surface (BETA_PLAN fix #8) =====
+  //
+  // Honesty-traced to real code: the share fires ONLY from the button tap
+  // (services/log_share.dart — no auto-telemetry, no background path, no
+  // accounts), and the payload is strictly build-header + the local error
+  // log (services/error_log.dart records only timestamp + source + error +
+  // stack; no location history is stored, and the action adds none).
+
+  /// Section title for the feedback / share-log card.
+  String get logShareSectionTitle =>
+      _ja ? 'フィードバック — ログを共有' : 'Feedback — share log';
+
+  /// Label for the one-tap share-log action (BETA_PLAN's ログを共有).
+  String get shareLog => _ja ? 'ログを共有' : 'Share log';
+
+  /// Status line when the crash boundary could not resolve a log file
+  /// (path_provider unavailable) — the action is honestly disabled.
+  String get logShareUnavailable => _ja
+      ? 'エラーログはこの環境では利用できません。'
+      : 'The error log is unavailable in this environment.';
+
+  /// Status line when the log exists but holds no records. Sharing stays
+  /// possible and sends an honest "log is empty" payload (never fabricated
+  /// content).
+  String get logShareEmpty => _ja
+      ? 'ログは空です（クラッシュ・エラーの記録はありません）。'
+      : 'The log is empty (no crash or error records).';
+
+  /// Status line when error records are present to share.
+  String get logShareHasRecords => _ja
+      ? 'エラー記録があります。共有ボタンでベータ・フィードバックとして送れます。'
+      : 'Error records are present. Use the share button to send them as '
+          'beta feedback.';
+
+  /// Consent-framing disclosure under the share button (mirrors the
+  /// location-disclosure discipline: state WHERE the data goes BEFORE the
+  /// tap).
+  String get logShareDisclosure => _ja
+      ? '共有はこのボタンを押したときだけ行われます。自動送信・テレメトリはなく、'
+          'アカウントも不要です。ログに含まれるのはエラーの記録のみで、'
+          '位置情報の履歴は含まれません。送信先は端末の共有画面で自分で選べます。'
+      : 'Sharing happens only when you tap this button — no automatic '
+          'upload, no telemetry, and no account. The log contains only '
+          'error records; it holds no location history. You choose the '
+          "destination in your device's share sheet.";
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {
