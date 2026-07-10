@@ -127,13 +127,22 @@ Future<JmaResult> fetchLatestObservation({
   String stationId = akitaStationId,
   String stationName = '秋田',
   http.Client? client,
+  String? userAgent,
 }) async {
   final c = client ?? http.Client();
+  // Politeness parity with the JMA warnings provider: a contactable
+  // User-Agent (when the caller supplies one) + a bounded request budget,
+  // so a hung endpoint can never wedge the in-drive refresh loom.
+  final headers = userAgent == null ? null : {'User-Agent': userAgent};
+  const requestBudget = Duration(seconds: 30);
   try {
     // Step 1: get the latest observation timestamp JMA has published.
-    final latestTimeResp = await c.get(Uri.parse(
-      'https://www.jma.go.jp/bosai/amedas/data/latest_time.txt',
-    ));
+    final latestTimeResp = await c
+        .get(
+          Uri.parse('https://www.jma.go.jp/bosai/amedas/data/latest_time.txt'),
+          headers: headers,
+        )
+        .timeout(requestBudget);
     if (latestTimeResp.statusCode != 200) {
       return JmaFailure('latest_time HTTP ${latestTimeResp.statusCode}');
     }
@@ -151,7 +160,8 @@ Future<JmaResult> fetchLatestObservation({
         'point/$stationId/${yyyymmdd}_$bucketStr.json';
 
     // Step 3: fetch the per-10-minute records for this station+bucket.
-    final pointResp = await c.get(Uri.parse(pointUrl));
+    final pointResp =
+        await c.get(Uri.parse(pointUrl), headers: headers).timeout(requestBudget);
     if (pointResp.statusCode != 200) {
       return JmaFailure('point HTTP ${pointResp.statusCode} for $pointUrl');
     }

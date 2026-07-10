@@ -67,6 +67,7 @@ import 'services/error_log.dart';
 import 'services/drive_hud_localizer.dart';
 import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
+import 'services/turmoil_watch.dart';
 import 'services/jma_advisory_provider_factory.dart';
 import 'package:snow_rendering/snow_rendering.dart'
     show invisibleBlackIceAnnouncement;
@@ -123,10 +124,17 @@ class SngnavApp extends StatelessWidget {
   /// [locale] overrides the device locale (null = follow the device). It is a
   /// testability + future device-harness hook: the WS7 tests pump the consent
   /// gate under `Locale('ja')` to prove HER surface renders in Japanese.
-  const SngnavApp({super.key, this.actuators, this.locale});
+  ///
+  /// [jmaFetch] overrides the live JMA observation fetch (null = the real
+  /// AMeDAS fetch). Same idiom as [actuators]: it lets tests drive the
+  /// measured-watch surfaces (路面凍結 / 荒天) with a canned observation so
+  /// their render + transition-announce behavior is verifiable without a
+  /// network or a device.
+  const SngnavApp({super.key, this.actuators, this.locale, this.jmaFetch});
 
   final AlertActuators? actuators;
   final Locale? locale;
+  final Future<JmaResult> Function()? jmaFetch;
 
   @override
   Widget build(BuildContext context) {
@@ -152,16 +160,24 @@ class SngnavApp extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: const [Locale('ja'), Locale('en')],
-      home: HomePage(actuators: actuators),
+      home: HomePage(actuators: actuators, locale: locale, jmaFetch: jmaFetch),
     );
   }
 }
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, this.actuators});
+  const HomePage({super.key, this.actuators, this.locale, this.jmaFetch});
 
   /// Injectable actuator layer (null -> [defaultAlertActuators]).
   final AlertActuators? actuators;
+
+  /// The same locale override [SngnavApp] hands to MaterialApp, so the
+  /// SPOKEN lane resolves from the identical inputs as the screen (AAA F1:
+  /// the eyes-off channel must never silently diverge from the eyes-on one).
+  final Locale? locale;
+
+  /// Injectable JMA observation fetch (null -> live AMeDAS fetch).
+  final Future<JmaResult> Function()? jmaFetch;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -246,6 +262,25 @@ class _HomePageState extends State<HomePage> {
   // live JMA observation. _invisibleIceAnnounced is the transition gate.
   InvisibleIceWatchResult? _invisibleIceResult;
   bool _invisibleIceAnnounced = false;
+
+  // BETA_PLAN W3 — measured-turmoil (downpour / strong-wind) watch over the
+  // same live observation (Chair-ratified 2026-07-09: measured actual
+  // weather, never historical assumption). Same transition-gate discipline.
+  TurmoilWatchState? _turmoilState;
+  bool _turmoilAnnounced = false;
+
+  // W3 in-drive refresh loom: AMeDAS publishes 10-minutely; without a
+  // periodic re-fetch the watches only re-evaluate on manual taps — not an
+  // in-drive surface. The same tick re-pulls area advisories so a PARKED
+  // driver still receives a newly issued JMA warning (movement-gated
+  // refresh alone never re-fetches while stationary).
+  Timer? _jmaTicker;
+
+  // AAA F1 — the spoken-lane locale, resolved ONCE from the same inputs the
+  // screen uses (widget.locale override first, else device locales against
+  // the same ja-first supported list). 'ja' | 'en'.
+  late final String _spokenLanguageCode;
+  bool get _spokenJa => _spokenLanguageCode == 'ja';
 
   // Slice 3 — corridor stations along Akita prefecture's inhabited spine.
   List<JmaResult>? _corridorResults;
@@ -343,12 +378,24 @@ class _HomePageState extends State<HomePage> {
     // while this navigation surface is active so a driver glancing at a live
     // hazard never finds a dark screen. Foreground-only: released in dispose;
     // NO background wakelock. (Product tension noted in AndroidManifest.xml:
-    // a true multi-hour screen-off drive would need a foreground service, and
-    // FOREGROUND_SERVICE_LOCATION is declared for a user-visible ongoing-drive
-    // notification — never silent background location tracking, which we
-    // refuse for dignity, hence NO ACCESS_BACKGROUND_LOCATION.)
+    // a true multi-hour screen-off drive would need a foreground Service —
+    // its perms return to the manifest only when that Service is actually
+    // built, user-visible and driver-initiated — never silent background
+    // location tracking, which we refuse for dignity, hence NO
+    // ACCESS_BACKGROUND_LOCATION.)
     _actuators = widget.actuators ?? defaultAlertActuators();
     _announcer = AlertAnnouncer(actuators: _actuators);
+    // AAA F1 — resolve the spoken-lane locale ONCE, from the same inputs
+    // MaterialApp resolves the screen from: the injected override first,
+    // else the device locale list against the identical ja-first supported
+    // list (basicLocaleListResolution is Flutter's default resolver). The
+    // screen and the voice can therefore never diverge.
+    final resolvedSpoken = widget.locale ??
+        basicLocaleListResolution(
+          WidgetsBinding.instance.platformDispatcher.locales,
+          const [Locale('ja'), Locale('en')],
+        );
+    _spokenLanguageCode = resolvedSpoken.languageCode == 'ja' ? 'ja' : 'en';
     unawaited(_actuators.keepAwake(true));
     // Offline basemap — load the bundled Akita MBTiles archive and
     // hand the resulting OfflineTileProvider to AkitaMap. Async + fail-soft:
@@ -362,7 +409,9 @@ class _HomePageState extends State<HomePage> {
       actuators: _actuators,
       announcer: _announcer,
       text: _driveHudText,
-      localeTag: 'ja',
+      // AAA F1: was a hardcoded 'ja' — DriveHudLocalizer ships full ja+en
+      // pairs, so the HUD's spoken lane follows the resolved locale.
+      localeTag: _spokenLanguageCode,
     );
     _driveHud.addListener(_onDriveHudChanged);
     _telemetry = LoomFitTelemetry();
@@ -403,6 +452,15 @@ class _HomePageState extends State<HomePage> {
     _advisoryInitFuture = _advisoryService.init();
     _refreshJma();
     _refreshCorridor();
+    // W3 — in-drive refresh loom (see the _jmaTicker field note). 10-minute
+    // cadence matches AMeDAS's own publication interval: one station GET +
+    // one advisory refresh per tick — polite by construction. Foreground
+    // only in practice (Android freezes a cached app's timers; the wakelock
+    // keeps the surface — and so this ticker — alive during a drive).
+    _jmaTicker = Timer.periodic(const Duration(minutes: 10), (_) {
+      _refreshJma();
+      _onAdvisoryRefreshTapped();
+    });
   }
 
   /// Sub-bundle 4 — (re)build PerformanceBudget + DataBudget +
@@ -449,6 +507,7 @@ class _HomePageState extends State<HomePage> {
     // WS5 — release the screen wakelock when this surface leaves (foreground-
     // only contract). No-op on desktop/test.
     unawaited(_actuators.keepAwake(false));
+    _jmaTicker?.cancel();
     // Close the offline MBTiles archive (sqlite3) + its network provider.
     unawaited(_offlineBaseProvider?.dispose());
     _driveHud.removeListener(_onDriveHudChanged);
@@ -742,8 +801,8 @@ class _HomePageState extends State<HomePage> {
           'Position is REAL (HER GPS, honestly degraded); area advisory is REAL '
           '(NWS + JMA); visibility is MOCKED (no sensor yet); speed is unknown. '
           'Advisory-only, driver-always-drives; the ceiling is "consider '
-          'stopping", never "turn back". Source: localization_fallback 0.1.1 + '
-          'compound_failure_advisor 0.1.1 (pub.dev).',
+          'stopping", never "turn back". Source: localization_fallback + '
+          'compound_failure_advisor (pub.dev; resolved versions: pubspec.lock).',
           style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
         ),
       ],
@@ -817,41 +876,77 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _refreshJma() async {
     setState(() => _jmaLoading = true);
-    final result = await fetchLatestObservation();
+    final result = await (widget.jmaFetch?.call() ??
+        fetchLatestObservation(userAgent: kSngnavAppUserAgent));
     if (!mounted) return;
     setState(() {
       _jmaResult = result;
       _jmaLoading = false;
       if (result is JmaSuccess) {
         _invisibleIceResult = evaluateInvisibleIceWatch(result.observation);
+        _turmoilState = evaluateTurmoilWatch(result.observation);
       } else {
         _invisibleIceResult = InvisibleIceWatchResult.unknown;
+        _turmoilState = null;
       }
     });
-    _announceInvisibleIceTransition();
+    _announceWatchTransitions();
   }
 
-  /// BETA_PLAN W1 — the invisible-ice (radiative-frost) watch over the
-  /// live JMA observation. Transition-gated: announces ONCE when the
-  /// measured window turns on (clear/unknown → watch), never repeats on
-  /// every fetch while the window persists (the cry-wolf discipline the
-  /// SNGNav status bar uses). Spoken text is the catalog's
-  /// possibility-graded looks-wet line, VERBATIM (AAA Article 17 β —
-  /// the app does not paraphrase catalog strings); warning tier, not
-  /// critical, because the detection is a dew-point inference, not a
-  /// surface measurement.
-  void _announceInvisibleIceTransition() {
-    final fired = _invisibleIceResult == InvisibleIceWatchResult.watch;
-    if (fired && !_invisibleIceAnnounced) {
-      unawaited(
-        _announcer.announce(
+  /// BETA_PLAN W1+W3 — transition-gated announces for BOTH measured watches
+  /// over the live JMA observation. Each watch announces ONCE when its
+  /// measured window turns on, never repeating on every fetch while the
+  /// window persists (the cry-wolf discipline the SNGNav status bar uses).
+  ///
+  /// - Invisible ice: the catalog's possibility-graded looks-wet line,
+  ///   VERBATIM in the resolved spoken locale (AAA Article 17 β — the app
+  ///   does not paraphrase catalog strings; jaSpokenText/enSpokenText are
+  ///   both the catalog publisher's own strings). Warning tier, not
+  ///   critical, because the detection is a dew-point inference, not a
+  ///   surface measurement.
+  /// - Turmoil (W3): app-authored possibility-graded line over the measured
+  ///   rain/wind thresholds (services/turmoil_watch.dart documents the
+  ///   JMA-table grounding). Warning tier for the same reason: a derived
+  ///   caution from a point measurement, not a surface statement.
+  ///
+  /// The two announces are CHAINED inside one async block: the shared TTS
+  /// engine holds a single global language state, and two concurrently
+  /// un-awaited announces could interleave setLanguage/speak (the actuator
+  /// seam noted in mobile_alert_actuators.dart) — sequential delivery keeps
+  /// each line in its own voice.
+  void _announceWatchTransitions() {
+    final iceFired = _invisibleIceResult == InvisibleIceWatchResult.watch;
+    final iceRose = iceFired && !_invisibleIceAnnounced;
+    _invisibleIceAnnounced = iceFired;
+
+    final turmoil = _turmoilState;
+    final turmoilFired = turmoil != null && turmoil.anyCaution;
+    final turmoilRose = turmoilFired && !_turmoilAnnounced;
+    _turmoilAnnounced = turmoilFired;
+
+    if (!iceRose && !turmoilRose) return;
+    final ttsTag = _spokenJa ? 'ja-JP' : 'en-US';
+    unawaited(() async {
+      if (iceRose) {
+        await _announcer.announce(
           severity: AlertSeverity.warning,
-          text: invisibleBlackIceAnnouncement.jaSpokenText,
-          localeTag: 'ja-JP',
-        ),
-      );
-    }
-    _invisibleIceAnnounced = fired;
+          text: _spokenJa
+              ? invisibleBlackIceAnnouncement.jaSpokenText
+              : invisibleBlackIceAnnouncement.enSpokenText,
+          localeTag: ttsTag,
+        );
+      }
+      if (turmoilRose) {
+        final line = turmoilSpokenText(turmoil, ja: _spokenJa);
+        if (line != null) {
+          await _announcer.announce(
+            severity: AlertSeverity.warning,
+            text: line,
+            localeTag: ttsTag,
+          );
+        }
+      }
+    }());
   }
 
   Future<void> _refreshCorridor() async {
@@ -923,7 +1018,13 @@ class _HomePageState extends State<HomePage> {
     var maneuvers = const <RouteManeuver>[];
     try {
       final r = await engine.calculateRoute(
-        RouteRequest(origin: o, destination: d, language: 'ja-JP'),
+        // AAA F1: follow the resolved spoken locale (was hardcoded ja-JP);
+        // routing_engine's maneuver localizer supports both primary subtags.
+        RouteRequest(
+          origin: o,
+          destination: d,
+          language: _spokenJa ? 'ja-JP' : 'en-US',
+        ),
       );
       result = RouteSuccess(
         points: r.shape,
@@ -1503,6 +1604,15 @@ class _HomePageState extends State<HomePage> {
             _kv('Temperature', temp == null ? '—' : '${temp.toStringAsFixed(1)} °C'),
             _kv('Humidity', hum == null ? '—' : '$hum %'),
             _kv('Wind', wind == null ? '—' : '${wind.toStringAsFixed(1)} m/s'),
+            // W3 — the measured rain-rate the turmoil watch judges on,
+            // shown verbatim beside the inference (same discipline as the
+            // fields above; '—' = the station did not report the field).
+            _kv(
+              '降水量（10分間）',
+              observation.precipitation10mMm == null
+                  ? '—'
+                  : '${observation.precipitation10mMm!.toStringAsFixed(1)} mm',
+            ),
             _kv('Snow depth', snow == null ? '—' : '${snow.toStringAsFixed(0)} cm'),
             _kv('Fetched', _formatFetched(observation.fetchedAt, stale)),
             // BETA_PLAN W1 — the invisible-ice watch verdict, rendered with
@@ -1517,16 +1627,30 @@ class _HomePageState extends State<HomePage> {
                   '判定不能（気温・湿度・降水の観測値が不足）',
               },
             ),
+            // BETA_PLAN W3 — the measured-turmoil watch verdict, same
+            // honest-unknown discipline (per-channel 判定不能 named).
+            _kv(
+              '荒天ウォッチ',
+              _turmoilState == null
+                  ? '判定不能（降水・風の観測値が不足）'
+                  : turmoilRowText(_turmoilState!),
+            ),
             const SizedBox(height: 8),
             // Honesty split (CT Joel-Test catch, 2026-07-09 vision audit):
-            // the observation fields above are verbatim relay; the watch row
-            // is NOT — it is a derived classification. One caption claiming
+            // the observation fields above are verbatim relay; the watch rows
+            // are NOT — they are derived classifications. One caption claiming
             // "no derivation" under both was a false claim on the safety
             // surface.
             Text(
               'Source: JMA AMeDAS — observation fields are verbatim relay. '
               '路面凍結ウォッチ is DERIVED from them (shared radiative-frost '
-              'classifier) — an inference, not a JMA statement.',
+              'classifier) — an inference, not a JMA statement. 荒天ウォッチ '
+              'likewise: derived from the measured 10-min precipitation '
+              '(×6 hourly-equivalent is this app\'s conversion) and 10-min '
+              'mean wind, judged against JMA\'s published intensity tables '
+              '(雨の強さと降り方 / 風の強さと吹き方) — an inference, not a '
+              'JMA statement. JMA\'s own 警報・注意報 arrive separately, '
+              'verbatim, as advisory cards below.',
               style: TextStyle(
                 color: Colors.grey.shade700,
                 fontSize: 12,
