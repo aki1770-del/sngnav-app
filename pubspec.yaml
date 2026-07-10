@@ -69,7 +69,8 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    # HONEST PLACEHOLDER offline basemap (wiring PoC) — grid+text tiles, NOT
-    # real Akita cartography. Regenerate via tool/make_placeholder_mbtiles.py.
-    # Real Akita/Tohoku raster tiles are EIE's Geofabrik ODbL-render production.
-    - assets/tiles/akita_offline_placeholder.mbtiles
+    # REAL offline Akita basemap — OpenStreetMap cartography (minimal style):
+    # Akita prefecture z8-z12 + Akita-city window z13, rendered from the
+    # Geofabrik Tohoku extract via tool/extract_akita.py +
+    # tool/render_akita_mbtiles.py. Data (c) OpenStreetMap contributors, ODbL.
+    - assets/tiles/akita_offline.mbtiles

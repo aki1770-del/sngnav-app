@@ -8,11 +8,11 @@
 ///
 ///   flutter test --update-goldens test/render_see/offline_map_capture_test.dart
 ///
-/// HONEST BOUND: the tiles in the capture are HONEST PLACEHOLDERS (grid +
-/// "PLACEHOLDER (EIE: real tiles)" text), NOT real Akita cartography. What the
-/// PNG proves is the MECHANISM — the archive schema is valid, the provider
-/// consumes it, and flutter_map paints the tiles offline. It does NOT show real
-/// Akita; real raster coverage is EIE's Geofabrik ODbL-render production.
+/// The tiles in the capture are REAL OpenStreetMap cartography (minimal
+/// style, Geofabrik Tohoku extract; © OpenStreetMap contributors, ODbL) —
+/// the PNG proves BOTH the mechanism (valid archive schema, provider
+/// consumption, flutter_map painting offline) AND that the offline map now
+/// shows real Akita roads/rivers/labels, not a placeholder grid.
 ///
 /// The provider is built with `allowOnlineFallback: false`, so this test never
 /// touches the network — any tile the archive does not cover renders

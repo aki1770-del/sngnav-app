@@ -164,7 +164,17 @@ accounts). A beta tester sends feedback the way she sends a photo.
       installed (Settings→TTS→download offline ja) and DEVICE_VERIFICATION
       gains that step; the beta notes state the dependency honestly.
 - [ ] Play internal track created + first signed build uploaded (A4)
-- [ ] Offline basemap PoC → default (bundled Akita MBTiles); emulator airplane-mode pass
+- [x] **Offline basemap → default with REAL cartography (built 2026-07-10)**:
+      placeholder grid replaced by a real-OSM render — Geofabrik Tohoku
+      extract → tool/extract_akita.py (273k line features, 9.4k water polys,
+      65 ja place labels) → tool/render_akita_mbtiles.py (965 tiles, Akita
+      pref z8–z12 + city z13, palette-quantized 10.1MB, © OpenStreetMap
+      ODbL). Hermetic offline widget render SEEN (render_out/
+      05_offline_map_akita.png: real 秋田市 street grid + coastline +
+      rivers + labels, zero network); 217/217 tests green. REMAINING:
+      emulator airplane-mode pass with the real tiles (fold into the next
+      ladder run / device hour).
+- [ ] Emulator airplane-mode pass on the real offline basemap (next ladder run)
 - [x] Crash boundary + on-device local error log (LocalErrorLog, size-capped, no network — the read surface for W3's ログを共有; 5 tests)
 - [ ] pretrip_source ^0.5.0 wave STAGED → PENDING PUBLISH (A3)
 

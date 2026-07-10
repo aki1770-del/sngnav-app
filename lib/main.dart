@@ -270,13 +270,13 @@ class _HomePageState extends State<HomePage> {
   PositionFix? _herFix;
   StreamSubscription<PositionFix>? _herSub;
 
-  // Offline-basemap PoC (Chair Option A, 2026-07-01). Loaded once at init from
-  // the bundled PLACEHOLDER MBTiles asset, then handed to AkitaMap so the Akita
-  // corridor renders OFFLINE-FIRST (network only for uncovered tiles) — the
-  // basemap no longer goes fully blank when the network is gone. Null until
-  // loaded / on any failure ⇒ plain network basemap (honest degradation). The
-  // bundled tiles are HONEST PLACEHOLDERS, not real cartography; real Akita
-  // raster coverage is EIE's production.
+  // Offline basemap (Chair Option A, 2026-07-01; real tiles 2026-07-10).
+  // Loaded once at init from the bundled MBTiles asset, then handed to
+  // AkitaMap so Akita renders OFFLINE-FIRST (network only for uncovered
+  // tiles) — the basemap no longer goes blank when the network is gone. Null
+  // until loaded / on any failure ⇒ plain network basemap (honest
+  // degradation). The bundled tiles are REAL OpenStreetMap cartography in a
+  // minimal style (see services/offline_basemap.dart honest bound).
   offline_tiles.OfflineTileProvider? _offlineBaseProvider;
 
   // Slice 2d — dev-only mock position. Amber dot, never blue, so
@@ -350,7 +350,7 @@ class _HomePageState extends State<HomePage> {
     _actuators = widget.actuators ?? defaultAlertActuators();
     _announcer = AlertAnnouncer(actuators: _actuators);
     unawaited(_actuators.keepAwake(true));
-    // Offline-basemap PoC — load the bundled placeholder MBTiles archive and
+    // Offline basemap — load the bundled Akita MBTiles archive and
     // hand the resulting OfflineTileProvider to AkitaMap. Async + fail-soft:
     // a null result leaves the basemap on the plain network layer.
     unawaited(_loadOfflineBasemap());

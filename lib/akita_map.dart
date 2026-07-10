@@ -67,14 +67,14 @@ class AkitaMap extends StatelessWidget {
             // unexpected snow with Maps AND GPS down and no cell signal —
             // network tiles will not load, so the basemap goes blank. The
             // OFFLINE basemap fix (bundled MBTiles via the offline_tiles
-            // OfflineTileProvider) is now WIRED as a proof-of-concept: when
-            // [baseTileProvider] is supplied, the Akita corridor renders from a
-            // bundled archive OFFLINE-FIRST, network only for uncovered tiles.
-            // HONEST BOUND: the bundled tiles are PLACEHOLDERS (grid + text,
-            // NOT real Akita cartography) — this PoC proves the WIRING
-            // mechanism (schema + provider consumption + non-blank offline
-            // render). REAL Akita/Tohoku raster coverage is EIE's Geofabrik
-            // ODbL-render production. The WS5 alert channels (audio + haptic)
+            // OfflineTileProvider) is WIRED and DEFAULT: when
+            // [baseTileProvider] is supplied, Akita renders from the bundled
+            // archive OFFLINE-FIRST, network only for uncovered tiles.
+            // HONEST BOUND: the bundled tiles are REAL OpenStreetMap
+            // cartography in a minimal style (roads/rail/rivers/water/
+            // coastline/place labels; Akita pref z8-z12 + city z13; no
+            // buildings/POIs/sea-fill) — see services/offline_basemap.dart.
+            // The WS5 alert channels (audio + haptic)
             // remain chosen precisely because they do NOT depend on the basemap
             // rendering — the hazard still reaches her even when the map is
             // blank.

@@ -2,6 +2,11 @@
 # ---------------------------------------------------------------------------
 # make_placeholder_mbtiles.py
 #
+#
+# SUPERSEDED 2026-07-10: the bundled asset is now REAL OSM cartography
+# (assets/tiles/akita_offline.mbtiles) built by tool/extract_akita.py +
+# tool/render_akita_mbtiles.py. This placeholder generator is kept for
+# the record of the wiring-PoC era only.
 # Generate a valid, standard-schema MBTiles archive of HONEST PLACEHOLDER
 # raster tiles covering a small Akita bbox, so the sngnav-app offline-basemap
 # WIRING can be proven (offline_tiles' OfflineTileProvider consumes the bundle
