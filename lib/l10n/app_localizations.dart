@@ -225,6 +225,29 @@ class AppL10n {
   String get speechUnverifiedChip =>
       _ja ? '音声警告を確認できませんでした' : 'Voice alert could not be verified';
 
+  // ===== Tier-2 audio readiness — media-volume-zero probe =====
+  //
+  // Shown ONLY when the read-only platform probe PROVED the media stream is
+  // at zero (null = probe unavailable = NOTHING). Informed acknowledgment,
+  // never a block: haptic alerts are already unconditional, the driver
+  // always drives, and we NEVER touch her volume (the Tier-3 dignity
+  // boundary the Chair holds).
+
+  /// Strong pre-drive caution when the media volume is zero: every spoken
+  /// safety alert is silent until SHE raises it.
+  String get mediaMutedCaution => _ja
+      ? 'メディア音量がゼロです。音声警告が聞こえません。振動でお知らせします。'
+      : 'Media volume is zero — spoken alerts cannot be heard. '
+          'Haptic alerts will still notify you.';
+
+  /// Acknowledge action on the media-muted caution (haptics-only consent).
+  String get mediaMutedAckButton =>
+      _ja ? '承知しました（振動のみで続行）' : 'Understood (continue with haptics only)';
+
+  /// Compact line after acknowledgment collapses the caution.
+  String get mediaMutedAckedLine =>
+      _ja ? '振動のみモード承知済み' : 'Haptics-only mode acknowledged';
+
   // ===== C6 ログを共有 — beta feedback share-log surface (BETA_PLAN fix #8) =====
   //
   // Honesty-traced to real code: the share fires ONLY from the button tap

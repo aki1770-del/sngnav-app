@@ -70,6 +70,7 @@ import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
 import 'services/turmoil_watch.dart';
 import 'services/jma_advisory_provider_factory.dart';
+import 'services/audio_readiness.dart';
 import 'services/voice_lane_readiness.dart';
 import 'package:snow_rendering/snow_rendering.dart'
     show invisibleBlackIceAnnouncement;
@@ -150,6 +151,12 @@ class SngnavApp extends StatelessWidget {
   /// [speechUnverified] overrides the HUD speech-verification flag holder
   /// (null = the page owns one, fed by the hardened TTS engine's callbacks).
   /// Tests inject a notifier and toggle it to pin the chip's show/clear.
+  ///
+  /// [audioReadinessProbe] overrides the Tier-2 pre-drive media-volume probe
+  /// (null = the real [ChannelAudioReadinessProbe], which is honestly `null`
+  /// off-mobile/under-test — null renders NOTHING). Same idiom as
+  /// [voiceLaneReader]: tests drive the media-muted caution with a canned
+  /// reading, no channel, no device.
   const SngnavApp({
     super.key,
     this.actuators,
@@ -159,6 +166,7 @@ class SngnavApp extends StatelessWidget {
     this.logShareSink,
     this.voiceLaneReader,
     this.speechUnverified,
+    this.audioReadinessProbe,
   });
 
   final AlertActuators? actuators;
@@ -168,6 +176,7 @@ class SngnavApp extends StatelessWidget {
   final LogShareSink? logShareSink;
   final Future<VoiceLaneVerdict> Function()? voiceLaneReader;
   final ValueNotifier<bool>? speechUnverified;
+  final AudioReadinessProbe? audioReadinessProbe;
 
   @override
   Widget build(BuildContext context) {
@@ -201,6 +210,7 @@ class SngnavApp extends StatelessWidget {
         logShareSink: logShareSink,
         voiceLaneReader: voiceLaneReader,
         speechUnverified: speechUnverified,
+        audioReadinessProbe: audioReadinessProbe,
       ),
     );
   }
@@ -216,6 +226,7 @@ class HomePage extends StatefulWidget {
     this.logShareSink,
     this.voiceLaneReader,
     this.speechUnverified,
+    this.audioReadinessProbe,
   });
 
   /// Injectable actuator layer (null -> [defaultAlertActuators]).
@@ -242,6 +253,10 @@ class HomePage extends StatefulWidget {
   /// Injectable speech-verification flag (null -> page-owned notifier fed by
   /// the hardened TTS engine's callbacks).
   final ValueNotifier<bool>? speechUnverified;
+
+  /// Injectable Tier-2 audio readiness probe (null ->
+  /// [ChannelAudioReadinessProbe]).
+  final AudioReadinessProbe? audioReadinessProbe;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -288,6 +303,18 @@ class _HomePageState extends State<HomePage> {
   // unknown renders NOTHING (never a false warning where we cannot read the
   // voice list). Resolved async in initState.
   VoiceLaneVerdict _voiceLaneVerdict = VoiceLaneVerdict.unknown;
+
+  // Tier-2 pre-drive audio readiness (media-volume-zero probe). null = probe
+  // unavailable (non-Android / test / old-APK-skew) and renders NOTHING —
+  // honest-unknown, never a guess. Resolved async in initState alongside the
+  // A1 read.
+  AudioReadiness? _audioReadiness;
+
+  // True once HER has tapped 承知しました on the media-muted caution: the
+  // strong row collapses to the compact acknowledged line. Informed
+  // acknowledgment only — NO behavior gating, haptics stay unconditional,
+  // and we NEVER touch her volume (the Tier-3 dignity boundary).
+  bool _mediaMutedAcked = false;
 
   // WS6 — the live in-drive compound-failure caution brain. It is fed HER real
   // position samples (from the GPS listener below), the mocked visibility band
@@ -483,6 +510,18 @@ class _HomePageState extends State<HomePage> {
       (widget.voiceLaneReader ?? readVoiceLaneReadiness)()
           .then((verdict) {
         if (mounted) setState(() => _voiceLaneVerdict = verdict);
+      }).catchError((Object _) {}),
+    );
+    // Tier-2 — pre-drive audio readiness read (read-only Kotlin probe over
+    // sngnav/audio_readiness). Honest null off-mobile / old-APK-skew: a null
+    // result changes nothing and the media-muted caution stays absent.
+    unawaited(
+      (widget.audioReadinessProbe ?? const ChannelAudioReadinessProbe())
+          .read()
+          .then((reading) {
+        if (mounted && reading != null) {
+          setState(() => _audioReadiness = reading);
+        }
       }).catchError((Object _) {}),
     );
     // AAA F1 — resolve the spoken-lane locale ONCE, from the same inputs
@@ -1574,6 +1613,18 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 8),
                     _voiceLaneCautionRow(),
                   ],
+                  // Tier-2 — media-volume-zero caution, same pre-drive
+                  // voice-lane region. Rendered ONLY on a proven-muted probe
+                  // reading (null probe = NOTHING). Acknowledgment collapses
+                  // it to a compact line; it never blocks the drive and we
+                  // never touch her volume.
+                  if (_audioReadiness?.mediaMuted ?? false) ...[
+                    const SizedBox(height: 8),
+                    if (_mediaMutedAcked)
+                      _mediaMutedAckedLine()
+                    else
+                      _mediaMutedCautionRow(),
+                  ],
                 ],
               ),
             ),
@@ -1969,6 +2020,78 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Tier-2 media-muted caution row — STRONGER than the amber A1 row
+  /// (red-tinted): the media stream is PROVEN at zero, so every spoken
+  /// safety alert is silent right now. Carries the acknowledge action
+  /// (informed haptics-only consent). NO behavior gating — the driver always
+  /// drives, haptic is already unconditional, and we NEVER touch her volume:
+  /// that is the Tier-3 dignity boundary the Chair holds (we inform; a
+  /// volume-overriding actuator is a Chair-level dignity question, never an
+  /// engineering default). liveRegion so assistive tech announces it
+  /// (OPS-059 floor).
+  Widget _mediaMutedCautionRow() {
+    final l = AppL10n.of(context);
+    return Container(
+      key: const Key('media-muted-caution'),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.volume_off, size: 16, color: Colors.red.shade900),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    l.mediaMutedCaution,
+                    style: TextStyle(
+                      color: Colors.red.shade900,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton(
+              key: const Key('media-muted-ack-button'),
+              onPressed: () => setState(() => _mediaMutedAcked = true),
+              child: Text(l.mediaMutedAckButton),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Compact acknowledged line after HER tap collapses the muted caution.
+  Widget _mediaMutedAckedLine() {
+    final l = AppL10n.of(context);
+    return Row(
+      key: const Key('media-muted-acked'),
+      children: [
+        Icon(Icons.vibration, size: 14, color: Colors.grey.shade700),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            l.mediaMutedAckedLine,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          ),
+        ),
+      ],
     );
   }
 
