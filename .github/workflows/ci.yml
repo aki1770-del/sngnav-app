@@ -18,6 +18,9 @@ jobs:
           channel: stable
           flutter-version: '3.41.4'
 
+      - name: Loom mutation gate (a guard is not INSERTED until PROVEN to FAIL)
+        run: bash tool/loom_mutation_gate.sh --self-test
+
       - name: Manifest guard self-test (the loom proves itself before it judges)
         run: bash tool/assert_manifest_perms.sh --self-test
 
@@ -51,6 +54,9 @@ jobs:
         with:
           channel: stable
           flutter-version: '3.41.4'
+
+      - name: Loom mutation gate (a guard is not INSERTED until PROVEN to FAIL)
+        run: bash tool/loom_mutation_gate.sh --self-test
 
       - name: Manifest guard self-test (the loom proves itself before it judges)
         run: bash tool/assert_manifest_perms.sh --self-test
