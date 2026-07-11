@@ -46,9 +46,12 @@ dependencies:
   intl: ^0.20.2
   geolocator: ^13.0.0
   cupertino_icons: ^1.0.8
-# Deliberate direct declaration (not imported in lib/ — TTS flows through
-# voice_guidance's FlutterTtsEngine): floor-pins the transitive version so a
-# voice_guidance range change can never silently downgrade HER voice lane.
+# Direct dependency (Tier-1 voice-lane hardening, 2026-07-11): imported by
+# lib/actuators/hardened_tts_engine.dart (awaitSpeakCompletion + nav audio
+# attributes + focus-duck + read-the-1/0-result) and
+# lib/services/voice_lane_readiness.dart (getVoices ja/network_required
+# read). Also floor-pins the version so a voice_guidance range change can
+# never silently downgrade HER voice lane.
 # Maintainer watch (FEM 2026-07-11): flutter_tts idle since 2026-01; if it
 # breaks on a future targetSdk, the lane is fork-or-vendor via voice_guidance.
   flutter_tts: ^4.2.5

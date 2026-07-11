@@ -18,11 +18,12 @@ import 'package:flutter/foundation.dart';
 import 'package:navigation_safety_enums/navigation_safety_enums.dart'
     show HapticCuePattern, HapticCuePatternRendering;
 import 'package:vibration/vibration.dart';
-import 'package:voice_guidance/voice_guidance.dart'
-    show FlutterTtsEngine, TtsEngine;
+import 'package:voice_guidance/voice_guidance.dart' show TtsEngine;
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../services/error_log.dart';
 import 'alert_actuators.dart';
+import 'hardened_tts_engine.dart';
 
 /// True only on a real android/ios target (never web, never desktop, and —
 /// load-bearing — never under the flutter_test binding).
@@ -34,7 +35,7 @@ import 'alert_actuators.dart';
 /// the factory returns a [NoOpAlertActuators] under test, and even a direct
 /// [MobileAlertActuators] construction never touches a real plugin (its
 /// methods early-return here, and its TTS engine is built lazily — see below).
-bool get _isMobilePlatform {
+bool get isMobileActuatorPlatform {
   if (kIsWeb) return false;
   // `dart:io` Platform is safe here — the kIsWeb guard above already excludes
   // the one target where it is unavailable.
@@ -46,36 +47,78 @@ bool get _isMobilePlatform {
   return target == TargetPlatform.android || target == TargetPlatform.iOS;
 }
 
+// Private alias kept for the file's original internal call sites; the guard
+// was made public (voice_lane_readiness.dart shares it) without churning
+// every method below.
+bool get _isMobilePlatform => isMobileActuatorPlatform;
+
 /// Returns the actuator appropriate for the current platform: a real
 /// [MobileAlertActuators] on android/ios, else a [NoOpAlertActuators].
 ///
 /// This is the single wiring point the app calls; keeping the platform choice
 /// here (not scattered at call sites) is what lets the whole app stay desktop-
 /// and test-safe.
-AlertActuators defaultAlertActuators() =>
-    _isMobilePlatform ? MobileAlertActuators() : const NoOpAlertActuators();
+///
+/// [errorLog] / [onSpeechUnverified] / [onSpeechVerified] flow into the
+/// lazily-built [HardenedTtsEngine] (Tier-1 voice-lane hardening): the log
+/// receives one line per unverified delivery, and the callbacks drive the
+/// in-drive HUD's 「音声警告を確認できませんでした」 chip. All optional; a
+/// no-op actuator ignores them (there is no voice lane to verify off-mobile).
+AlertActuators defaultAlertActuators({
+  LocalErrorLog? errorLog,
+  void Function()? onSpeechUnverified,
+  void Function()? onSpeechVerified,
+}) =>
+    _isMobilePlatform
+        ? MobileAlertActuators(
+            errorLog: errorLog,
+            onSpeechUnverified: onSpeechUnverified,
+            onSpeechVerified: onSpeechVerified,
+          )
+        : const NoOpAlertActuators();
 
-/// Drives the real phone actuators. Reuses `voice_guidance`'s
-/// [FlutterTtsEngine] for speech (it already wraps flutter_tts and guards
-/// `MissingPluginException` + maps the normalized speaking-rate scale), and
-/// the `vibration` / `wakelock_plus` static APIs for the tactile + keep-awake
-/// channels.
+/// Drives the real phone actuators. Speech goes through the app's
+/// [HardenedTtsEngine] (Tier-1 voice-lane hardening: awaitSpeakCompletion +
+/// nav audio attributes + focus-duck + read-the-result + retry/timeout +
+/// unverified reporting), which keeps FlutterTtsEngine's guard + rate-mapping
+/// parity. The `vibration` / `wakelock_plus` static APIs drive the tactile +
+/// keep-awake channels.
 class MobileAlertActuators implements AlertActuators {
-  /// [ttsEngine] is injectable for tests; when null the catalog's
+  /// [ttsEngine] is injectable for tests; when null the hardened
   /// flutter_tts-backed engine is built LAZILY on the first real mobile
   /// `speak()` — never in the constructor, so constructing this class off a
   /// device (a test, or a mis-wire) never eagerly builds the real plugin
   /// engine. On any non-mobile / test target `speak()` early-returns before
   /// touching the engine, so it is never built there at all.
-  MobileAlertActuators({TtsEngine? ttsEngine}) : _injectedTts = ttsEngine;
+  ///
+  /// [errorLog] / [onSpeechUnverified] / [onSpeechVerified] are handed to
+  /// the lazily-built [HardenedTtsEngine] (ignored when [ttsEngine] is
+  /// injected — the injector owns its engine's reporting).
+  MobileAlertActuators({
+    TtsEngine? ttsEngine,
+    LocalErrorLog? errorLog,
+    void Function()? onSpeechUnverified,
+    void Function()? onSpeechVerified,
+  })  : _injectedTts = ttsEngine,
+        _errorLog = errorLog,
+        _onSpeechUnverified = onSpeechUnverified,
+        _onSpeechVerified = onSpeechVerified;
 
   final TtsEngine? _injectedTts;
+  final LocalErrorLog? _errorLog;
+  final void Function()? _onSpeechUnverified;
+  final void Function()? _onSpeechVerified;
   TtsEngine? _resolvedTts;
 
   /// The TTS engine, resolved on first use. An injected engine (tests) is used
-  /// as-is; otherwise the real [FlutterTtsEngine] is built here — reached ONLY
+  /// as-is; otherwise the real [HardenedTtsEngine] is built here — reached ONLY
   /// from `speak()` after its `_isMobilePlatform` guard has passed.
-  TtsEngine get _tts => _resolvedTts ??= (_injectedTts ?? FlutterTtsEngine());
+  TtsEngine get _tts => _resolvedTts ??= (_injectedTts ??
+      HardenedTtsEngine(
+        errorLog: _errorLog,
+        onSpeechUnverified: _onSpeechUnverified,
+        onSpeechVerified: _onSpeechVerified,
+      ));
 
   @override
   Future<void> speak(String text, {required String localeTag}) async {
@@ -86,8 +129,9 @@ class MobileAlertActuators implements AlertActuators {
       await _tts.speak(text);
     } catch (_) {
       // Never let a TTS fault crash the surface a driver is relying on.
-      // (FlutterTtsEngine already swallows MissingPluginException; this is
-      // the outer safety net for any other platform-channel fault.)
+      // (HardenedTtsEngine already never-throws and swallows
+      // MissingPluginException; this is the outer safety net for any other
+      // platform-channel fault — e.g. an injected engine that throws.)
     }
   }
 

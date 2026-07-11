@@ -70,6 +70,7 @@ import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
 import 'services/turmoil_watch.dart';
 import 'services/jma_advisory_provider_factory.dart';
+import 'services/voice_lane_readiness.dart';
 import 'package:snow_rendering/snow_rendering.dart'
     show invisibleBlackIceAnnouncement;
 
@@ -141,6 +142,14 @@ class SngnavApp extends StatelessWidget {
   /// [logShareSink] overrides the share exit door (production null ->
   /// [shareLogViaShareSheet]; widget tests inject a recording fake so the
   /// platform share channel is never touched in the test binding).
+  /// [voiceLaneReader] overrides the A1 pre-drive voice-lane readiness read
+  /// (null = the real [readVoiceLaneReadiness], which is honestly `unknown`
+  /// off-mobile/under-test). Same idiom as [jmaFetch]: tests drive the
+  /// caution row with a canned verdict, no plugin, no device.
+  ///
+  /// [speechUnverified] overrides the HUD speech-verification flag holder
+  /// (null = the page owns one, fed by the hardened TTS engine's callbacks).
+  /// Tests inject a notifier and toggle it to pin the chip's show/clear.
   const SngnavApp({
     super.key,
     this.actuators,
@@ -148,6 +157,8 @@ class SngnavApp extends StatelessWidget {
     this.jmaFetch,
     this.errorLog,
     this.logShareSink,
+    this.voiceLaneReader,
+    this.speechUnverified,
   });
 
   final AlertActuators? actuators;
@@ -155,6 +166,8 @@ class SngnavApp extends StatelessWidget {
   final Future<JmaResult> Function()? jmaFetch;
   final LocalErrorLog? errorLog;
   final LogShareSink? logShareSink;
+  final Future<VoiceLaneVerdict> Function()? voiceLaneReader;
+  final ValueNotifier<bool>? speechUnverified;
 
   @override
   Widget build(BuildContext context) {
@@ -186,6 +199,8 @@ class SngnavApp extends StatelessWidget {
         jmaFetch: jmaFetch,
         errorLog: errorLog,
         logShareSink: logShareSink,
+        voiceLaneReader: voiceLaneReader,
+        speechUnverified: speechUnverified,
       ),
     );
   }
@@ -199,6 +214,8 @@ class HomePage extends StatefulWidget {
     this.jmaFetch,
     this.errorLog,
     this.logShareSink,
+    this.voiceLaneReader,
+    this.speechUnverified,
   });
 
   /// Injectable actuator layer (null -> [defaultAlertActuators]).
@@ -217,6 +234,14 @@ class HomePage extends StatefulWidget {
 
   /// Injectable share exit door (null -> [shareLogViaShareSheet]).
   final LogShareSink? logShareSink;
+
+  /// Injectable A1 voice-lane readiness read (null ->
+  /// [readVoiceLaneReadiness]).
+  final Future<VoiceLaneVerdict> Function()? voiceLaneReader;
+
+  /// Injectable speech-verification flag (null -> page-owned notifier fed by
+  /// the hardened TTS engine's callbacks).
+  final ValueNotifier<bool>? speechUnverified;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -252,6 +277,17 @@ class _HomePageState extends State<HomePage> {
   // same severity gate).
   late final AlertActuators _actuators;
   late final AlertAnnouncer _announcer;
+
+  // Tier-1 voice-lane hardening — the HUD chip flag: true while the LAST
+  // announce could not be verified as delivered (hardened engine reported
+  // unverified), cleared on the next verified speak. Page-owned unless a
+  // test injects its own notifier. Never disposed here when injected.
+  late final ValueNotifier<bool> _speechUnverified;
+
+  // A1 pre-drive voice-lane verdict. Starts (and off-device stays) unknown —
+  // unknown renders NOTHING (never a false warning where we cannot read the
+  // voice list). Resolved async in initState.
+  VoiceLaneVerdict _voiceLaneVerdict = VoiceLaneVerdict.unknown;
 
   // WS6 — the live in-drive compound-failure caution brain. It is fed HER real
   // position samples (from the GPS listener below), the mocked visibility band
@@ -422,8 +458,33 @@ class _HomePageState extends State<HomePage> {
     // built, user-visible and driver-initiated — never silent background
     // location tracking, which we refuse for dignity, hence NO
     // ACCESS_BACKGROUND_LOCATION.)
-    _actuators = widget.actuators ?? defaultAlertActuators();
+    // Tier-1 voice-lane hardening — the speech-verification flag + its feed.
+    // The hardened engine (inside defaultAlertActuators) reads the platform's
+    // own utterance-completion report and drives these callbacks; unverified
+    // deliveries also land one line in the same LocalErrorLog as crashes.
+    // `mounted` guard: TTS completion callbacks are async and can outlive
+    // this state.
+    _speechUnverified = widget.speechUnverified ?? ValueNotifier<bool>(false);
+    _speechUnverified.addListener(_onSpeechVerificationChanged);
+    _actuators = widget.actuators ??
+        defaultAlertActuators(
+          errorLog: widget.errorLog,
+          onSpeechUnverified: () {
+            if (mounted) _speechUnverified.value = true;
+          },
+          onSpeechVerified: () {
+            if (mounted) _speechUnverified.value = false;
+          },
+        );
     _announcer = AlertAnnouncer(actuators: _actuators);
+    // A1 — pre-drive voice-lane readiness read (honest unknown off-mobile;
+    // fail-soft: an error stays unknown and the caution row stays absent).
+    unawaited(
+      (widget.voiceLaneReader ?? readVoiceLaneReadiness)()
+          .then((verdict) {
+        if (mounted) setState(() => _voiceLaneVerdict = verdict);
+      }).catchError((Object _) {}),
+    );
     // AAA F1 — resolve the spoken-lane locale ONCE, from the same inputs
     // MaterialApp resolves the screen from: the injected override first,
     // else the device locale list against the identical ja-first supported
@@ -549,6 +610,7 @@ class _HomePageState extends State<HomePage> {
     _jmaTicker?.cancel();
     // Close the offline MBTiles archive (sqlite3) + its network provider.
     unawaited(_offlineBaseProvider?.dispose());
+    _speechUnverified.removeListener(_onSpeechVerificationChanged);
     _driveHud.removeListener(_onDriveHudChanged);
     _driveHud.dispose();
     _herSub?.cancel();
@@ -597,6 +659,11 @@ class _HomePageState extends State<HomePage> {
   // ===== WS6 — feed the live drive brain + the on-screen caution panel =====
 
   void _onDriveHudChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  void _onSpeechVerificationChanged() {
     if (!mounted) return;
     setState(() {});
   }
@@ -692,6 +759,45 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Tier-1 voice-lane hardening — shown while the LAST announce could
+        // not be verified as delivered (the platform never reported the
+        // utterance complete). Cleared on the next verified speak. Haptic
+        // parity is unconditional in the announcer, so the tactile channel
+        // is unaffected either way; this chip tells HER the AUDIO half may
+        // not have sounded.
+        if (_speechUnverified.value) ...[
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Container(
+              key: const Key('speech-unverified-chip'),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade100,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.volume_off_outlined,
+                      size: 14, color: Colors.amber.shade900),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      AppL10n.of(context).speechUnverifiedChip,
+                      style: TextStyle(
+                        color: Colors.amber.shade900,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         Text(
           'Fuses HER honest position (localization_fallback: GPS → dead '
           'reckoning → lost, never a confident wrong dot) with visibility + the '
@@ -1459,6 +1565,15 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 8),
                   _herStatusLine(),
+                  // A1 — pre-drive voice-lane caution, in the consent/status
+                  // region she reads BEFORE driving. Rendered ONLY on a
+                  // proven-degraded verdict (jaNetworkOnly / noJaVoice);
+                  // unknown and offlineJaReady show nothing.
+                  if (_voiceLaneVerdict == VoiceLaneVerdict.jaNetworkOnly ||
+                      _voiceLaneVerdict == VoiceLaneVerdict.noJaVoice) ...[
+                    const SizedBox(height: 8),
+                    _voiceLaneCautionRow(),
+                  ],
                 ],
               ),
             ),
@@ -1819,6 +1934,42 @@ class _HomePageState extends State<HomePage> {
           ],
         );
     }
+  }
+
+  /// A1 pre-drive voice-lane caution row (compact, amber — caution-class,
+  /// not error-class: the app still runs; the AUDIO lane may go silent where
+  /// there is no signal). liveRegion so assistive tech announces it
+  /// (OPS-059 floor, parity with the consent/status lines).
+  Widget _voiceLaneCautionRow() {
+    final l = AppL10n.of(context);
+    return Container(
+      key: const Key('voice-lane-caution'),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.volume_off_outlined,
+              size: 16, color: Colors.amber.shade900),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                l.voiceOfflineCaution,
+                style: TextStyle(
+                  color: Colors.amber.shade900,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _herStatusLine() {

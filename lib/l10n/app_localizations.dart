@@ -208,6 +208,23 @@ class AppL10n {
       ? '配信元 $publisher でエラー: $message'
       : 'Publisher $publisher errored: $message';
 
+  // ===== Voice-lane readiness (A1) + speech-unverified chip (Tier-1) =====
+
+  /// Pre-drive caution shown ONLY when the voice-lane readiness read proved
+  /// the ja lane is network-bound (jaNetworkOnly) or absent (noJaVoice).
+  /// unknown shows NOTHING — never a false warning off-device.
+  String get voiceOfflineCaution => _ja
+      ? 'オフライン音声が未インストールです。'
+          '電波のない場所では音声警告が出ない可能性があります。'
+      : 'Offline Japanese voice not installed — voice alerts may not sound '
+          'where there is no signal.';
+
+  /// In-drive HUD chip while the LAST announce could not be verified as
+  /// delivered (platform completion report missing / failure). Cleared on
+  /// the next verified speak.
+  String get speechUnverifiedChip =>
+      _ja ? '音声警告を確認できませんでした' : 'Voice alert could not be verified';
+
   // ===== C6 ログを共有 — beta feedback share-log surface (BETA_PLAN fix #8) =====
   //
   // Honesty-traced to real code: the share fires ONLY from the button tap
