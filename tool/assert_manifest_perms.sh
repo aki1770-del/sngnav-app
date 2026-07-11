@@ -19,10 +19,13 @@
 # above does NOT cover it, and extending a stale certification over uncertified
 # code would itself be a false provenance claim — DIA finding):
 #   CATCHES: the TTS_SERVICE intent absent, commented-out, declared outside
-#   <queries>, wrongly nested, or neutralised by tools:node="remove" on the
-#   <queries> / <intent> / <action>. Containment is checked by XML PARSE, not
-#   regex — DIA REFUSED a regex version that blessed a dead voice lane (greedy
-#   span across two <queries> blocks).
+#   <queries>, wrongly nested (a <queries> block misplaced inside <application>, or
+#   nested inside a removed one, grants nothing — only DIRECT children of <manifest>
+#   count), or neutralised by tools:node="remove"/"removeAll" on the <queries> /
+#   <intent> / <action>. Containment is checked by XML PARSE, not regex — DIA REFUSED
+#   a regex version that blessed a dead voice lane (greedy span across two <queries>
+#   blocks), then caught FOUR more false PASSes in the parser version (recursive
+#   iter(); an unknown "removeAll"). The attacks are the fixtures below.
 #   DOES NOT CATCH: the merged manifest (a plugin could strip <queries> at merge);
 #   the debug/profile variants; whether a TTS engine is installed on HER device;
 #   whether ja voice DATA is present; whether speak() is AUDIBLE. Those are
@@ -116,9 +119,12 @@ except ET.ParseError as e:
     print(f'manifest is not parseable XML ({e})'); sys.exit(0)
 
 def kept(el):
-    return (el.get(T) or '').strip().lower() != 'remove'
+    # 'remove' AND 'removeAll' both strip the node from the MERGED manifest, so
+    # either one means the declaration grants nothing. 'replace' is not a removal.
+    return (el.get(T) or '').strip().lower() not in ('remove', 'removeall')
 
-blocks = [q for q in root.iter('queries')]
+blocks = root.findall('queries')   # direct children of <manifest> ONLY (iter() would
+                                   # recurse and bless a block misplaced in <application>)
 if not blocks:
     print('no <queries> block — absent or commented-out'); sys.exit(0)
 live = [q for q in blocks if kept(q)]
@@ -279,6 +285,42 @@ $MF
 $PERMS_OK
 <queries><action android:name="android.intent.action.TTS_SERVICE"/></queries></manifest>
 EOF
+  # --- DIA round-2 attacks (certification CONDITIONED 2026-07-11): four more false
+  # PASSes, from two root causes — a RECURSIVE iter() that blessed <queries> anywhere
+  # in the tree, and a removal set that had never heard of "removeAll". ---
+  # P1 — <queries> misplaced INSIDE <application> (a realistic paste-slip). Android
+  # requires it as a direct child of <manifest>; there it grants NOTHING.
+  cat > "$tmp/p1_queries_in_application.xml" <<EOF
+$MF
+$PERMS_OK
+<application><queries><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries></application></manifest>
+EOF
+  # P2 — tools:node="removeAll" on <queries>: a REAL merger value that strips it.
+  cat > "$tmp/p2_removeall_queries.xml" <<EOF
+$MF
+$PERMS_OK
+<queries tools:node="removeAll"><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries></manifest>
+EOF
+  # P3 — tools:node="removeAll" on the <intent>.
+  cat > "$tmp/p3_removeall_intent.xml" <<EOF
+$MF
+$PERMS_OK
+<queries><intent tools:node="removeAll"><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries></manifest>
+EOF
+  # P4 — a live <queries> NESTED INSIDE a removed one: the outer is stripped at merge,
+  # taking the inner with it.
+  cat > "$tmp/p4_nested_in_removed.xml" <<EOF
+$MF
+$PERMS_OK
+<queries tools:node="remove"><queries><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries></queries></manifest>
+EOF
+  # P9 — tools:node="replace" is NOT a removal. Must still ACCEPT (guards against
+  # over-correcting R2 into a false FAIL).
+  cat > "$tmp/p9_replace_not_removal.xml" <<EOF
+$MF
+$PERMS_OK
+<queries><intent tools:node="replace"><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries></manifest>
+EOF
   pass=0; total=0
   check() { # name expected(0=accept,1=reject)
     total=$((total+1))
@@ -307,6 +349,12 @@ EOF
   check a6_unrelated_removed.xml 0
   check a5_two_blocks_ok.xml 0
   check a8_bare_action.xml 1
+  # DIA round-2: each of these blessed a DEAD voice lane in the parser version.
+  check p1_queries_in_application.xml 1
+  check p2_removeall_queries.xml 1
+  check p3_removeall_intent.xml 1
+  check p4_nested_in_removed.xml 1
+  check p9_replace_not_removal.xml 0
   echo "SELF-TEST: $pass/$total PASS"
   [[ "$pass" == "$total" ]] || exit 1
   exit 0
