@@ -112,6 +112,20 @@ round — sibling verifiers cannot supply a stranger's hour with the phone.**
 PUBLISH list here; the Chair publishes in ONE sitting per batch (A3), each
 followed by the 062(C) live-version assert. No scattered per-package asks.
 
+**Roadmap honesty — Play production access (recorded 2026-07-11, VAA-led
+Android research; AAE+TFA+AAA converged):** this beta needs only the internal
+track (no prerequisites) → closed testing; C3 is compatible with N=1 tester.
+Google Play PRODUCTION access for a new personal account requires **12
+testers opted-in continuously for 14 days** on closed testing
+(support.google.com/googleplay/android-developer/answer/14151465, read
+2026-07-11). That is a ~2027 question answered by November field evidence,
+NOT a beta goal. **Standing adoption tripwire (OPS-067/061):** any artifact
+that states a tester/install count as a TARGET, recruits testers outside
+HER-cohort/family/serving-edge-developers, or proposes tester-exchange/farm
+services → Andon + Vice-SEO separated read before any Chair surfacing. Safe
+harbor: Komada-as-tester N=1, said honestly. If production ever becomes
+foreseeable, prefer an organization account at creation time.
+
 **Feedback path shaped for HER cohort (fix #8)**: not GitHub-issues-only. W3
 adds a one-tap **"ログを共有" (share log)** action — user-initiated share-sheet
 export of the local error log (consent-preserving; no auto-telemetry, no
@@ -250,6 +264,19 @@ accounts). A beta tester sends feedback the way she sends a photo.
   `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/SNGNav/packages/pretrip_source_digitraffic`
   `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/SNGNav/packages/pretrip_source_jma`
   `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/SNGNav/packages/pretrip_source_met_norway`
+- `condition_aggregator_jma 0.4.0` (W3 turmoil widening — 9 downpour/typhoon/
+  thunder/fog classes + 危険警報→extreme rung; committed SNGNav `f0fbadd`;
+  2-round multi-gate panel READY-TO-REPUBLISH; 71/71 tests, analyze clean,
+  dry-run 0 warnings) —
+  `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/SNGNav/packages/condition_aggregator_jma`
+  *(after publish, VAA lifts the sngnav-app pin `^0.3.0` → `^0.4.0` — the
+  荒天ウォッチ warnings lane's supply line; recorded serve-decision in the
+  0.4.0 CHANGELOG + board §B)*
+- `nav2_safety_layer 0.1.3` (staleness repair: widens the core constraint to
+  `>=0.10.0 <0.12.0` — the published `^0.10.0` blocks co-consumers from the
+  core 0.11 line; suite run at BOTH bounds 12/12; committed SNGNav `581e990`;
+  panel READY-TO-REPUBLISH zero MUST) —
+  `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/SNGNav/packages/nav2_safety_layer`
 
 ## Gate history
 - 2026-07-09 (ladder return): W1 emulator item CLOSED as API-30-full +

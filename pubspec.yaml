@@ -46,6 +46,11 @@ dependencies:
   intl: ^0.20.2
   geolocator: ^13.0.0
   cupertino_icons: ^1.0.8
+# Deliberate direct declaration (not imported in lib/ — TTS flows through
+# voice_guidance's FlutterTtsEngine): floor-pins the transitive version so a
+# voice_guidance range change can never silently downgrade HER voice lane.
+# Maintainer watch (FEM 2026-07-11): flutter_tts idle since 2026-01; if it
+# breaks on a future targetSdk, the lane is fork-or-vendor via voice_guidance.
   flutter_tts: ^4.2.5
   vibration: ^3.2.0
   wakelock_plus: ^1.6.1
@@ -66,6 +71,11 @@ dependencies:
   # basemap silently fell back to network tiles — the map was BLANK in
   # airplane mode on-device while every host-side test painted it.
   # Caught by the 2026-07-10 emulator airplane-mode pass.
+  # DO NOT bump past 0.5.x without an on-device airplane-mode re-verify:
+  # 0.6.0+eol is a deprecated NO-OP (the .so moves to package:sqlite3 build
+  # hooks, which did NOT deliver on our 2026-07-10 build). ^0.5.24 cannot
+  # float to 0.6.0 (caret-on-0.x), so only a manual bump can re-open the
+  # blank-offline-map failure. FEM ecosystem read 2026-07-11.
   sqlite3_flutter_libs: ^0.5.24
   # C6 ログを共有 — user-initiated share-sheet export of the local error
   # log (text share; no FileProvider, no manifest change).
