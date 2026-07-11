@@ -18,7 +18,10 @@ jobs:
           channel: stable
           flutter-version: '3.41.4'
 
-      - name: Assert Android manifest perms (WS1 dead-HER-dot blocker guard)
+      - name: Manifest guard self-test (the loom proves itself before it judges)
+        run: bash tool/assert_manifest_perms.sh --self-test
+
+      - name: Assert Android manifest perms + voice-lane <queries> (dead-HER blocker guard)
         run: bash tool/assert_manifest_perms.sh
 
       - name: Resolve dependencies
@@ -49,7 +52,10 @@ jobs:
           channel: stable
           flutter-version: '3.41.4'
 
-      - name: Assert Android manifest perms (WS1 blocker guard)
+      - name: Manifest guard self-test (the loom proves itself before it judges)
+        run: bash tool/assert_manifest_perms.sh --self-test
+
+      - name: Assert Android manifest perms + voice-lane <queries> (dead-HER blocker guard)
         run: bash tool/assert_manifest_perms.sh
 
       - name: Resolve dependencies
