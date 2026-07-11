@@ -12,6 +12,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          # FULL history — the loom mutation gate reconstructs the pre-96fd023 manifest
+          # guard from git (the one that ACTUALLY shipped and ACTUALLY passed a manifest
+          # killing HER location dot) and requires itself to REFUSE it. A shallow clone
+          # cannot see that commit, so the gate correctly HALTED rather than certify what
+          # it could not prove. The fix is to give it the history, never to soften the gate
+          # into passing — a gate that skips when it cannot check is the anti-loom.
+          fetch-depth: 0
 
       - uses: subosito/flutter-action@v2
         with:
@@ -44,6 +52,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          # FULL history — the loom mutation gate reconstructs the pre-96fd023 manifest
+          # guard from git (the one that ACTUALLY shipped and ACTUALLY passed a manifest
+          # killing HER location dot) and requires itself to REFUSE it. A shallow clone
+          # cannot see that commit, so the gate correctly HALTED rather than certify what
+          # it could not prove. The fix is to give it the history, never to soften the gate
+          # into passing — a gate that skips when it cannot check is the anti-loom.
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:

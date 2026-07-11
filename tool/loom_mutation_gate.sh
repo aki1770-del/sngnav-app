@@ -142,7 +142,16 @@ EOF
   if git -C "$APP_DIR" show '96fd023^:tool/assert_manifest_perms.sh' > "$blind_guard" 2>/dev/null; then
     echo "   (reconstructed the pre-96fd023 guard from git — the one that really was blind)"
   else
-    echo "   FAIL: could not reconstruct the historical guard from git." >&2
+    echo "   FAIL: could not reconstruct the pre-96fd023 guard from git." >&2
+    echo "" >&2
+    echo "   This gate proves itself against REAL history — the guard that actually shipped" >&2
+    echo "   and actually passed a manifest killing HER location dot. It will NOT certify" >&2
+    echo "   anything it cannot prove, so it halts here rather than going quietly green." >&2
+    echo "" >&2
+    echo "   Most likely cause: a SHALLOW clone. CI checkouts default to depth 1 and cannot" >&2
+    echo "   see that commit. Fix the environment, never the gate:" >&2
+    echo "       actions/checkout@v4  ->  with: { fetch-depth: 0 }" >&2
+    echo "   (locally: git fetch --unshallow)" >&2
     exit 1
   fi
 
