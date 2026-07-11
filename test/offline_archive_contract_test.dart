@@ -1,13 +1,13 @@
-/// Data-contract pins on the bundled offline MBTiles archive: the
-/// render-capture golden pins ONE city view and quietly self-disables on
-/// hosts without a CJK font — this test pins the archive itself (metadata,
-/// provenance, per-zoom coverage, and the load-bearing tiles a driver's
-/// route depends on) with no font or widget dependency. It reads the asset
-/// FILE directly, same as the render-capture harness, so it needs no
-/// asset-bundle wiring.
-///
-/// If a regenerated asset changes coverage intentionally, update the pinned
-/// counts here AND the runbook table in tool/README_TILES.md together.
+// Data-contract pins on the bundled offline MBTiles archive: the
+// render-capture golden pins ONE city view and quietly self-disables on
+// hosts without a CJK font — this test pins the archive itself (metadata,
+// provenance, per-zoom coverage, and the load-bearing tiles a driver's
+// route depends on) with no font or widget dependency. It reads the asset
+// FILE directly, same as the render-capture harness, so it needs no
+// asset-bundle wiring.
+//
+// If a regenerated asset changes coverage intentionally, update the pinned
+// counts here AND the runbook table in tool/README_TILES.md together.
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -33,7 +33,7 @@ void main() {
     db = sqlite3.open(f.path, mode: OpenMode.readOnly);
   });
 
-  tearDownAll(() => db.dispose());
+  tearDownAll(() => db.close());
 
   String meta(String name) => db
       .select('SELECT value FROM metadata WHERE name = ?', [name])
