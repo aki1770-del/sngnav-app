@@ -23,6 +23,11 @@
 #   COMMENTED-OUT perm; a perm neutralised by tools:node="remove" OR "removeAll"; a
 #   perm misplaced so it is not a direct child of <manifest>; and any multi-line /
 #   quote-style / attribute-order formatting (free, from the parser).
+#   A removal directive that COEXISTS with a live declaration is treated as
+#   disqualifying (we cannot claim "granted" over a contradiction), and a
+#   tools:node="removeAll" on the <uses-permission> or <queries> NODE TYPE is treated
+#   as disqualifying too — a FAIL-SAFE, because the manifest merger cannot be executed
+#   here to settle what it really strips. Both cost nothing on the real manifest.
 #   DOES NOT CATCH: the MERGED manifest (post-build), the debug/profile variants, or
 #   runtime behaviour — those are on-device concerns (docs/DEVICE_VERIFICATION.md,
 #   OPS-066). See tripwire S2.
@@ -128,19 +133,38 @@ def kept(el):
     real, documented manifest-merger removals. 'replace' is NOT a removal."""
     return (el.get(T) or '').strip().lower() not in ('remove', 'removeall')
 
+# A removeAll aimed at a NODE TYPE may strip every node of that type, not just the
+# one carrying it. I cannot execute the manifest merger here (no Android SDK), so I
+# do not model that as certainly-true — I FAIL SAFE on it. The real manifest carries
+# no tools:node at all, so this costs nothing and closes a class I cannot verify.
+# (DIA round-4, Y1/Y2 — its own reading, which it honestly declined to upgrade into
+# a finding. An unverified risk is disqualifying, never dismissable.)
+perm_type_removeall = any((e.get(T) or '').strip().lower() == 'removeall'
+                          for e in root.iter('uses-permission'))
+queries_type_removeall = any((e.get(T) or '').strip().lower() == 'removeall'
+                             for e in root.iter('queries'))
+
 # --- PERMS lane: <uses-permission> must be a LIVE DIRECT CHILD of <manifest>. ---
 for perm in perms:
+    declared = [e for e in root.iter('uses-permission') if e.get(A) == perm]
+    removed = [e for e in declared if not kept(e)]
     live = [e for e in root.findall('uses-permission')
             if e.get(A) == perm and kept(e)]
-    if live:
-        continue
-    declared = [e for e in root.iter('uses-permission') if e.get(A) == perm]
     if not declared:
         print(f'{perm} (absent / commented-out)')
-    elif any(not kept(e) for e in declared):
-        print(f'{perm} (tools:node="remove"/"removeAll" — stripped from the merged '
-              f'manifest; the permission is NOT granted)')
-    else:
+    elif removed:
+        # Y3: a live sibling does NOT excuse an explicit removal directive. The old
+        # code checked `if live: continue` FIRST and never reached this branch — so a
+        # contradictory manifest returned "effectively declared" with zero signal.
+        # Whatever the merger does with the contradiction, we cannot honestly claim
+        # the permission is granted. When we do not know, we STOP and say why.
+        print(f'{perm} (a tools:node="remove"/"removeAll" directive targets this '
+              f'permission — even alongside a live declaration, we cannot claim it is '
+              f'granted; resolve the contradiction)')
+    elif perm_type_removeall:
+        print(f'{perm} (a tools:node="removeAll" on a <uses-permission> may strip the '
+              f'whole node type — unverifiable here, so treated as NOT granted)')
+    elif not live:
         print(f'{perm} (declared, but NOT a direct child of <manifest> — misplaced '
               f'inside another element; the permission is NOT granted)')
 
@@ -149,7 +173,7 @@ for perm in perms:
 # service and flutter_tts speak() fails SILENTLY — HER ja warning dies unheard.
 blocks = root.findall('queries')     # direct children of <manifest> ONLY; iter() would
                                      # bless a block misplaced inside <application>
-live_blocks = [q for q in blocks if kept(q)]
+live_blocks = [] if queries_type_removeall else [q for q in blocks if kept(q)]
 for want in intents:
     found = False
     for q in live_blocks:
@@ -163,6 +187,9 @@ for want in intents:
         continue
     if not blocks:
         print(f'{want} (no <queries> block — absent or commented-out)')
+    elif queries_type_removeall:
+        print(f'{want} (a tools:node="removeAll" on a <queries> may strip the whole '
+              f'node type — unverifiable here, so treated as NOT granted)')
     elif not live_blocks:
         print(f'{want} (<queries> tools:node="remove"/"removeAll" — stripped at merge)')
     elif any(el.get(A) == want for el in root.iter('action')):
@@ -393,6 +420,37 @@ $MF
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 $QUERIES_OK</manifest>
 EOF
+  # --- DIA round-4 (Y): a removal directive that coexists with a LIVE declaration.
+  # The old code checked `if live: continue` FIRST, so it never reached the removal
+  # branch — a contradictory manifest returned "effectively declared" with ZERO
+  # signal. Whatever the merger does with the contradiction, we cannot honestly claim
+  # the permission is granted. When we do not know, we STOP and say why. ---
+  # Y3 — INTERNET declared live AND with removeAll. Contradiction => REJECT.
+  cat > "$tmp/y3_live_and_removed.xml" <<EOF
+$MF
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.INTERNET" tools:node="removeAll"/>
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+$QUERIES_OK</manifest>
+EOF
+  # Y1 — removeAll on an UNGUARDED sibling perm. removeAll may be scoped to the NODE
+  # TYPE, which would strip our blockers too. DIA could not execute the merger to
+  # settle it, and neither can I — so we FAIL SAFE. An unverified risk aimed at HER
+  # location dot is disqualifying, never dismissable.
+  cat > "$tmp/y1_removeall_sibling.xml" <<EOF
+$MF
+$PERMS_OK
+<uses-permission android:name="android.permission.WAKE_LOCK" tools:node="removeAll"/>
+$QUERIES_OK</manifest>
+EOF
+  # Y2 — the same, one lane over: a live TTS <queries> beside a removeAll'd <queries>.
+  cat > "$tmp/y2_queries_removeall_sibling.xml" <<EOF
+$MF
+$PERMS_OK
+$QUERIES_OK
+<queries tools:node="removeAll"><intent><action android:name="android.intent.action.VIEW"/></intent></queries></manifest>
+EOF
   pass=0; total=0
   check() { # name expected(0=accept,1=reject)
     total=$((total+1))
@@ -433,6 +491,10 @@ EOF
   check x3_perm_in_application.xml 1
   check x5_perm_in_queries.xml 1
   check x6_perm_replace_ok.xml 0
+  # DIA round-4: contradiction and node-type removeAll. Fail-safe, both lanes.
+  check y3_live_and_removed.xml 1
+  check y1_removeall_sibling.xml 1
+  check y2_queries_removeall_sibling.xml 1
   echo "SELF-TEST: $pass/$total PASS"
   [[ "$pass" == "$total" ]] || exit 1
   exit 0
