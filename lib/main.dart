@@ -69,6 +69,7 @@ import 'services/drive_hud_localizer.dart';
 import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
 import 'services/turmoil_watch.dart';
+import 'services/staleness_policy.dart';
 import 'services/jma_advisory_provider_factory.dart';
 import 'services/audio_readiness.dart';
 import 'services/voice_lane_readiness.dart';
@@ -167,6 +168,7 @@ class SngnavApp extends StatelessWidget {
     this.voiceLaneReader,
     this.speechUnverified,
     this.audioReadinessProbe,
+    this.clock,
   });
 
   final AlertActuators? actuators;
@@ -177,6 +179,12 @@ class SngnavApp extends StatelessWidget {
   final Future<VoiceLaneVerdict> Function()? voiceLaneReader;
   final ValueNotifier<bool>? speechUnverified;
   final AudioReadinessProbe? audioReadinessProbe;
+
+  /// W0 detection-survival: injectable clock for host-deterministic staleness
+  /// (null -> [DateTime.now]). Tests inject a fixed `now` consistent with the
+  /// retained observation's observedAt so the feed-loss decision table is
+  /// verifiable without a device (OPS-066).
+  final DateTime Function()? clock;
 
   @override
   Widget build(BuildContext context) {
@@ -211,6 +219,7 @@ class SngnavApp extends StatelessWidget {
         voiceLaneReader: voiceLaneReader,
         speechUnverified: speechUnverified,
         audioReadinessProbe: audioReadinessProbe,
+        clock: clock,
       ),
     );
   }
@@ -227,6 +236,7 @@ class HomePage extends StatefulWidget {
     this.voiceLaneReader,
     this.speechUnverified,
     this.audioReadinessProbe,
+    this.clock,
   });
 
   /// Injectable actuator layer (null -> [defaultAlertActuators]).
@@ -257,6 +267,10 @@ class HomePage extends StatefulWidget {
   /// Injectable Tier-2 audio readiness probe (null ->
   /// [ChannelAudioReadinessProbe]).
   final AudioReadinessProbe? audioReadinessProbe;
+
+  /// W0 detection-survival: injectable clock (null -> [DateTime.now]). Makes the
+  /// feed-loss staleness age computation host-deterministic (OPS-066).
+  final DateTime Function()? clock;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -359,6 +373,19 @@ class _HomePageState extends State<HomePage> {
   // JMA observation state.
   JmaResult? _jmaResult;
   bool _jmaLoading = false;
+
+  // W0 detection-survival — last-known GOOD observation, retained across a feed
+  // loss so slow-varying winter hazards survive the network dying. Set ONLY on
+  // JmaSuccess; NEVER cleared on JmaFailure (that is the whole point). Distinct
+  // from _jmaResult, which is overwritten by a JmaFailure.
+  JmaObservation? _lastGoodObservation;
+
+  // W0 detection-survival — absence-line announce gate. The ABSENCE-LINE fires
+  // ONCE per entry into a dead-zone so a persistent no-reading does not spam;
+  // re-armed on the next JmaSuccess (see _announceWatchTransitions). The SLOW
+  // stale-ice hazard is deliberately NOT gated (Chair: keep announcing) — it
+  // re-warns each feed-loss cycle, rate-limited only by the JMA ticker.
+  bool _absenceActive = false; // absence-line announce currently active
 
   // BETA_PLAN W1 — invisible-ice (radiative-frost) watch state over the
   // live JMA observation. _invisibleIceAnnounced is the transition gate.
@@ -1058,6 +1085,10 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  /// W0 detection-survival — wall-clock read, injectable for host-deterministic
+  /// staleness (OPS-066).
+  DateTime _now() => (widget.clock ?? DateTime.now)();
+
   Future<void> _refreshJma() async {
     setState(() => _jmaLoading = true);
     final result = await (widget.jmaFetch?.call() ??
@@ -1067,9 +1098,15 @@ class _HomePageState extends State<HomePage> {
       _jmaResult = result;
       _jmaLoading = false;
       if (result is JmaSuccess) {
+        // W0: RETAIN the last GOOD observation for the feed-loss survival path.
+        _lastGoodObservation = result.observation;
         _invisibleIceResult = evaluateInvisibleIceWatch(result.observation);
         _turmoilState = evaluateTurmoilWatch(result.observation);
       } else {
+        // W0 feed loss: do NOT discard _lastGoodObservation — that retention is
+        // the whole point. The LIVE verdicts become unknown/null (the live
+        // surfaces must not read a stale reading as live); the stale/absence
+        // decision is made in _announceWatchTransitions from the retained obs.
         _invisibleIceResult = InvisibleIceWatchResult.unknown;
         _turmoilState = null;
       }
@@ -1099,38 +1136,139 @@ class _HomePageState extends State<HomePage> {
   /// seam noted in mobile_alert_actuators.dart) — sequential delivery keeps
   /// each line in its own voice.
   void _announceWatchTransitions() {
-    final iceFired = _invisibleIceResult == InvisibleIceWatchResult.watch;
-    final iceRose = iceFired && !_invisibleIceAnnounced;
-    _invisibleIceAnnounced = iceFired;
-
-    final turmoil = _turmoilState;
-    final turmoilFired = turmoil != null && turmoil.anyCaution;
-    final turmoilRose = turmoilFired && !_turmoilAnnounced;
-    _turmoilAnnounced = turmoilFired;
-
-    if (!iceRose && !turmoilRose) return;
     final ttsTag = _spokenJa ? 'ja-JP' : 'en-US';
-    unawaited(() async {
-      if (iceRose) {
-        await _announcer.announce(
-          severity: AlertSeverity.warning,
-          text: _spokenJa
-              ? invisibleBlackIceAnnouncement.jaSpokenText
-              : invisibleBlackIceAnnouncement.enSpokenText,
-          localeTag: ttsTag,
-        );
-      }
-      if (turmoilRose) {
-        final line = turmoilSpokenText(turmoil, ja: _spokenJa);
-        if (line != null) {
+    final result = _jmaResult;
+
+    // FRESH-LIVE path — a successful fetch this cycle. UNCHANGED rise-gated
+    // behavior: each watch announces ONCE when its live window turns on.
+    if (result is JmaSuccess) {
+      final iceFired = _invisibleIceResult == InvisibleIceWatchResult.watch;
+      final iceRose = iceFired && !_invisibleIceAnnounced;
+      _invisibleIceAnnounced = iceFired;
+
+      final turmoil = _turmoilState;
+      final turmoilFired = turmoil != null && turmoil.anyCaution;
+      final turmoilRose = turmoilFired && !_turmoilAnnounced;
+      _turmoilAnnounced = turmoilFired;
+
+      // W0: re-arm the absence gate so a LATER dead-zone re-announces the
+      // absence line once on entry.
+      _absenceActive = false;
+
+      if (!iceRose && !turmoilRose) return;
+      unawaited(() async {
+        if (iceRose) {
           await _announcer.announce(
             severity: AlertSeverity.warning,
-            text: line,
+            text: _spokenJa
+                ? invisibleBlackIceAnnouncement.jaSpokenText
+                : invisibleBlackIceAnnouncement.enSpokenText,
             localeTag: ttsTag,
           );
         }
+        if (turmoilRose) {
+          final line = turmoilSpokenText(turmoil, ja: _spokenJa);
+          if (line != null) {
+            await _announcer.announce(
+              severity: AlertSeverity.warning,
+              text: line,
+              localeTag: ttsTag,
+            );
+          }
+        }
+      }());
+      return;
+    }
+
+    // FEED-LOSS path — JmaFailure or null (no successful fetch this cycle).
+    // Fall back to the retained observation and decide stale-vs-absence.
+    final cached = _lastGoodObservation;
+    final observedAt =
+        cached == null ? null : observedAtJstAsLocal(cached.observedAtJstKey);
+    // The retain/expire bound uses the TRUE absolute instant (JST digits → UTC)
+    // compared against now-as-UTC, so it is correct on ANY device timezone, not
+    // only a JST-clock phone (design safety review #3: an off-JST parse could
+    // retain a hours-old reading or expire a fresh one). The SPOKEN hour still
+    // comes from observedAt (raw JST digits) — timezone-independent.
+    final observedInstant =
+        cached == null ? null : observedAtJstInstant(cached.observedAtJstKey);
+
+    // (1) NO reading at all: no cache, unparseable stamp, or PAST the slow bound
+    //     → the honest ABSENCE-LINE (GAP-2). Fires ONCE per entry (gate), so a
+    //     persistent dead-zone does not spam; re-arms via the JmaSuccess reset.
+    //     The bound is computed on the EXACT observedAt instant (`>` = past the
+    //     window; exactly 60 min old is still RETAINED, not expired).
+    if (cached == null ||
+        observedAt == null ||
+        observedInstant == null ||
+        _now().toUtc().difference(observedInstant) > kSlowHazardRetainWindow) {
+      // Reset the LIVE rise-gates on entry to a TRUE no-reading dead-zone. Here
+      // — and ONLY here — continuity of the spoken channel is genuinely broken:
+      // HER just heard "conditions unavailable". Without this reset, a live
+      // hazard that RETURNS on feed-recovery is silently suppressed (iceRose =
+      // fired && !alreadyAnnounced stays false), so HER's last spoken word about
+      // the road would remain "unavailable" while a live black-ice warning is
+      // swallowed exactly in the recovery-from-dead-zone case. NOT reset on every
+      // feed-loss cycle (that re-introduces per-blip cry-wolf) and NOT in the
+      // stale-ice branch below (it is actively re-warning via the stamped line).
+      _invisibleIceAnnounced = false;
+      _turmoilAnnounced = false;
+      if (!_absenceActive) {
+        _absenceActive = true;
+        unawaited(_announcer.announce(
+          severity: AlertSeverity.warning,
+          text: _spokenJa
+              ? kConditionsUnknownJaSpokenText
+              : kConditionsUnknownEnSpokenText,
+          localeTag: ttsTag,
+        ));
       }
-    }());
+      return;
+    }
+
+    // Within the slow bound. SLOW hazard (black ice): recompute from the cache
+    // and, if the window is present, KEEP announcing HONESTLY TIME-STAMPED
+    // (Chair: retain + keep announcing, never as live). The stale line is NOT
+    // gated once-per-entry (unlike the absence line): a persistent black-ice
+    // dead-zone re-warns each feed-loss cycle, honestly re-stamped. The JMA
+    // ticker cadence (~10-min AMeDAS) is the rate-limiter (one announce per
+    // _refreshJma). A hazard beats the absence line, so ice takes precedence.
+    final iceVerdict = evaluateInvisibleIceWatch(cached);
+    if (iceVerdict == InvisibleIceWatchResult.watch) {
+      _absenceActive = false;
+      final hour = spokenHourJst(observedAt);
+      unawaited(_announcer.announce(
+        severity: AlertSeverity.warning,
+        text: staleInvisibleBlackIceSpokenText(hourJst: hour, ja: _spokenJa),
+        localeTag: ttsTag,
+      ));
+      return;
+    }
+
+    // FAST hazard (turmoil): SILENT when stale — never announced from the cache
+    // (cry-wolf discipline). No-op by construction (the fast watch is NOT
+    // invoked on the cache).
+    //
+    // KNOWN LIMITATION — DROPPED SUSTAINED GALE (design §3 caveat + §8 attack #2;
+    // review finding #2, OPS-068 fail-toward-keeping). Wind is lumped into the
+    // FAST lane, so on feed loss a still-valid SUSTAINED synoptic gale (measured
+    // mean wind ≥ kWindCautionMeanMs, 暴風-class) is silently dropped even at ~0
+    // min staleness — a gale is slow-varying (persists for HOURS), unlike a
+    // convective downpour cell, so a 10-60-min-old gale reading is still
+    // physically indicative, exactly the property that justified retaining black
+    // ice. This is a RECORDED, deliberately-deferred gap, not an invisible one:
+    // the 暴風警報 JMA-warnings lane (turmoil_watch.dart:33-36) is likewise not
+    // cached by W0. A fix would give wind its own longer retain window + a
+    // stale-stamped, past-framed line reusing the not-live clause (mirror the
+    // black-ice path); deferred as too large for this pass + needs AAA/NDI
+    // review. Pinned by the "KNOWN LIMITATION … sustained wind" test so the drop
+    // stays a recorded decision. See unresolved_safety_items.
+    //
+    // Within-bound, non-watch (cache says clear, or the ice channel abstained):
+    // honest SILENCE. We hold a reading ≤60 min old, so firing the absence-line
+    // here would be FALSE — the absence-line fires ONLY on true no-reading,
+    // handled at (1). We do NOT flip the gates here: a within-bound clear does
+    // not end an active stale/absence state (only a JmaSuccess re-arm does).
   }
 
   Future<void> _refreshCorridor() async {

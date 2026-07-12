@@ -14,9 +14,29 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navigation_safety_enums/navigation_safety_enums.dart'
     show HapticCuePattern;
+import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart';
 
 import '../support/fake_alert_actuators.dart';
+
+// A clear-conditions JMA observation: no ice, no turmoil, no feed loss — so the
+// W0 detection-survival lane stays deterministically SILENT and this WS6
+// drive-HUD reach test is isolated from the JMA announce path. (Without an
+// injected fetch the real AMeDAS call fails under the test binding and the
+// no-cache feed-loss absence-line would speak, which is correct app behavior
+// but noise for THIS test.)
+JmaObservation _clearObs() => JmaObservation(
+      stationId: '32402',
+      stationName: '秋田',
+      temperatureCelsius: 8.0,
+      humidityPercent: 70,
+      windMetersPerSecond: 2.0,
+      snowDepthCm: null,
+      precipitation10mMm: 0.0,
+      visibilityMeters: null,
+      observedAtJstKey: '20260115063000',
+      fetchedAt: DateTime(2026, 1, 15, 6, 30),
+    );
 
 void main() {
   testWidgets(
@@ -25,7 +45,11 @@ void main() {
     (tester) async {
       final fake = FakeAlertActuators();
       await tester.pumpWidget(
-        SngnavApp(actuators: fake, locale: const Locale('ja')),
+        SngnavApp(
+          actuators: fake,
+          locale: const Locale('ja'),
+          jmaFetch: () async => JmaSuccess(_clearObs()),
+        ),
       );
       await tester.pump();
 

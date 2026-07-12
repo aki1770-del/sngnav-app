@@ -110,7 +110,8 @@ void main() {
   });
 
   testWidgets(
-      'fetch failure → honest failure card (no watch rows), and no announce',
+      'fetch failure (no cache) → honest failure card (no watch rows) + '
+      'the W0 absence-line speaks, no turmoil line',
       (tester) async {
     final fake = FakeAlertActuators();
     await tester.pumpWidget(SngnavApp(
@@ -126,7 +127,13 @@ void main() {
     // discipline as the existing 路面凍結ウォッチ behavior.
     expect(find.textContaining('JMA fetch failed'), findsOneWidget);
     expect(find.text('荒天ウォッチ:'), findsNothing);
-    expect(fake.spoken, isEmpty);
+    // W0 detection-survival: with NO cached observation the honest absence-line
+    // speaks (GAP-2 wiring) — silence-as-all-clear is the defect this removes.
+    // The turmoil (fast-hazard) lane stays silent.
+    expect(fake.spoken.where((s) => s.text.contains('路面状況を取得できていません')),
+        hasLength(1));
+    expect(fake.spoken.where((s) => s.text.contains('強い雨') || s.text.contains('風')),
+        isEmpty);
   });
 
   testWidgets('success with both fields unreported → 判定不能 row',

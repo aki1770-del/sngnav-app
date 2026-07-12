@@ -9,9 +9,28 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:navigation_safety_core/navigation_safety_core.dart';
 import 'package:navigation_safety_enums/navigation_safety_enums.dart'
     show HapticCuePattern;
+import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart';
 
 import '../support/fake_alert_actuators.dart';
+
+// A clear-conditions JMA observation so the W0 detection-survival lane stays
+// SILENT (no ice, no turmoil, no feed loss) — isolating this WS5 announce-button
+// test from the JMA announce path. Without an injected fetch the real AMeDAS
+// call fails under the test binding and the no-cache absence-line would speak
+// (correct app behavior, but noise for THIS test).
+JmaObservation _clearObs() => JmaObservation(
+      stationId: '32402',
+      stationName: '秋田',
+      temperatureCelsius: 8.0,
+      humidityPercent: 70,
+      windMetersPerSecond: 2.0,
+      snowDepthCm: null,
+      precipitation10mMm: 0.0,
+      visibilityMeters: null,
+      observedAtJstKey: '20260115063000',
+      fetchedAt: DateTime(2026, 1, 15, 6, 30),
+    );
 
 void main() {
   testWidgets(
@@ -25,7 +44,10 @@ void main() {
         DriverProfile.ageingRural,
       );
 
-      await tester.pumpWidget(SngnavApp(actuators: fake));
+      await tester.pumpWidget(SngnavApp(
+        actuators: fake,
+        jmaFetch: () async => JmaSuccess(_clearObs()),
+      ));
       await tester.pump();
 
       // initState holds the screen awake (foreground-only).

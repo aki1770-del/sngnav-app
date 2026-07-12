@@ -77,3 +77,26 @@ InvisibleIceWatchResult evaluateInvisibleIceWatch(JmaObservation obs) {
       ? InvisibleIceWatchResult.watch
       : InvisibleIceWatchResult.clear;
 }
+
+/// Honest stale-framed black-ice line (W0 detection-survival). App-authored;
+/// NEVER spoken as live. [hourJst] is the FLOORED hour of the retained
+/// observation's observedAt (JST) — see `spokenHourJst`; floored so the spoken
+/// stamp never sounds fresher than the reading. See W0_DETECTION_SURVIVAL_DESIGN.md §4.
+///
+/// Two load-bearing clauses that MUST NOT be dropped under length pressure:
+/// - 「○時頃の観測では…おそれがあります」 — past-framed + possibility-graded; it is
+///   unmistakably an observation from a PAST hour, never a live reading.
+/// - 「最新の情報は取得できていません」 — the explicit not-live disclaimer; it is the
+///   ONLY spoken guarantee HER is not hearing a current reading (review #1).
+String staleInvisibleBlackIceSpokenText({
+  required int hourJst,
+  required bool ja,
+}) {
+  return ja
+      ? '$hourJst時頃の観測では、ブラックアイスバーンのおそれがあります。'
+          '最新の情報は取得できていません。'
+          '急ハンドル・急ブレーキを避け、速度を落としてください。'
+      : 'As observed around $hourJst o\'clock, there may be black ice — this is '
+          'not a live reading. Avoid abrupt steering or braking, and reduce '
+          'speed.';
+}
