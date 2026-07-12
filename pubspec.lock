@@ -181,18 +181,18 @@ packages:
     dependency: "direct main"
     description:
       name: driving_conditions
-      sha256: c772ba6828bbd6c8e2dfec649b7a29e2eb5b3569150de55ba273607cd4e36f57
+      sha256: e16c76b223a2bf391de981623b3c83d611be5bd689ceffc1491d511e41201cc5
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.4"
+    version: "0.5.5"
   driving_weather:
     dependency: "direct main"
     description:
       name: driving_weather
-      sha256: "7a1d366a992bd1bb6606d82bc6cea1f8a676548b6d22ba4d5bdda284919b9e00"
+      sha256: ae5f61167ad0557ec70c221abe93f8b03c77c595d46d0ecec951142c8bbafb59
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.4"
+    version: "0.4.5"
   equatable:
     dependency: transitive
     description:
@@ -473,10 +473,10 @@ packages:
     dependency: "direct main"
     description:
       name: map_viewport_bloc
-      sha256: "2dc3feff21878b27999defbbaf44b683575a8b64a5a55893cb537939752dc1c8"
+      sha256: "73747346cdcf41c16983b644fd28806fa0ecb09d6da959d5f22f121bf9b70c56"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.3"
+    version: "0.4.4"
   matcher:
     dependency: transitive
     description:
@@ -537,10 +537,10 @@ packages:
     dependency: "direct main"
     description:
       name: navigation_safety
-      sha256: "84296c1ff796373486e769db79414902ab8dbe2433e1f77d92dca56eb58309a2"
+      sha256: "85fa5a546ab03cc3b200c88048614c3f5120dd20080b8065275356afa1895a91"
       url: "https://pub.dev"
     source: hosted
-    version: "0.9.3"
+    version: "0.9.4"
   navigation_safety_calibration:
     dependency: transitive
     description:
@@ -553,10 +553,10 @@ packages:
     dependency: "direct main"
     description:
       name: navigation_safety_core
-      sha256: "172ba601f351d5598e1271206f2fffd13823e521087c56d671dd20f3687d1a85"
+      sha256: fa2630228e97844ca12c59350c06b4518dbc7196ab7b6355bd5b12ab3f7a95a4
       url: "https://pub.dev"
     source: hosted
-    version: "0.10.5"
+    version: "0.11.1"
   navigation_safety_enums:
     dependency: "direct main"
     description:
@@ -593,10 +593,10 @@ packages:
     dependency: "direct main"
     description:
       name: offline_tiles
-      sha256: "4184611978e91eb1f7f8303a3acc4f242f68ec00ffd3f4ee5719b7b7a0746e5d"
+      sha256: "975a881af8ede1884ad2a75191c7a9c82d530a420a02f869ac20c025f7cfe000"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.3"
+    version: "0.5.4"
   package_config:
     dependency: transitive
     description:
@@ -790,10 +790,10 @@ packages:
     dependency: "direct main"
     description:
       name: snow_rendering
-      sha256: "3b6657ab58a4413f5b0be4efcdc3ee9e52b0986de4bd80b6483a187fa397fcea"
+      sha256: "8ae8f854078f22f1d1ec627b937409a9584fedb2e42c4c46e14461093dbda018"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.7"
+    version: "0.2.8"
   source_span:
     dependency: transitive
     description:
@@ -806,10 +806,10 @@ packages:
     dependency: "direct dev"
     description:
       name: sqlite3
-      sha256: "752d9d746052359a2022f588bb979f2e7c4e0f9e4b6a1c3121f7626a1574974b"
+      sha256: "61c7930bebf32c552ac5808c91bf33802e66711c9216090d3b5579c9f862e80c"
       url: "https://pub.dev"
     source: hosted
-    version: "3.3.4"
+    version: "3.4.0"
   sqlite3_flutter_libs:
     dependency: "direct main"
     description:
@@ -950,10 +950,10 @@ packages:
     dependency: "direct main"
     description:
       name: voice_guidance
-      sha256: "372140002f83ad17d820fdd5274df3bb0c32766707b607f0a8b6e7f1c9b3b1ec"
+      sha256: "50c8db01c20788dd7f24ea841ba30ff75d1d994edc0b37947cbb9e561f2d0276"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.2"
+    version: "0.7.3"
   wakelock_plus:
     dependency: "direct main"
     description:
