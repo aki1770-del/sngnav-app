@@ -55,6 +55,9 @@ dependencies:
 # Maintainer watch (FEM 2026-07-11): flutter_tts idle since 2026-01; if it
 # breaks on a future targetSdk, the lane is fork-or-vendor via voice_guidance.
   flutter_tts: ^4.2.5
+  # Plays the bundled ja safety audio. flutter_tts stays for slotted text, but it
+  # is no longer the only mouth: with no network it is silent and then hangs.
+  audioplayers: ^6.1.0
   vibration: ^3.2.0
   wakelock_plus: ^1.6.1
   navigation_safety_enums: ^0.1.4
@@ -103,3 +106,11 @@ flutter:
     # no-data tint. Pipeline + runbook: tool/README_TILES.md (cut pinned
     # tohoku-260709). Data (c) OpenStreetMap contributors, ODbL.
     - assets/tiles/akita_offline.mbtiles
+    # The offline MOUTH — the finite ja safety vocabulary, pre-rendered to WAV
+    # (open_jtalk / nitech-jp, 16 kHz mono). The system TTS is silent and then
+    # hangs with no network on the target device, so every warning the app had
+    # hardened arrived at a layer that could not speak it. These bytes ship in
+    # the APK: no network, no voice-pack download, no TTS engine required.
+    # Source of truth: lib/voice/offline_safety_voice.dart
+    # Re-render:      bash tool/render_offline_voice.sh
+    - assets/audio/ja/

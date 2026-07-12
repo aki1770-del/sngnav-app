@@ -22,6 +22,7 @@ import 'package:voice_guidance/voice_guidance.dart' show TtsEngine;
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../services/error_log.dart';
+import '../voice/bundled_audio_engine.dart';
 import 'alert_actuators.dart';
 import 'hardened_tts_engine.dart';
 
@@ -113,11 +114,18 @@ class MobileAlertActuators implements AlertActuators {
   /// The TTS engine, resolved on first use. An injected engine (tests) is used
   /// as-is; otherwise the real [HardenedTtsEngine] is built here — reached ONLY
   /// from `speak()` after its `_isMobilePlatform` guard has passed.
+  /// The real engine is the bundled-audio mouth wrapping the hardened TTS: the
+  /// finite ja safety core plays from bytes in the APK (works with no network,
+  /// no voice pack, no TTS engine), and only slotted / non-safety text is
+  /// delegated to TTS. Before this, the system TTS was the ONLY mouth — and with
+  /// no network it is silent, then hangs.
   TtsEngine get _tts => _resolvedTts ??= (_injectedTts ??
-      HardenedTtsEngine(
-        errorLog: _errorLog,
-        onSpeechUnverified: _onSpeechUnverified,
-        onSpeechVerified: _onSpeechVerified,
+      BundledAudioEngine(
+        fallback: HardenedTtsEngine(
+          errorLog: _errorLog,
+          onSpeechUnverified: _onSpeechUnverified,
+          onSpeechVerified: _onSpeechVerified,
+        ),
       ));
 
   @override
