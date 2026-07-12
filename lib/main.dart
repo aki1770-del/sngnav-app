@@ -47,7 +47,11 @@ import 'package:voice_guidance/voice_guidance.dart'
     show BudgetAwarePaceProfile, VoiceGuidanceConfig;
 
 import 'dart:async';
+import 'dart:io' show File;
 import 'dart:ui' show FrameTiming;
+
+import 'package:path_provider/path_provider.dart'
+    show getApplicationDocumentsDirectory;
 
 import 'package:latlong2/latlong.dart';
 
@@ -69,7 +73,9 @@ import 'services/drive_hud_localizer.dart';
 import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
 import 'services/turmoil_watch.dart';
+import 'services/jma_forecast_fetch.dart';
 import 'services/staleness_policy.dart';
+import 'services/trip_hazard_memory.dart';
 import 'services/jma_advisory_provider_factory.dart';
 import 'services/audio_readiness.dart';
 import 'services/voice_lane_readiness.dart';
@@ -163,6 +169,7 @@ class SngnavApp extends StatelessWidget {
     this.actuators,
     this.locale,
     this.jmaFetch,
+    this.jmaForecastFetch,
     this.errorLog,
     this.logShareSink,
     this.voiceLaneReader,
@@ -174,6 +181,11 @@ class SngnavApp extends StatelessWidget {
   final AlertActuators? actuators;
   final Locale? locale;
   final Future<JmaResult> Function()? jmaFetch;
+
+  /// Injectable JMA FORWARD-FORECAST fetch (null -> live forecast fetch). This
+  /// is the source of HER dead-zone memory; tests drive it with a real captured
+  /// JMA payload, never a hand-written one.
+  final Future<JmaForecastResult> Function()? jmaForecastFetch;
   final LocalErrorLog? errorLog;
   final LogShareSink? logShareSink;
   final Future<VoiceLaneVerdict> Function()? voiceLaneReader;
@@ -214,6 +226,7 @@ class SngnavApp extends StatelessWidget {
         actuators: actuators,
         locale: locale,
         jmaFetch: jmaFetch,
+        jmaForecastFetch: jmaForecastFetch,
         errorLog: errorLog,
         logShareSink: logShareSink,
         voiceLaneReader: voiceLaneReader,
@@ -231,6 +244,7 @@ class HomePage extends StatefulWidget {
     this.actuators,
     this.locale,
     this.jmaFetch,
+    this.jmaForecastFetch,
     this.errorLog,
     this.logShareSink,
     this.voiceLaneReader,
@@ -249,6 +263,11 @@ class HomePage extends StatefulWidget {
 
   /// Injectable JMA observation fetch (null -> live AMeDAS fetch).
   final Future<JmaResult> Function()? jmaFetch;
+
+  /// Injectable JMA FORWARD-FORECAST fetch (null -> live forecast fetch). This
+  /// is the source of HER dead-zone memory; tests drive it with a real captured
+  /// JMA payload, never a hand-written one.
+  final Future<JmaForecastResult> Function()? jmaForecastFetch;
 
   /// Crash-boundary log handle (C6 ログを共有; null -> action disabled).
   final LocalErrorLog? errorLog;
@@ -386,6 +405,18 @@ class _HomePageState extends State<HomePage> {
   // stale-ice hazard is deliberately NOT gated (Chair: keep announcing) — it
   // re-warns each feed-loss cycle, rate-limited only by the JMA ticker.
   bool _absenceActive = false; // absence-line announce currently active
+
+  // C2 RED-1 — THE MEMORY. The trip-window-valid hazard bundle, captured at
+  // PLAN time (network alive) and consulted in the DEAD ZONE (network gone).
+  // This is the source that needs no source: no fetch, no point-query, just the
+  // publisher's declared validity window against the clock. It is what stands
+  // between HER and silence at T+90.
+  TripHazardMemory? _tripHazardMemory;
+
+  // Rise-gate for the forecast line, mirroring _absenceActive: a persistent
+  // dead-zone announces the valid forecast ONCE on entry, not every tick.
+  // Cry-wolf discipline — the same restraint the absence line gets.
+  bool _forecastAnnounceActive = false;
 
   // BETA_PLAN W1 — invisible-ice (radiative-frost) watch state over the
   // live JMA observation. _invisibleIceAnnounced is the transition gate.
@@ -567,6 +598,10 @@ class _HomePageState extends State<HomePage> {
     // hand the resulting OfflineTileProvider to AkitaMap. Async + fail-soft:
     // a null result leaves the basemap on the plain network layer.
     unawaited(_loadOfflineBasemap());
+    // COLD START in the dead zone: she rebooted on the roadside. The memory must
+    // come back from DISK, before any network is attempted — because there may
+    // never be one. This is the load that makes the map stop being silent.
+    unawaited(_loadTripHazardMemory());
     // WS6 — inject the app's SINGLE actuator + announcer into the drive brain
     // (it never resolves its own — one actuator, one wakelock owner). A rising
     // caution rung fires _announcer.announce (audio + haptic). Listen so the
@@ -1089,6 +1124,60 @@ class _HomePageState extends State<HomePage> {
   /// staleness (OPS-066).
   DateTime _now() => (widget.clock ?? DateTime.now)();
 
+  /// Build the on-disk store, or null when this platform/harness has no
+  /// documents dir (tests, desktop harnesses). A null store means the memory is
+  /// in-RAM only for this run — it is NOT an error and must never be reported as
+  /// one.
+  Future<TripHazardStore?> _tripHazardStore() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      return TripHazardStore(
+        file: File('${dir.path}/${TripHazardStore.fileName}'),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// COLD START. She rebooted on the roadside, in the dead zone. The memory must
+  /// come back from disk with no network — that is the entire promise.
+  Future<void> _loadTripHazardMemory() async {
+    final store = await _tripHazardStore();
+    final loaded = await store?.load();
+    if (!mounted || loaded == null) return;
+    setState(() => _tripHazardMemory = loaded);
+  }
+
+  /// PLAN TIME — the network is alive, so we learn what the publisher declares
+  /// for the hours ahead and WRITE IT DOWN. This is the only moment the memory
+  /// can be formed; in the dead zone it is too late.
+  ///
+  /// Refreshed at most every 3 hours: JMA reissues the forecast a few times a
+  /// day, and re-fetching a forward grid on every 10-minute observation tick
+  /// would spend HER battery and JMA's bandwidth for nothing.
+  Future<void> _captureTripHazardMemory() async {
+    final existing = _tripHazardMemory;
+    if (existing != null &&
+        _now().toUtc().difference(existing.capturedAt) <
+            const Duration(hours: 3)) {
+      return;
+    }
+    final result = await (widget.jmaForecastFetch?.call() ??
+        fetchJmaForecast(userAgent: kSngnavAppUserAgent));
+    if (!mounted) return;
+    // A FAILED forecast fetch must NOT erase a memory we already hold. The old
+    // memory may still be perfectly valid for this hour — and "we could not
+    // reach JMA just now" is not evidence that the road is clear.
+    if (result is! JmaForecastSuccess) return;
+    final memory = TripHazardMemory(
+      hazards: result.hazards,
+      capturedAt: _now().toUtc(),
+    );
+    setState(() => _tripHazardMemory = memory);
+    final store = await _tripHazardStore();
+    await store?.save(memory);
+  }
+
   Future<void> _refreshJma() async {
     setState(() => _jmaLoading = true);
     final result = await (widget.jmaFetch?.call() ??
@@ -1100,6 +1189,10 @@ class _HomePageState extends State<HomePage> {
       if (result is JmaSuccess) {
         // W0: RETAIN the last GOOD observation for the feed-loss survival path.
         _lastGoodObservation = result.observation;
+        // The network is ALIVE — so this is PLAN TIME, and the only moment the
+        // dead-zone memory can be formed. Fire-and-forget: a forecast fetch must
+        // never delay or wedge the live observation lane.
+        unawaited(_captureTripHazardMemory());
         _invisibleIceResult = evaluateInvisibleIceWatch(result.observation);
         _turmoilState = evaluateTurmoilWatch(result.observation);
       } else {
@@ -1152,8 +1245,10 @@ class _HomePageState extends State<HomePage> {
       _turmoilAnnounced = turmoilFired;
 
       // W0: re-arm the absence gate so a LATER dead-zone re-announces the
-      // absence line once on entry.
+      // absence line once on entry. Same for the forecast-memory gate: a LATER
+      // dead-zone must be free to speak the valid forecast once on entry.
       _absenceActive = false;
+      _forecastAnnounceActive = false;
 
       if (!iceRose && !turmoilRose) return;
       unawaited(() async {
@@ -1213,6 +1308,34 @@ class _HomePageState extends State<HomePage> {
       // stale-ice branch below (it is actively re-warning via the stamped line).
       _invisibleIceAnnounced = false;
       _turmoilAnnounced = false;
+
+      // ── C2 RED-1: THE MEMORY, BEFORE THE SILENCE ────────────────────────────
+      // We have no live reading. But we may still KNOW something TRUE: a hazard
+      // the publisher declared VALID FOR THIS VERY HOUR, which she captured
+      // before she left. That is not a stale observation being dressed up as
+      // live — it is a forecast, inside its own publisher-declared window, and
+      // the spoken line says so out loud (これは観測ではなく予報です).
+      //
+      // This is the difference between a map with silence and a map that warns
+      // her. It is consulted BEFORE the absence line, because "we know nothing"
+      // is FALSE when we know this.
+      final forecastLine = _spokenJa
+          ? _tripHazardMemory?.speakableJaAt(_now())
+          : null; // en forecast voice not yet rendered — recorded, not claimed.
+      if (forecastLine != null) {
+        _absenceActive = false;
+        if (!_forecastAnnounceActive) {
+          _forecastAnnounceActive = true;
+          unawaited(_announcer.announce(
+            severity: AlertSeverity.warning,
+            text: forecastLine,
+            localeTag: ttsTag,
+          ));
+        }
+        return;
+      }
+      _forecastAnnounceActive = false;
+
       if (!_absenceActive) {
         _absenceActive = true;
         unawaited(_announcer.announce(

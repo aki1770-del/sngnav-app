@@ -78,7 +78,9 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sngnav_app/services/forecast_validity.dart';
 import 'package:sngnav_app/services/staleness_policy.dart';
+import 'package:sngnav_app/services/trip_hazard_memory.dart';
 import 'package:sngnav_app/voice/offline_safety_voice.dart';
 
 import '../voice/runtime_emissions.dart';
@@ -104,10 +106,27 @@ void main() {
       );
     });
 
+    // RED-1, RE-WRITTEN 2026-07-12 — because the ASSERTION CONTRADICTED ITS OWN
+    // REASON STRING, and that is worth naming plainly.
+    //
+    // The original asserted `age <= kSlowHazardRetainWindow`, i.e. that a
+    // 90-minute-old OBSERVATION should be RETAINED. The only way to turn that
+    // green is to WIDEN kSlowHazardRetainWindow from 60 minutes to >= 90 — to
+    // announce a 90-minute-old reading as live. Its own prose said, in as many
+    // words, "This assertion is not asking to retain the observation longer."
+    // It was. A test that can only be satisfied by weakening a safety gate is a
+    // test that will one day be satisfied by weakening a safety gate.
+    //
+    // The observation expiry is CORRECT and is left EXACTLY where it was. What
+    // was missing was never a longer memory of a reading — it was a DIFFERENT
+    // KIND OF KNOWLEDGE: a forecast, inside its own publisher-declared validity
+    // window. That is asserted in test/dead_zone/trip_hazard_memory_test.dart,
+    // which drives the REAL captured JMA payload. Here we hold the LINE that
+    // must never move.
     test(
-      'RED-1 (NO MEMORY): a hazard she could have been warned about before she '
-      'left no longer reaches her at T+90 — because we model observation AGE '
-      'and never forecast VALIDITY',
+      'RED-1 (THE MEMORY): the 90-minute-old OBSERVATION still EXPIRES — the '
+      'silence was fixed with VALID knowledge, never by lowering the bar on '
+      'what counts as live',
       () {
         final observedAt = observedAtJstInstant(observedAtDepartureJstKey);
         expect(observedAt, isNotNull);
@@ -115,33 +134,51 @@ void main() {
         final age = tPlus90.difference(observedAt!);
         expect(age, const Duration(minutes: 90));
 
-        // This is the whole defect, in one line of arithmetic.
-        final retained = age <= kSlowHazardRetainWindow;
         expect(
-          retained,
+          age > kSlowHazardRetainWindow,
           isTrue,
-          reason: '''
-FAILS TODAY, AND MUST.
-
-At T+90 the only hazard knowledge she has is a 07:00 OBSERVATION, and it is 90
-minutes old — past kSlowHazardRetainWindow (60 min). We expire it and fall to
-the honest absence line. That expiry is CORRECT for an observation and it is the
-right call: we will not announce a stale reading as live.
-
-But it is the wrong QUESTION. A forecast fetched at 07:00 and valid through the
-afternoon is not "90 minutes stale" — it is VALID. She could have been told, before
-she ever left the house, that the bridge would ice by 09:00. That knowledge needs
-no network at 08:30. We simply have nowhere to put it: the app models observation
-AGE and has no concept of forecast VALIDITY at all.
-
-This assertion is not asking to retain the observation longer. It is asserting that
-SOMETHING VALID must still reach her at T+90 — and today nothing can, because no
-source exists that carries validity across the dead zone.
-
-GREEN when: AdvisoryProvider admits an implementation with no fetch and no
-point-query — a trip-window-valid hazard bundle prefetched at plan time.
-''',
+          reason: 'The stale OBSERVATION must STILL expire at T+90. If this '
+              'ever flips, someone widened the retain window to make a test '
+              'pass, and HER phone is now announcing a 90-minute-old reading '
+              'as though it were the road in front of her.',
         );
+        expect(kSlowHazardRetainWindow, const Duration(minutes: 60));
+
+        // And the thing that was actually missing now exists: a source with no
+        // fetch and no point-query, carrying publisher-declared validity across
+        // the dead zone. Proven end-to-end (real JMA payload -> disk -> spoken
+        // bytes) in test/dead_zone/trip_hazard_memory_test.dart.
+        final memory = TripHazardMemory(
+          capturedAt: departure,
+          hazards: [
+            ForecastHazard(
+              kind: ForecastHazardKind.snow,
+              // JMA's OWN 6-hourly boundaries: 06:00 JST -> 12:00 JST.
+              window: ValidityWindow(
+                start: DateTime.utc(2026, 1, 14, 21, 0),
+                end: DateTime.utc(2026, 1, 15, 3, 0),
+                provenance: ValidityProvenance.publisherDeclared,
+              ),
+              publisherText: '雪　所により　ふぶく',
+              source: 'JMA 秋田地方気象台',
+              issuedAt: DateTime.utc(2026, 1, 14, 20, 0),
+              areaName: '沿岸',
+            ),
+          ],
+        );
+
+        // No network. No GPS. No fetch. No point query. Just the clock — and she
+        // is told, in Japanese, by a mouth that needs no TTS.
+        final line = memory.speakableJaAt(tPlus90);
+        expect(
+          line,
+          kForecastSnowValidJa,
+          reason: 'At T+90 in the dead zone she must still hear the hazard she '
+              'could have been warned about before she left.',
+        );
+        final asset = OfflineSafetyVoice.assetFor(line!);
+        expect(asset, isNotNull);
+        expect(File(asset!).lengthSync(), greaterThan(8000));
       },
     );
 

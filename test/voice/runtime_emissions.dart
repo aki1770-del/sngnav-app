@@ -34,7 +34,9 @@ import 'package:snow_rendering/snow_rendering.dart' as snow_rendering;
 import 'package:sngnav_app/main.dart' show severityForCondition;
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 import 'package:sngnav_app/services/maneuver_narration.dart';
+import 'package:sngnav_app/services/forecast_validity.dart';
 import 'package:sngnav_app/services/staleness_policy.dart';
+import 'package:sngnav_app/services/trip_hazard_memory.dart';
 import 'package:sngnav_app/services/turmoil_watch.dart';
 import 'package:compound_failure_advisor/compound_failure_advisor.dart'
     show DriveAction;
@@ -90,6 +92,33 @@ Set<String> emittableSafetyStaticJa() {
 
   // (5) main.dart:1218 — the honest-absence line.
   out.add(kConditionsUnknownJaSpokenText);
+
+  // (6) main.dart dead-zone path — THE MEMORY (C2 RED-1). The forecast line is
+  // emitted by `TripHazardMemory.speakableJaAt()`, so we produce it the honest
+  // way: by CALLING that production emitter with a hazard whose window covers
+  // the instant we ask about. If the emitter ever stops returning this string,
+  // this set stops containing it and the catalog entry is correctly convicted of
+  // being an invented phrase.
+  final now = DateTime.utc(2026, 1, 15, 0, 0);
+  final memory = TripHazardMemory(
+    capturedAt: now.subtract(const Duration(hours: 2)),
+    hazards: [
+      ForecastHazard(
+        kind: ForecastHazardKind.snow,
+        window: ValidityWindow(
+          start: now.subtract(const Duration(hours: 3)),
+          end: now.add(const Duration(hours: 3)),
+          provenance: ValidityProvenance.publisherDeclared,
+        ),
+        publisherText: '雪',
+        source: 'JMA 秋田地方気象台',
+        issuedAt: now.subtract(const Duration(hours: 4)),
+        areaName: '沿岸',
+      ),
+    ],
+  );
+  final forecastLine = memory.speakableJaAt(now);
+  if (forecastLine != null) out.add(forecastLine);
 
   return out;
 }

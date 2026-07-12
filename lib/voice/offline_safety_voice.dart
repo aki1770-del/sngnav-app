@@ -140,6 +140,15 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   // it is what she hears when we know nothing.
   'conditions_unknown':
       '路面状況を取得できていません。見える範囲で運転してください。',
+
+  // --- THE MEMORY (trip_hazard_memory.dart → main.dart dead-zone path).
+  // A snow hazard JMA declared VALID FOR THIS TIME BAND, learned before she
+  // left, spoken at T+90 with the centre gone. It names itself a FORECAST out
+  // loud (これは観測ではなく予報です) so she can never mistake it for a reading we
+  // just took. This is the line no other product in Japan can say in a dead
+  // zone — every predictive competitor is server-side.
+  'forecast_snow_valid':
+      '出発前に取得した気象庁の予報では、この時間帯は雪の予報です。これは観測ではなく予報です。速度を落とし、車間距離をとってください。',
 };
 
 /// The bundled-audio lookup: the finite mouth.
