@@ -50,7 +50,10 @@ void main() {
       delegated = <String>[];
       engine = BundledAudioEngine(
         fallback: tts,
-        playAsset: (path, volume) async => played.add(path),
+        playAsset: (path, volume) async {
+          played.add(path);
+          return true; // the platform started playback
+        },
         onDelegatedToTts: delegated.add,
       );
     });
@@ -112,6 +115,23 @@ void main() {
         tts.spoken,
         <String>[kConditionsUnknownJaSpokenText],
         reason: 'Never leave the driver with nothing.',
+      );
+    });
+
+    test('a platform that does NOT start playback is treated as NOT SPOKEN — '
+        'never recorded as delivered', () async {
+      final silent = BundledAudioEngine(
+        fallback: tts,
+        // The native player returned false: the phrase did not play.
+        playAsset: (_, _) async => false,
+        onDelegatedToTts: delegated.add,
+      );
+      await silent.speak(kConditionsUnknownJaSpokenText);
+      expect(
+        tts.spoken,
+        <String>[kConditionsUnknownJaSpokenText],
+        reason: 'A false from the platform means she heard NOTHING. It must '
+            'fall back, never be counted as spoken.',
       );
     });
 

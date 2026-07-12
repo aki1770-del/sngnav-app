@@ -56,5 +56,66 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        // The offline MOUTH — plays a bundled ja safety phrase from the APK.
+        //
+        // WHY FIRST-PARTY: the safety voice was briefly routed through the
+        // `audioplayers` plugin, whose Android module ships its own buildscript
+        // pinned to Kotlin 1.7.10 / AGP 7.3.1 and declares a top-level
+        // `kotlin { }` block for a plugin it never applies. Under Flutter's
+        // modern plugin-loader that block cannot resolve, and it BROKE THE APK
+        // BUILD OUTRIGHT while `flutter test` stayed green — the tests never
+        // build an APK. A voice that must work on a road with no network cannot
+        // sit on a third-party Gradle contract that can silently un-build the
+        // app. So the mouth is ours: MediaPlayer, one file, no plugin.
+        //
+        // Contract: play(asset) resolves TRUE only when playback actually
+        // STARTED. A false/absent result means she was NOT spoken to, and the
+        // caller falls back rather than assuming she heard something.
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "sngnav/bundled_audio",
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "play" -> {
+                    val asset: String? = call.argument<String>("asset")
+                    if (asset.isNullOrBlank()) {
+                        result.success(false)
+                        return@setMethodCallHandler
+                    }
+                    try {
+                        // Flutter assets live under flutter_assets/<declared path>.
+                        val key = "flutter_assets/$asset"
+                        val afd = assets.openFd(key)
+                        val player = android.media.MediaPlayer()
+                        player.setAudioAttributes(
+                            android.media.AudioAttributes.Builder()
+                                .setUsage(
+                                    android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE,
+                                )
+                                .setContentType(
+                                    android.media.AudioAttributes.CONTENT_TYPE_SPEECH,
+                                )
+                                .build(),
+                        )
+                        player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                        afd.close()
+                        // Free the native player when the phrase finishes; a
+                        // leaked MediaPlayer per warning would exhaust the
+                        // device over a long winter drive.
+                        player.setOnCompletionListener { it.release() }
+                        player.setOnErrorListener { mp, _, _ -> mp.release(); true }
+                        player.prepare()
+                        player.start()
+                        result.success(true)
+                    } catch (e: Exception) {
+                        // Never crash the surface she is driving on. Report the
+                        // failure honestly so the caller can fall back to TTS.
+                        result.success(false)
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
     }
 }

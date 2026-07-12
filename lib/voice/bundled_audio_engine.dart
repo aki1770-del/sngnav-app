@@ -39,13 +39,27 @@
 ///     been earned and is not made here.
 library;
 
-import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/services.dart';
 import 'package:voice_guidance/voice_guidance.dart' show TtsEngine;
 
 import 'offline_safety_voice.dart';
 
 /// Plays a bundled asset (path relative to the `assets/` root) at [volume].
-typedef PlayAsset = Future<void> Function(String assetRelPath, double volume);
+///
+/// Returns TRUE only if playback actually STARTED. False means she was not
+/// spoken to, and the caller must fall back rather than assume she heard it.
+typedef PlayAsset = Future<bool> Function(String assetRelPath, double volume);
+
+/// The first-party mouth: our own Kotlin MediaPlayer, no third-party plugin.
+///
+/// The safety voice was briefly routed through `audioplayers`, whose Android
+/// module ships a buildscript pinned to Kotlin 1.7.10 / AGP 7.3.1 and declares a
+/// top-level `kotlin { }` block for a plugin it never applies. Under Flutter's
+/// modern plugin-loader that cannot resolve, and it BROKE THE APK BUILD while
+/// `flutter test` stayed green — because the tests never build an APK. A voice
+/// that must speak on a road with no network cannot sit on a third-party Gradle
+/// contract that can silently un-build the app.
+const MethodChannel kBundledAudioChannel = MethodChannel('sngnav/bundled_audio');
 
 /// A [TtsEngine] that speaks the finite ja safety core from bundled audio and
 /// delegates everything else to [fallback].
@@ -65,17 +79,18 @@ class BundledAudioEngine implements TtsEngine {
   final void Function(String assetPath)? _onBundledSpoken;
   final void Function(String text)? _onDelegatedToTts;
 
-  AudioPlayer? _resolved;
-  AudioPlayer get _player => _resolved ??= AudioPlayer();
-
   /// The play seam. Injectable so a test can prove the ROUTING (that a safety
   /// phrase reaches bundled bytes and never the TTS) without a platform channel
-  /// — the real AudioPlayer throws off-device, which would send every phrase
-  /// down the fallback path and let a broken mouth look healthy in CI.
+  /// — off-device the channel throws, which would send every phrase down the
+  /// fallback path and let a broken mouth look perfectly healthy in CI.
   PlayAsset get _play =>
       _injectedPlay ??
       (String assetRelPath, double volume) async {
-        await _player.play(AssetSource(assetRelPath), volume: volume);
+        final ok = await kBundledAudioChannel.invokeMethod<bool>(
+          'play',
+          <String, Object?>{'asset': assetRelPath},
+        );
+        return ok ?? false;
       };
 
   double _volume = 1.0;
@@ -96,13 +111,6 @@ class BundledAudioEngine implements TtsEngine {
   @override
   Future<void> setVolume(double volume) async {
     _volume = volume.clamp(0.0, 1.0);
-    try {
-      // `_resolved`, not `_player` — see stop(). The volume is carried in
-      // `_volume` and applied at play() time, so there is nothing to build here.
-      await _resolved?.setVolume(_volume);
-    } catch (_) {
-      // A player fault must never crash the surface a driver is relying on.
-    }
     await _fallback.setVolume(volume);
   }
 
@@ -120,9 +128,16 @@ class BundledAudioEngine implements TtsEngine {
       return _fallback.speak(text);
     }
     try {
-      // AssetSource paths are relative to the `assets/` root declared in
-      // pubspec, so the leading `assets/` is stripped.
-      await _play(asset.replaceFirst('assets/', ''), _volume);
+      // Asset paths are relative to the `assets/` root declared in pubspec, so
+      // the leading `assets/` is stripped.
+      final spoke = await _play(asset.replaceFirst('assets/', ''), _volume);
+      if (!spoke) {
+        // The platform did not start playback. She was NOT spoken to. Never
+        // record a phrase as delivered on a channel that returned false.
+        _onDelegatedToTts?.call(text);
+        await _fallback.speak(text);
+        return;
+      }
       _onBundledSpoken?.call(asset);
     } catch (_) {
       // If the bundled path itself faults, TTS is still better than silence —
@@ -134,25 +149,11 @@ class BundledAudioEngine implements TtsEngine {
 
   @override
   Future<void> stop() async {
-    try {
-      // `_resolved`, never `_player`: building a player in order to stop it
-      // would construct a platform channel that may not exist (and, off-device,
-      // throws) for no reason at all. Nothing playing means nothing to stop.
-      await _resolved?.stop();
-    } catch (_) {
-      // Stopping a player that never started is not a fault.
-    }
+    // A safety phrase is short and must never be cut off mid-word; the native
+    // player releases itself on completion. Nothing to stop here.
     await _fallback.stop();
   }
 
   @override
-  Future<void> dispose() async {
-    try {
-      await _resolved?.dispose();
-    } catch (_) {
-      // Disposing a player that was never built is not a fault.
-    }
-    _resolved = null;
-    await _fallback.dispose();
-  }
+  Future<void> dispose() async => _fallback.dispose();
 }
