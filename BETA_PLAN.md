@@ -21,9 +21,9 @@ plausible path by the mid-month checkpoint triggers the rescope rule below.
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
 | C1 | Drive-loop device-verified: HEAR (ja voice) + FEEL (haptic) + SEE (GPS dot, alert) on a physical phone (OPS-066) | ⬜ | — |
-| C2 | Offline survival: map + alerts through airplane-mode mid-drive, device-verified | ⬜ | — |
+| C2 | Offline survival: map + alerts through airplane-mode mid-drive, device-verified | 🟡 PARTIAL | `test/dead_zone/c2_offline_survival_test.dart`. MAP: real (bundled Akita MBTiles, airplane-mode pass 2026-07-10). MOUTH: RED-2 **closed** — all **37/37** safety-class lines the app can EMIT at runtime have bundled bytes (no TTS, no network), proven in the built APK (`unzip -l … \| grep audio/ja` → 37). MEMORY: **RED-1 STILL RED, deliberately** — the app models observation AGE and has no concept of forecast VALIDITY, so at T+90 nothing valid reaches her. Device-verified: **NO**. |
 | C3 | Real channel: release-signed build on Play internal testing; ≥1 tester installed via the track | ⬜ | — |
-| C4 | Train wired: JMA humidity → invisible-ice watch live; ja announcements spoken; pins current | ✅ | commit `67e1eb8` (watch + verbatim announcement + honest-unknown row; 205/205; APK builds). On-device HEAR of it → C1 |
+| C4 | Train wired: JMA humidity → invisible-ice watch live; pins current | 🟡 PARTIAL | commit `67e1eb8` (watch + verbatim announcement + honest-unknown row; APK builds). **CORRECTION 2026-07-12**: the words "ja announcements spoken" were FALSE and are struck. **NOBODY HAS EVER HEARD THIS APP SPEAK.** The one "confirmed" TTS run was an API-30 emulator with `-no-audio`, binding a **server** (network) voice — the exact channel that is silent offline. The wiring is verified; the SPEAKING is not. On-device HEAR → C1. |
 | C5 | ja floor on every HER-facing surface + OPS-059 accessibility floor | ⬜ | consent + advisories + watch row done; chrome audit owed |
 | C6 | Honesty at beta scale: claims match verified reality; 30-min crash-free session; in-app feedback path | ⬜ | — |
 
@@ -287,6 +287,24 @@ accounts). A beta tester sends feedback the way she sends a photo.
   only after both causes surfaced (Chair's 2026-07-09 discipline).
 - 2026-07-09 (v2 adoption): C4 ✅. W1 substantially complete 2 days early;
   emulator ladder + NSC 0.10.6 staging are the W1 remainder.
+- 2026-07-12 (**scoreboard correction — a scoreboard that lies is worse than
+  no scoreboard**): C4's ✅ and the words "ja announcements spoken" are
+  **RETRACTED**. Nobody has ever heard this app speak; the only "confirmed"
+  TTS run was an emulator with `-no-audio` binding a network voice.
+- 2026-07-12 (the mouth, second pass): the morning's bundled ja voice was
+  **re-measured and found nearly empty**. Its 10 phrases were chosen by
+  GREPPING SOURCE TREES — including catalog packages this app never calls —
+  instead of enumerating what the app EMITS. Measured: **37** safety-class
+  static ja strings are emittable at runtime; the shipped mouth covered **2**;
+  **8 of its 10 WAVs matched no string the app can emit** (1.4 MB of dead
+  weight in her APK), and it could not say a single hazard line — no black
+  ice, no 圧雪, no アイスバーン. RE-DERIVED from the runtime emitters
+  (`test/voice/runtime_emissions.dart` CALLS the production builders):
+  **37/37 covered, 0 dead**, 7.7 MB, present in the built APK. The honest
+  remainder, recorded not smoothed: 1 SLOTTED line (the hour-stamped stale
+  black-ice line) cannot be pre-rendered and is SILENT offline; 58 NAV-class
+  maneuver lines are not bundled because they exist only when a live network
+  route was fetched. **Still owed: on-device HEAR (C1).**
 
 ## Ownership (§4)
 AAE owns the app + execution; SDE debug + traps; NDI the JMA seam; FDD the

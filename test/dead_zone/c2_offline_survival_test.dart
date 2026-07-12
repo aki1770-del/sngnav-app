@@ -20,9 +20,17 @@
 ///                      line. Nothing else exists to say.
 ///   VOICE    absent  — the speech path is flutter_tts (system TTS), measured
 ///                      this day as silent-then-hung offline on her device. The
-///                      repo contains ZERO bundled audio.
+///                      repo contained ZERO bundled audio.
 ///
 ///   => She has a map, and silence.
+///
+/// VOICE, SECOND PASS (2026-07-12 evening). A first mouth shipped that morning
+/// and was WRONG: its 10 phrases were picked by grepping source trees — including
+/// packages this app never calls — so it covered 2 of the 37 safety lines the app
+/// can actually emit, and 8 of its 10 WAVs matched no emittable string at all. It
+/// could not say a single hazard line. RE-DERIVED from the runtime emissions:
+/// 37/37 covered, 0 dead, proven present in the built APK. NOBODY HAS HEARD IT
+/// PLAY ON HER PHONE YET — that is still owed.
 ///
 /// WHAT THIS TEST DOES NOT ASK FOR. It does NOT ask us to announce a stale
 /// reading as if it were live. Honest-absence and the cry-wolf discipline stand
@@ -48,8 +56,11 @@
 ///     departure, still perfectly valid for the whole trip, is DISCARDED at 60
 ///     minutes to protect the honesty of a claim, at the cost of the service.
 ///
-///   RED-2 (NO MOUTH) There is no bundled offline speech. Every judgement we
-///     ever build is worthless if it cannot be spoken when the centre is gone.
+///   RED-2 (THE MOUTH) — CLOSED 2026-07-12 (evening, second pass). Every
+///     safety-class line the app can EMIT at runtime now has bundled bytes that
+///     need no TTS and no network. The assertion below is COVERAGE-shaped, not
+///     file-exists-shaped: the first version went green on ten files that said
+///     almost nothing the app says.
 ///
 /// GREEN CONDITION. RED-1 closes when the condition seam admits a source with NO
 /// fetch and NO point-query — a trip-window-valid hazard bundle prefetched at
@@ -57,7 +68,8 @@
 /// dead-reckoned motion, the on-device bridge/elevation asset). RED-2 closes
 /// when the finite ja SAFETY vocabulary is pre-rendered into bundled audio with
 /// zero TTS and zero network dependency (Chair-ruled 2026-07-12: synth now,
-/// human-record the safety core before winter).
+/// human-record the safety core before winter). RED-2 is GREEN as of the
+/// re-derived 37-phrase mouth; RED-1 remains RED and is left RED deliberately.
 ///
 /// This is also, exactly, the thing nobody ships as something another developer
 /// can build on: a condition source that needs no source.
@@ -67,6 +79,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/services/staleness_policy.dart';
+import 'package:sngnav_app/voice/offline_safety_voice.dart';
+
+import '../voice/runtime_emissions.dart';
 
 void main() {
   group('C2 — offline survival at T+90 in the dead zone', () {
@@ -130,42 +145,53 @@ point-query — a trip-window-valid hazard bundle prefetched at plan time.
       },
     );
 
+    // RED-2, RE-WRITTEN 2026-07-12 (second pass, same day). The FIRST version of
+    // this assertion asked only whether ANY audio file existed on OUR DISK. It
+    // went green the moment ten WAVs landed — EIGHT of which corresponded to no
+    // string the app can emit, and NOT ONE of which was a hazard line the app
+    // actually speaks. A test of our disk is not a test of her hearing.
+    //
+    // The honest assertion is COVERAGE: every SAFETY-class string the app can
+    // pass to speak() at runtime must have real bytes on the phone. The runtime
+    // enumeration itself lives in test/voice/runtime_emissions.dart (it CALLS
+    // the production emitters); here we assert the bytes exist and are speech.
     test(
-      'RED-2 (NO MOUTH): there is no bundled offline speech — every judgement we '
-      'build is unspeakable with the centre gone',
+      'RED-2 (THE MOUTH): every SAFETY-class line the app can EMIT at runtime '
+      'has bundled bytes — with no TTS and no network',
       () {
-        final audioDir = Directory('assets/audio');
-        final bundled = audioDir.existsSync()
-            ? audioDir
-                .listSync(recursive: true)
-                .whereType<File>()
-                .where(
-                  (f) => const ['.wav', '.mp3', '.ogg', '.m4a']
-                      .any((e) => f.path.endsWith(e)),
-                )
-                .toList()
-            : <File>[];
+        final safety = emittableSafetyStaticJa();
+        expect(safety, isNotEmpty, reason: 'no emissions — test is vacuous');
+
+        final unspeakable = <String>[];
+        for (final line in safety) {
+          final asset = OfflineSafetyVoice.assetFor(line);
+          if (asset == null) {
+            unspeakable.add('NO CATALOG ENTRY: $line');
+            continue;
+          }
+          final f = File(asset);
+          // A RIFF header alone is ~44 bytes; under 8 KB is not speech, it is a
+          // file that plays as silence and looks fine in a listing.
+          if (!f.existsSync() || f.lengthSync() < 8000) {
+            unspeakable.add('NO BYTES: $asset ($line)');
+          }
+        }
 
         expect(
-          bundled,
-          isNotEmpty,
+          unspeakable,
+          isEmpty,
           reason: '''
-FAILS TODAY, AND MUST.
+${unspeakable.length} of ${safety.length} safety-class lines the app EMITS cannot
+be spoken with the centre gone:
+${unspeakable.join('\n')}
 
-The repo contains ZERO bundled audio. Her only voice path is flutter_tts (system
-TTS), which we measured on 2026-07-12 as silent-then-hung offline on her phone —
-there is no offline ja voice on it.
+Her only other voice path is flutter_tts (system TTS), measured 2026-07-12 as
+silent-then-hung offline on her phone — there is no offline ja voice on it.
 
-W0 ("winter warnings survive the dead-zone", commit e2cd352) hardened the
-DETECTION layer. It survives into a layer THAT HAS NO MOUTH.
-
-GREEN when: the finite ja SAFETY vocabulary is pre-rendered into bundled audio
-assets — zero TTS dependency, zero network dependency — and wired as the offline
-speech path. Chair-ruled 2026-07-12: synth now, human-record the safety core
-before winter.
-
-Ordering note: this red is FIRST. Without a mouth, no amount of judgement reaches
-her, however good it becomes.
+HONEST BOUND (not closed by this test): these bytes are proven to be in the APK
+(unzip -l | grep audio/ja) and proven to match the emitted strings. NOBODY HAS
+YET HEARD THEM PLAY ON HER PHONE. On-device hearing verification is still owed
+and is NOT claimed here.
 ''',
         );
       },

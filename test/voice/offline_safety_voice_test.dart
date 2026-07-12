@@ -21,6 +21,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/services/staleness_policy.dart';
 import 'package:sngnav_app/voice/offline_safety_voice.dart';
 
+import 'runtime_emissions.dart';
+
 void main() {
   group('offline safety voice — the finite mouth', () {
     test('the catalog is non-empty and every entry is slotless', () {
@@ -78,12 +80,14 @@ void main() {
 
     test('lookup is exact — a near-miss resolves to NOTHING, never to the '
         'wrong warning', () {
-      const real = 'ブラックアイスバーンに注意。路面が凍結しているおそれがあります。';
+      // The REAL live black-ice line the app emits (snow_rendering
+      // invisibleBlackIceAnnouncement.jaSpokenText, main.dart:1161).
+      final real = kOfflineSafetyVoiceJa['black_ice_live']!;
       expect(OfflineSafetyVoice.assetFor(real), isNotNull);
 
-      // A single inserted space, a truncation, a different warning: all null.
-      expect(OfflineSafetyVoice.assetFor('ブラックアイスバーン に注意。'), isNull);
+      // A truncation, an inserted space, a different warning: all null.
       expect(OfflineSafetyVoice.assetFor('ブラックアイスバーンに注意。'), isNull);
+      expect(OfflineSafetyVoice.assetFor('ブラックアイスバーン に注意。'), isNull);
       expect(OfflineSafetyVoice.assetFor('圧雪路面です。'), isNull);
       expect(OfflineSafetyVoice.assetFor(''), isNull);
     });
@@ -95,32 +99,28 @@ void main() {
       );
     });
 
-    test('NO INVENTED PHRASES: every catalog string exists verbatim in shipping '
-        'source', () {
-      // Search this app's lib/ and the sibling catalog packages it depends on.
-      final roots = <Directory>[
-        Directory('lib'),
-        Directory('/home/komada/SNGNav/packages'),
-      ].where((d) => d.existsSync());
-
-      final sources = <String>[
-        for (final root in roots)
-          for (final f in root
-              .listSync(recursive: true)
-              .whereType<File>()
-              .where((f) => f.path.endsWith('.dart'))
-              // Don't let the catalog vouch for itself.
-              .where((f) => !f.path.endsWith('offline_safety_voice.dart')))
-            f.readAsStringSync(),
-      ];
-      expect(sources, isNotEmpty, reason: 'no source read — test is vacuous');
-
+    // PROVENANCE, RE-GROUNDED (2026-07-12). The previous version of this test
+    // grepped `lib/` and the SNGNav monorepo WORKING TREE for each phrase. That
+    // is exactly how the fabricated 10-phrase mouth passed: the monorepo source
+    // is NOT what this app resolves (it resolves snow_rendering 0.2.7 /
+    // navigation_safety_core 0.10.5 from pub.dev), so a string that lives only
+    // in an unpublished package the app never calls was blessed as "shipping
+    // source" — while not one line the app actually emits was in the mouth.
+    //
+    // Provenance is now proven the only honest way: every catalog phrase must
+    // be a string produced BY CALLING the production emitters at the resolved
+    // package versions. Strictly stronger than the grep — a grep can match text
+    // in code no call path reaches; this cannot.
+    test('NO INVENTED PHRASES: every catalog string is produced by a real '
+        'runtime emitter', () {
+      final emittable = emittableSafetyStaticJa();
+      expect(emittable, isNotEmpty, reason: 'no emissions — test is vacuous');
       for (final e in kOfflineSafetyVoiceJa.entries) {
         expect(
-          sources.any((s) => s.contains(e.value)),
+          emittable.contains(e.value),
           isTrue,
-          reason: 'INVENTED PHRASE "${e.key}": «${e.value}» appears in no '
-              'shipping source. The mouth may only speak what the app says.',
+          reason: 'INVENTED PHRASE "${e.key}": «${e.value}» is emitted by no '
+              'runtime call path. The mouth may only speak what the app says.',
         );
       }
     });
