@@ -31,9 +31,14 @@
 ///
 /// THE HONEST REMAINDER (measured, not hand-waved):
 ///  - SLOTTED lines cannot be pre-rendered. One exists:
-///    `staleInvisibleBlackIceSpokenText(hourJst:)` (main.dart:1240) — it
-///    interpolates the observation hour. It routes to TTS; offline it is
-///    SILENT. Recorded bound, not a claim.
+///    `staleInvisibleBlackIceSpokenText(hourJst:)` (invisible_ice_watch.dart)
+///    — it interpolates the observation hour. It routes to TTS; offline the
+///    AUDIO is SILENT. Since 2026-07-15 the SAME stamped line renders as a
+///    VISIBLE card in the JMA feed-loss panel (main.dart `_staleIceVisibleCard`
+///    via the shared `feedLossVerdict`), so the content now reaches HER
+///    through the SCREEN even when the mouth cannot say it. The VOICE gap
+///    itself remains: an eyes-on-road driver still does not HEAR this line
+///    offline. Recorded bound, not a claim.
 ///  - NAV-class lines (58 static maneuver strings, ManeuverNarrator) are NOT
 ///    bundled. They exist ONLY when a live OSRM route was fetched over the
 ///    network (lib/route_fetch.dart:50) — in the dead zone this mouth exists

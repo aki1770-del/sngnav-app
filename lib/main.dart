@@ -229,6 +229,115 @@ DateTime? positionWatchdogPollTime({
   return now;
 }
 
+/// N15 — the FEED-LOSS decision (JmaFailure / no successful fetch this cycle),
+/// extracted to ONE function so the VOICE path (`_announceWatchTransitions`)
+/// and the VISIBLE panel (`_jmaPanel`) compute the SAME verdict from the same
+/// inputs. Everything spoken must have a visible counterpart, and the two
+/// layers must never disagree: before this extraction the panel said "Cached
+/// data is NOT shown" while the voice was speaking FROM that cache — a screen
+/// that contradicted the speaker on a safety surface.
+sealed class FeedLossVerdict {
+  const FeedLossVerdict();
+}
+
+/// True no-reading dead zone (no cache / unparseable stamp / past the retain
+/// bound), but the plan-time forecast memory holds a hazard the publisher
+/// declared VALID FOR NOW — spoken and shown instead of the absence line.
+final class FeedLossForecastMemory extends FeedLossVerdict {
+  const FeedLossForecastMemory({
+    required this.spokenJaLine,
+    required this.capturedAt,
+  });
+
+  /// The exact ja line the voice speaks ([TripHazardMemory.speakableJaAt]).
+  final String spokenJaLine;
+
+  /// When WE captured the forecast (before departure) — the timestamp the
+  /// visible card must carry so she knows this is plan-time knowledge.
+  final DateTime capturedAt;
+}
+
+/// True no-reading dead zone with nothing valid to say: the honest absence.
+final class FeedLossAbsence extends FeedLossVerdict {
+  const FeedLossAbsence();
+}
+
+/// Retained observation within the slow bound with the black-ice window
+/// present: re-warn, honestly time-stamped, never as live.
+final class FeedLossStaleIce extends FeedLossVerdict {
+  const FeedLossStaleIce({required this.hourJst, required this.ageMinutes});
+
+  /// FLOORED JST hour of the retained observation (`spokenHourJst`) — the
+  /// stamp in the spoken line, and in its visible counterpart.
+  final int hourJst;
+
+  /// Age of the retained observation in whole minutes — the staleness label.
+  final int ageMinutes;
+}
+
+/// Retained observation within the slow bound, no slow hazard: honest spoken
+/// SILENCE (the absence line here would be false — we hold a ≤60-min reading).
+/// The panel still shows the retained fields with the staleness label; it
+/// deliberately does NOT re-render a watch verdict from stale data (a stale
+/// 「該当なし」 would read as current calm).
+final class FeedLossRetainedQuiet extends FeedLossVerdict {
+  const FeedLossRetainedQuiet({required this.ageMinutes});
+
+  /// Age of the retained observation in whole minutes — the staleness label.
+  final int ageMinutes;
+}
+
+/// Decide what a feed-loss cycle says and shows. Pure; the announce gating
+/// (once-per-entry absence / forecast, re-warn-per-cycle stale ice) stays in
+/// the caller — this is the CONTENT decision only.
+FeedLossVerdict feedLossVerdict({
+  required JmaObservation? cached,
+  required TripHazardMemory? memory,
+  required DateTime now,
+  required bool spokenJa,
+}) {
+  final observedAt =
+      cached == null ? null : observedAtJstAsLocal(cached.observedAtJstKey);
+  // The retain/expire bound uses the TRUE absolute instant (JST digits → UTC)
+  // compared against now-as-UTC, so it is correct on ANY device timezone, not
+  // only a JST-clock phone (design safety review #3). The stamped hour still
+  // comes from observedAt (raw JST digits) — timezone-independent.
+  final observedInstant =
+      cached == null ? null : observedAtJstInstant(cached.observedAtJstKey);
+
+  // (1) NO reading at all: no cache, unparseable stamp, or PAST the slow
+  //     bound (`>` = past the window; exactly 60 min old is still RETAINED).
+  if (cached == null ||
+      observedAt == null ||
+      observedInstant == null ||
+      now.toUtc().difference(observedInstant) > kSlowHazardRetainWindow) {
+    // The MEMORY, before the silence (C2 RED-1): a hazard the publisher
+    // declared valid for THIS hour, captured before she left. ja-gated
+    // because the SPOKEN choice is bounded by the bundled mouth (en forecast
+    // voice not rendered — recorded, not claimed) and the visible counterpart
+    // mirrors the voice exactly rather than showing state the voice never
+    // said (AAA F1: the two channels must not diverge).
+    final line = spokenJa ? memory?.speakableJaAt(now) : null;
+    if (line != null && memory != null) {
+      return FeedLossForecastMemory(
+        spokenJaLine: line,
+        capturedAt: memory.capturedAt,
+      );
+    }
+    return const FeedLossAbsence();
+  }
+
+  final ageMinutes = now.toUtc().difference(observedInstant).inMinutes;
+  // SLOW hazard (black ice): recomputed from the retained observation.
+  if (evaluateInvisibleIceWatch(cached) == InvisibleIceWatchResult.watch) {
+    return FeedLossStaleIce(
+      hourJst: spokenHourJst(observedAt),
+      ageMinutes: ageMinutes,
+    );
+  }
+  return FeedLossRetainedQuiet(ageMinutes: ageMinutes);
+}
+
 class SngnavApp extends StatelessWidget {
   /// [actuators] is injectable so tests (and future device harnesses) can
   /// supply a fake/real actuator layer; production leaves it null and the app
@@ -1492,122 +1601,111 @@ class _HomePageState extends State<HomePage> {
     }
 
     // FEED-LOSS path — JmaFailure or null (no successful fetch this cycle).
-    // Fall back to the retained observation and decide stale-vs-absence.
-    final cached = _lastGoodObservation;
-    final observedAt =
-        cached == null ? null : observedAtJstAsLocal(cached.observedAtJstKey);
-    // The retain/expire bound uses the TRUE absolute instant (JST digits → UTC)
-    // compared against now-as-UTC, so it is correct on ANY device timezone, not
-    // only a JST-clock phone (design safety review #3: an off-JST parse could
-    // retain a hours-old reading or expire a fresh one). The SPOKEN hour still
-    // comes from observedAt (raw JST digits) — timezone-independent.
-    final observedInstant =
-        cached == null ? null : observedAtJstInstant(cached.observedAtJstKey);
-
-    // (1) NO reading at all: no cache, unparseable stamp, or PAST the slow bound
-    //     → the honest ABSENCE-LINE (GAP-2). Fires ONCE per entry (gate), so a
-    //     persistent dead-zone does not spam; re-arms via the JmaSuccess reset.
-    //     The bound is computed on the EXACT observedAt instant (`>` = past the
-    //     window; exactly 60 min old is still RETAINED, not expired).
-    if (cached == null ||
-        observedAt == null ||
-        observedInstant == null ||
-        _now().toUtc().difference(observedInstant) > kSlowHazardRetainWindow) {
-      // Reset the LIVE rise-gates on entry to a TRUE no-reading dead-zone. Here
-      // — and ONLY here — continuity of the spoken channel is genuinely broken:
-      // HER just heard "conditions unavailable". Without this reset, a live
-      // hazard that RETURNS on feed-recovery is silently suppressed (iceRose =
-      // fired && !alreadyAnnounced stays false), so HER's last spoken word about
-      // the road would remain "unavailable" while a live black-ice warning is
-      // swallowed exactly in the recovery-from-dead-zone case. NOT reset on every
-      // feed-loss cycle (that re-introduces per-blip cry-wolf) and NOT in the
-      // stale-ice branch below (it is actively re-warning via the stamped line).
-      _invisibleIceAnnounced = false;
-      _turmoilAnnounced = false;
-
-      // ── C2 RED-1: THE MEMORY, BEFORE THE SILENCE ────────────────────────────
-      // We have no live reading. But we may still KNOW something TRUE: a hazard
-      // the publisher declared VALID FOR THIS VERY HOUR, which she captured
-      // before she left. That is not a stale observation being dressed up as
-      // live — it is a forecast, inside its own publisher-declared window, and
-      // the spoken line says so out loud (これは観測ではなく予報です).
-      //
-      // This is the difference between a map with silence and a map that warns
-      // her. It is consulted BEFORE the absence line, because "we know nothing"
-      // is FALSE when we know this.
-      final forecastLine = _spokenJa
-          ? _tripHazardMemory?.speakableJaAt(_now())
-          : null; // en forecast voice not yet rendered — recorded, not claimed.
-      if (forecastLine != null) {
+    // The CONTENT decision (stale-vs-forecast-vs-absence-vs-quiet) is the
+    // shared, testable [feedLossVerdict] — the SAME function `_jmaPanel`
+    // renders from, so the screen can never contradict the speaker (N15).
+    // The announce GATING (once-per-entry vs re-warn-per-cycle) stays here.
+    final verdict = feedLossVerdict(
+      cached: _lastGoodObservation,
+      memory: _tripHazardMemory,
+      now: _now(),
+      spokenJa: _spokenJa,
+    );
+    switch (verdict) {
+      // ── (1) TRUE no-reading dead zone ────────────────────────────────────
+      // Both cases reset the LIVE rise-gates on entry. Here — and ONLY here —
+      // continuity of the spoken channel is genuinely broken: HER just heard
+      // "conditions unavailable" (or the forecast memory). Without this reset,
+      // a live hazard that RETURNS on feed-recovery is silently suppressed
+      // (iceRose = fired && !alreadyAnnounced stays false), so HER's last
+      // spoken word about the road would remain "unavailable" while a live
+      // black-ice warning is swallowed exactly in the recovery-from-dead-zone
+      // case. NOT reset on every feed-loss cycle (per-blip cry-wolf) and NOT
+      // in the stale-ice case (it is actively re-warning via the stamped line).
+      case FeedLossForecastMemory(:final spokenJaLine):
+        _invisibleIceAnnounced = false;
+        _turmoilAnnounced = false;
+        // C2 RED-1: THE MEMORY, BEFORE THE SILENCE. We have no live reading,
+        // but we KNOW something TRUE: a hazard the publisher declared VALID
+        // FOR THIS VERY HOUR, captured before she left. Not a stale
+        // observation dressed up as live — a forecast, inside its own
+        // publisher-declared window, and the spoken line says so out loud
+        // (これは観測ではなく予報です). Consulted BEFORE the absence line,
+        // because "we know nothing" is FALSE when we know this. Announce is
+        // gated once per entry (mirrors the absence gate).
         _absenceActive = false;
         if (!_forecastAnnounceActive) {
           _forecastAnnounceActive = true;
           unawaited(_announcer.announce(
             severity: AlertSeverity.warning,
-            text: forecastLine,
+            text: spokenJaLine,
             localeTag: ttsTag,
           ));
         }
-        return;
-      }
-      _forecastAnnounceActive = false;
 
-      if (!_absenceActive) {
-        _absenceActive = true;
+      case FeedLossAbsence():
+        _invisibleIceAnnounced = false;
+        _turmoilAnnounced = false;
+        // The honest ABSENCE-LINE (GAP-2). Fires ONCE per entry (gate), so a
+        // persistent dead-zone does not spam; re-arms via the JmaSuccess reset.
+        _forecastAnnounceActive = false;
+        if (!_absenceActive) {
+          _absenceActive = true;
+          unawaited(_announcer.announce(
+            severity: AlertSeverity.warning,
+            text: _spokenJa
+                ? kConditionsUnknownJaSpokenText
+                : kConditionsUnknownEnSpokenText,
+            localeTag: ttsTag,
+          ));
+        }
+
+      // ── (2) Within the slow bound, black-ice window present ─────────────
+      // KEEP announcing HONESTLY TIME-STAMPED (Chair: retain + keep
+      // announcing, never as live). NOT gated once-per-entry (unlike the
+      // absence line): a persistent black-ice dead-zone re-warns each
+      // feed-loss cycle, honestly re-stamped. The JMA ticker cadence
+      // (~10-min AMeDAS) is the rate-limiter (one announce per _refreshJma).
+      // A hazard beats the absence line, so ice takes precedence.
+      case FeedLossStaleIce(:final hourJst):
+        _absenceActive = false;
         unawaited(_announcer.announce(
           severity: AlertSeverity.warning,
-          text: _spokenJa
-              ? kConditionsUnknownJaSpokenText
-              : kConditionsUnknownEnSpokenText,
+          text:
+              staleInvisibleBlackIceSpokenText(hourJst: hourJst, ja: _spokenJa),
           localeTag: ttsTag,
         ));
-      }
-      return;
-    }
 
-    // Within the slow bound. SLOW hazard (black ice): recompute from the cache
-    // and, if the window is present, KEEP announcing HONESTLY TIME-STAMPED
-    // (Chair: retain + keep announcing, never as live). The stale line is NOT
-    // gated once-per-entry (unlike the absence line): a persistent black-ice
-    // dead-zone re-warns each feed-loss cycle, honestly re-stamped. The JMA
-    // ticker cadence (~10-min AMeDAS) is the rate-limiter (one announce per
-    // _refreshJma). A hazard beats the absence line, so ice takes precedence.
-    final iceVerdict = evaluateInvisibleIceWatch(cached);
-    if (iceVerdict == InvisibleIceWatchResult.watch) {
-      _absenceActive = false;
-      final hour = spokenHourJst(observedAt);
-      unawaited(_announcer.announce(
-        severity: AlertSeverity.warning,
-        text: staleInvisibleBlackIceSpokenText(hourJst: hour, ja: _spokenJa),
-        localeTag: ttsTag,
-      ));
-      return;
+      // ── (3) Within the slow bound, no slow hazard ────────────────────────
+      // FAST hazard (turmoil): SILENT when stale — never announced from the
+      // cache (cry-wolf discipline). No-op by construction (the fast watch is
+      // NOT invoked on the cache).
+      //
+      // KNOWN LIMITATION — DROPPED SUSTAINED GALE (design §3 caveat + §8 attack
+      // #2; review finding #2, OPS-068 fail-toward-keeping). Wind is lumped
+      // into the FAST lane, so on feed loss a still-valid SUSTAINED synoptic
+      // gale (measured mean wind ≥ kWindCautionMeanMs, 暴風-class) is silently
+      // dropped even at ~0 min staleness — a gale is slow-varying (persists for
+      // HOURS), unlike a convective downpour cell, so a 10-60-min-old gale
+      // reading is still physically indicative, exactly the property that
+      // justified retaining black ice. This is a RECORDED, deliberately-
+      // deferred gap, not an invisible one: the 暴風警報 JMA-warnings lane
+      // (turmoil_watch.dart:33-36) is likewise not cached by W0. A fix would
+      // give wind its own longer retain window + a stale-stamped, past-framed
+      // line reusing the not-live clause (mirror the black-ice path); deferred
+      // as too large for this pass + needs AAA/NDI review. Pinned by the
+      // "KNOWN LIMITATION … sustained wind" test so the drop stays a recorded
+      // decision. See unresolved_safety_items.
+      //
+      // Within-bound, non-watch (cache says clear, or the ice channel
+      // abstained): honest SILENCE. We hold a reading ≤60 min old, so firing
+      // the absence-line here would be FALSE — the absence-line fires ONLY on
+      // true no-reading, handled at (1). We do NOT flip the gates here: a
+      // within-bound clear does not end an active stale/absence state (only a
+      // JmaSuccess re-arm does).
+      case FeedLossRetainedQuiet():
+        break;
     }
-
-    // FAST hazard (turmoil): SILENT when stale — never announced from the cache
-    // (cry-wolf discipline). No-op by construction (the fast watch is NOT
-    // invoked on the cache).
-    //
-    // KNOWN LIMITATION — DROPPED SUSTAINED GALE (design §3 caveat + §8 attack #2;
-    // review finding #2, OPS-068 fail-toward-keeping). Wind is lumped into the
-    // FAST lane, so on feed loss a still-valid SUSTAINED synoptic gale (measured
-    // mean wind ≥ kWindCautionMeanMs, 暴風-class) is silently dropped even at ~0
-    // min staleness — a gale is slow-varying (persists for HOURS), unlike a
-    // convective downpour cell, so a 10-60-min-old gale reading is still
-    // physically indicative, exactly the property that justified retaining black
-    // ice. This is a RECORDED, deliberately-deferred gap, not an invisible one:
-    // the 暴風警報 JMA-warnings lane (turmoil_watch.dart:33-36) is likewise not
-    // cached by W0. A fix would give wind its own longer retain window + a
-    // stale-stamped, past-framed line reusing the not-live clause (mirror the
-    // black-ice path); deferred as too large for this pass + needs AAA/NDI
-    // review. Pinned by the "KNOWN LIMITATION … sustained wind" test so the drop
-    // stays a recorded decision. See unresolved_safety_items.
-    //
-    // Within-bound, non-watch (cache says clear, or the ice channel abstained):
-    // honest SILENCE. We hold a reading ≤60 min old, so firing the absence-line
-    // here would be FALSE — the absence-line fires ONLY on true no-reading,
-    // handled at (1). We do NOT flip the gates here: a within-bound clear does
-    // not end an active stale/absence state (only a JmaSuccess re-arm does).
   }
 
   Future<void> _refreshCorridor() async {
@@ -2459,36 +2557,10 @@ class _HomePageState extends State<HomePage> {
     switch (result) {
       case JmaSuccess(:final observation):
         final stale = observation.minutesStale(DateTime.now());
-        final temp = observation.temperatureCelsius;
-        final hum = observation.humidityPercent;
-        final wind = observation.windMetersPerSecond;
-        final snow = observation.snowDepthCm;
-        final ts = observation.observedAtJstKey;
-        // Format observed-at: yyyymmddHHMMSS → yyyy-mm-dd HH:MM JST
-        String obsDisplay = ts;
-        if (ts.length == 14) {
-          obsDisplay =
-              '${ts.substring(0, 4)}-${ts.substring(4, 6)}-${ts.substring(6, 8)} '
-              '${ts.substring(8, 10)}:${ts.substring(10, 12)} JST';
-        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _kv('Station', '${observation.stationName} (${observation.stationId})'),
-            _kv('Observed at', obsDisplay),
-            _kv('Temperature', temp == null ? '—' : '${temp.toStringAsFixed(1)} °C'),
-            _kv('Humidity', hum == null ? '—' : '$hum %'),
-            _kv('Wind', wind == null ? '—' : '${wind.toStringAsFixed(1)} m/s'),
-            // W3 — the measured rain-rate the turmoil watch judges on,
-            // shown verbatim beside the inference (same discipline as the
-            // fields above; '—' = the station did not report the field).
-            _kv(
-              '降水量（10分間）',
-              observation.precipitation10mMm == null
-                  ? '—'
-                  : '${observation.precipitation10mMm!.toStringAsFixed(1)} mm',
-            ),
-            _kv('Snow depth', snow == null ? '—' : '${snow.toStringAsFixed(0)} cm'),
+            ..._observationFieldRows(observation),
             _kv('Fetched', _formatFetched(observation.fetchedAt, stale)),
             // BETA_PLAN W1 — the invisible-ice watch verdict, rendered with
             // the same honest-unknown discipline as the fields above.
@@ -2541,6 +2613,21 @@ class _HomePageState extends State<HomePage> {
           ],
         );
       case JmaFailure(:final reason):
+        // N15 — the screen must match the speaker. This panel previously said
+        // "Cached data is NOT shown" while the voice was WARNING FROM that
+        // cache (the stale black-ice re-warn) — a flat contradiction on the
+        // safety surface. The verdict below is computed by the SAME function
+        // the voice path announces from ([feedLossVerdict]), so the two
+        // channels cannot drift apart, and every feed-loss spoken line has a
+        // visible counterpart a deaf/HoH or muted-media driver can read.
+        final verdict = feedLossVerdict(
+          cached: _lastGoodObservation,
+          memory: _tripHazardMemory,
+          now: _now(),
+          spokenJa: _spokenJa,
+        );
+        final retained = _lastGoodObservation;
+        final l = AppL10n.of(context);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -2553,11 +2640,43 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(
-              'Cached data is NOT shown — staleness must be visible. Try again or '
-              'check connectivity.',
-              style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-            ),
+            ...switch (verdict) {
+              // Retained + hazard: the fields she may be HEARING about, with
+              // the staleness label FIRST, then the visible counterpart of the
+              // exact stamped line the voice re-warns with.
+              FeedLossStaleIce(:final hourJst, :final ageMinutes) => [
+                  _jmaStaleBanner(l, ageMinutes),
+                  if (retained != null) ..._observationFieldRows(retained),
+                  const SizedBox(height: 4),
+                  _staleIceVisibleCard(hourJst),
+                ],
+              // Retained, no slow hazard: the fields, staleness labelled.
+              // Deliberately NO watch-verdict row re-rendered from the stale
+              // reading — a stale 「該当なし」 shown here would read as current
+              // calm, and absence must never render as calm.
+              FeedLossRetainedQuiet(:final ageMinutes) => [
+                  _jmaStaleBanner(l, ageMinutes),
+                  if (retained != null) ..._observationFieldRows(retained),
+                ],
+              // No valid observation, but the plan-time forecast memory holds
+              // a publisher-declared hazard valid NOW: the observation lane is
+              // honestly empty AND the forecast card shows what the voice says.
+              FeedLossForecastMemory(
+                :final spokenJaLine,
+                :final capturedAt
+              ) =>
+                [
+                  _noValidObservationRow(l),
+                  const SizedBox(height: 4),
+                  _forecastMemoryVisibleCard(l, spokenJaLine, capturedAt),
+                ],
+              // Nothing valid to show: the visible counterpart of the spoken
+              // absence line — never a bare "not shown" that contradicts or
+              // undersells what the speaker said.
+              FeedLossAbsence() => [
+                  _conditionsUnknownVisibleRow(),
+                ],
+            },
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
@@ -2568,6 +2687,196 @@ class _HomePageState extends State<HomePage> {
           ],
         );
     }
+  }
+
+  /// The verbatim JMA observation fields — shared between the success panel
+  /// and the feed-loss retained display, so a retained reading renders with
+  /// IDENTICAL formatting to a live one (only the labels around it differ:
+  /// success adds Fetched + the live watch rows; feed-loss adds the staleness
+  /// banner and never re-renders a watch verdict from stale data).
+  List<Widget> _observationFieldRows(JmaObservation observation) {
+    final temp = observation.temperatureCelsius;
+    final hum = observation.humidityPercent;
+    final wind = observation.windMetersPerSecond;
+    final snow = observation.snowDepthCm;
+    final ts = observation.observedAtJstKey;
+    // Format observed-at: yyyymmddHHMMSS → yyyy-mm-dd HH:MM JST
+    String obsDisplay = ts;
+    if (ts.length == 14) {
+      obsDisplay =
+          '${ts.substring(0, 4)}-${ts.substring(4, 6)}-${ts.substring(6, 8)} '
+          '${ts.substring(8, 10)}:${ts.substring(10, 12)} JST';
+    }
+    return [
+      _kv('Station', '${observation.stationName} (${observation.stationId})'),
+      _kv('Observed at', obsDisplay),
+      _kv('Temperature', temp == null ? '—' : '${temp.toStringAsFixed(1)} °C'),
+      _kv('Humidity', hum == null ? '—' : '$hum %'),
+      _kv('Wind', wind == null ? '—' : '${wind.toStringAsFixed(1)} m/s'),
+      // W3 — the measured rain-rate the turmoil watch judges on,
+      // shown verbatim beside the inference (same discipline as the
+      // fields above; '—' = the station did not report the field).
+      _kv(
+        '降水量（10分間）',
+        observation.precipitation10mMm == null
+            ? '—'
+            : '${observation.precipitation10mMm!.toStringAsFixed(1)} mm',
+      ),
+      _kv('Snow depth', snow == null ? '—' : '${snow.toStringAsFixed(0)} cm'),
+    ];
+  }
+
+  /// N15 — prominent staleness label over RETAINED observation fields after a
+  /// failed fetch. The retained fields ARE shown (the voice may be warning
+  /// from them); this banner is the on-screen guarantee she is not reading
+  /// them as live (the visual sibling of the spoken 「最新の情報は取得できて
+  /// いません」 clause).
+  Widget _jmaStaleBanner(AppL10n l, int ageMinutes) {
+    return Container(
+      key: const Key('jma-stale-banner'),
+      padding: const EdgeInsets.all(8),
+      margin: const EdgeInsets.only(bottom: 4),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        l.jmaRetainedStale(ageMinutes),
+        style: TextStyle(
+          color: Colors.orange.shade900,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  /// N15 — the observation lane is honestly EMPTY (no reading within the
+  /// retain bound); shown above the forecast-memory card so the card is never
+  /// mistaken for an observation.
+  Widget _noValidObservationRow(AppL10n l) {
+    return Text(
+      l.jmaNoValidObservation,
+      key: const Key('jma-no-valid-observation'),
+      style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+    );
+  }
+
+  /// N15 — visible counterpart of the stale black-ice re-warn: the EXACT text
+  /// the voice speaks ([staleInvisibleBlackIceSpokenText], same hour stamp,
+  /// same locale source [_spokenJa] — AAA F1: the eyes-on channel renders the
+  /// identical content the eyes-off channel speaks). liveRegion so assistive
+  /// tech announces it (OPS-059 floor).
+  Widget _staleIceVisibleCard(int hourJst) {
+    return Container(
+      key: const Key('stale-ice-visible'),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.warning_amber, size: 16, color: Colors.amber.shade900),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                staleInvisibleBlackIceSpokenText(
+                  hourJst: hourJst,
+                  ja: _spokenJa,
+                ),
+                style: TextStyle(
+                  color: Colors.amber.shade900,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// N15 — visible counterpart of the forecast-memory line (C2 RED-1): the
+  /// EXACT ja line the voice speaks, plus the capture timestamp so she knows
+  /// this is plan-time knowledge, not a reading we just took. liveRegion for
+  /// assistive tech (OPS-059 floor).
+  Widget _forecastMemoryVisibleCard(
+    AppL10n l,
+    String spokenJaLine,
+    DateTime capturedAt,
+  ) {
+    final time = DateFormat('HH:mm').format(capturedAt.toLocal());
+    return Container(
+      key: const Key('forecast-memory-visible'),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.ac_unit, size: 16, color: Colors.amber.shade900),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    spokenJaLine,
+                    style: TextStyle(
+                      color: Colors.amber.shade900,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            l.forecastMemoryCaption(time),
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// N15 — visible counterpart of the spoken absence line: the EXACT text the
+  /// voice speaks (same locale source [_spokenJa]). Amber, not grey body
+  /// text: "we do not know the road state" is caution-class information, and
+  /// absence must never render as calm. liveRegion for assistive tech.
+  Widget _conditionsUnknownVisibleRow() {
+    return Container(
+      key: const Key('conditions-unknown-visible'),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade50,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Semantics(
+        liveRegion: true,
+        child: Text(
+          _spokenJa
+              ? kConditionsUnknownJaSpokenText
+              : kConditionsUnknownEnSpokenText,
+          style: TextStyle(
+            color: Colors.amber.shade900,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
   }
 
   /// A1 pre-drive voice-lane caution row (compact, amber — caution-class,

@@ -304,6 +304,35 @@ class AppL10n {
     return _ja ? '$h時間$m分' : '${h}h ${m}m';
   }
 
+  // ===== JMA feed-loss panel (N15 — the screen must match the speaker) =====
+
+  /// Prominent staleness label over the RETAINED observation shown after a
+  /// failed JMA fetch. The retained fields ARE shown (the voice may be
+  /// warning from them — the stale black-ice re-warn); this label is the
+  /// on-screen guarantee she is not reading them as live. [minutes] is the
+  /// age of the retained observation.
+  String jmaRetainedStale(int minutes) {
+    final age = _formatMinutes(minutes);
+    return _ja
+        ? '未更新 — $age前の観測を表示しています（最新の取得に失敗）。'
+        : 'Stale — showing the observation from $age ago (latest fetch '
+            'failed).';
+  }
+
+  /// Feed-loss with NO valid observation held (none, unparseable stamp, or
+  /// past the 60-min retain bound): the observation lane is honestly empty.
+  String get jmaNoValidObservation => _ja
+      ? '60分以内の有効な観測を保持していません。'
+      : 'No observation within the 60-minute retain window is held.';
+
+  /// Caption under the visible forecast-memory card (C2 RED-1 counterpart).
+  /// [time] is the local clock time the memory was captured — before
+  /// departure, while the network was still alive.
+  String forecastMemoryCaption(String time) => _ja
+      ? '出発前 $time に取得した気象庁の予報 — 観測ではありません。'
+      : 'JMA forecast fetched at $time, before departure — a forecast, not '
+          'an observation.';
+
   /// Error-state prefix for a failed advisory fetch. [message] is the
   /// exception text, passed through verbatim (an honest degrade).
   String advisoryFetchFailed(String message) => _ja
