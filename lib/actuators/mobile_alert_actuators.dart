@@ -12,6 +12,7 @@
 /// environment. Code-complete; on-device HEAR / FEEL / keep-awake is DEFERRED.
 library;
 
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -52,6 +53,36 @@ bool get isMobileActuatorPlatform {
 // was made public (voice_lane_readiness.dart shares it) without churning
 // every method below.
 bool get _isMobilePlatform => isMobileActuatorPlatform;
+
+/// Builds the REAL mobile speech engine: the bundled-audio mouth wrapping the
+/// hardened TTS. Top-level + public so the callback GLUE below is testable
+/// (an injected [playAsset] proves it without a platform channel); production
+/// reaches it only through [MobileAlertActuators]'s lazily-resolved `_tts`.
+///
+/// B31 — [onSpeechVerified] is wired to BOTH delivery paths:
+/// - the hardened TTS fires it on a platform-verified utterance (as before);
+/// - the bundled mouth's [BundledAudioEngine.onBundledSpoken] now ALSO fires
+///   it on a successful bundled play. Before this, the
+///   「音声警告を確認できませんでした」 chip could ONLY be cleared by a TTS
+///   delivery — but the safety core deliberately never routes to TTS, so one
+///   unverified TTS phrase left the chip stuck on screen through every later
+///   bundled warning that DID reach her. A delivered warning must clear the
+///   "delivery unverified" caution regardless of which mouth delivered it.
+TtsEngine buildMobileTtsEngine({
+  LocalErrorLog? errorLog,
+  void Function()? onSpeechUnverified,
+  void Function()? onSpeechVerified,
+  PlayAsset? playAsset,
+}) =>
+    BundledAudioEngine(
+      fallback: HardenedTtsEngine(
+        errorLog: errorLog,
+        onSpeechUnverified: onSpeechUnverified,
+        onSpeechVerified: onSpeechVerified,
+      ),
+      playAsset: playAsset,
+      onBundledSpoken: (_) => onSpeechVerified?.call(),
+    );
 
 /// Returns the actuator appropriate for the current platform: a real
 /// [MobileAlertActuators] on android/ios, else a [NoOpAlertActuators].
@@ -112,20 +143,18 @@ class MobileAlertActuators implements AlertActuators {
   TtsEngine? _resolvedTts;
 
   /// The TTS engine, resolved on first use. An injected engine (tests) is used
-  /// as-is; otherwise the real [HardenedTtsEngine] is built here — reached ONLY
-  /// from `speak()` after its `_isMobilePlatform` guard has passed.
-  /// The real engine is the bundled-audio mouth wrapping the hardened TTS: the
-  /// finite ja safety core plays from bytes in the APK (works with no network,
-  /// no voice pack, no TTS engine), and only slotted / non-safety text is
-  /// delegated to TTS. Before this, the system TTS was the ONLY mouth — and with
-  /// no network it is silent, then hangs.
+  /// as-is; otherwise the real engine is built by [buildMobileTtsEngine] —
+  /// reached ONLY from `speak()` after its `_isMobilePlatform` guard has
+  /// passed. The real engine is the bundled-audio mouth wrapping the hardened
+  /// TTS: the finite ja safety core plays from bytes in the APK (works with no
+  /// network, no voice pack, no TTS engine), and only slotted / non-safety
+  /// text is delegated to TTS. Before this, the system TTS was the ONLY mouth
+  /// — and with no network it is silent, then hangs.
   TtsEngine get _tts => _resolvedTts ??= (_injectedTts ??
-      BundledAudioEngine(
-        fallback: HardenedTtsEngine(
-          errorLog: _errorLog,
-          onSpeechUnverified: _onSpeechUnverified,
-          onSpeechVerified: _onSpeechVerified,
-        ),
+      buildMobileTtsEngine(
+        errorLog: _errorLog,
+        onSpeechUnverified: _onSpeechUnverified,
+        onSpeechVerified: _onSpeechVerified,
       ));
 
   @override
@@ -143,16 +172,29 @@ class MobileAlertActuators implements AlertActuators {
     }
   }
 
+  /// N9 — cap on each raw vibration-plugin await. The announcer awaits
+  /// `haptic()` BEFORE `speak()` (haptic-first, OPS-059), so a platform
+  /// channel that never answers here would hold the SPOKEN warning hostage
+  /// forever — a hang is not a throw, and only the throw was guarded. The
+  /// codebase's own rule (HardenedTtsEngine): a timeout is the only recovery.
+  /// 2 s is generous for a query/enqueue call (the vibrate() Future resolves
+  /// when the platform accepts the waveform, not when the buzzing ends) and
+  /// short enough that a wedged haptic channel delays the voice by at most
+  /// ~4 s instead of silencing it for good — true channel independence.
+  static const Duration _hapticCallTimeout = Duration(seconds: 2);
+
   @override
   Future<void> haptic(HapticCuePattern pattern) async {
     if (!_isMobilePlatform) return;
     if (!pattern.isTactile) return; // none -> no sensation (info-class)
     try {
-      if (await Vibration.hasVibrator()) {
-        await Vibration.vibrate(pattern: _waveformFor(pattern));
+      if (await Vibration.hasVibrator().timeout(_hapticCallTimeout)) {
+        await Vibration.vibrate(pattern: _waveformFor(pattern))
+            .timeout(_hapticCallTimeout);
       }
     } catch (_) {
-      // A missing vibrator / platform fault must not crash the drive surface.
+      // A missing vibrator / platform fault / timeout must not crash — or
+      // block — the drive surface. speak() still fires after this returns.
     }
   }
 

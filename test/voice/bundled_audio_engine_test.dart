@@ -9,6 +9,8 @@
 /// broken mouth would look perfectly healthy in CI.
 library;
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/services/staleness_policy.dart';
 import 'package:sngnav_app/voice/bundled_audio_engine.dart';
@@ -138,6 +140,44 @@ void main() {
     test('stop() stops both mouths', () async {
       await engine.stop();
       expect(tts.stops, 1);
+    });
+  });
+
+  group('N9 — the raw channel await is timeout-capped (a hang is not a throw)',
+      () {
+    test('a platform channel that never answers falls back to TTS after the '
+        'cap, instead of silencing every later announce', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      final tts = _DeadTts();
+      final delegated = <String>[];
+      // The DEFAULT (channel-backed) play path, with the channel mocked to
+      // NEVER reply — the wedged-MediaPlayer / dead-channel state. No
+      // injected playAsset: the injected seam would bypass the very await
+      // this test pins.
+      TestWidgetsFlutterBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        kBundledAudioChannel,
+        (call) => Completer<Object?>().future, // hangs forever
+      );
+      addTearDown(() => TestWidgetsFlutterBinding
+          .instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(kBundledAudioChannel, null));
+
+      final engine = BundledAudioEngine(
+        fallback: tts,
+        onDelegatedToTts: delegated.add,
+        playTimeout: const Duration(milliseconds: 50),
+      );
+      await engine
+          .speak(kConditionsUnknownJaSpokenText)
+          .timeout(const Duration(seconds: 5));
+      expect(
+        tts.spoken,
+        <String>[kConditionsUnknownJaSpokenText],
+        reason: 'The timeout is the only recovery from a channel that never '
+            'answers; the fallback mouth must still be reached.',
+      );
+      expect(delegated, <String>[kConditionsUnknownJaSpokenText]);
     });
   });
 }

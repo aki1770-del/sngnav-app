@@ -196,6 +196,38 @@ AdvisoryLevel? topAdvisoryLevel(AdvisoryAggregateResult? result) {
   return (result: fresh, retained: false);
 }
 
+/// N8 — the real-GPS-blackout watchdog decision: should the drive brain be
+/// [DriveHudController.poll]ed this tick, and with what clock?
+///
+/// The degradation machine (trusted → dead-reckoning → lost) only progresses
+/// when `poll` is called during a fix drought; until now the ONLY production
+/// caller was the demo blackout button, so a REAL blackout froze the honest
+/// dot at "trusted" forever. This function is the production driver: called on
+/// a short periodic tick, it answers `null` (no poll — a fresh fix arrived
+/// within [cadence], or nothing has ever been fed so there is no baseline to
+/// degrade) or the timestamp to poll with.
+///
+/// [demoClock] is the simulated blackout clock (last trusted fix + simulated
+/// seconds) when the demo button has been pressed; when it sits AHEAD of the
+/// real [now], the poll uses it — the localizer's clock must never run
+/// backwards mid-degradation (a regressing `now` would un-degrade the dot the
+/// demo honestly degraded).
+///
+/// Top-level + public so the decision table is testable off-device.
+DateTime? positionWatchdogPollTime({
+  required DateTime now,
+  required DateTime? lastPositionEventAt,
+  required DateTime? demoClock,
+  Duration cadence = const Duration(seconds: 30),
+}) {
+  // Nothing ever fed: polling would fabricate a degradation for a drive that
+  // has not started (e.g. the permission dialog is still up).
+  if (lastPositionEventAt == null) return null;
+  if (now.difference(lastPositionEventAt) < cadence) return null;
+  if (demoClock != null && demoClock.isAfter(now)) return demoClock;
+  return now;
+}
+
 class SngnavApp extends StatelessWidget {
   /// [actuators] is injectable so tests (and future device harnesses) can
   /// supply a fake/real actuator layer; production leaves it null and the app
@@ -504,6 +536,26 @@ class _HomePageState extends State<HomePage> {
   // refresh alone never re-fetches while stationary).
   Timer? _jmaTicker;
 
+  // N8 — real-GPS-blackout watchdog. The degradation machine's poll() was
+  // production-wired ONLY to the demo blackout button; in a REAL blackout
+  // (tunnel, mountain pass — exactly the compound-failure scenario) no fix
+  // events arrive, nothing calls poll, and the dot stays "trusted" forever.
+  // This ticker runs while real position sharing is active and, when no fix
+  // arrived within the expected cadence, polls the drive brain so trusted →
+  // dead-reckoning → lost actually progresses. Decision logic is the
+  // top-level [positionWatchdogPollTime] (testable); the demo button stays.
+  Timer? _positionWatchdog;
+  DateTime? _lastPositionEventAt;
+  static const Duration _watchdogTickEvery = Duration(seconds: 15);
+
+  // B32 — the voice-lane + media-volume cautions were probed ONCE in
+  // initState: a mid-drive mute (or a mid-drive voice-pack removal) was
+  // invisible for the whole drive. This ticker re-probes both (~45 s, and on
+  // drive start) so the pre-drive cautions stay TRUE during the drive.
+  // Read-only, unchanged dignity boundary: we inform, we never touch her
+  // volume.
+  Timer? _audioReadinessTicker;
+
   // AAA F1 — the spoken-lane locale, resolved ONCE from the same inputs the
   // screen uses (widget.locale override first, else device locales against
   // the same ja-first supported list). 'ja' | 'en'.
@@ -641,25 +693,15 @@ class _HomePageState extends State<HomePage> {
           },
         );
     _announcer = AlertAnnouncer(actuators: _actuators);
-    // A1 — pre-drive voice-lane readiness read (honest unknown off-mobile;
-    // fail-soft: an error stays unknown and the caution row stays absent).
-    unawaited(
-      (widget.voiceLaneReader ?? readVoiceLaneReadiness)()
-          .then((verdict) {
-        if (mounted) setState(() => _voiceLaneVerdict = verdict);
-      }).catchError((Object _) {}),
-    );
-    // Tier-2 — pre-drive audio readiness read (read-only Kotlin probe over
-    // sngnav/audio_readiness). Honest null off-mobile / old-APK-skew: a null
-    // result changes nothing and the media-muted caution stays absent.
-    unawaited(
-      (widget.audioReadinessProbe ?? const ChannelAudioReadinessProbe())
-          .read()
-          .then((reading) {
-        if (mounted && reading != null) {
-          setState(() => _audioReadiness = reading);
-        }
-      }).catchError((Object _) {}),
+    // A1 + Tier-2 — pre-drive voice-lane + media-volume reads (honest
+    // unknown/null off-mobile; fail-soft). B32: no longer once-only — the
+    // same probes re-run on a ticker + on drive start (_probeAudioCautions)
+    // so a MID-DRIVE mute or voice-pack change is detected, not just a
+    // pre-drive one.
+    _probeAudioCautions();
+    _audioReadinessTicker = Timer.periodic(
+      const Duration(seconds: 45),
+      (_) => _probeAudioCautions(),
     );
     // AAA F1 — resolve the spoken-lane locale ONCE, from the same inputs
     // MaterialApp resolves the screen from: the injected override first,
@@ -743,6 +785,51 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  /// B32 — run BOTH audio-caution probes (A1 voice-lane + Tier-2 media
+  /// volume). Called from initState, from the ~45 s re-probe ticker, and on
+  /// drive start (share-location / mock-position), so a mid-drive mute is
+  /// detected while the warning still matters.
+  ///
+  /// Retention discipline (D3: absence must never render as calm — and its
+  /// dual, a proven caution must never be CLEARED by a failed read):
+  /// - voice lane: `unknown` (read failed / unreadable) NEVER overwrites a
+  ///   prior proven verdict — only a proven verdict (ready / degraded)
+  ///   replaces one. A transient engine hiccup must not hide the caution.
+  /// - media volume: a `null` probe result keeps the prior reading, same
+  ///   reason. A fresh UNMUTED→MUTED transition re-arms the acknowledgment
+  ///   (`_mediaMutedAcked = false`): a NEW mid-drive mute is a new event and
+  ///   must surface at full strength, not arrive pre-acknowledged from a
+  ///   mute she dismissed an hour ago.
+  void _probeAudioCautions() {
+    unawaited(
+      (widget.voiceLaneReader ?? readVoiceLaneReadiness)()
+          .then((verdict) {
+        if (!mounted || verdict == VoiceLaneVerdict.unknown) return;
+        if (verdict == _voiceLaneVerdict) return;
+        setState(() => _voiceLaneVerdict = verdict);
+      }).catchError((Object _) {}),
+    );
+    unawaited(
+      (widget.audioReadinessProbe ?? const ChannelAudioReadinessProbe())
+          .read()
+          .then((reading) {
+        if (!mounted || reading == null) return;
+        final prior = _audioReadiness;
+        if (prior != null &&
+            prior.mediaVolume == reading.mediaVolume &&
+            prior.mediaVolumeMax == reading.mediaVolumeMax &&
+            prior.ttsServiceVisible == reading.ttsServiceVisible) {
+          return; // unchanged — no rebuild churn on the 45 s tick
+        }
+        final wasMuted = prior?.mediaMuted ?? false;
+        setState(() {
+          _audioReadiness = reading;
+          if (!wasMuted && reading.mediaMuted) _mediaMutedAcked = false;
+        });
+      }).catchError((Object _) {}),
+    );
+  }
+
   /// Sub-bundle 4 — (re)build PerformanceBudget + DataBudget +
   /// ViewportRenderBudgetBloc for the active profile. Called from
   /// initState and from the profile dropdown when the cohort changes
@@ -788,6 +875,8 @@ class _HomePageState extends State<HomePage> {
     // only contract). No-op on desktop/test.
     unawaited(_actuators.keepAwake(false));
     _jmaTicker?.cancel();
+    _positionWatchdog?.cancel();
+    _audioReadinessTicker?.cancel();
     // Close the offline MBTiles archive (sqlite3) + its network provider.
     unawaited(_offlineBaseProvider?.dispose());
     _speechUnverified.removeListener(_onSpeechVerificationChanged);
@@ -811,17 +900,50 @@ class _HomePageState extends State<HomePage> {
       _herFix = null;
       _isMockPosition = false;
     });
+    // B32 — drive start: re-probe the audio cautions NOW (the initState read
+    // may be app-open-hours old; the drive is when a mute matters).
+    _probeAudioCautions();
     _herSub = herPositionStream().listen((fix) {
       if (!mounted) return;
+      // N8 — any event (fix OR honest unavailability) proves the position
+      // pipeline is alive and feeding the drive brain itself; the watchdog
+      // only covers the SILENT drought where nothing arrives at all.
+      _lastPositionEventAt = _now();
       setState(() => _herFix = fix);
       _maybeRefreshAdvisoriesForFix(fix);
       _feedDriveHud(fix);
     });
+    // N8 — start the blackout watchdog for the real position feed.
+    _positionWatchdog ??=
+        Timer.periodic(_watchdogTickEvery, (_) => _watchdogTick());
+  }
+
+  /// N8 — one watchdog tick: poll the drive brain iff no position event
+  /// arrived within the expected cadence (decision table:
+  /// [positionWatchdogPollTime]), so a REAL GPS blackout degrades the honest
+  /// dot exactly like the demo button does.
+  void _watchdogTick() {
+    if (!mounted) return;
+    final pollAt = positionWatchdogPollTime(
+      now: _now(),
+      lastPositionEventAt: _lastPositionEventAt,
+      demoClock: _driveHudBaseTime
+          ?.add(Duration(seconds: _blackoutSeconds)),
+    );
+    if (pollAt != null) _driveHud.poll(now: pollAt);
   }
 
   void _useMockPosition() {
     _herSub?.cancel();
     _herSub = null;
+    // N8 — the mock dot is a static dev tool: the watchdog would "honestly"
+    // degrade a position that is not claiming to be live. The demo blackout
+    // button is the degradation driver in mock mode.
+    _positionWatchdog?.cancel();
+    _positionWatchdog = null;
+    _lastPositionEventAt = null;
+    // B32 — the dev drive start re-probes too (symmetry with real start).
+    _probeAudioCautions();
     final mockFix = PositionAvailable(
       latitude: akitaStation.latitude,
       longitude: akitaStation.longitude,

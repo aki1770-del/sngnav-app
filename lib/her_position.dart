@@ -88,26 +88,80 @@ PositionFix fixFromSample({
 }
 
 /// Streams HER position with accuracy. Emits [PositionUnavailable] on
-/// permission denial, service-disabled, or stream error — never silently
-/// stalls on a stale fix.
+/// permission denial, service-disabled, stream error, platform-call
+/// timeout, or platform stream termination — never silently stalls on a
+/// stale fix, and never hangs waiting on a platform call that will not
+/// answer (a hang is not a throw: it is SILENCE, the one thing this
+/// stream exists to refuse).
+///
+/// Every raw platform await is timeout-wrapped (the codebase's own rule —
+/// see HardenedTtsEngine: "a timeout is the only recovery" from a platform
+/// Future that never completes). [platformCallTimeout] bounds the
+/// programmatic reads (service-enabled / permission check), which a healthy
+/// platform answers in milliseconds. [permissionRequestTimeout] bounds the
+/// permission REQUEST separately and generously — a human is reading a
+/// system dialog there; timing her out at 10 s would convert her
+/// deliberation into a false "unavailable".
+///
+/// The injectable seams ([isServiceEnabled] / [checkPermission] /
+/// [requestPermission] / [positionStream]) default to the real Geolocator
+/// statics; tests inject hanging/canned fakes so every timeout + onDone
+/// path is verifiable off-device (same idiom as PlayAsset /
+/// VoicesProvider).
 ///
 /// MUST be called from a user-gesture handler (button onPressed). Modern
 /// browsers refuse permission prompts outside a user gesture; calling
 /// this from initState() will silently fail without prompting.
-Stream<PositionFix> herPositionStream() {
+Stream<PositionFix> herPositionStream({
+  Future<bool> Function()? isServiceEnabled,
+  Future<LocationPermission> Function()? checkPermission,
+  Future<LocationPermission> Function()? requestPermission,
+  Stream<Position> Function()? positionStream,
+  Duration platformCallTimeout = const Duration(seconds: 10),
+  Duration permissionRequestTimeout = const Duration(minutes: 2),
+}) {
   final controller = StreamController<PositionFix>();
   StreamSubscription<Position>? sub;
 
   Future<void> start() async {
     try {
-      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      final bool serviceEnabled;
+      try {
+        serviceEnabled = await (isServiceEnabled ??
+                Geolocator.isLocationServiceEnabled)()
+            .timeout(platformCallTimeout);
+      } on TimeoutException {
+        controller.add(const PositionUnavailable(
+          'Location service check timed out — platform did not answer',
+        ));
+        return;
+      }
       if (!serviceEnabled) {
         controller.add(const PositionUnavailable('Location services disabled'));
         return;
       }
-      var permission = await Geolocator.checkPermission();
+      LocationPermission permission;
+      try {
+        permission = await (checkPermission ?? Geolocator.checkPermission)()
+            .timeout(platformCallTimeout);
+      } on TimeoutException {
+        controller.add(const PositionUnavailable(
+          'Location permission check timed out — platform did not answer',
+        ));
+        return;
+      }
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
+        try {
+          permission =
+              await (requestPermission ?? Geolocator.requestPermission)()
+                  .timeout(permissionRequestTimeout);
+        } on TimeoutException {
+          controller.add(const PositionUnavailable(
+            'Location permission request timed out — no answer from the '
+            'platform dialog',
+          ));
+          return;
+        }
         if (permission == LocationPermission.denied) {
           controller.add(const PositionUnavailable('Location permission denied'));
           return;
@@ -119,12 +173,24 @@ Stream<PositionFix> herPositionStream() {
         ));
         return;
       }
-      sub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 5,
-        ),
-      ).listen(
+      sub = (positionStream ??
+              () => Geolocator.getPositionStream(
+                    locationSettings: const LocationSettings(
+                      accuracy: LocationAccuracy.high,
+                      // 0, deliberately (was 5 m): a displacement filter
+                      // suppresses delivery while stationary, so "no fix
+                      // arrived lately" would be ambiguous between a real
+                      // GPS blackout and a parked car. With time-cadence
+                      // delivery, absence of fixes MEANS blackout — which is
+                      // what lets the app's blackout watchdog degrade the
+                      // honest dot (trusted → dead-reckoning → lost) instead
+                      // of crying wolf at every red light. Delivery-rate
+                      // only: the GPS radio duty cycle is set by accuracy,
+                      // not by this filter.
+                      distanceFilter: 0,
+                    ),
+                  ))()
+          .listen(
         // Finite-coordinate chokepoint: a degraded/NaN/Inf fix becomes an
         // honest PositionUnavailable, never a confidently-wrong dot that
         // would also crash flutter_map 8.3.0's checkLatLng. See fixFromSample.
@@ -136,6 +202,12 @@ Stream<PositionFix> herPositionStream() {
         )),
         onError: (Object e) =>
             controller.add(PositionUnavailable('GPS stream error: $e')),
+        // Platform stream termination is a REAL end-state (provider torn
+        // down, service killed) — surfaced as honest unavailability, never
+        // as silence with the last dot frozen on screen.
+        onDone: () => controller.add(const PositionUnavailable(
+          'GPS stream ended by the platform',
+        )),
       );
     } catch (e) {
       controller.add(PositionUnavailable('GPS init error: $e'));

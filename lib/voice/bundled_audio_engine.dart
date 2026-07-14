@@ -46,8 +46,12 @@ import 'offline_safety_voice.dart';
 
 /// Plays a bundled asset (path relative to the `assets/` root) at [volume].
 ///
-/// Returns TRUE only if playback actually STARTED. False means she was not
-/// spoken to, and the caller must fall back rather than assume she heard it.
+/// Returns TRUE only when playback actually COMPLETED (the platform resolves
+/// on MediaPlayer's completion listener — see MainActivity.kt). False means
+/// she was not spoken to in full, and the caller must fall back rather than
+/// assume she heard it. Because the Future spans the WHOLE utterance,
+/// sequential `await speak(...)` calls serialize again: the second phrase
+/// starts after the first finishes, never on top of it.
 typedef PlayAsset = Future<bool> Function(String assetRelPath, double volume);
 
 /// The first-party mouth: our own Kotlin MediaPlayer, no third-party plugin.
@@ -69,6 +73,7 @@ class BundledAudioEngine implements TtsEngine {
     PlayAsset? playAsset,
     void Function(String assetPath)? onBundledSpoken,
     void Function(String text)? onDelegatedToTts,
+    this.playTimeout = const Duration(seconds: 25),
   })  : _fallback = fallback,
         _injectedPlay = playAsset,
         _onBundledSpoken = onBundledSpoken,
@@ -79,6 +84,19 @@ class BundledAudioEngine implements TtsEngine {
   final void Function(String assetPath)? _onBundledSpoken;
   final void Function(String text)? _onDelegatedToTts;
 
+  /// N9 — cap on the raw platform-channel await in the default [_play]. The
+  /// channel resolves on playback COMPLETION (MainActivity.kt), so a wedged
+  /// player — or a channel that never answers — would otherwise hang every
+  /// later sequential announce behind it; a timeout is the only recovery
+  /// (HardenedTtsEngine's own verified rule). 25 s: the longest bundled
+  /// safety phrase is 13.5 s (measured across assets/audio/ja/*.wav), so a
+  /// genuine playback always finishes well inside the cap and is never cut
+  /// into a false TTS fallback; anything still pending at 25 s is a wedged
+  /// channel, and the fallback mouth is better than a mouth that never
+  /// speaks again. On timeout the TimeoutException takes the existing
+  /// catch → TTS-fallback path.
+  final Duration playTimeout;
+
   /// The play seam. Injectable so a test can prove the ROUTING (that a safety
   /// phrase reaches bundled bytes and never the TTS) without a platform channel
   /// — off-device the channel throws, which would send every phrase down the
@@ -86,10 +104,14 @@ class BundledAudioEngine implements TtsEngine {
   PlayAsset get _play =>
       _injectedPlay ??
       (String assetRelPath, double volume) async {
+        // N9 — the ONE raw platform await on the bundled path, capped (see
+        // [playTimeout]). Un-timeouted, a wedged MediaPlayer would hang this
+        // Future — and with completion-resolved play (N14) that hang would
+        // also queue-starve every subsequent sequential announce.
         final ok = await kBundledAudioChannel.invokeMethod<bool>(
           'play',
           <String, Object?>{'asset': assetRelPath},
-        );
+        ).timeout(playTimeout);
         return ok ?? false;
       };
 
@@ -132,8 +154,12 @@ class BundledAudioEngine implements TtsEngine {
       // the leading `assets/` is stripped.
       final spoke = await _play(asset.replaceFirst('assets/', ''), _volume);
       if (!spoke) {
-        // The platform did not start playback. She was NOT spoken to. Never
-        // record a phrase as delivered on a channel that returned false.
+        // The platform did not report playback COMPLETED (never started, or
+        // errored mid-phrase). She was NOT verifiably spoken to in full.
+        // Never record a phrase as delivered on a channel that returned
+        // false. (A mid-phrase error means the TTS fallback may partially
+        // repeat what she began hearing — deliberate: a doubled warning is
+        // recoverable, a swallowed one is not.)
         _onDelegatedToTts?.call(text);
         await _fallback.speak(text);
         return;

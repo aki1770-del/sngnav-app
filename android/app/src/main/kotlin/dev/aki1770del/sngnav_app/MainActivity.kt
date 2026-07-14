@@ -70,8 +70,17 @@ class MainActivity : FlutterActivity() {
         // app. So the mouth is ours: MediaPlayer, one file, no plugin.
         //
         // Contract: play(asset) resolves TRUE only when playback actually
-        // STARTED. A false/absent result means she was NOT spoken to, and the
-        // caller falls back rather than assuming she heard something.
+        // COMPLETED. It used to resolve at start(): every caller's `await`
+        // returned the moment audio BEGAN, so two sequential safety phrases
+        // (e.g. black-ice then turmoil, awaited one after the other on the
+        // Dart side) each created an un-queued MediaPlayer and SPOKE ON TOP
+        // OF EACH OTHER — two overlapping warnings deliver zero warnings.
+        // Resolving on the completion listener makes sequential awaits
+        // serialize again. A false/absent result means she was NOT verifiably
+        // spoken to in full, and the caller falls back rather than assuming
+        // she heard something. The Dart side keeps its own timeout as the
+        // recovery cap; the Handler cap below is the native backstop that
+        // frees a wedged player and answers the channel.
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "sngnav/bundled_audio",
@@ -82,6 +91,13 @@ class MainActivity : FlutterActivity() {
                     if (asset.isNullOrBlank()) {
                         result.success(false)
                         return@setMethodCallHandler
+                    }
+                    // Exactly-once reply guard: completion, error, cap, and
+                    // the catch below all race for the single result slot —
+                    // a MethodChannel result must never be answered twice.
+                    val replied = java.util.concurrent.atomic.AtomicBoolean(false)
+                    fun reply(ok: Boolean) {
+                        if (replied.compareAndSet(false, true)) result.success(ok)
                     }
                     try {
                         // Flutter assets live under flutter_assets/<declared path>.
@@ -102,16 +118,41 @@ class MainActivity : FlutterActivity() {
                         afd.close()
                         // Free the native player when the phrase finishes; a
                         // leaked MediaPlayer per warning would exhaust the
-                        // device over a long winter drive.
-                        player.setOnCompletionListener { it.release() }
-                        player.setOnErrorListener { mp, _, _ -> mp.release(); true }
+                        // device over a long winter drive. Completion is the
+                        // TRUE resolution: the phrase reached its end.
+                        player.setOnCompletionListener {
+                            it.release()
+                            reply(true)
+                        }
+                        // A mid-phrase error is NOT a completed delivery:
+                        // resolve false so the Dart side can fall back.
+                        player.setOnErrorListener { mp, _, _ ->
+                            mp.release()
+                            reply(false)
+                            true
+                        }
                         player.prepare()
                         player.start()
-                        result.success(true)
+                        // Native backstop cap: the longest bundled phrase is
+                        // ~13.5 s; a player still unresolved at 30 s is wedged
+                        // (neither completion nor error will ever fire).
+                        // Release it and answer the channel so the native
+                        // player is not leaked even if the Dart timeout
+                        // already gave up listening.
+                        android.os.Handler(android.os.Looper.getMainLooper())
+                            .postDelayed({
+                                if (replied.compareAndSet(false, true)) {
+                                    try {
+                                        player.release()
+                                    } catch (_: Exception) {
+                                    }
+                                    result.success(false)
+                                }
+                            }, 30_000)
                     } catch (e: Exception) {
                         // Never crash the surface she is driving on. Report the
                         // failure honestly so the caller can fall back to TTS.
-                        result.success(false)
+                        reply(false)
                     }
                 }
                 else -> result.notImplemented()
