@@ -63,6 +63,16 @@ import '../voice/offline_safety_voice.dart';
 const String kForecastSnowValidJa =
     '出発前に取得した気象庁の予報では、この時間帯は雪の予報です。これは観測ではなく予報です。速度を落とし、車間距離をとってください。';
 
+/// The VISIBLE en counterpart of [kForecastSnowValidJa]. NOT spoken: the
+/// bundled offline mouth is ja-only, and an en forecast voice is a recorded,
+/// unclaimed bound — but the SCREEN has no mouth constraint, and a
+/// publisher-declared-valid hazard must not be deleted from the visible
+/// channel by locale. Same clause-for-clause honesty as the ja line.
+const String kForecastSnowValidEn =
+    'The JMA forecast fetched before departure calls for snow during this '
+    'time band. This is a forecast, not an observation. Slow down and keep '
+    'extra following distance.';
+
 /// The persisted, trip-window-valid hazard bundle.
 class TripHazardMemory {
   const TripHazardMemory({

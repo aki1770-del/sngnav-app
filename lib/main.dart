@@ -15,7 +15,12 @@ library;
 import 'package:compound_failure_advisor/compound_failure_advisor.dart'
     show AdvisoryLevel, DriveAction;
 import 'package:condition_aggregator/condition_aggregator.dart'
-    show Advisory, AdvisoryAggregateResult, AdvisorySeverity;
+    show
+        Advisory,
+        AdvisoryAggregateResult,
+        AdvisoryProviderError,
+        AdvisorySeverity,
+        AdvisorySource;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -75,6 +80,7 @@ import 'services/invisible_ice_watch.dart';
 import 'services/turmoil_watch.dart';
 import 'services/jma_forecast_fetch.dart';
 import 'services/staleness_policy.dart';
+import 'services/forecast_validity.dart' show ForecastHazardKind;
 import 'services/trip_hazard_memory.dart';
 import 'services/route_consent.dart';
 import 'services/jma_advisory_provider_factory.dart';
@@ -171,30 +177,73 @@ AdvisoryLevel? topAdvisoryLevel(AdvisoryAggregateResult? result) {
 /// a declared expires is not retained — its in-force state cannot be
 /// verified while the publisher is unreachable.
 ///
+/// PARTIAL failure (fresh advisories from a surviving provider PLUS at least
+/// one provider error) retains PER PROVIDER: the errored provider's prior
+/// unexpired advisories are kept and merged after the fresh ones. Without
+/// this, the fresh branch would win outright and a failed fetch would erase
+/// a declared hazard through the partial-failure seam. A provider that
+/// answered — even with an empty result — is a genuine per-provider clear
+/// and its prior advisories are dropped.
+///
 /// Top-level + public so the tests can pin the asymmetry directly.
 ({AdvisoryAggregateResult result, bool retained}) retainAdvisoriesOnFailure({
   required AdvisoryAggregateResult? prior,
   required AdvisoryAggregateResult fresh,
   required DateTime now,
 }) {
-  final fetchFailed =
-      fresh.advisories.isEmpty && fresh.providerErrors.isNotEmpty;
-  if (fetchFailed && prior != null) {
-    final retained = <Advisory>[
-      for (final a in prior.advisories)
-        if (a.expires != null && now.isBefore(a.expires!)) a,
-    ];
-    if (retained.isNotEmpty) {
-      return (
-        result: AdvisoryAggregateResult(
-          advisories: retained,
-          providerErrors: fresh.providerErrors,
-        ),
-        retained: true,
-      );
-    }
+  if (prior == null || fresh.providerErrors.isEmpty) {
+    return (result: fresh, retained: false);
   }
-  return (result: fresh, retained: false);
+  // TOTAL failure (nothing delivered this cycle): retain every unexpired
+  // prior hazard regardless of source — the whole cycle produced no
+  // publisher statement to overwrite any of them with. This also covers the
+  // thrown-exception path (init failure), where no provider was reached.
+  final totalFailure = fresh.advisories.isEmpty;
+  final erroredSources = {for (final e in fresh.providerErrors) e.source};
+  final retained = <Advisory>[
+    for (final a in prior.advisories)
+      if ((totalFailure || erroredSources.contains(a.source)) &&
+          a.expires != null &&
+          now.isBefore(a.expires!))
+        a,
+  ];
+  if (retained.isEmpty) return (result: fresh, retained: false);
+  return (
+    result: AdvisoryAggregateResult(
+      advisories: [...fresh.advisories, ...retained],
+      providerErrors: fresh.providerErrors,
+    ),
+    retained: true,
+  );
+}
+
+/// N10 (stationary-expiry) — the retain doc-comment promises "a retained
+/// advisory past its expires drops on every cycle", but cycles fire only on
+/// ~1 km movement or a manual tap. A driver PARKED in a dead zone would keep
+/// an expired retained hazard indefinitely. This is the time-based cull the
+/// expiry ticker applies to a RETAINED result between fetches: returns the
+/// culled result, or null when nothing expired (caller skips the rebuild).
+/// Culling to empty leaves `advisories: [] + providerErrors` — which renders
+/// the honest degraded-unknown banner, never a fabricated all-clear.
+///
+/// Top-level + public so the tests can pin the cull directly.
+AdvisoryAggregateResult? cullExpiredRetainedAdvisories(
+  AdvisoryAggregateResult result,
+  DateTime now,
+) {
+  // Drop ONLY advisories whose declared expires has passed. An advisory
+  // WITHOUT expires is kept: on a partially-retained result it is a FRESH
+  // publisher statement (retention itself never admits a null-expires
+  // advisory), and culling it here would erase a live warning.
+  final kept = <Advisory>[
+    for (final a in result.advisories)
+      if (a.expires == null || now.isBefore(a.expires!)) a,
+  ];
+  if (kept.length == result.advisories.length) return null;
+  return AdvisoryAggregateResult(
+    advisories: kept,
+    providerErrors: result.providerErrors,
+  );
 }
 
 /// N8 — the real-GPS-blackout watchdog decision: should the drive brain be
@@ -242,19 +291,32 @@ sealed class FeedLossVerdict {
 
 /// True no-reading dead zone (no cache / unparseable stamp / past the retain
 /// bound), but the plan-time forecast memory holds a hazard the publisher
-/// declared VALID FOR NOW — spoken and shown instead of the absence line.
+/// declared VALID FOR NOW — shown instead of rendering nothing, and spoken
+/// when the bundled mouth can say it.
 final class FeedLossForecastMemory extends FeedLossVerdict {
   const FeedLossForecastMemory({
-    required this.spokenJaLine,
+    required this.line,
     required this.capturedAt,
+    required this.spokenAloud,
   });
 
-  /// The exact ja line the voice speaks ([TripHazardMemory.speakableJaAt]).
-  final String spokenJaLine;
+  /// The hazard line in the surface locale. When [spokenAloud] is true this
+  /// is the EXACT line the voice speaks ([TripHazardMemory.speakableJaAt]);
+  /// when false it is the VISIBLE-only counterpart ([kForecastSnowValidEn],
+  /// or the ja line when the bundled mouth lacks the bytes) — locale or a
+  /// missing mouth must not delete a publisher-declared-valid hazard from
+  /// the screen a deaf / HoH / en-reading driver depends on.
+  final String line;
 
   /// When WE captured the forecast (before departure) — the timestamp the
   /// visible card must carry so she knows this is plan-time knowledge.
   final DateTime capturedAt;
+
+  /// True when the voice channel utters [line] (ja surface + bundled mouth
+  /// covers it). False = screen-only: the voice keeps the honest absence
+  /// line instead (an en forecast voice is a recorded, unclaimed bound; TTS
+  /// was measured silent-then-hung offline on her phone).
+  final bool spokenAloud;
 }
 
 /// True no-reading dead zone with nothing valid to say: the honest absence.
@@ -312,16 +374,27 @@ FeedLossVerdict feedLossVerdict({
       observedInstant == null ||
       now.toUtc().difference(observedInstant) > kSlowHazardRetainWindow) {
     // The MEMORY, before the silence (C2 RED-1): a hazard the publisher
-    // declared valid for THIS hour, captured before she left. ja-gated
-    // because the SPOKEN choice is bounded by the bundled mouth (en forecast
-    // voice not rendered — recorded, not claimed) and the visible counterpart
-    // mirrors the voice exactly rather than showing state the voice never
-    // said (AAA F1: the two channels must not diverge).
-    final line = spokenJa ? memory?.speakableJaAt(now) : null;
-    if (line != null && memory != null) {
+    // declared valid for THIS hour, captured before she left. The VISIBLE
+    // channel carries it regardless of locale — locale (or a mouth missing
+    // its bytes) is not data, and must not delete a held hazard from the
+    // screen. The SPOKEN channel stays bounded by the bundled ja mouth
+    // (en forecast voice not rendered — recorded, not claimed): when the
+    // mouth cannot say it, spokenAloud is false and the caller speaks the
+    // honest absence line instead, while the card shows what the voice
+    // cannot say — labeled as plan-time forecast (its caption carries the
+    // capture time), so the channels differ only by the screen showing MORE.
+    final activeSnow = memory != null &&
+        memory
+            .activeAt(now)
+            .any((h) => h.kind == ForecastHazardKind.snow);
+    if (activeSnow) {
+      final jaSpeakable = memory.speakableJaAt(now);
       return FeedLossForecastMemory(
-        spokenJaLine: line,
+        line: spokenJa
+            ? (jaSpeakable ?? kForecastSnowValidJa)
+            : kForecastSnowValidEn,
         capturedAt: memory.capturedAt,
+        spokenAloud: spokenJa && jaSpeakable != null,
       );
     }
     return const FeedLossAbsence();
@@ -386,6 +459,7 @@ class SngnavApp extends StatelessWidget {
     this.speechUnverified,
     this.audioReadinessProbe,
     this.clock,
+    this.positionSource,
   });
 
   final AlertActuators? actuators;
@@ -407,6 +481,11 @@ class SngnavApp extends StatelessWidget {
   /// retained observation's observedAt so the feed-loss decision table is
   /// verifiable without a device (OPS-066).
   final DateTime Function()? clock;
+
+  /// Injectable position source (null -> the real [herPositionStream]). Same
+  /// idiom as [jmaFetch]: lets tests drive the share-location → watchdog →
+  /// stop lifecycle with a controlled stream, no geolocator plugin.
+  final Stream<PositionFix> Function()? positionSource;
 
   @override
   Widget build(BuildContext context) {
@@ -443,6 +522,7 @@ class SngnavApp extends StatelessWidget {
         speechUnverified: speechUnverified,
         audioReadinessProbe: audioReadinessProbe,
         clock: clock,
+        positionSource: positionSource,
       ),
     );
   }
@@ -461,6 +541,7 @@ class HomePage extends StatefulWidget {
     this.speechUnverified,
     this.audioReadinessProbe,
     this.clock,
+    this.positionSource,
   });
 
   /// Injectable actuator layer (null -> [defaultAlertActuators]).
@@ -500,6 +581,9 @@ class HomePage extends StatefulWidget {
   /// W0 detection-survival: injectable clock (null -> [DateTime.now]). Makes the
   /// feed-loss staleness age computation host-deterministic (OPS-066).
   final DateTime Function()? clock;
+
+  /// Injectable position source (null -> the real [herPositionStream]).
+  final Stream<PositionFix> Function()? positionSource;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -783,6 +867,18 @@ class _HomePageState extends State<HomePage> {
   /// and no advisories. Retained hazards render with a stale label and
   /// still feed the drive brain; the all-clear is never retained.
   bool _advisoryRetained = false;
+
+  /// N10 (stationary-expiry) — minute ticker that culls a RETAINED advisory
+  /// past its publisher-declared expires while NO fetch cycle is firing
+  /// (fetches are movement-gated at ~1 km; a parked driver gets none). See
+  /// [cullExpiredRetainedAdvisories].
+  Timer? _advisoryExpiryTicker;
+
+  /// False when the LAST advisory fetch was for a point NO registered
+  /// publisher covers ([AdvisoryService.coversPoint]) — the empty result is
+  /// then "nobody was asked", not a publisher all-clear, and AdvisoryCards
+  /// renders the honest cannot-check-here line instead of calm.
+  bool _advisoryPointCovered = true;
   // Last (lat, lon) used for an advisory fetch — refresh-only-on-change.
   double? _lastAdvisoryLat;
   double? _lastAdvisoryLon;
@@ -908,6 +1004,24 @@ class _HomePageState extends State<HomePage> {
       _refreshJma();
       _onAdvisoryRefreshTapped();
     });
+    // N10 (stationary-expiry) — honor the publisher's validity bound between
+    // movement-gated fetch cycles: a retained advisory whose expires passes
+    // while she is parked must drop, not render as current indefinitely.
+    _advisoryExpiryTicker =
+        Timer.periodic(const Duration(minutes: 1), (_) => _advisoryExpiryTick());
+  }
+
+  /// N10 (stationary-expiry) — one tick: cull expired advisories from a
+  /// RETAINED result. Culling to empty leaves the empty+providerErrors shape,
+  /// which renders the honest degraded-unknown banner (never all-clear), and
+  /// the drive brain stops being fed the expired hazard on the next fix.
+  void _advisoryExpiryTick() {
+    if (!mounted || !_advisoryRetained) return;
+    final result = _advisoryResult;
+    if (result == null) return;
+    final culled = cullExpiredRetainedAdvisories(result, _now());
+    if (culled == null) return;
+    setState(() => _advisoryResult = culled);
   }
 
   /// B32 — run BOTH audio-caution probes (A1 voice-lane + Tier-2 media
@@ -1002,6 +1116,7 @@ class _HomePageState extends State<HomePage> {
     _jmaTicker?.cancel();
     _positionWatchdog?.cancel();
     _audioReadinessTicker?.cancel();
+    _advisoryExpiryTicker?.cancel();
     // Close the offline MBTiles archive (sqlite3) + its network provider.
     unawaited(_offlineBaseProvider?.dispose());
     _speechUnverified.removeListener(_onSpeechVerificationChanged);
@@ -1028,7 +1143,7 @@ class _HomePageState extends State<HomePage> {
     // B32 — drive start: re-probe the audio cautions NOW (the initState read
     // may be app-open-hours old; the drive is when a mute matters).
     _probeAudioCautions();
-    _herSub = herPositionStream().listen((fix) {
+    _herSub = (widget.positionSource ?? herPositionStream)().listen((fix) {
       if (!mounted) return;
       // N8 — any event (fix OR honest unavailability) proves the position
       // pipeline is alive and feeding the drive brain itself; the watchdog
@@ -1388,6 +1503,10 @@ class _HomePageState extends State<HomePage> {
     });
     try {
       await _advisoryInitFuture;
+      // Read coverage BEFORE interpreting the result: an empty result from
+      // an uncovered point is "nobody was asked", never a publisher
+      // all-clear (see _advisoryPointCovered).
+      final covered = _advisoryService.coversPoint(latitude, longitude);
       final result = await _advisoryService.fetchAtPoint(
         latitude: latitude,
         longitude: longitude,
@@ -1395,13 +1514,35 @@ class _HomePageState extends State<HomePage> {
       if (!mounted) return;
       final now = _now();
       setState(() {
+        _advisoryPointCovered = covered;
         _applyAdvisoryResult(result, now);
         _advisoryLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
+      // The THROWN path (init failure, unexpected error) must take the SAME
+      // retention shape as a provider-errored fetch: before this, setting
+      // only _advisoryErrorMessage made AdvisoryCards early-return the error
+      // banner ALONE — prior in-force hazard cards vanished from the visible
+      // surface while topAdvisoryLevel kept feeding them to the drive brain
+      // (a spoken warning with no visible counterpart). Synthesizing a
+      // failed aggregate result renders retained hazards under the honest
+      // degraded/stale banners instead, and applies the expiry cull.
+      final now = _now();
       setState(() {
-        _advisoryErrorMessage = e.toString();
+        _applyAdvisoryResult(
+          AdvisoryAggregateResult(
+            advisories: const [],
+            providerErrors: [
+              AdvisoryProviderError(
+                source: AdvisorySource.other,
+                message: e.toString(),
+              ),
+            ],
+          ),
+          now,
+        );
+        _advisoryErrorMessage = null;
         _advisoryLoading = false;
       });
     }
@@ -1439,6 +1580,17 @@ class _HomePageState extends State<HomePage> {
   void _clearPosition() {
     _herSub?.cancel();
     _herSub = null;
+    // N8 — she deliberately ENDED the feed: the blackout watchdog must stop
+    // with it (same treatment as _useMockPosition, a fortiori — there is no
+    // live position claim left to degrade). Leaving it running would keep
+    // polling with the LAST drive's _lastPositionEventAt and, ~30 s later,
+    // speak escalating "blackout" warnings about a feed she turned off.
+    // Nulling _lastPositionEventAt also protects a RE-share: the first tick
+    // must not poll against the previous drive's stale timestamp before the
+    // first fresh fix arrives.
+    _positionWatchdog?.cancel();
+    _positionWatchdog = null;
+    _lastPositionEventAt = null;
     setState(() {
       _herFix = null;
       _isMockPosition = false;
@@ -1622,7 +1774,7 @@ class _HomePageState extends State<HomePage> {
       // black-ice warning is swallowed exactly in the recovery-from-dead-zone
       // case. NOT reset on every feed-loss cycle (per-blip cry-wolf) and NOT
       // in the stale-ice case (it is actively re-warning via the stamped line).
-      case FeedLossForecastMemory(:final spokenJaLine):
+      case FeedLossForecastMemory(:final line, :final spokenAloud):
         _invisibleIceAnnounced = false;
         _turmoilAnnounced = false;
         // C2 RED-1: THE MEMORY, BEFORE THE SILENCE. We have no live reading,
@@ -1633,14 +1785,35 @@ class _HomePageState extends State<HomePage> {
         // (これは観測ではなく予報です). Consulted BEFORE the absence line,
         // because "we know nothing" is FALSE when we know this. Announce is
         // gated once per entry (mirrors the absence gate).
-        _absenceActive = false;
-        if (!_forecastAnnounceActive) {
-          _forecastAnnounceActive = true;
-          unawaited(_announcer.announce(
-            severity: AlertSeverity.warning,
-            text: spokenJaLine,
-            localeTag: ttsTag,
-          ));
+        if (spokenAloud) {
+          _absenceActive = false;
+          if (!_forecastAnnounceActive) {
+            _forecastAnnounceActive = true;
+            unawaited(_announcer.announce(
+              severity: AlertSeverity.warning,
+              text: line,
+              localeTag: ttsTag,
+            ));
+          }
+        } else {
+          // Screen-only forecast card (en surface, or the ja mouth lacks the
+          // bytes): the VOICE keeps the honest absence line — "current
+          // conditions cannot be retrieved" stays TRUE, and the eyes-off
+          // driver must not get silence just because the forecast line is
+          // not renderable by the mouth. The screen shows MORE (the labeled
+          // forecast card), never less. Once-per-entry gate as at
+          // FeedLossAbsence.
+          _forecastAnnounceActive = false;
+          if (!_absenceActive) {
+            _absenceActive = true;
+            unawaited(_announcer.announce(
+              severity: AlertSeverity.warning,
+              text: _spokenJa
+                  ? kConditionsUnknownJaSpokenText
+                  : kConditionsUnknownEnSpokenText,
+              localeTag: ttsTag,
+            ));
+          }
         }
 
       case FeedLossAbsence():
@@ -2337,6 +2510,7 @@ class _HomePageState extends State<HomePage> {
                     _advisoryRetained && _advisoryFetchedAt != null
                         ? _now().difference(_advisoryFetchedAt!).inMinutes
                         : null,
+                pointCovered: _advisoryPointCovered,
               ),
             ),
             const SizedBox(height: 16),
@@ -2662,13 +2836,13 @@ class _HomePageState extends State<HomePage> {
               // a publisher-declared hazard valid NOW: the observation lane is
               // honestly empty AND the forecast card shows what the voice says.
               FeedLossForecastMemory(
-                :final spokenJaLine,
+                :final line,
                 :final capturedAt
               ) =>
                 [
                   _noValidObservationRow(l),
                   const SizedBox(height: 4),
-                  _forecastMemoryVisibleCard(l, spokenJaLine, capturedAt),
+                  _forecastMemoryVisibleCard(l, line, capturedAt),
                 ],
               // Nothing valid to show: the visible counterpart of the spoken
               // absence line — never a bare "not shown" that contradicts or
@@ -2740,12 +2914,20 @@ class _HomePageState extends State<HomePage> {
         color: Colors.orange.shade50,
         borderRadius: BorderRadius.circular(6),
       ),
-      child: Text(
-        l.jmaRetainedStale(ageMinutes),
-        style: TextStyle(
-          color: Colors.orange.shade900,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
+      // liveRegion — live→stale is a safety-relevant transition; assistive
+      // tech must announce it (OPS-059 floor). Contrast: orange.shade900 on
+      // orange.shade50 was ~3.5:1, below the AA 4.5:1 floor at this size —
+      // kCautionTextOnOrange measures ~7.1:1. 13 px, up from 12, for the
+      // ageing-rural cohort this label protects.
+      child: Semantics(
+        liveRegion: true,
+        child: Text(
+          l.jmaRetainedStale(ageMinutes),
+          style: const TextStyle(
+            color: kCautionTextOnOrange,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
@@ -2778,7 +2960,10 @@ class _HomePageState extends State<HomePage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.warning_amber, size: 16, color: Colors.amber.shade900),
+          // kCautionTextOnAmber + 13 px — the amber.shade900-on-amber.shade50
+          // pair was ~2.6:1, functionally invisible to a reduced-contrast
+          // elderly reader (OPS-059 AA floor 4.5:1; this measures ~7.9:1).
+          const Icon(Icons.warning_amber, size: 16, color: kCautionTextOnAmber),
           const SizedBox(width: 6),
           Expanded(
             child: Semantics(
@@ -2788,9 +2973,9 @@ class _HomePageState extends State<HomePage> {
                   hourJst: hourJst,
                   ja: _spokenJa,
                 ),
-                style: TextStyle(
-                  color: Colors.amber.shade900,
-                  fontSize: 12,
+                style: const TextStyle(
+                  color: kCautionTextOnAmber,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -2802,9 +2987,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// N15 — visible counterpart of the forecast-memory line (C2 RED-1): the
-  /// EXACT ja line the voice speaks, plus the capture timestamp so she knows
-  /// this is plan-time knowledge, not a reading we just took. liveRegion for
-  /// assistive tech (OPS-059 floor).
+  /// EXACT line the voice speaks when it speaks (ja + covered mouth), or the
+  /// visible-only counterpart when the voice keeps the absence line (en
+  /// surface / uncovered mouth — see [FeedLossForecastMemory.spokenAloud]).
+  /// Plus the capture timestamp so she knows this is plan-time knowledge,
+  /// not a reading we just took. liveRegion for assistive tech (OPS-059
+  /// floor).
   Widget _forecastMemoryVisibleCard(
     AppL10n l,
     String spokenJaLine,
@@ -2824,16 +3012,17 @@ class _HomePageState extends State<HomePage> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.ac_unit, size: 16, color: Colors.amber.shade900),
+              // Contrast floor — see _staleIceVisibleCard.
+              const Icon(Icons.ac_unit, size: 16, color: kCautionTextOnAmber),
               const SizedBox(width: 6),
               Expanded(
                 child: Semantics(
                   liveRegion: true,
                   child: Text(
                     spokenJaLine,
-                    style: TextStyle(
-                      color: Colors.amber.shade900,
-                      fontSize: 12,
+                    style: const TextStyle(
+                      color: kCautionTextOnAmber,
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -2869,9 +3058,10 @@ class _HomePageState extends State<HomePage> {
           _spokenJa
               ? kConditionsUnknownJaSpokenText
               : kConditionsUnknownEnSpokenText,
-          style: TextStyle(
-            color: Colors.amber.shade900,
-            fontSize: 12,
+          // Contrast floor — see _staleIceVisibleCard.
+          style: const TextStyle(
+            color: kCautionTextOnAmber,
+            fontSize: 13,
             fontWeight: FontWeight.w600,
           ),
         ),

@@ -14,14 +14,18 @@ import 'package:compound_failure_advisor/compound_failure_advisor.dart'
 import 'package:condition_aggregator/condition_aggregator.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/main.dart'
-    show retainAdvisoriesOnFailure, topAdvisoryLevel;
+    show
+        cullExpiredRetainedAdvisories,
+        retainAdvisoriesOnFailure,
+        topAdvisoryLevel;
 
 Advisory _advisory({
   AdvisorySeverity severity = AdvisorySeverity.severe,
   DateTime? expires,
+  AdvisorySource source = AdvisorySource.jmaJapan,
 }) {
   return Advisory(
-    source: AdvisorySource.jmaJapan,
+    source: source,
     eventClass: '大雪警報',
     severity: severity,
     certainty: AdvisoryCertainty.unknown,
@@ -157,6 +161,106 @@ void main() {
           retainAdvisoriesOnFailure(prior: null, fresh: fresh, now: now);
       expect(applied.retained, isFalse);
       expect(applied.result, same(fresh));
+    });
+
+    test(
+        'PARTIAL failure: fresh advisories from a surviving provider do NOT '
+        'erase the errored provider\'s prior in-force hazard — it is retained '
+        'and merged after the fresh ones', () {
+      final freshNws = _advisory(
+        source: AdvisorySource.nwsUnitedStates,
+        severity: AdvisorySeverity.moderate,
+        expires: DateTime.utc(2026, 1, 15, 20),
+      );
+      final applied = retainAdvisoriesOnFailure(
+        prior: _result([inForce]), // jmaJapan, in force until 18:00
+        fresh: _result([freshNws], errors: const [_jmaError]),
+        now: now,
+      );
+      expect(applied.retained, isTrue);
+      expect(applied.result.advisories, [freshNws, inForce]);
+      expect(applied.result.providerErrors, const [_jmaError]);
+    });
+
+    test(
+        'PARTIAL failure retains per provider: a provider that ANSWERED '
+        '(even empty) is a genuine per-provider clear — only the errored '
+        'provider\'s prior hazards are retained', () {
+      final priorNws = _advisory(
+        source: AdvisorySource.nwsUnitedStates,
+        expires: DateTime.utc(2026, 1, 15, 20),
+      );
+      final freshJma = _advisory(expires: DateTime.utc(2026, 1, 15, 22));
+      const nwsError = AdvisoryProviderError(
+        source: AdvisorySource.nwsUnitedStates,
+        message: 'HTTP 503',
+      );
+      final applied = retainAdvisoriesOnFailure(
+        prior: _result([inForce, priorNws]),
+        fresh: _result([freshJma], errors: const [nwsError]),
+        now: now,
+      );
+      expect(applied.retained, isTrue);
+      // JMA answered with a fresh hazard: its prior is NOT re-retained.
+      // NWS errored: its prior in-force hazard survives.
+      expect(applied.result.advisories, [freshJma, priorNws]);
+    });
+
+    test(
+        'PARTIAL failure: an expired prior hazard from the errored provider '
+        'is still dropped (the publisher\'s validity bound holds)', () {
+      final freshNws = _advisory(
+        source: AdvisorySource.nwsUnitedStates,
+        expires: DateTime.utc(2026, 1, 15, 20),
+      );
+      final applied = retainAdvisoriesOnFailure(
+        prior: _result([expired]), // jmaJapan, expired 06:00
+        fresh: _result([freshNws], errors: const [_jmaError]),
+        now: now,
+      );
+      expect(applied.retained, isFalse);
+      expect(applied.result.advisories, [freshNws]);
+    });
+  });
+
+  group('cullExpiredRetainedAdvisories (stationary expiry)', () {
+    final expiresAt = DateTime.utc(2026, 1, 15, 18);
+    final hazard = _advisory(expires: expiresAt);
+
+    test('nothing expired → null (caller skips the rebuild)', () {
+      final held = _result([hazard], errors: const [_jmaError]);
+      expect(
+        cullExpiredRetainedAdvisories(held, DateTime.utc(2026, 1, 15, 17)),
+        isNull,
+      );
+    });
+
+    test(
+        'past the publisher\'s expires the retained hazard drops, leaving '
+        'the empty+errors shape (renders degraded-unknown, never all-clear)',
+        () {
+      final held = _result([hazard], errors: const [_jmaError]);
+      final culled =
+          cullExpiredRetainedAdvisories(held, DateTime.utc(2026, 1, 15, 19));
+      expect(culled, isNotNull);
+      expect(culled!.advisories, isEmpty);
+      expect(culled.providerErrors, const [_jmaError],
+          reason: 'the provider errors survive the cull — the empty result '
+              'must keep rendering as unverified absence, not calm');
+    });
+
+    test(
+        'a null-expires advisory (fresh, from a partial retention) is NEVER '
+        'culled — culling it would erase a live warning', () {
+      final freshNoExpires = _advisory(
+        source: AdvisorySource.nwsUnitedStates,
+        expires: null,
+      );
+      final held = _result([freshNoExpires, hazard], errors: const [_jmaError]);
+      final culled =
+          cullExpiredRetainedAdvisories(held, DateTime.utc(2026, 1, 15, 19));
+      expect(culled, isNotNull);
+      expect(culled!.advisories, [freshNoExpires]);
     });
   });
 }

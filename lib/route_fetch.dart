@@ -16,8 +16,6 @@
 /// the routing is unavailable.
 library;
 
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 sealed class RouteResult {
@@ -50,51 +48,10 @@ class RouteConsentDeclined extends RouteResult {
   const RouteConsentDeclined();
 }
 
-Future<RouteResult> fetchDrivingRoute({
-  required LatLng origin,
-  required LatLng destination,
-}) async {
-  final url = Uri.parse(
-    'https://router.project-osrm.org/route/v1/driving/'
-    '${origin.longitude},${origin.latitude};'
-    '${destination.longitude},${destination.latitude}'
-    '?overview=full&geometries=geojson',
-  );
-  try {
-    // No custom headers: on web, a custom User-Agent triggers a CORS
-    // preflight (OPTIONS). OSRM advertises only GET in
-    // access-control-allow-methods, so preflight fails and the GET never
-    // fires. The browser sends its own User-Agent regardless, so the
-    // header was wasted on web and harmful at the same time.
-    final resp = await http.get(url).timeout(const Duration(seconds: 15));
-    if (resp.statusCode != 200) {
-      return RouteFailure('OSRM HTTP ${resp.statusCode}');
-    }
-    final body = jsonDecode(resp.body) as Map<String, dynamic>;
-    final code = body['code'] as String?;
-    if (code != 'Ok') {
-      return RouteFailure('OSRM code=$code (${body['message'] ?? 'no detail'})');
-    }
-    final routes = body['routes'] as List<dynamic>?;
-    if (routes == null || routes.isEmpty) {
-      return const RouteFailure('OSRM returned no routes');
-    }
-    final route = routes.first as Map<String, dynamic>;
-    final geometry = route['geometry'] as Map<String, dynamic>;
-    final coords = geometry['coordinates'] as List<dynamic>;
-    final points = coords
-        .map((c) => LatLng(
-              (c[1] as num).toDouble(),
-              (c[0] as num).toDouble(),
-            ))
-        .toList();
-    return RouteSuccess(
-      points: points,
-      distanceMeters: (route['distance'] as num).toDouble(),
-      durationSeconds: (route['duration'] as num).toDouble(),
-      fetchedAt: DateTime.now(),
-    );
-  } catch (e) {
-    return RouteFailure('network/parse error: $e');
-  }
-}
+// NOTE: the original `fetchDrivingRoute` (a direct, consent-UNGATED OSRM GET)
+// was REMOVED after the B27 pre-send consent gate landed. It had zero call
+// sites but survived as a live-looking public function whose doc still read
+// as the route path — one future import away from silently reinstating the
+// pre-consent coordinate egress. The only route path is main.dart's
+// `_fetchRoute`, whose consent gate precedes construction of the routing
+// engine; this file keeps only the result types that panel renders on.

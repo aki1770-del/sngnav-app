@@ -24,6 +24,16 @@ class AlertAnnouncer {
 
   final AlertActuators actuators;
 
+  /// Cross-call delivery queue. Several call sites fire [announce] unawaited
+  /// from INDEPENDENT timers (JMA feed-loss re-warn ticker; rung-rise from a
+  /// fix event or the blackout-watchdog poll), so two announces can start in
+  /// the same window and speak on top of each other — two overlapping
+  /// utterances are BOTH unintelligible, the worst outcome for a warning.
+  /// Chaining each announce behind the previous one's completion serializes
+  /// delivery through this single shared announcer. The queue cannot wedge:
+  /// every speak path inside is timeout-bounded (Dart 25 s cap + native 30 s
+  /// backstop) and every failure arm is caught below.
+
   /// Announce [text] at [severity] in [localeTag].
   ///
   /// - Below `warning` (i.e. `info`): no-op on BOTH channels (parity with the
@@ -45,12 +55,34 @@ class AlertAnnouncer {
   /// tactile warning. (Were `speak()` awaited before `haptic()` and allowed
   /// to throw, the most-vulnerable driver would lose the one channel she can
   /// receive — the exact reduced-subset failure the floor forbids.)
+  Future<void> _tail = Future<void>.value();
+
   Future<void> announce({
     required AlertSeverity severity,
     required String text,
     required String localeTag,
+  }) {
+    if (severity.index < AlertSeverity.warning.index) {
+      return Future<void>.value();
+    }
+    // Serialize behind the previous announce (see [_tail]). The gate check
+    // above stays OUTSIDE the queue: an info-class no-op never occupies a
+    // queue slot. _deliver never throws (both channel arms are guarded), so
+    // the chain cannot break.
+    final prev = _tail;
+    final next = () async {
+      await prev;
+      await _deliver(severity: severity, text: text, localeTag: localeTag);
+    }();
+    _tail = next;
+    return next;
+  }
+
+  Future<void> _deliver({
+    required AlertSeverity severity,
+    required String text,
+    required String localeTag,
   }) async {
-    if (severity.index < AlertSeverity.warning.index) return;
     final ttsTag = ttsLocaleTagFor(localeTag);
     // Haptic first + guarded: the tactile cue is delivered regardless of the
     // audio channel's fate.

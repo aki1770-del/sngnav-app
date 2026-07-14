@@ -98,6 +98,15 @@ class AppL10n {
     if (reason.contains('services disabled')) {
       return '位置情報サービスが無効です';
     }
+    if (reason.contains('service check timed out')) {
+      return '位置情報サービスの確認に時間がかかりすぎました（端末が応答しません）';
+    }
+    if (reason.contains('permission check timed out')) {
+      return '位置情報の許可状態の確認に時間がかかりすぎました（端末が応答しません）';
+    }
+    if (reason.contains('permission request timed out')) {
+      return '位置情報の許可の応答がありませんでした（確認画面が閉じられていません）';
+    }
     if (reason.contains('permanently denied')) {
       return '位置情報の許可が恒久的に拒否されています（OSの設定で変更してください）';
     }
@@ -106,6 +115,9 @@ class AppL10n {
     }
     if (reason.contains('non-finite')) {
       return 'GPS信号が乱れています（座標が不正です）';
+    }
+    if (reason.contains('stream ended by the platform')) {
+      return 'GPSの受信が端末側で終了しました';
     }
     if (reason.startsWith('GPS stream error')) {
       return 'GPSストリームのエラー';
@@ -280,6 +292,16 @@ class AppL10n {
       ? '警報・注意報を取得できませんでした — 有効な警報・注意報の有無は不明です。'
       : 'Advisory fetch failed — whether any warning or advisory is in '
           'force is unknown.';
+
+  /// Uncovered-point state: NO supported publisher covers this point, so
+  /// nobody was queried (no request left the device) and NOBODY made a
+  /// statement. The positive all-clear line would be a publisher claim
+  /// nobody made; this line says honestly that it cannot be checked here.
+  String get advisoryNoCoveringPublisher => _ja
+      ? 'この地点を管轄する対応データ提供元がありません — '
+          '警報・注意報の有無はこのアプリでは確認できません。'
+      : 'No supported weather publisher covers this location — whether any '
+          'warning is in force cannot be checked by this app.';
 
   /// Stale-retention banner over advisories kept from a PRIOR successful
   /// fetch after the latest fetch failed. Only advisories still inside the

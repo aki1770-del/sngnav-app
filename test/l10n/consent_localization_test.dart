@@ -129,6 +129,39 @@ void main() {
       expect(ja.gpsUnavailable('weird novel reason'),
           contains('weird novel reason'));
     });
+
+    test(
+        'EVERY reason her_position.dart can emit renders in ja — no English '
+        'passthrough on a safety-relevant GPS-degraded line (the B20 timeout '
+        '/ stream-end reasons were added without extending the map)', () {
+      const ja = AppL10n(Locale('ja'));
+      // The exact reason strings her_position.dart emits (kept verbatim —
+      // the l10n matches on substrings of these).
+      const reasons = [
+        'Location services disabled',
+        'Location service check timed out — platform did not answer',
+        'Location permission check timed out — platform did not answer',
+        'Location permission request timed out — no answer from the '
+            'platform dialog',
+        'Location permission denied',
+        'Location permission permanently denied — change in OS settings',
+        'Degraded GPS fix — non-finite coordinate (lat=NaN, lon=1.0, acc=5.0)',
+        'GPS stream error: boom',
+        'GPS stream ended by the platform',
+        'GPS init error: boom',
+      ];
+      for (final reason in reasons) {
+        final line = ja.gpsUnavailable(reason);
+        expect(
+          // No ASCII letter runs from the original reason may survive into
+          // HER line (the wrapper text itself is pure ja + punctuation).
+          RegExp('[A-Za-z]{3,}').hasMatch(line.replaceAll('GPS', '')),
+          isFalse,
+          reason: 'reason "$reason" leaked English into the ja surface: '
+              '"$line"',
+        );
+      }
+    });
   });
 
   group('Data-flow disclosure is WIRE-ACCURATE (B28 fix)', () {
@@ -322,6 +355,33 @@ void main() {
       expect(find.text(jaL10n.advisoryFetchFailed('boom')), findsOneWidget);
       // The Retry action is HER language too.
       expect(find.text(jaL10n.retry), findsOneWidget);
+    });
+
+    testWidgets(
+        'UNCOVERED point (nobody queried) does NOT render the positive '
+        'all-clear — the honest cannot-check-here line renders instead',
+        (tester) async {
+      await tester.pumpWidget(_localizedHost(
+        const Locale('ja'),
+        AdvisoryCards(
+          loading: false,
+          result: const AdvisoryAggregateResult(
+            advisories: [],
+            providerErrors: [],
+          ),
+          errorMessage: null,
+          onRefresh: () {},
+          pointCovered: false,
+        ),
+      ));
+      await tester.pump();
+      expect(
+        find.byKey(const Key('advisory-no-covering-publisher')),
+        findsOneWidget,
+      );
+      expect(find.text(jaL10n.advisoryNoCoveringPublisher), findsOneWidget);
+      // The positive publisher claim nobody made must NOT render.
+      expect(find.text(jaL10n.advisoryNoneActive), findsNothing);
     });
 
     testWidgets('en empty-state keeps the English line', (tester) async {

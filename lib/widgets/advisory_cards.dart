@@ -24,6 +24,19 @@ import 'package:intl/intl.dart';
 
 import '../l10n/app_localizations.dart';
 
+/// OPS-059 contrast floor — caution text/icon color on the amber-tinted
+/// caution surfaces (`Colors.amber.shade50`, #FFF8E1). The Material pair
+/// `amber.shade900` (#FF6F00) on that tint is ~2.6:1 — far below the WCAG AA
+/// 4.5:1 floor at the 11–13 px sizes these honesty labels use, functionally
+/// invisible to a reduced-contrast-sensitivity elderly reader. This dark
+/// amber-brown measures ~7.9:1 on #FFF8E1.
+const Color kCautionTextOnAmber = Color(0xFF6B4600);
+
+/// Same floor for the orange-tinted staleness surface
+/// (`Colors.orange.shade50`, #FFF3E0): `orange.shade900` (#E65100) is ~3.5:1
+/// there; this dark orange-brown measures ~7.1:1.
+const Color kCautionTextOnOrange = Color(0xFF8A3B00);
+
 class AdvisoryCards extends StatelessWidget {
   const AdvisoryCards({
     super.key,
@@ -32,12 +45,21 @@ class AdvisoryCards extends StatelessWidget {
     required this.errorMessage,
     required this.onRefresh,
     this.retainedAgeMinutes,
+    this.pointCovered = true,
   });
 
   final bool loading;
   final AdvisoryAggregateResult? result;
   final String? errorMessage;
   final VoidCallback onRefresh;
+
+  /// False when NO registered publisher covers the queried point
+  /// ([AdvisoryService.coversPoint]): nobody was queried, so an empty result
+  /// is not a publisher statement and the positive all-clear line must not
+  /// render — the honest "cannot be checked here" line renders instead.
+  /// Defaults true (the pre-existing behavior) for callers that always query
+  /// covered points; main.dart passes the real per-fetch read.
+  final bool pointCovered;
 
   /// Non-null when the advisories in [result] were RETAINED from a prior
   /// successful fetch because the latest fetch failed (value = minutes since
@@ -110,9 +132,33 @@ class AdvisoryCards extends StatelessWidget {
             key: const Key('advisory-unknown-degraded'),
             padding: const EdgeInsets.all(8),
             color: Colors.red.shade50,
-            child: Text(
-              l.advisoryFetchUnknown,
-              style: TextStyle(color: Colors.red.shade900, fontSize: 13),
+            // liveRegion — the all-clear→unknown flip is exactly the state
+            // change this banner exists to make loud; assistive tech must
+            // announce it, not merely hold it in the tree (OPS-059 floor).
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                l.advisoryFetchUnknown,
+                style: TextStyle(color: Colors.red.shade900, fontSize: 13),
+              ),
+            ),
+          )
+        else if (r.advisories.isEmpty && !pointCovered)
+          // B04 sibling — an UNCOVERED point: nobody was asked, so the
+          // positive all-clear would be a publisher claim nobody made.
+          // Caution-styled (not calm grey, not error red — the app is fine,
+          // its coverage just ends here).
+          Container(
+            key: const Key('advisory-no-covering-publisher'),
+            padding: const EdgeInsets.all(8),
+            color: Colors.amber.shade50,
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                l.advisoryNoCoveringPublisher,
+                style:
+                    const TextStyle(color: kCautionTextOnAmber, fontSize: 13),
+              ),
             ),
           )
         else if (r.advisories.isEmpty)
@@ -129,9 +175,21 @@ class AdvisoryCards extends StatelessWidget {
               padding: const EdgeInsets.all(6),
               margin: const EdgeInsets.only(bottom: 4),
               color: Colors.amber.shade50,
-              child: Text(
-                l.advisoryRetainedStale(retainedAgeMinutes!),
-                style: TextStyle(color: Colors.amber.shade900, fontSize: 11),
+              // liveRegion — current→stale is a safety-relevant transition;
+              // announce it. Contrast + size: this label's entire job is
+              // stopping stale hazard data from masquerading as current, so
+              // it must itself be readable (kCautionTextOnAmber ≥4.5:1;
+              // 13 px, up from 11).
+              child: Semantics(
+                liveRegion: true,
+                child: Text(
+                  l.advisoryRetainedStale(retainedAgeMinutes!),
+                  style: const TextStyle(
+                    color: kCautionTextOnAmber,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ),
           ...ordered.map((a) => _AdvisoryCard(
@@ -150,7 +208,9 @@ class AdvisoryCards extends StatelessWidget {
               child: Text(
                 l.advisoryPublisherErrored(
                     _sourceLabel(err.source), err.message),
-                style: TextStyle(color: Colors.amber.shade900, fontSize: 11),
+                // Same amber surface — same contrast floor.
+                style:
+                    const TextStyle(color: kCautionTextOnAmber, fontSize: 11),
               ),
             ),
         ],

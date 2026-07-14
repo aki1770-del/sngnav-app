@@ -184,20 +184,29 @@ void main() {
       );
       expect(v, isA<FeedLossForecastMemory>());
       final f = v as FeedLossForecastMemory;
-      expect(f.spokenJaLine, kForecastSnowValidJa);
+      expect(f.line, kForecastSnowValidJa);
       expect(f.capturedAt, captured);
+      expect(f.spokenAloud, isTrue,
+          reason: 'ja surface + bundled mouth covers the line → spoken');
     });
 
-    test('expired cache + memory valid now, EN spoken → absence (the en '
-        'forecast voice is not rendered; the panel mirrors the voice — '
-        'recorded bound, not a claim)', () {
+    test('expired cache + memory valid now, EN spoken → forecast memory on '
+        'the VISIBLE channel (en counterpart line), NOT spoken aloud (the en '
+        'forecast voice stays a recorded bound, not a claim — locale must '
+        'not delete a held hazard from the screen)', () {
+      final captured = _clockAt(Duration.zero);
       final v = feedLossVerdict(
         cached: _iceObs(),
-        memory: _memoryAt(_clockAt(Duration.zero)),
+        memory: _memoryAt(captured),
         now: _clockAt(const Duration(minutes: 90)),
         spokenJa: false,
       );
-      expect(v, isA<FeedLossAbsence>());
+      expect(v, isA<FeedLossForecastMemory>());
+      final f = v as FeedLossForecastMemory;
+      expect(f.line, kForecastSnowValidEn);
+      expect(f.capturedAt, captured);
+      expect(f.spokenAloud, isFalse,
+          reason: 'screen-only: the voice keeps the honest absence line');
     });
 
     test('memory whose publisher window does NOT cover now → absence '

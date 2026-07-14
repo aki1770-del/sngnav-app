@@ -62,6 +62,14 @@ class AdvisoryService {
     _initialized = true;
   }
 
+  /// True when at least one registered publisher covers `(latitude,
+  /// longitude)`. When false, [fetchAtPoint] queries no one and its empty
+  /// result is NOT a publisher statement — the caller must render "cannot
+  /// be checked here", never the positive all-clear (B04's sibling: an
+  /// uncovered point is unverified absence, not calm).
+  bool coversPoint(double latitude, double longitude) =>
+      _covered.any((cp) => cp.covers(latitude, longitude));
+
   /// Fetch all active advisories at the given point, querying ONLY the
   /// providers whose coverage predicate includes `(latitude, longitude)`.
   ///
