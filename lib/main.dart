@@ -76,6 +76,7 @@ import 'services/turmoil_watch.dart';
 import 'services/jma_forecast_fetch.dart';
 import 'services/staleness_policy.dart';
 import 'services/trip_hazard_memory.dart';
+import 'services/route_consent.dart';
 import 'services/jma_advisory_provider_factory.dart';
 import 'services/audio_readiness.dart';
 import 'services/voice_lane_readiness.dart';
@@ -571,6 +572,21 @@ class _HomePageState extends State<HomePage> {
   LatLng? _destination;
   RouteResult? _routeResult;
   bool _routeLoading = false;
+
+  // B27/B26 — pre-send consent for the OSRM coordinate egress. null =
+  // undecided (ask before the first send); true/false = HER remembered
+  // choice (persisted via RouteConsentStore when a documents dir exists).
+  //
+  // SCOPE (B26, honest): full driving_consent wiring is a larger design —
+  // its ConsentPurpose vocabulary upstream cannot yet name a
+  // coordinate-query (routing) egress; catalog follow-up. Until then THIS
+  // app-local persisted consent IS the gate at the app's only coordinate
+  // egress outside the location-share disclosure: route coordinates come
+  // from map taps, not GPS, so the location-share gate never covered them
+  // (JMA receives only an on-device-derived prefecture code; the NWS point
+  // query already sits behind the location-share gate).
+  bool? _osrmConsent;
+  bool _osrmConsentLoaded = false;
 
   // (e) honest maneuver narration — the real step list parsed by the
   // ALREADY-BUILT OsrmRoutingEngine pipeline (steps=true), plus the NEXT
@@ -1645,10 +1661,112 @@ class _HomePageState extends State<HomePage> {
     _lastManeuverNarration = null;
   }
 
+  /// Build the on-disk consent store, or null when this platform/harness has
+  /// no documents dir (tests, desktop harnesses). Null = the choice is
+  /// in-RAM only for this run — not an error (same idiom as _tripHazardStore).
+  ///
+  /// TIMEOUT (load-bearing): the consent QUESTION must never hang behind a
+  /// wedged path_provider — a hang here would make tap-route silently do
+  /// nothing forever, which is worse than forgetting the choice. Measured:
+  /// getApplicationDocumentsDirectory() never completes (not even an error)
+  /// in the flutter_test zone, so an unbounded await deadlocks there too.
+  /// On timeout the choice degrades honestly to in-RAM for this run (she is
+  /// asked again next launch — a repeated question, never a hung screen).
+  Future<RouteConsentStore?> _routeConsentStore() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory()
+          .timeout(const Duration(seconds: 2));
+      return RouteConsentStore(
+        file: File('${dir.path}/${RouteConsentStore.fileName}'),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// B27 — the pre-send gate at the OSRM coordinate egress. Resolves HER
+  /// remembered choice, asking ONCE (dialog) when undecided. Returns true
+  /// only when she has agreed; anything else means NOTHING may be sent.
+  ///
+  /// A dismissed dialog (barrier tap / back) is treated as "not now": no
+  /// fetch, but NOT persisted — she is asked again on the next tap-route,
+  /// because a dismissal is not a decision.
+  Future<bool> _ensureRouteConsent() async {
+    if (!_osrmConsentLoaded) {
+      final store = await _routeConsentStore();
+      bool? persisted;
+      try {
+        // Same hang-bound as the store construction: the question must
+        // never wait forever on a wedged read.
+        persisted = await store?.load().timeout(const Duration(seconds: 2));
+      } catch (_) {
+        persisted = null;
+      }
+      if (persisted != null) _osrmConsent = persisted;
+      _osrmConsentLoaded = true;
+    }
+    final existing = _osrmConsent;
+    if (existing != null) return existing;
+    if (!mounted) return false;
+    final granted = await _promptRouteConsent();
+    if (granted == null) return false; // dismissed — not a decision.
+    _osrmConsent = granted;
+    // Fire-and-forget persist: her ANSWER takes effect now, in RAM; a slow
+    // or wedged disk write must not hold the route (or the honest decline
+    // render) hostage. Worst case the write is lost and she is asked again
+    // next launch — a repeated question, never a hung screen.
+    unawaited(_routeConsentStore().then((store) => store?.save(granted)));
+    return granted;
+  }
+
+  /// The pre-send disclosure dialog (ja-primary via AppL10n). States what
+  /// leaves the device and where it goes BEFORE anything is sent.
+  Future<bool?> _promptRouteConsent() {
+    final l = AppL10n.of(context);
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.routeConsentTitle),
+        content: Text(
+          l.routeConsentBody,
+          key: const Key('route-consent-body'),
+        ),
+        actions: [
+          TextButton(
+            key: const Key('route-consent-decline'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.routeConsentDecline),
+          ),
+          FilledButton(
+            key: const Key('route-consent-accept'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l.routeConsentAccept),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _fetchRoute() async {
     final o = _origin;
     final d = _destination;
     if (o == null || d == null) return;
+
+    // B27 — consent BEFORE the wire. The OSRM demo server receives HER
+    // full-precision tapped coordinates; nothing may be sent until she has
+    // read the pre-send disclosure and agreed. Decline/dismiss → no fetch,
+    // honest neutral state (never rendered as an error).
+    final consented = await _ensureRouteConsent();
+    if (!mounted) return;
+    if (!consented) {
+      setState(() {
+        _routeResult = const RouteConsentDeclined();
+        _clearManeuverState();
+        _routeLoading = false;
+      });
+      return;
+    }
+
     setState(() => _routeLoading = true);
 
     // Route via the ALREADY-BUILT OsrmRoutingEngine maneuver pipeline: it
@@ -2609,6 +2727,17 @@ class _HomePageState extends State<HomePage> {
             l.locationDisclosure,
             style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
           ),
+          const SizedBox(height: 4),
+          // B27+B30 — the REST of the real wire, on the same card: the OSRM
+          // route egress (consent-gated pre-send), the online tile fallback
+          // (tile.openstreetmap.org sees viewport tiles + IP), and the
+          // network-TTS possibility. The coordinates-story she decides with
+          // must not omit an egress that exists.
+          Text(
+            key: const Key('egress-disclosure'),
+            l.egressDisclosure,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          ),
         ],
       );
     }
@@ -2705,6 +2834,41 @@ class _HomePageState extends State<HomePage> {
                 child: Text(
                   'Route fetch failed: $reason',
                   style: TextStyle(color: Colors.red.shade900),
+                ),
+              ),
+            // B27 — decline is an honest NEUTRAL state, never error-styled:
+            // the router did not fail, it was never asked. The change-choice
+            // action keeps a remembered "no" from becoming a locked door.
+            RouteConsentDeclined() => Container(
+                key: const Key('route-consent-declined'),
+                padding: const EdgeInsets.all(8),
+                color: Colors.blueGrey.shade50,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      AppL10n.of(context).routeConsentDeclinedMessage,
+                      style: TextStyle(
+                        color: Colors.blueGrey.shade900,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: TextButton(
+                        key: const Key('route-consent-change'),
+                        onPressed: () {
+                          // Re-open the question; the new answer (if any)
+                          // is persisted over the old one.
+                          _osrmConsent = null;
+                          _fetchRoute();
+                        },
+                        child: Text(
+                          AppL10n.of(context).routeConsentChangeChoice,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
           },

@@ -42,6 +42,14 @@ class RouteFailure extends RouteResult {
   const RouteFailure(this.reason);
 }
 
+/// The driver declined (or dismissed) the pre-send consent for the OSRM
+/// coordinate egress. NO request was made — the tapped origin/destination
+/// coordinates did not leave the device. This is an honest neutral state,
+/// not an error: the router did not fail, it was never asked.
+class RouteConsentDeclined extends RouteResult {
+  const RouteConsentDeclined();
+}
+
 Future<RouteResult> fetchDrivingRoute({
   required LatLng origin,
   required LatLng destination,

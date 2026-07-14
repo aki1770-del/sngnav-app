@@ -116,36 +116,123 @@ class AppL10n {
     return reason;
   }
 
-  // ===== Data-flow disclosure (task 3) — REGION-ACCURATE =====
+  // ===== Data-flow disclosure (task 3, corrected B28) — WIRE-ACCURATE =====
   //
-  // Honesty-traced to real code: coordinates are sent only when the caller's
-  // position moves >= ~0.01 deg (~1 km) (see _maybeRefreshAdvisoriesForFix in
-  // main.dart), and are REGION-GATED — a coordinate goes ONLY to the publisher
-  // whose coverage includes it (AdvisoryService.fetchAtPoint +
-  // services/provider_coverage.dart: a Japan point → 気象庁/JMA only, NWS is
-  // never contacted; a US point → NWS only). They are held only in memory
-  // (never persisted) and never sent to any server this app runs (there is
-  // none). Foreground-only per AndroidManifest.xml (no ACCESS_BACKGROUND_LOCATION).
+  // Honesty-traced to the real wire, read at the resolved package sources
+  // (pubspec.lock), not at the docs:
   //
-  // The JA copy names 気象庁/JMA (the only service a Japanese-point driver's
-  // coordinate reaches) and states that out-of-region services are not
-  // contacted — it does NOT claim her coordinate goes to the NWS, because the
-  // code will not call it. The EN copy is truthful for both regions (JMA in
-  // Japan; NWS in the US) and states the same not-contacted-out-of-region fact.
+  // - JAPAN: condition_aggregator_jma 0.3.0 maps the point to prefecture
+  //   code(s) ON-DEVICE (`prefectureCodesForPoint`, jma_advisory_provider.dart
+  //   :163) and requests only
+  //   `https://www.jma.go.jp/bosai/warning/data/warning/{prefectureCode}.json`
+  //   (:53, :342). HER coordinates NEVER leave the device for Japan — the
+  //   previous copy claimed they were "sent to the JMA", which was FALSE.
+  // - UNITED STATES: noaa_nws_adapter 0.0.8 sends the actual point —
+  //   `GET https://api.weather.gov/alerts/active?point={lat},{lon}`
+  //   (noaa_nws_client.dart:307) — and short-circuits out-of-coverage points
+  //   BEFORE any URI is constructed (:305), so a non-US coordinate never
+  //   reaches the NWS either.
+  // - Cadence: a refresh fires about once per ~1 km of travel
+  //   (_maybeRefreshAdvisoriesForFix in main.dart). Coordinates are held only
+  //   in memory, never persisted, never sent to any server this app runs
+  //   (there is none). Foreground-only per AndroidManifest.xml.
+  //
+  // BOTH locales state both regional facts: locale is NOT location — a
+  // Japanese-reading driver in the US would hit the NWS point path, so the ja
+  // copy claiming "coordinates never leave the device" unconditionally would
+  // itself be false. Each claim is scoped to its region.
 
   String get locationDisclosure => _ja
-      ? '現在地を共有すると、周辺の気象情報を取得するため、走行約1kmごとに現在の座標が、'
-          'その地域を管轄する公的な気象機関へ送信されます（日本国内では気象庁）。'
-          '管轄外の気象機関へ座標が送信されることはありません。共有は任意で、'
-          'アプリの使用中のみ行われ、端末に保存されず、'
-          '本アプリ独自のサーバーへ送信されることはありません。'
-      : 'When you share your location, your coordinates are sent — about once '
-          'per kilometre of travel — only to the public weather service that '
-          'covers your area (the JMA in Japan; the NWS in the United States), '
-          'to fetch nearby advisories. A service that does not cover your '
-          'location is never contacted. It is opt-in, used only while the app '
-          'is open, is not stored on your device, and is never sent to this '
-          "app's own servers.";
+      ? '現在地を共有すると、周辺の警報・注意報の取得に使われます。'
+          '日本国内では座標が端末の外へ送信されることはありません — '
+          '端末内で現在地から都道府県を判定し、気象庁の公開データへは'
+          '都道府県コードのみを（走行約1kmごとに）要求します。'
+          'アメリカ合衆国内では、地点の警報を取得するため座標が'
+          '米国国立気象局（NWS）へ送信されます。'
+          '現在地を管轄しない気象機関へ問い合わせることはありません。'
+          '共有は任意で、アプリの使用中のみ行われ、位置情報は端末に保存されず、'
+          '本アプリ独自のサーバーへ送信されることもありません。'
+      : 'When you share your location, it is used to fetch nearby weather '
+          'advisories. In Japan your coordinates never leave the device: the '
+          'app determines your prefecture on the device and requests only '
+          'that prefecture code from the JMA public data (about once per '
+          'kilometre of travel). In the United States your coordinates are '
+          'sent to the NWS to fetch alerts for your exact point. A service '
+          'that does not cover your location is never contacted. Sharing is '
+          'opt-in, happens only while the app is open, and your location is '
+          "never stored on the device or sent to this app's own servers.";
+
+  // ===== Other-egress disclosure (B27 + B30) — the rest of the wire =====
+  //
+  // The coordinates-story above covers the advisory fetch. These are the
+  // OTHER network egresses the app actually has, stated on the same card so
+  // the disclosure she decides with matches the whole real wire:
+  //
+  // - OSRM (B27): tap-route sends full-precision origin+destination to
+  //   router.project-osrm.org (route_fetch.dart / main.dart _fetchRoute) —
+  //   consent-gated pre-send since B27; nothing is sent until she agrees.
+  // - OSM tiles (B30): akita_map.dart TileLayer urlTemplate
+  //   'https://tile.openstreetmap.org/{z}/{x}/{y}.png' — the bundled offline
+  //   archive serves first; the network fallback (uncovered tiles / online)
+  //   sends viewport tile requests + her IP to tile.openstreetmap.org.
+  // - Network TTS (B30): spoken alerts prefer the bundled on-device audio
+  //   (voice/bundled_audio_engine.dart); when the OS speech engine falls back
+  //   and its selected voice is network-bound (voice_lane_readiness.dart
+  //   reads exactly this), the spoken text may route via the OS voice vendor.
+
+  String get egressDisclosure => _ja
+      ? 'このほかに端末の外と通信するのは次の場合のみです。'
+          '【経路計算】地図で選んだ出発地と目的地の座標は、確認画面で同意した'
+          '場合にのみ、公開OSRMデモサーバー（router.project-osrm.org）へ'
+          '送信されます。同意するまで送信されません。'
+          '【地図タイル】オフライン収録範囲外の地図を表示するとき、'
+          'tile.openstreetmap.org が表示範囲のタイル要求とIPアドレスを'
+          '受け取ります。'
+          '【音声】音声警告は端末に同梱した音声を優先します。端末の音声エンジンが'
+          'ネットワーク音声を使う場合、読み上げる文がOSの音声提供元を'
+          '経由することがあります。'
+      : 'The only other times this app talks to the outside: '
+          'Route calculation — the origin and destination you tap are sent to '
+          'the public OSRM demo server (router.project-osrm.org) only after '
+          'you agree on the confirmation dialog; nothing is sent until you '
+          'agree. Map tiles — when the map shows areas outside the bundled '
+          'offline archive, tile.openstreetmap.org receives tile requests for '
+          'the visible area and your IP address. Voice — spoken alerts prefer '
+          'the bundled on-device audio; if the device speech engine uses a '
+          'network voice, the spoken text may pass through the OS voice '
+          'vendor.';
+
+  // ===== OSRM pre-send route consent (B27) — ja-primary, asked ONCE =====
+
+  String get routeConsentTitle =>
+      _ja ? '経路計算のための送信の確認' : 'Send coordinates for route calculation?';
+
+  /// The pre-send disclosure she decides with. States exactly what leaves
+  /// the device (the two tapped coordinates), where it goes (the public
+  /// OSRM demo server), and why — BEFORE anything is sent.
+  String get routeConsentBody => _ja
+      ? '出発地と目的地の座標が、経路計算のため公開OSRMデモサーバー'
+          '（router.project-osrm.org）に送信されます。よろしいですか。'
+          'この選択は記憶され、あとから変更できます。'
+      : 'The origin and destination coordinates you tapped will be sent to '
+          'the public OSRM demo server (router.project-osrm.org) to '
+          'calculate the route. Is that OK? Your choice is remembered and '
+          'can be changed later.';
+
+  String get routeConsentAccept => _ja ? '送信して経路を取得' : 'Send and fetch route';
+
+  String get routeConsentDecline => _ja ? '送信しない' : 'Do not send';
+
+  /// Honest neutral state after a decline/dismiss: no request was made,
+  /// coordinates did not leave the device. Not an error — the router was
+  /// never asked.
+  String get routeConsentDeclinedMessage => _ja
+      ? '経路は取得していません — 座標は送信されていません。'
+      : 'No route was fetched — your coordinates were not sent.';
+
+  /// Path back after a persisted decline (dignity: a remembered "no" must
+  /// never be a locked door).
+  String get routeConsentChangeChoice => _ja ? '選択を変更' : 'Change choice';
 
   // ===== Advisory ordering / NWS de-emphasis for the ja surface (task 4) =====
 

@@ -70,12 +70,29 @@ void main() {
       final disclosureFinder = find.byKey(const Key('location-disclosure'));
       expect(disclosureFinder, findsOneWidget);
       final text = tester.widget<Text>(disclosureFinder).data!;
-      // Japanese, and states the load-bearing honesty facts.
+      // Japanese, and states the load-bearing honesty facts (B28-corrected).
       expect(text, contains('気象庁')); // JMA publisher named
+      expect(text, contains('都道府県コード')); // what the JMA wire REALLY carries
       expect(text, contains('1km')); // ~1km cadence
       expect(text, contains('任意')); // opt-in
       expect(text, contains('保存されず')); // not persisted
-      expect(text, contains('サーバーへ送信されることはありません')); // not to our servers
+      expect(text, contains('本アプリ独自のサーバー')); // not to our servers
+    });
+
+    testWidgets('other-egress disclosure (B27+B30) is on the same card, ja',
+        (tester) async {
+      await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
+      await tester.pump();
+
+      final finder = find.byKey(const Key('egress-disclosure'));
+      expect(finder, findsOneWidget);
+      final text = tester.widget<Text>(finder).data!;
+      // The three real non-advisory egresses, named by host.
+      expect(text, contains('router.project-osrm.org')); // B27 route egress
+      expect(text, contains('同意するまで送信されません')); // consent-gated pre-send
+      expect(text, contains('tile.openstreetmap.org')); // B30 tile fallback
+      expect(text, contains('IPアドレス')); // what the tile server sees
+      expect(text, contains('音声')); // B30 network-TTS possibility
     });
   });
 
@@ -91,7 +108,7 @@ void main() {
           .data!;
       expect(text, contains('JMA'));
       expect(text, contains('opt-in'));
-      expect(text, contains('not stored'));
+      expect(text, contains('never stored'));
     });
   });
 
@@ -114,29 +131,54 @@ void main() {
     });
   });
 
-  group('Data-flow disclosure is REGION-ACCURATE (region-gate fix)', () {
+  group('Data-flow disclosure is WIRE-ACCURATE (B28 fix)', () {
+    // Truth read at the resolved package sources (pubspec.lock):
+    // condition_aggregator_jma 0.3.0 maps point→prefecture ON-DEVICE and
+    // requests only warning/{prefectureCode}.json — coordinates never leave
+    // the device for Japan. noaa_nws_adapter 0.0.8 sends the actual point
+    // (?point=lat,lon) for US points. Locale is NOT location, so BOTH
+    // locales must state both regional facts (a ja-reading driver in the US
+    // hits the NWS point path).
     const ja = AppL10n(Locale('ja'));
     const en = AppL10n(Locale('en'));
 
-    test('JA names 気象庁 and does NOT claim HER coords go to the NWS', () {
+    test('JA: Japan = coords never leave the device, only a prefecture code',
+        () {
       final d = ja.locationDisclosure;
-      // The service a Japanese-point coordinate actually reaches.
       expect(d, contains('気象庁'));
-      // It must NOT tell a Japanese driver her coordinate goes to the NWS —
-      // the code region-gates so NWS is never called for a Japan point.
-      expect(d, isNot(contains('NWS')));
-      // It states out-of-region services are not contacted.
-      expect(d, contains('管轄外'));
-      expect(d, contains('送信されることはありません'));
+      // The load-bearing correction: NOT "coordinates are sent to JMA".
+      expect(d, contains('座標が端末の外へ送信されることはありません'));
+      expect(d, contains('都道府県コード'));
+      // The US fact is stated too (locale ≠ location).
+      expect(d, contains('NWS'));
+      // Out-of-region services are not contacted.
+      expect(d, contains('管轄しない'));
+      // It must NOT resurrect the false claim that coordinates go to a
+      // weather service unconditionally.
+      expect(d, isNot(contains('座標が、その地域を管轄する公的な気象機関へ送信')));
     });
 
-    test('EN is truthful for both regions and states region-gating', () {
+    test('EN: prefecture-code-only for Japan; point coords for the US', () {
       final d = en.locationDisclosure;
       expect(d, contains('JMA'));
+      expect(d, contains('never leave the device'));
+      expect(d, contains('prefecture code'));
       expect(d, contains('NWS'));
       // States the load-bearing gating fact (out-of-region → not contacted).
       expect(d.toLowerCase(), contains('never contacted'));
       expect(d.toLowerCase(), contains('opt-in'));
+    });
+
+    test('egress disclosure names all three non-advisory egresses, both '
+        'locales', () {
+      for (final l in const [AppL10n(Locale('ja')), AppL10n(Locale('en'))]) {
+        final d = l.egressDisclosure;
+        expect(d, contains('router.project-osrm.org'));
+        expect(d, contains('tile.openstreetmap.org'));
+      }
+      // Network-TTS possibility, per locale.
+      expect(ja.egressDisclosure, contains('ネットワーク音声'));
+      expect(en.egressDisclosure, contains('network voice'));
     });
   });
 
