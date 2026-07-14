@@ -31,12 +31,19 @@ class AdvisoryCards extends StatelessWidget {
     required this.result,
     required this.errorMessage,
     required this.onRefresh,
+    this.retainedAgeMinutes,
   });
 
   final bool loading;
   final AdvisoryAggregateResult? result;
   final String? errorMessage;
   final VoidCallback onRefresh;
+
+  /// Non-null when the advisories in [result] were RETAINED from a prior
+  /// successful fetch because the latest fetch failed (value = minutes since
+  /// that prior fetch). Renders a visible stale banner — retained hazard data
+  /// must never masquerade as current. Null = the result is fresh.
+  final int? retainedAgeMinutes;
 
   @override
   Widget build(BuildContext context) {
@@ -91,17 +98,48 @@ class AdvisoryCards extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (r.advisories.isEmpty)
+        // B04 — the all-clear line is a POSITIVE claim ("no advisories are in
+        // force"). When every advisory is absent AND a covering publisher
+        // errored, that claim is unverified: the absence is a fetch failure,
+        // not a publisher statement. Render honest-unknown instead — absence
+        // must never render as calm. All-clear renders only when no covering
+        // publisher errored (with region-gating, that means the regional
+        // publisher answered).
+        if (r.advisories.isEmpty && r.providerErrors.isNotEmpty)
+          Container(
+            key: const Key('advisory-unknown-degraded'),
+            padding: const EdgeInsets.all(8),
+            color: Colors.red.shade50,
+            child: Text(
+              l.advisoryFetchUnknown,
+              style: TextStyle(color: Colors.red.shade900, fontSize: 13),
+            ),
+          )
+        else if (r.advisories.isEmpty)
           Text(
             l.advisoryNoneActive,
             style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
           )
-        else
+        else ...[
+          // N10 — retained (stale) hazard data carries a visible age label;
+          // trust the hazard, but never let it masquerade as current.
+          if (retainedAgeMinutes != null)
+            Container(
+              key: const Key('advisory-retained-stale'),
+              padding: const EdgeInsets.all(6),
+              margin: const EdgeInsets.only(bottom: 4),
+              color: Colors.amber.shade50,
+              child: Text(
+                l.advisoryRetainedStale(retainedAgeMinutes!),
+                style: TextStyle(color: Colors.amber.shade900, fontSize: 11),
+              ),
+            ),
           ...ordered.map((a) => _AdvisoryCard(
                 advisory: a,
                 deEmphasize:
                     isJa && a.source == AdvisorySource.nwsUnitedStates,
               )),
+        ],
         if (r.providerErrors.isNotEmpty) ...[
           const SizedBox(height: 8),
           for (final err in r.providerErrors)

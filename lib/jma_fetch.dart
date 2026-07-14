@@ -176,22 +176,25 @@ Future<JmaResult> fetchLatestObservation({
     final latestKey = keys.last;
     final rec = dataMap[latestKey] as Map<String, dynamic>;
 
-    // JMA shape: each measurement is [value, qualityFlag].
-    double? extractDouble(String field) {
+    // JMA shape: each measurement is [value, qualityFlag]. Only a
+    // QC-flag-0 (normal) reading is a measurement; any other flag — or a
+    // missing/malformed flag — means the station's sensor value did not
+    // pass JMA's quality control, and relaying it verbatim would present a
+    // rejected reading as fact. Non-0 → the field is absent (null =
+    // unknown), never a value (same flag-0-only discipline as
+    // pretrip_source_jma's _visibilityFor, read from its jma_visibility.dart).
+    num? extractQc0(String field) {
       final v = rec[field];
-      if (v is List && v.isNotEmpty && v[0] != null) {
-        return (v[0] as num).toDouble();
-      }
-      return null;
+      if (v is! List || v.length < 2) return null;
+      final value = v[0];
+      final flag = v[1];
+      if (value is! num || flag is! num || flag != 0) return null;
+      return value;
     }
 
-    int? extractInt(String field) {
-      final v = rec[field];
-      if (v is List && v.isNotEmpty && v[0] != null) {
-        return (v[0] as num).toInt();
-      }
-      return null;
-    }
+    double? extractDouble(String field) => extractQc0(field)?.toDouble();
+
+    int? extractInt(String field) => extractQc0(field)?.toInt();
 
     return JmaSuccess(JmaObservation(
       stationId: stationId,

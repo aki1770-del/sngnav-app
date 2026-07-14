@@ -15,7 +15,7 @@ library;
 import 'package:compound_failure_advisor/compound_failure_advisor.dart'
     show AdvisoryLevel, DriveAction;
 import 'package:condition_aggregator/condition_aggregator.dart'
-    show AdvisoryAggregateResult, AdvisorySeverity;
+    show Advisory, AdvisoryAggregateResult, AdvisorySeverity;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -126,6 +126,74 @@ AlertSeverity severityForCondition(RoadSurfaceCondition condition) {
     case RoadSurfaceCondition.dry:
       return AlertSeverity.info;
   }
+}
+
+/// Map the app's real aggregated advisory result to the advisor's mirror
+/// [AdvisoryLevel] — the single MOST-severe active advisory in force, or
+/// `null` when there is none. The advisor does NOT aggregate; it consumes
+/// the one severity the integrator selects.
+///
+/// `unknown` maps to [AdvisoryLevel.moderate], NOT null. In
+/// `condition_aggregator`, `unknown` only ever rides a REAL, constructed
+/// advisory — it means "a warning IS in force, but its severity could not
+/// be graded". A live warning we cannot grade must not vanish from the
+/// drive brain (same deliberate pinning as drive_situation_fusion 0.1.0
+/// `advisoryLevelOf`, read from its src/fuse.dart). Absent (`null` result
+/// or empty list) is the only shape that maps to null.
+///
+/// Top-level + public so the tests can pin the mapping directly.
+AdvisoryLevel? topAdvisoryLevel(AdvisoryAggregateResult? result) {
+  if (result == null || result.advisories.isEmpty) return null;
+  var top = AdvisorySeverity.unknown;
+  for (final a in result.advisories) {
+    if (a.severity.index > top.index) top = a.severity;
+  }
+  return switch (top) {
+    AdvisorySeverity.unknown => AdvisoryLevel.moderate,
+    AdvisorySeverity.minor => AdvisoryLevel.minor,
+    AdvisorySeverity.moderate => AdvisoryLevel.moderate,
+    AdvisorySeverity.severe => AdvisoryLevel.severe,
+    AdvisorySeverity.extreme => AdvisoryLevel.extreme,
+  };
+}
+
+/// N10 — asymmetric overwrite: trust the hazard, expire the clear.
+///
+/// A fetch that FAILED (provider errors, no advisories) must not silently
+/// erase hazards a publisher declared in force: [prior] advisories whose
+/// publisher-declared [Advisory.expires] has not yet passed are RETAINED
+/// (`retained: true`) — the caller keeps rendering them (with a visible
+/// stale-age label) and keeps feeding the drive brain. A retained advisory
+/// past its expires drops on every cycle (the publisher's own validity bound
+/// is honored). The clear side is never retained: a genuine clear (fetch
+/// succeeded, no advisories) overwrites immediately, and an advisory WITHOUT
+/// a declared expires is not retained — its in-force state cannot be
+/// verified while the publisher is unreachable.
+///
+/// Top-level + public so the tests can pin the asymmetry directly.
+({AdvisoryAggregateResult result, bool retained}) retainAdvisoriesOnFailure({
+  required AdvisoryAggregateResult? prior,
+  required AdvisoryAggregateResult fresh,
+  required DateTime now,
+}) {
+  final fetchFailed =
+      fresh.advisories.isEmpty && fresh.providerErrors.isNotEmpty;
+  if (fetchFailed && prior != null) {
+    final retained = <Advisory>[
+      for (final a in prior.advisories)
+        if (a.expires != null && now.isBefore(a.expires!)) a,
+    ];
+    if (retained.isNotEmpty) {
+      return (
+        result: AdvisoryAggregateResult(
+          advisories: retained,
+          providerErrors: fresh.providerErrors,
+        ),
+        retained: true,
+      );
+    }
+  }
+  return (result: fresh, retained: false);
 }
 
 class SngnavApp extends StatelessWidget {
@@ -527,6 +595,17 @@ class _HomePageState extends State<HomePage> {
   AdvisoryAggregateResult? _advisoryResult;
   bool _advisoryLoading = false;
   String? _advisoryErrorMessage;
+
+  /// Wall-clock instant of the fetch that produced the advisories currently
+  /// in [_advisoryResult] (i.e. the last fetch whose data we display as
+  /// its own). Feeds the visible stale-age label while retained.
+  DateTime? _advisoryFetchedAt;
+
+  /// True when [_advisoryResult]'s advisories were RETAINED from a prior
+  /// successful fetch because the latest fetch failed with provider errors
+  /// and no advisories. Retained hazards render with a stale label and
+  /// still feed the drive brain; the all-clear is never retained.
+  bool _advisoryRetained = false;
   // Last (lat, lon) used for an advisory fetch — refresh-only-on-change.
   double? _lastAdvisoryLat;
   double? _lastAdvisoryLon;
@@ -769,25 +848,6 @@ class _HomePageState extends State<HomePage> {
     setState(() {});
   }
 
-  /// Map the app's real aggregated advisory result to the advisor's mirror
-  /// [AdvisoryLevel] — the single MOST-severe active advisory in force, or
-  /// `null` when there is none (or only an `unknown`-severity one). The advisor
-  /// does NOT aggregate; it consumes the one severity the integrator selects.
-  AdvisoryLevel? _topAdvisoryLevel(AdvisoryAggregateResult? result) {
-    if (result == null || result.advisories.isEmpty) return null;
-    var top = AdvisorySeverity.unknown;
-    for (final a in result.advisories) {
-      if (a.severity.index > top.index) top = a.severity;
-    }
-    return switch (top) {
-      AdvisorySeverity.unknown => null,
-      AdvisorySeverity.minor => AdvisoryLevel.minor,
-      AdvisorySeverity.moderate => AdvisoryLevel.moderate,
-      AdvisorySeverity.severe => AdvisoryLevel.severe,
-      AdvisorySeverity.extreme => AdvisoryLevel.extreme,
-    };
-  }
-
   /// Push the app's live environment (real advisory + mocked visibility; speed
   /// is unknown — the fix carries none) onto the drive brain, then feed the
   /// position sample. [DriveHudController.onPositionFix] recomputes the caution
@@ -797,7 +857,7 @@ class _HomePageState extends State<HomePage> {
     // does the single recompute+announce with the current environment.
     _driveHud.visibilityMeters = _mockVisibilityMeters;
     _driveHud.visibilityAgeSeconds = _mockVisibilityMeters == null ? null : 0;
-    _driveHud.advisorySeverity = _topAdvisoryLevel(_advisoryResult);
+    _driveHud.advisorySeverity = topAdvisoryLevel(_advisoryResult);
     _driveHud.speedMetersPerSecond = null;
     // A fresh trusted fix resets the blackout clock; a PositionUnavailable
     // (denied / revoked / error / non-finite) degrades honestly toward lost.
@@ -816,7 +876,7 @@ class _HomePageState extends State<HomePage> {
     _driveHud.updateEnvironment(
       visibilityMeters: _mockVisibilityMeters,
       visibilityAgeSeconds: _mockVisibilityMeters == null ? null : 0,
-      advisorySeverity: _topAdvisoryLevel(_advisoryResult),
+      advisorySeverity: topAdvisoryLevel(_advisoryResult),
       speedMetersPerSecond: null,
     );
   }
@@ -1086,8 +1146,9 @@ class _HomePageState extends State<HomePage> {
         longitude: longitude,
       );
       if (!mounted) return;
+      final now = _now();
       setState(() {
-        _advisoryResult = result;
+        _applyAdvisoryResult(result, now);
         _advisoryLoading = false;
       });
     } catch (e) {
@@ -1097,6 +1158,23 @@ class _HomePageState extends State<HomePage> {
         _advisoryLoading = false;
       });
     }
+  }
+
+  /// Applies [retainAdvisoriesOnFailure] to the state trio. Must be called
+  /// inside setState.
+  void _applyAdvisoryResult(AdvisoryAggregateResult fresh, DateTime now) {
+    final applied = retainAdvisoriesOnFailure(
+      prior: _advisoryResult,
+      fresh: fresh,
+      now: now,
+    );
+    _advisoryResult = applied.result;
+    _advisoryRetained = applied.retained;
+    if (!applied.retained) {
+      _advisoryFetchedAt = now;
+    }
+    // When retained, _advisoryFetchedAt is NOT touched: it stays the instant
+    // the retained data was actually fetched, so the stale label is honest.
   }
 
   void _onAdvisoryRefreshTapped() {
@@ -1917,6 +1995,10 @@ class _HomePageState extends State<HomePage> {
                 result: _advisoryResult,
                 errorMessage: _advisoryErrorMessage,
                 onRefresh: _onAdvisoryRefreshTapped,
+                retainedAgeMinutes:
+                    _advisoryRetained && _advisoryFetchedAt != null
+                        ? _now().difference(_advisoryFetchedAt!).inMinutes
+                        : null,
               ),
             ),
             const SizedBox(height: 16),

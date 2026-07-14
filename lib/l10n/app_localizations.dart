@@ -184,6 +184,39 @@ class AppL10n {
       ? 'この地点に有効な警報・注意報はありません。'
       : 'No active advisories at this location.';
 
+  /// Degraded empty-state: the fetch produced NO advisories AND at least one
+  /// covering publisher errored — whether a warning is in force is UNKNOWN.
+  /// Rendering the positive all-clear here would be a fabricated clear: the
+  /// absence is a fetch failure, not a publisher statement. Absence must
+  /// never render as calm.
+  String get advisoryFetchUnknown => _ja
+      ? '警報・注意報を取得できませんでした — 有効な警報・注意報の有無は不明です。'
+      : 'Advisory fetch failed — whether any warning or advisory is in '
+          'force is unknown.';
+
+  /// Stale-retention banner over advisories kept from a PRIOR successful
+  /// fetch after the latest fetch failed. Only advisories still inside the
+  /// publisher's declared validity (expires) are retained; the clear is
+  /// never retained. [minutes] is the age of the retained data.
+  String advisoryRetainedStale(int minutes) {
+    final age = _formatMinutes(minutes);
+    return _ja
+        ? '未更新 — $age前に取得した警報を表示しています（最新の取得に失敗）。'
+            '発表元の有効期限内のもののみ表示。'
+        : 'Stale — showing advisories fetched $age ago (latest fetch '
+            'failed). Only advisories still within their declared validity '
+            'are shown.';
+  }
+
+  /// Minutes below an hour, hours+minutes above (retention is bounded by
+  /// the publisher's declared expiry, so days-scale ages cannot occur).
+  String _formatMinutes(int minutes) {
+    if (minutes < 60) return _ja ? '$minutes分' : '$minutes min';
+    final h = minutes ~/ 60;
+    final m = minutes % 60;
+    return _ja ? '$h時間$m分' : '${h}h ${m}m';
+  }
+
   /// Error-state prefix for a failed advisory fetch. [message] is the
   /// exception text, passed through verbatim (an honest degrade).
   String advisoryFetchFailed(String message) => _ja
