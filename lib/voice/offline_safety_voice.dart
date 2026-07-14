@@ -63,7 +63,7 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   // (main.dart:1419). 6 conditions x 5 ja profiles. These are the lines HER
   // actually hears about the road she cannot see.
   'alert_wet_ageing_rural':
-      '路面が濡れています。ブラックアイスが形成される可能性があるため、橋やトンネル出口で速度を落としてください',
+      '路面が濡れています。気温が0°Cより高くても路面は先に冷えて凍り、ブラックアイスバーンになることがあります。橋やトンネル出口で速度を落としてください',
   'alert_wet_snow_zone_experienced':
       '濡れた路面、橋やトンネル出口で注意',
   'alert_wet_novice_urban':
@@ -83,7 +83,7 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   'alert_snow_agricultural_forestry':
       '圧雪路面、トラクションタイヤ・チェーン推奨',
   'alert_ice_ageing_rural':
-      '凍結路面です。気温0°C以下で薄氷ができています。時速30km以下に減速し、急ブレーキは避けてください',
+      '凍結路面です。気温が0°Cより高くても路面は空気より冷え、薄氷ができることがあります。橋の上は特に凍りやすい場所です。時速30km以下に減速し、急ブレーキは避けてください',
   'alert_ice_snow_zone_experienced':
       '凍結路面。30km/h以下に減速',
   'alert_ice_novice_urban':

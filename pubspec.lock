@@ -5,10 +5,10 @@ packages:
     dependency: "direct main"
     description:
       name: adaptive_reroute
-      sha256: "002545745d5633b2b086da2bdcf6efba34ef62c2f22c0046b47aaa88651f5918"
+      sha256: c49df5a3df0f028baeaaf9f1bfac57065a1c90f5b4b33015f98614b4255dd676
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.5"
+    version: "0.1.6"
   archive:
     dependency: transitive
     description:
@@ -93,10 +93,10 @@ packages:
     dependency: "direct main"
     description:
       name: condition_aggregator
-      sha256: "99e205e92380cd6c72eb259caa9ea38a19f8f6c37d35dd69119ead8c5d019a82"
+      sha256: e18212c577d833bebfbb31ab4a1ff25fdb45a45d6ec975c1dfecedd93c703918
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.7"
+    version: "0.0.8"
   condition_aggregator_digitraffic:
     dependency: transitive
     description:
@@ -457,10 +457,10 @@ packages:
     dependency: "direct main"
     description:
       name: localization_fallback
-      sha256: "546e18e6757495771b36923090c338e7df3ec9aa5287ddb0012f47499a8c4d84"
+      sha256: a6907f113501e0e03095378d14d139c9fddc703721529080a724dce35e99c93e
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.1"
+    version: "0.1.3"
   logging:
     dependency: transitive
     description:
@@ -537,10 +537,10 @@ packages:
     dependency: "direct main"
     description:
       name: navigation_safety
-      sha256: "85fa5a546ab03cc3b200c88048614c3f5120dd20080b8065275356afa1895a91"
+      sha256: "6e77f3387a6d1080b4c4443c356ce88d2b85b85047c1177c46424e756e9ec9a5"
       url: "https://pub.dev"
     source: hosted
-    version: "0.9.4"
+    version: "0.9.5"
   navigation_safety_calibration:
     dependency: transitive
     description:
@@ -553,10 +553,10 @@ packages:
     dependency: "direct main"
     description:
       name: navigation_safety_core
-      sha256: fa2630228e97844ca12c59350c06b4518dbc7196ab7b6355bd5b12ab3f7a95a4
+      sha256: "5881505a9d935da652edd9870cd00a4e07a3b043397bce41a0536f5f012e6495"
       url: "https://pub.dev"
     source: hosted
-    version: "0.11.1"
+    version: "0.11.2"
   navigation_safety_enums:
     dependency: "direct main"
     description:
@@ -753,10 +753,10 @@ packages:
     dependency: "direct main"
     description:
       name: routing_engine
-      sha256: "30ae45d8e81e25e7bd9b6ed039883e898ef3dfb68562c101ac2d143ed5c80f0f"
+      sha256: "32be1d161e425669e2bed9d25b5010291f5831922b36871dd89184e9292568a3"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.0"
+    version: "0.5.1"
   share_plus:
     dependency: "direct main"
     description:
