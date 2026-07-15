@@ -39,6 +39,7 @@ import '../her_position.dart';
 import 'drive_hud_localizer.dart';
 import 'drive_safety_fusion.dart';
 import 'maneuver_narration.dart';
+import 'measured_hazard_floor.dart';
 
 /// Live in-drive controller. Observe [estimate] + [advice] via [ChangeNotifier].
 class DriveHudController extends ChangeNotifier {
@@ -106,16 +107,40 @@ class DriveHudController extends ChangeNotifier {
   /// Current ground speed in m/s, or `null` = unknown.
   double? speedMetersPerSecond;
 
+  /// The measured local-weather hazard floor from the app's own JMA watches
+  /// (invisible-ice + turmoil). Defaults to [MeasuredWeatherHazard.none]; a
+  /// firing watch RAISES the compound rung (never lowers it). Set by the app
+  /// alongside the other environment fields before a position event / [poll].
+  MeasuredWeatherHazard measuredHazard = MeasuredWeatherHazard.none;
+
   LocalizationEstimate? _estimate;
   DriveAdvice? _advice;
-  DriveAction? _lastAnnouncedAction;
+  DriveAction? _effectiveAction;
+
+  /// The highest rung the controller has actually SPOKEN, for rise-gating the
+  /// announce. Tracked SEPARATELY from the effective rung on purpose: a rung
+  /// that RISES but is deliberately muted (a measured-hazard floor the watch
+  /// lane already voiced, or an unknown-visibility-only heightened) must NOT
+  /// advance this — otherwise it would swallow the announce slot and a LATER
+  /// genuinely-grounded caution at the same rung would reach neither the voice
+  /// NOR the OPS-059 haptic (the safety regression OPS-068 caught). It is
+  /// clamped DOWN on a genuine downgrade so a drop-then-re-rise re-announces.
+  DriveAction? _lastSpokenRung;
 
   /// The current honest position estimate (mode + growing radius + first-class
   /// `lost`), or `null` before any input.
   LocalizationEstimate? get estimate => _estimate;
 
-  /// The current advisory-only caution read, or `null` before any input.
+  /// The current advisory-only caution read FROM THE ADVISOR (position ×
+  /// visibility × advisory × speed), or `null` before any input. This is the
+  /// honest per-axis record; [effectiveAction] is what the surface reflects
+  /// after the measured-weather floor is fused in.
   DriveAdvice? get advice => _advice;
+
+  /// The EFFECTIVE caution rung the HUD banner + severity + haptic reflect:
+  /// `max([advice].action, measured-weather floor)`. Equals [advice]'s action
+  /// unless a firing measured watch raised it. `null` before any input.
+  DriveAction? get effectiveAction => _effectiveAction;
 
   /// The text localizer (for the HUD widget).
   DriveHudLocalizer get text => _text;
@@ -133,11 +158,16 @@ class DriveHudController extends ChangeNotifier {
     required double? visibilityAgeSeconds,
     required AdvisoryLevel? advisorySeverity,
     required double? speedMetersPerSecond,
+    MeasuredWeatherHazard? measuredHazard,
   }) {
     this.visibilityMeters = visibilityMeters;
     this.visibilityAgeSeconds = visibilityAgeSeconds;
     this.advisorySeverity = advisorySeverity;
     this.speedMetersPerSecond = speedMetersPerSecond;
+    // null = leave the current measured-hazard floor unchanged (this setter is
+    // used by the visibility-band control, which does not re-evaluate the JMA
+    // watches); the app passes the live value when it has one.
+    if (measuredHazard != null) this.measuredHazard = measuredHazard;
     if (_estimate != null) _recompute();
   }
 
@@ -172,27 +202,95 @@ class DriveHudController extends ChangeNotifier {
       speedMetersPerSecond: speedMetersPerSecond,
     );
     _advice = advice;
+    // Fuse the measured-weather floor: a firing JMA watch RAISES the rung the
+    // driver reacts to (caution-add-only), and compounds to the ceiling when the
+    // hazard cannot even be LOCATED. "Unlocatable" is the STRICT honest condition
+    // — dead-reckoning or lost — NOT advice.positionUncertain (which also covers
+    // a fresh, still-locatable suspect fix that stays at the heightened floor;
+    // OPS-068). See measured_hazard_floor.dart.
+    final positionUnlocatable = estimate.mode == LocalizationMode.deadReckoning ||
+        estimate.mode == LocalizationMode.lost;
+    _effectiveAction = fuseMeasuredWeather(
+      advisorAction: advice.action,
+      hazard: measuredHazard,
+      positionUnlocatable: positionUnlocatable,
+    );
     _maybeAnnounce(advice);
     notifyListeners();
   }
 
-  /// Fire the WS5 actuators when the caution RUNG RISES to a new high — once
-  /// per upward transition, so a steady caution does not nag. A later re-rise
-  /// re-announces (the last-announced rung tracks every change, including
-  /// downgrades). info-class `continueDriving` is never announced (channel
-  /// parity with the voice gate).
+  /// Fire the WS5 actuators when the EFFECTIVE caution rung RISES to a new high
+  /// — once per upward transition, so a steady caution does not nag. A later
+  /// re-rise re-announces (the last-announced rung tracks every change,
+  /// including downgrades). info-class `continueDriving` is never announced
+  /// (channel parity with the voice gate).
+  ///
+  /// Whether the rung's own SPOKEN guidance line fires is gated by
+  /// [_shouldSpeakRise] — two kinds of rise are shown+coloured but NOT spoken
+  /// here: a rise driven solely by the measured-hazard floor (the watch lane
+  /// already speaks the specific hazard), and a heightened rise whose only
+  /// advisor reason is unknown/stale visibility (an honest displayed state,
+  /// never an alarm to blare on every sensorless drive).
+  ///
+  /// The speak-gate rises off [_lastSpokenRung] — the last rung actually SPOKEN
+  /// — NOT off the effective rung. A muted rise therefore does not consume the
+  /// announce slot: a later grounded caution at the same rung still speaks +
+  /// buzzes (OPS-068 fix). [_lastSpokenRung] is clamped DOWN whenever the
+  /// effective rung genuinely downgrades, so a drop-then-re-rise re-announces
+  /// (the documented behaviour).
   void _maybeAnnounce(DriveAdvice advice) {
-    final action = advice.action;
-    final rising = action.index > (_lastAnnouncedAction?.index ?? -1);
-    if (rising && action.index >= DriveAction.heightenedCaution.index) {
-      final line = _text.spokenGuidance(action, localeTag);
-      unawaited(_announcer.announce(
-        severity: _severityFor(action),
-        text: line,
-        localeTag: localeTag,
-      ));
+    final effective = _effectiveAction ?? advice.action;
+
+    // Downgrade clamp: never let the spoken tracker sit ABOVE the current rung,
+    // so a real re-rise back up to it re-announces.
+    if (_lastSpokenRung != null && effective.index < _lastSpokenRung!.index) {
+      _lastSpokenRung = effective;
     }
-    _lastAnnouncedAction = action;
+
+    final risesAboveSpoken = effective.index > (_lastSpokenRung?.index ?? -1);
+    if (risesAboveSpoken &&
+        effective.index >= DriveAction.heightenedCaution.index &&
+        _shouldSpeakRise(advice, effective)) {
+      final line = _text.spokenGuidance(effective, localeTag);
+      if (line.isNotEmpty) {
+        unawaited(_announcer.announce(
+          severity: _severityFor(effective),
+          text: line,
+          localeTag: localeTag,
+        ));
+        // Advance the SPOKEN tracker ONLY when a line actually fired.
+        _lastSpokenRung = effective;
+      }
+    }
+  }
+
+  /// Whether a RISING effective rung should also SPEAK the compound-rung's own
+  /// guidance line, as opposed to being shown + coloured + (via a co-firing
+  /// watch) buzzed only.
+  ///
+  ///  - `considerStopping` ALWAYS speaks: its calm invitation
+  ///    (「安全な場所での停車も選べます」) is additive, never a duplicate of any watch
+  ///    line, and the compound "a measured hazard you cannot even locate" must
+  ///    reach her eyes-off.
+  ///  - a rise to `heightenedCaution` caused SOLELY by the measured-hazard floor
+  ///    (the advisor itself is still below heightened) does NOT speak — the
+  ///    watch lane already spoke the specific hazard; a second generic caution
+  ///    line would be double-speak.
+  ///  - a rise to `heightenedCaution` grounded by the advisor speaks ONLY when a
+  ///    reason OTHER than unknown/stale visibility raised it. "We have no
+  ///    visibility reading" is an honest DISPLAYED state (視程 未計測), never an
+  ///    alarm to announce on every drive that lacks a visibility sensor
+  ///    (cry-wolf).
+  bool _shouldSpeakRise(DriveAdvice advice, DriveAction effective) {
+    if (effective == DriveAction.considerStopping) return true;
+    // effective == heightenedCaution here (continueDriving never reaches speak).
+    // Rose solely from the measured floor → the watch lane already spoke it.
+    if (advice.action.index < DriveAction.heightenedCaution.index) return false;
+    // Advisor grounded it: speak only if something other than unknown/stale
+    // visibility raised it.
+    return advice.reasons.any((r) =>
+        r != CautionReason.unknownVisibility &&
+        r != CautionReason.staleVisibility);
   }
 
   // --- (e) honest confidence-gated maneuver narration ---
@@ -268,9 +366,23 @@ class DriveHudController extends ChangeNotifier {
         DriveAction.considerStopping => AlertSeverity.critical,
       };
 
-  /// The severity the current advice would announce at (for the HUD's colour +
-  /// tests). `null` before any advice.
+  /// The severity the current EFFECTIVE rung announces at (for the HUD's colour +
+  /// tests) — after the measured-weather floor is fused in. `null` before any
+  /// advice.
   @visibleForTesting
   AlertSeverity? get currentSeverity =>
-      _advice == null ? null : _severityFor(_advice!.action);
+      _effectiveAction == null ? null : _severityFor(_effectiveAction!);
+
+  /// Whether the current EFFECTIVE rung is one the rung lane itself SPEAKS (vs
+  /// one that is shown+coloured only while a watch lane speaks the specific
+  /// hazard, or an unknown-visibility-only display). For an HONEST HUD status
+  /// line: a floor-only heightened must NOT claim it auto-fired audio+haptic
+  /// (OPS-068). `false` before any advice and for `continueDriving`.
+  bool get effectiveRungIsSpokenByRung {
+    final effective = _effectiveAction;
+    final advice = _advice;
+    if (effective == null || advice == null) return false;
+    if (effective == DriveAction.continueDriving) return false;
+    return _shouldSpeakRise(advice, effective);
+  }
 }

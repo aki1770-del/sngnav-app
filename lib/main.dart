@@ -78,6 +78,7 @@ import 'services/drive_hud_localizer.dart';
 import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
 import 'services/turmoil_watch.dart';
+import 'services/measured_hazard_floor.dart';
 import 'services/jma_forecast_fetch.dart';
 import 'services/staleness_policy.dart';
 import 'services/forecast_validity.dart' show ForecastHazardKind;
@@ -1221,6 +1222,7 @@ class _HomePageState extends State<HomePage> {
     _driveHud.visibilityAgeSeconds = _mockVisibilityMeters == null ? null : 0;
     _driveHud.advisorySeverity = topAdvisoryLevel(_advisoryResult);
     _driveHud.speedMetersPerSecond = null;
+    _driveHud.measuredHazard = _currentMeasuredHazard();
     // A fresh trusted fix resets the blackout clock; a PositionUnavailable
     // (denied / revoked / error / non-finite) degrades honestly toward lost.
     if (fix is PositionAvailable) {
@@ -1230,9 +1232,34 @@ class _HomePageState extends State<HomePage> {
     _driveHud.onPositionFix(fix);
   }
 
+  /// The current measured-weather hazard floor from the app's own JMA watches.
+  /// Null-safe by construction: a feed-loss cycle leaves both watches
+  /// non-firing (`_refreshJma` sets the live verdicts to unknown/null), so no
+  /// STALE hazard keeps the rung raised — the dead-zone memory lane handles the
+  /// offline case separately.
+  MeasuredWeatherHazard _currentMeasuredHazard() => measuredWeatherHazardFrom(
+        blackIceFiring: _invisibleIceResult == InvisibleIceWatchResult.watch,
+        turmoilFiring: _turmoilState?.anyCaution ?? false,
+      );
+
+  /// Push the freshly-evaluated measured-weather floor onto the drive brain and
+  /// recompute NOW (not only on the next position event), so a JMA reading that
+  /// turns a watch ON raises the eyes-off rung immediately. A no-op before a
+  /// baseline fix exists (updateEnvironment recomputes only with an estimate).
+  void _pushMeasuredHazardToDriveHud() {
+    _driveHud.updateEnvironment(
+      visibilityMeters: _mockVisibilityMeters,
+      visibilityAgeSeconds: _mockVisibilityMeters == null ? null : 0,
+      advisorySeverity: topAdvisoryLevel(_advisoryResult),
+      speedMetersPerSecond: null,
+      measuredHazard: _currentMeasuredHazard(),
+    );
+  }
+
   /// Recompute the caution when the mocked visibility band changes (no new
   /// position). [DriveHudController.updateEnvironment] recomputes + re-announces
-  /// on a rung rise if an estimate already exists.
+  /// on a rung rise if an estimate already exists. The measured-hazard floor is
+  /// left unchanged (this control does not re-evaluate the JMA watches).
   void _onVisibilityChanged(double? meters) {
     setState(() => _mockVisibilityMeters = meters);
     _driveHud.updateEnvironment(
@@ -1268,9 +1295,15 @@ class _HomePageState extends State<HomePage> {
   Widget _driveHudPanel() {
     final estimate = _driveHud.estimate;
     final advice = _driveHud.advice;
+    // The EFFECTIVE rung after the measured-weather floor is fused in — so this
+    // WS6 caution section cannot show a 「走行を継続」banner while a measured
+    // black-ice / turmoil watch is firing on-screen (a full-screen driver HUD is
+    // BETA_PLAN; this is the alpha app's live-drive caution section). Falls back
+    // to the advisor's action before the first recompute.
+    final effective = _driveHud.effectiveAction ?? advice?.action;
     final hasBaseline = _herFix is PositionAvailable;
 
-    final (Color bannerColor, Color textColor) = switch (advice?.action) {
+    final (Color bannerColor, Color textColor) = switch (effective) {
       DriveAction.considerStopping => (Colors.red.shade100, Colors.red.shade900),
       DriveAction.heightenedCaution => (
           Colors.amber.shade100,
@@ -1398,17 +1431,20 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _driveHudText.actionHeadline(advice.action, 'ja'),
+                  _driveHudText.actionHeadline(
+                      effective ?? advice.action, 'ja'),
                   style: TextStyle(
                     color: textColor,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (advice.action != DriveAction.continueDriving) ...[
+                if ((effective ?? advice.action) !=
+                    DriveAction.continueDriving) ...[
                   const SizedBox(height: 4),
                   Text(
-                    _driveHudText.spokenGuidance(advice.action, 'ja'),
+                    _driveHudText.spokenGuidance(
+                        effective ?? advice.action, 'ja'),
                     style: TextStyle(color: textColor, fontSize: 14),
                   ),
                 ],
@@ -1449,15 +1485,23 @@ class _HomePageState extends State<HomePage> {
                   advice.sightStoppingSpeedHintMps!, 'ja'),
             ),
           const SizedBox(height: 8),
-          // Announce status — honest reach bounds.
+          // Announce status — honest reach bounds, keyed on the EFFECTIVE rung
+          // AND on whether the rung LANE actually speaks it. A measured-hazard
+          // floor (or an unknown-visibility-only heightened) is shown+coloured
+          // but NOT spoken by this lane — the watch lane speaks the specific
+          // hazard — so it must not falsely claim it auto-fired (OPS-068).
           Text(
-            switch (advice.action) {
+            switch (effective ?? advice.action) {
               DriveAction.considerStopping =>
                 'Auto-fires audio + haptic (critical) on rung rise. '
                     'On-device HEAR/FEEL not verified in this env.',
               DriveAction.heightenedCaution =>
-                'Auto-fires audio + haptic (warning) on rung rise. '
-                    'On-device HEAR/FEEL not verified in this env.',
+                _driveHud.effectiveRungIsSpokenByRung
+                    ? 'Auto-fires audio + haptic (warning) on rung rise. '
+                        'On-device HEAR/FEEL not verified in this env.'
+                    : 'Raised to caution (shown + coloured). The specific '
+                        'hazard line is spoken on its own measured-watch lane; '
+                        'this rung does not double-speak it.',
               DriveAction.continueDriving =>
                 'Continue — nothing announced (parity with the voice gate).',
             },
@@ -1681,6 +1725,11 @@ class _HomePageState extends State<HomePage> {
         _turmoilState = null;
       }
     });
+    // Raise (or clear) the eyes-off compound rung from the just-evaluated
+    // measured watches immediately — before the next position event — so the
+    // banner she reacts to reflects the measured hazard the same cycle the
+    // watch row does. Recomputes only if a baseline fix already exists.
+    _pushMeasuredHazardToDriveHud();
     _announceWatchTransitions();
   }
 
