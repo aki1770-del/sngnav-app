@@ -151,6 +151,17 @@ void main() {
     await tester.pump();
     await tester.pump();
 
+    // The honest default is UNKNOWN (未計測 → heightened); the only truthful way
+    // to reach 走行を継続 is an actual clear reading, so select the CLEAR demo
+    // visibility override before capturing the continue state.
+    final visDropdown = find.byKey(const Key('drive-hud-visibility'));
+    await tester.ensureVisible(visDropdown);
+    await tester.pump();
+    await tester.tap(visDropdown);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.tap(find.text('クリア ~1.5 km').last);
+    await tester.pump(const Duration(milliseconds: 400));
+
     final banner = find.byKey(const Key('drive-hud-caution-banner'));
     // Confirm we are in the CONTINUE state before capturing.
     expect(

@@ -53,8 +53,10 @@ void main() {
       );
       await tester.pump();
 
-      // Feed a trusted position via the Akita mock. Default visibility is clear
-      // → the live brain reads continueDriving (nothing announced).
+      // Feed a trusted position via the Akita mock. There is no visibility
+      // reading (AMeDAS returns null; no demo override) → the live brain holds
+      // the honest UNKNOWN floor: heightened caution, but SILENT (an
+      // unknown-visibility-only rise is shown, never announced — no cry-wolf).
       final mockBtn = find.byKey(const Key('use-mock-button'));
       expect(mockBtn, findsOneWidget);
       await tester.ensureVisible(mockBtn);
@@ -67,13 +69,15 @@ void main() {
       await tester.ensureVisible(banner);
       await tester.pump();
       // render-SEE: the caution banner is on screen in the real app, in JA,
-      // reading "continue" for a clear, trusted situation.
+      // reading the honest held UNKNOWN floor (未計測 ≠ clear) — never a false
+      // "continue" when we have taken no visibility reading.
       expect(banner, findsOneWidget);
       expect(
-        find.descendant(of: banner, matching: find.text('走行を継続')),
+        find.descendant(of: banner, matching: find.text('注意して走行')),
         findsOneWidget,
       );
-      // continueDriving is info-class: nothing spoken/buzzed yet.
+      // An unknown-visibility-only heightened rise is SILENT: nothing spoken or
+      // buzzed yet (the alarm is reserved for a measured hazard).
       expect(fake.spoken, isEmpty);
       expect(fake.haptics, isEmpty);
 

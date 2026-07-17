@@ -655,11 +655,13 @@ class _HomePageState extends State<HomePage> {
   // her eyes-off on a phone. On-device HEAR/FEEL is DEFERRED (OPS-066).
   late final DriveHudController _driveHud;
   static const DriveHudLocalizer _driveHudText = DriveHudLocalizer();
-  // Mocked visibility band for the in-drive demo. Metres, or null = "no
-  // reading" (a first-class unknown the advisor honours). Defaults to a clear
-  // demo value so merely sharing location does not auto-announce; HER real
-  // whiteout is what the degraded bands model.
-  double? _mockVisibilityMeters = 1500;
+  // EXPLICIT demo override for the visibility band (the panel dropdown), in
+  // metres. `null` = NO override → the drive brain reads the LIVE measured
+  // reading (JMA AMeDAS, usually null at these stations) and honestly falls to
+  // a first-class UNKNOWN (視程 未計測) — NEVER a synthetic "clear". A default
+  // of `1500` would be a fabricated clear the road has no sensor to justify:
+  // unknown ≠ clear, and only a measured value may clear her.
+  double? _mockVisibilityMeters;
   // Simulated GPS-blackout clock: the timestamp of the last fed trusted fix,
   // advanced by _blackoutSeconds each "simulate blackout" press so the honest
   // dot can degrade trusted → dead-reckoning → lost off a device.
@@ -1215,11 +1217,31 @@ class _HomePageState extends State<HomePage> {
   /// is unknown — the fix carries none) onto the drive brain, then feed the
   /// position sample. [DriveHudController.onPositionFix] recomputes the caution
   /// and, if the rung RISES, auto-announces on the single _announcer.
+  /// Visibility metres fed to the drive brain. Honest source of truth, in order:
+  ///   1. an explicit DEMO override (the band dropdown), when set; else
+  ///   2. the LIVE measured reading (JMA AMeDAS — usually null here); else
+  ///   3. null — a first-class UNKNOWN the advisor honours (視程 未計測).
+  /// NEVER a synthetic clear: the road carries no visibility sensor, so absence
+  /// of a reading is reported as unknown, never as "clear".
+  double? get _effectiveVisibilityMeters =>
+      _mockVisibilityMeters ?? _lastGoodObservation?.visibilityMeters?.toDouble();
+
+  /// Age (seconds) of the visibility reading actually fed, or null = unknown age.
+  /// A demo override counts as fresh (0). A live reading carries its REAL
+  /// staleness from `fetchedAt` — the advisor treats an over-window age as
+  /// stale→unknown, so an old reading can never masquerade as fresh.
+  double? _effectiveVisibilityAgeSeconds() {
+    if (_mockVisibilityMeters != null) return 0;
+    final obs = _lastGoodObservation;
+    if (obs == null || obs.visibilityMeters == null) return null;
+    return _now().difference(obs.fetchedAt).inSeconds.toDouble();
+  }
+
   void _feedDriveHud(PositionFix fix) {
     // Set the environment fields directly (no recompute yet), so onPositionFix
     // does the single recompute+announce with the current environment.
-    _driveHud.visibilityMeters = _mockVisibilityMeters;
-    _driveHud.visibilityAgeSeconds = _mockVisibilityMeters == null ? null : 0;
+    _driveHud.visibilityMeters = _effectiveVisibilityMeters;
+    _driveHud.visibilityAgeSeconds = _effectiveVisibilityAgeSeconds();
     _driveHud.advisorySeverity = topAdvisoryLevel(_advisoryResult);
     _driveHud.speedMetersPerSecond = null;
     _driveHud.measuredHazard = _currentMeasuredHazard();
@@ -1248,8 +1270,8 @@ class _HomePageState extends State<HomePage> {
   /// baseline fix exists (updateEnvironment recomputes only with an estimate).
   void _pushMeasuredHazardToDriveHud() {
     _driveHud.updateEnvironment(
-      visibilityMeters: _mockVisibilityMeters,
-      visibilityAgeSeconds: _mockVisibilityMeters == null ? null : 0,
+      visibilityMeters: _effectiveVisibilityMeters,
+      visibilityAgeSeconds: _effectiveVisibilityAgeSeconds(),
       advisorySeverity: topAdvisoryLevel(_advisoryResult),
       speedMetersPerSecond: null,
       measuredHazard: _currentMeasuredHazard(),
@@ -1263,8 +1285,8 @@ class _HomePageState extends State<HomePage> {
   void _onVisibilityChanged(double? meters) {
     setState(() => _mockVisibilityMeters = meters);
     _driveHud.updateEnvironment(
-      visibilityMeters: _mockVisibilityMeters,
-      visibilityAgeSeconds: _mockVisibilityMeters == null ? null : 0,
+      visibilityMeters: _effectiveVisibilityMeters,
+      visibilityAgeSeconds: _effectiveVisibilityAgeSeconds(),
       advisorySeverity: topAdvisoryLevel(_advisoryResult),
       speedMetersPerSecond: null,
     );
@@ -1285,11 +1307,11 @@ class _HomePageState extends State<HomePage> {
   // Visibility bands for the mocked in-drive control. metres, or null =
   // "no reading" (a first-class unknown).
   static const List<(String, double?)> _visibilityBands = [
-    ('クリア ~1.5 km（demo default）', 1500),
+    ('— 上書きなし：ライブ／未計測（既定）—', null),
+    ('クリア ~1.5 km', 1500),
     ('視界低下 ~700 m', 700),
     ('視界不良 ~300 m', 300),
     ('ホワイトアウト ~80 m', 80),
-    ('測定なし（不明）', null),
   ];
 
   Widget _driveHudPanel() {
@@ -1364,8 +1386,9 @@ class _HomePageState extends State<HomePage> {
           style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
         ),
         const SizedBox(height: 10),
-        // Mocked visibility band (no real sensor yet — honest).
-        const Text('Mocked visibility band (no visibility sensor yet)',
+        // Demo OVERRIDE for the visibility band. Default (null) = live/unknown;
+        // the road has no visibility sensor, so absence reads as 未計測, never clear.
+        const Text('視程デモ上書き（既定：ライブ／未計測 — 合成クリアなし）',
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
         DropdownButton<double?>(
           key: const Key('drive-hud-visibility'),
@@ -1511,7 +1534,9 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 6),
         Text(
           'Position is REAL (HER GPS, honestly degraded); area advisory is REAL '
-          '(NWS + JMA); visibility is MOCKED (no sensor yet); speed is unknown. '
+          '(NWS + JMA); visibility is UNKNOWN by default — no sensor on this '
+          'road, so absence reads as 未計測, never clear (a demo band can override '
+          'it); speed is unknown. '
           'Advisory-only, driver-always-drives; the ceiling is "consider '
           'stopping", never "turn back". Source: localization_fallback + '
           'compound_failure_advisor (pub.dev; resolved versions: pubspec.lock).',
