@@ -594,8 +594,15 @@ class _HomePageState extends State<HomePage> {
   // V21: ageingRural is the default — HER's mother is the named first customer.
   DriverProfile _profile = DriverProfile.ageingRural;
 
-  // Mocked road-surface condition for Slice 0.
-  RoadSurfaceCondition _condition = RoadSurfaceCondition.ice;
+  // Road-surface condition. Default UNKNOWN (路面状況不明) — the app has no
+  // road-surface sensor wired (Slice 0), so it must NOT fabricate a condition:
+  // absence reads as "unknown — drive carefully" (路面状況不明。慎重に運転して
+  // ください), NEVER a synthetic ice hazard. A fabricated ICE default is the
+  // cry-wolf twin of a fabricated clear (same fabrication family as the
+  // visibility fix 3d5106d): it over-warns when nothing was measured, and an
+  // instrument that raises alarm it cannot ground only separates a daughter
+  // from her mother. The "Mocked road condition" demo dropdown overrides it.
+  RoadSurfaceCondition _condition = RoadSurfaceCondition.unknown;
 
   // Vehicle-class state for NSC #3 wiring (0.9.0). null = unknown / no
   // signal (per VehicleClassProvider library doc convention; thresholds

@@ -352,4 +352,24 @@ void main() {
       matchesGoldenFile('../../render_out/06_advisory_jp_jma_only.png'),
     );
   });
+
+  testWidgets(
+      '13 — road-surface default is UNKNOWN, not a fabricated ice hazard '
+      '(路面状況不明)', (tester) async {
+    await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
+    await tester.pump();
+    // The road-surface condition defaults to RoadSurfaceCondition.unknown (no
+    // sensor wired), so the per-profile glossary renders 路面状況不明 — never a
+    // synthetic ice hazard. Scroll that section into view and capture it so a
+    // human can SEE the honest default (OPS-066).
+    final section = find.text('Glossary (per profile)');
+    await captureApp(
+      tester,
+      target: section,
+      logical: const Size(820, 520),
+      out: '../../render_out/13_condition_unknown_default.png',
+    );
+    // Prove the default is the honest unknown, not the old fabricated ice.
+    expect(find.text('路面状況不明'), findsWidgets);
+  });
 }
