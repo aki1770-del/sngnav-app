@@ -165,6 +165,29 @@ AdvisoryLevel? topAdvisoryLevel(AdvisoryAggregateResult? result) {
   };
 }
 
+/// The single "is this hazard still in force at [now]?" predicate shared by
+/// [retainAdvisoriesOnFailure] and [cullExpiredRetainedAdvisories], so the
+/// admit-bound and the stationary-cull-bound can never drift apart.
+///
+///   • expires-bearing (NWS/CAP, DigiTraffic, MET Norway) → the publisher's
+///     OWN declared bound (`now < expires`). Unchanged — the N10 core.
+///   • null-expires (JMA warnings, OWM road-risk — no publisher bound) → a
+///     BOUNDED SYNTHETIC window: `now < lastFreshAt + kSlowHazardRetainWindow`.
+///     A null [lastFreshAt] means no anchor is available → NOT in force (so a
+///     null-expires hazard is neither admitted to retention nor synthetically
+///     kept without an anchor).
+///
+/// The synthetic bound is deliberately NOT written into [Advisory.expires]
+/// (that field has no provenance contract and the card renders it verbatim);
+/// it lives only here, and the retained card carries the honest stale-age
+/// label instead.
+bool _advisoryInForce(Advisory a, DateTime now, DateTime? lastFreshAt) {
+  final expires = a.expires;
+  if (expires != null) return now.isBefore(expires);
+  if (lastFreshAt == null) return false;
+  return now.isBefore(lastFreshAt.add(kSlowHazardRetainWindow));
+}
+
 /// N10 — asymmetric overwrite: trust the hazard, expire the clear.
 ///
 /// A fetch that FAILED (provider errors, no advisories) must not silently
@@ -174,9 +197,28 @@ AdvisoryLevel? topAdvisoryLevel(AdvisoryAggregateResult? result) {
 /// stale-age label) and keeps feeding the drive brain. A retained advisory
 /// past its expires drops on every cycle (the publisher's own validity bound
 /// is honored). The clear side is never retained: a genuine clear (fetch
-/// succeeded, no advisories) overwrites immediately, and an advisory WITHOUT
-/// a declared expires is not retained — its in-force state cannot be
-/// verified while the publisher is unreachable.
+/// succeeded, no advisories) overwrites immediately.
+///
+/// NULL-EXPIRES hazards (JMA warnings — `condition_aggregator_jma`'s mapper
+/// emits `expires: null` as its ONLY value — and OWM road-risk) have NO
+/// publisher validity bound. Previously they were dropped on a failed fetch
+/// entirely, which meant an in-force JMA 大雪/暴風/特別警報 in Akita (where the
+/// region-gate leaves JMA the ONLY answering provider, so its failure is a
+/// TOTAL failure) vanished from the drive brain AND the card on the first
+/// errored refresh — a surface indistinguishable from a clear sky, on HER
+/// exact compound-failure target. They are now retained inside a BOUNDED
+/// SYNTHETIC window anchored to [lastFreshAt] (the last successful fetch) +
+/// [kSlowHazardRetainWindow] (60 min — the JMA reading's own decay bound).
+/// This is the same shape as the black-ice `FeedLossStaleIce` lane: a
+/// stale-stamped re-warning, never as live, DROPPED past the bound (N10 —
+/// a parked driver never keeps a null-expires hazard forever). Without a
+/// [lastFreshAt] anchor there is no verifiable bound and a null-expires
+/// advisory is NOT retained (the prior behavior). We do NOT stamp the
+/// synthetic bound into [Advisory.expires]: that field has no provenance
+/// contract (see `forecast_validity.dart` / `trip_hazard_memory.dart`) and
+/// the card renders it verbatim as "expires …"; the synthetic bound lives
+/// only in this retention arithmetic, and the card carries the honest
+/// retained stale-age label instead (`retainedAgeMinutes`).
 ///
 /// PARTIAL failure (fresh advisories from a surviving provider PLUS at least
 /// one provider error) retains PER PROVIDER: the errored provider's prior
@@ -191,6 +233,7 @@ AdvisoryLevel? topAdvisoryLevel(AdvisoryAggregateResult? result) {
   required AdvisoryAggregateResult? prior,
   required AdvisoryAggregateResult fresh,
   required DateTime now,
+  DateTime? lastFreshAt,
 }) {
   if (prior == null || fresh.providerErrors.isEmpty) {
     return (result: fresh, retained: false);
@@ -204,8 +247,7 @@ AdvisoryLevel? topAdvisoryLevel(AdvisoryAggregateResult? result) {
   final retained = <Advisory>[
     for (final a in prior.advisories)
       if ((totalFailure || erroredSources.contains(a.source)) &&
-          a.expires != null &&
-          now.isBefore(a.expires!))
+          _advisoryInForce(a, now, lastFreshAt))
         a,
   ];
   if (retained.isEmpty) return (result: fresh, retained: false);
@@ -227,18 +269,33 @@ AdvisoryLevel? topAdvisoryLevel(AdvisoryAggregateResult? result) {
 /// Culling to empty leaves `advisories: [] + providerErrors` — which renders
 /// the honest degraded-unknown banner, never a fabricated all-clear.
 ///
+/// [lastFreshAt] anchors the SYNTHETIC window for null-expires hazards (JMA
+/// warnings): once `lastFreshAt + kSlowHazardRetainWindow` passes, a
+/// synthetically-retained null-expires hazard drops here too — so a PARKED
+/// driver never keeps it forever (the N10 promise, extended to the
+/// null-expires lane that retention now admits). When [lastFreshAt] is null
+/// (or absent) a null-expires advisory is KEPT: with no anchor it is treated
+/// as a FRESH publisher statement (a partial-retention survivor), and culling
+/// it would erase a live warning.
+///
 /// Top-level + public so the tests can pin the cull directly.
 AdvisoryAggregateResult? cullExpiredRetainedAdvisories(
   AdvisoryAggregateResult result,
-  DateTime now,
-) {
-  // Drop ONLY advisories whose declared expires has passed. An advisory
-  // WITHOUT expires is kept: on a partially-retained result it is a FRESH
-  // publisher statement (retention itself never admits a null-expires
-  // advisory), and culling it here would erase a live warning.
+  DateTime now, {
+  DateTime? lastFreshAt,
+}) {
+  // expires-bearing → the publisher's own bound (unchanged). null-expires →
+  // the synthetic window when an anchor exists; kept when it does not.
+  bool stillInForce(Advisory a) {
+    final expires = a.expires;
+    if (expires != null) return now.isBefore(expires);
+    if (lastFreshAt == null) return true; // fresh-partial survivor, no anchor.
+    return now.isBefore(lastFreshAt.add(kSlowHazardRetainWindow));
+  }
+
   final kept = <Advisory>[
     for (final a in result.advisories)
-      if (a.expires == null || now.isBefore(a.expires!)) a,
+      if (stillInForce(a)) a,
   ];
   if (kept.length == result.advisories.length) return null;
   return AdvisoryAggregateResult(
@@ -1029,7 +1086,11 @@ class _HomePageState extends State<HomePage> {
     if (!mounted || !_advisoryRetained) return;
     final result = _advisoryResult;
     if (result == null) return;
-    final culled = cullExpiredRetainedAdvisories(result, _now());
+    final culled = cullExpiredRetainedAdvisories(
+      result,
+      _now(),
+      lastFreshAt: _advisoryFetchedAt,
+    );
     if (culled == null) return;
     setState(() => _advisoryResult = culled);
   }
@@ -1631,6 +1692,11 @@ class _HomePageState extends State<HomePage> {
       prior: _advisoryResult,
       fresh: fresh,
       now: now,
+      // Anchor the null-expires synthetic window to the last successful fetch.
+      // On a retained cycle _advisoryFetchedAt is NOT advanced, so the window
+      // keeps shrinking against the real last-fresh instant and a null-expires
+      // JMA warning drops at +kSlowHazardRetainWindow — never stale-forever.
+      lastFreshAt: _advisoryFetchedAt,
     );
     _advisoryResult = applied.result;
     _advisoryRetained = applied.retained;

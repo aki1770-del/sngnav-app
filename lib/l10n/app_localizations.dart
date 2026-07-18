@@ -304,17 +304,20 @@ class AppL10n {
           'warning is in force cannot be checked by this app.';
 
   /// Stale-retention banner over advisories kept from a PRIOR successful
-  /// fetch after the latest fetch failed. Only advisories still inside the
-  /// publisher's declared validity (expires) are retained; the clear is
-  /// never retained. [minutes] is the age of the retained data.
+  /// fetch after the latest fetch failed. Retention is bounded: an
+  /// expires-bearing advisory is kept only within the publisher's declared
+  /// validity; a null-expires advisory (JMA warnings) is kept only within a
+  /// bounded synthetic window anchored to the last successful fetch. Either
+  /// way it is DROPPED once its bound passes, and the clear is never retained.
+  /// [minutes] is the age of the retained data.
   String advisoryRetainedStale(int minutes) {
     final age = _formatMinutes(minutes);
     return _ja
         ? '未更新 — $age前に取得した警報を表示しています（最新の取得に失敗）。'
-            '発表元の有効期限内のもののみ表示。'
+            '有効期限または保持期限を過ぎたものは表示しません。'
         : 'Stale — showing advisories fetched $age ago (latest fetch '
-            'failed). Only advisories still within their declared validity '
-            'are shown.';
+            'failed). Advisories past their validity or retention window '
+            'are dropped.';
   }
 
   /// Minutes below an hour, hours+minutes above (retention is bounded by
