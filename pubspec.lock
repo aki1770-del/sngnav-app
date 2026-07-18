@@ -85,10 +85,10 @@ packages:
     dependency: "direct main"
     description:
       name: compound_failure_advisor
-      sha256: a066d5e3b3554ceddfc3a61d6a429796845493cc5cb727071f37c7fb778597a7
+      sha256: "958f7db80097cc92a77ee3020c0841c8d7b014d069c1aec1564c927b1e85264e"
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.1"
+    version: "0.1.2"
   condition_aggregator:
     dependency: "direct main"
     description:
@@ -109,10 +109,10 @@ packages:
     dependency: "direct main"
     description:
       name: condition_aggregator_jma
-      sha256: b19ee8c50d501ca75dfc05870ca349f6c8862bcea35b09a9a5299b058ac63cfa
+      sha256: "693f4084b39ca26be66dd5adecc9fb832eb7548b00712a5a1472aace4c8e6304"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.0"
+    version: "0.3.1"
   cross_file:
     dependency: transitive
     description:
@@ -245,10 +245,10 @@ packages:
     dependency: "direct main"
     description:
       name: fleet_hazard
-      sha256: "5abe7176595954a8bf9b77ff84b595e359b564beb8abcce811330c399b91986c"
+      sha256: "702613b3985d9d5c9741c9e809201c2dbc8ebfd1ef1b0cc6aed6cbbe09bbc856"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.0"
+    version: "0.5.1"
   flutter:
     dependency: "direct main"
     description: flutter
