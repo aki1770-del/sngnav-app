@@ -31,6 +31,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:localization_fallback/localization_fallback.dart'
     show LocalizationMode;
 import 'package:sngnav_app/her_position.dart';
+import 'package:sngnav_app/widgets/advisory_cards.dart' show kCautionTextOnAmber;
 import 'package:sngnav_app/services/drive_hud_controller.dart';
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 import 'package:sngnav_app/services/measured_hazard_floor.dart';
@@ -51,9 +52,12 @@ Widget _panel({
 }) {
   final (Color bg, Color fg) = switch (effective) {
     DriveAction.considerStopping => (Colors.red.shade100, Colors.red.shade900),
+    // Verbatim with lib/main.dart's `_driveHudPanel`: the middle rung now uses
+    // kCautionTextOnAmber (~7.9:1 on the amber tint) in place of the ~2.4:1
+    // amber.shade900, so 注意して走行 reads at one glance.
     DriveAction.heightenedCaution => (
         Colors.amber.shade100,
-        Colors.amber.shade900
+        kCautionTextOnAmber
       ),
     _ => (Colors.grey.shade200, Colors.grey.shade800),
   };

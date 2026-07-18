@@ -1397,7 +1397,12 @@ class _HomePageState extends State<HomePage> {
       DriveAction.considerStopping => (Colors.red.shade100, Colors.red.shade900),
       DriveAction.heightenedCaution => (
           Colors.amber.shade100,
-          Colors.amber.shade900
+          // amber.shade900 on amber.shade100 measures ~2.4:1 — below the app's
+          // own 4.5:1 floor, render-SEEN faint on the MIDDLE caution rung
+          // (注意して走行) a black-ice / reduced-visibility watch raises. The
+          // already-defined dark amber-brown measures ~7.9:1 on the amber tint,
+          // so headline + body both clear ≥4.5:1 at one glance.
+          kCautionTextOnAmber
         ),
       _ => (Colors.grey.shade200, Colors.grey.shade800),
     };
