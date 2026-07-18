@@ -28,6 +28,7 @@ class AkitaMap extends StatelessWidget {
     this.herPosition,
     this.herAccuracyMeters,
     this.isHerPositionMock = false,
+    this.positionDegraded = false,
     this.baseTileProvider,
   });
 
@@ -39,6 +40,16 @@ class AkitaMap extends StatelessWidget {
   final LatLng? herPosition;
   final double? herAccuracyMeters;
   final bool isHerPositionMock;
+
+  /// True when the honest position estimate is dead-reckoning or lost (from
+  /// [DriveHudController.positionUnlocatable]). The map is the surface a
+  /// driver's eyes snap to; on a silent GPS blackout the raw fix stream goes
+  /// quiet and the last confident point must NOT keep painting a solid blue
+  /// "you are here". When degraded the dot greys out to a distinct "last
+  /// known — stale" pin and the accuracy circle (which the caller grows to the
+  /// honest confidence radius) turns grey — so the map can never contradict the
+  /// degraded HUD text on the same screen.
+  final bool positionDegraded;
 
   /// Optional offline-first basemap provider (offline_tiles'
   /// OfflineTileProvider). When supplied, the base TileLayer serves tiles from
@@ -98,9 +109,13 @@ class AkitaMap extends StatelessWidget {
                     point: herPosition!,
                     radius: herAccuracyMeters!,
                     useRadiusInMeter: true,
-                    color: (isHerPositionMock ? Colors.amber : Colors.blue)
+                    color: (positionDegraded
+                            ? Colors.blueGrey
+                            : (isHerPositionMock ? Colors.amber : Colors.blue))
                         .withValues(alpha: 0.12),
-                    borderColor: (isHerPositionMock ? Colors.amber : Colors.blue)
+                    borderColor: (positionDegraded
+                            ? Colors.blueGrey
+                            : (isHerPositionMock ? Colors.amber : Colors.blue))
                         .withValues(alpha: 0.45),
                     borderStrokeWidth: 1,
                   ),
@@ -143,7 +158,10 @@ class AkitaMap extends StatelessWidget {
                     point: herPosition!,
                     width: 22,
                     height: 22,
-                    child: _HerDot(isMock: isHerPositionMock),
+                    child: _HerDot(
+                      isMock: isHerPositionMock,
+                      degraded: positionDegraded,
+                    ),
                   ),
               ],
             ),
@@ -220,13 +238,18 @@ class _EndpointMarker extends StatelessWidget {
 }
 
 class _HerDot extends StatelessWidget {
-  const _HerDot({required this.isMock});
+  const _HerDot({required this.isMock, this.degraded = false});
 
   final bool isMock;
+  final bool degraded;
 
   @override
   Widget build(BuildContext context) {
-    final color = isMock ? Colors.amber.shade700 : Colors.blue.shade600;
+    // Degraded (dead-reckoning / lost) beats mock for colour: a stale last-
+    // known point must read as GREY, never as a confident blue "you are here".
+    final color = degraded
+        ? Colors.blueGrey.shade400
+        : (isMock ? Colors.amber.shade700 : Colors.blue.shade600);
     return Container(
       decoration: BoxDecoration(
         color: color,

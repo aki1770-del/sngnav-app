@@ -2527,11 +2527,9 @@ class _HomePageState extends State<HomePage> {
                         LatLng(latitude, longitude),
                       _ => null,
                     },
-                    herAccuracyMeters: switch (_herFix) {
-                      PositionAvailable(:final accuracyMeters) => accuracyMeters,
-                      _ => null,
-                    },
+                    herAccuracyMeters: _herMapAccuracyMeters(),
                     isHerPositionMock: _isMockPosition,
+                    positionDegraded: _herPositionDegraded,
                   ),
                   const SizedBox(height: 8),
                   _herStatusLine(),
@@ -3258,6 +3256,28 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// The honest position has degraded to dead-reckoning/lost on a REAL-GPS
+  /// drought (never in deliberate mock mode). The map dot + status line couple
+  /// to this so they cannot outlive the HUD's honest degrade — the silent-
+  /// blackout bug where `_herFix` keeps a confident last point on the surface
+  /// HER eyes snap to.
+  bool get _herPositionDegraded =>
+      !_isMockPosition && _driveHud.positionUnlocatable;
+
+  /// Map accuracy-circle radius: the honest, monotonically-growing confidence
+  /// radius when the position has degraded, else the raw last-fix accuracy — so
+  /// a stale dot is drawn inside a circle that SHOWS the uncertainty.
+  double? _herMapAccuracyMeters() {
+    final fixAccuracy = switch (_herFix) {
+      PositionAvailable(:final accuracyMeters) => accuracyMeters,
+      _ => null,
+    };
+    if (_herPositionDegraded) {
+      return _driveHud.estimate?.confidenceRadiusMeters ?? fixAccuracy;
+    }
+    return fixAccuracy;
+  }
+
   Widget _herStatusLine() {
     final l = AppL10n.of(context);
     // Initial state: no mode active. Deny-by-default — nothing touches GPS
@@ -3349,10 +3369,26 @@ class _HomePageState extends State<HomePage> {
     }
     // Real-GPS mode active.
     final fix = _herFix;
+    final estimate = _driveHud.estimate;
+    // On a silent GPS drought the raw fix stream stops emitting, so `_herFix`
+    // still holds the last confident point — but the honest estimate has
+    // degraded. Reuse the SAME localized label the HUD text shows
+    // (「GPS 途絶（推測航法）」/「しばらく GPS が途絶しています」) + the last-known radius, so the
+    // status line under the map can never assert 「現在地 ±Xm」 while the position
+    // is untrustworthy. No new l10n string.
+    final degradedText = estimate == null
+        ? null
+        : '${_driveHudText.modeLabel(estimate.mode, 'ja')} · '
+            '最後の位置 ±${estimate.confidenceRadiusMeters.toStringAsFixed(0)}m';
     final (text, color) = switch (fix) {
       null => (
         l.locatingYou,
         Colors.grey.shade600,
+      ),
+      PositionAvailable()
+          when _herPositionDegraded && degradedText != null => (
+        degradedText,
+        Colors.blueGrey.shade400,
       ),
       PositionAvailable(:final accuracyMeters) => (
         l.youAreHere(accuracyMeters.toStringAsFixed(0)),

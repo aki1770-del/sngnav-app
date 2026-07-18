@@ -131,6 +131,20 @@ class DriveHudController extends ChangeNotifier {
   /// `lost`), or `null` before any input.
   LocalizationEstimate? get estimate => _estimate;
 
+  /// True when the honest estimate is dead-reckoning or lost — the position is
+  /// no longer a trustworthy LOCATION. The map dot + status line must NOT keep
+  /// presenting a confident "you are here" here; they degrade to a stale/last-
+  /// known rendering (the exact silent-GPS-blackout case where the raw fix
+  /// stream goes quiet and `_herFix` still holds the last confident point).
+  /// Mirrors the maneuver-suppression contract (`positionUnlocatable` in
+  /// `_recompute`); a `null` estimate (no fix yet) is NOT unlocatable — the
+  /// surface simply shows no dot.
+  bool get positionUnlocatable {
+    final mode = _estimate?.mode;
+    return mode == LocalizationMode.deadReckoning ||
+        mode == LocalizationMode.lost;
+  }
+
   /// The current advisory-only caution read FROM THE ADVISOR (position ×
   /// visibility × advisory × speed), or `null` before any input. This is the
   /// honest per-axis record; [effectiveAction] is what the surface reflects
