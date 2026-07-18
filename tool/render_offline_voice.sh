@@ -42,8 +42,13 @@ import re, sys
 src = open(sys.argv[1], encoding='utf-8').read()
 body = re.search(r'const Map<String, String> kOfflineSafetyVoiceJa\s*=\s*<String, String>\{(.*?)\n\};', src, re.S).group(1)
 # id: 'text',   (text may sit on the next line)
-for m in re.finditer(r"'([a-z_]+)':\s*\n?\s*'([^']+)'", body):
-    print(f"{m.group(1)}\t{m.group(2)}")
+entries = dict(re.findall(r"'([a-z_]+)':\s*\n?\s*'([^']+)'", body))
+# RENDER override: when the catalog value (the emitter's exact lookup string)
+# is not voiceable, the WAV is synthesised from this readable equivalent.
+ovm = re.search(r'const Map<String, String> kOfflineSafetyVoiceRenderJa\s*=\s*<String, String>\{(.*?)\n\};', src, re.S)
+overrides = dict(re.findall(r"'([a-z_]+)':\s*\n?\s*'([^']+)'", ovm.group(1))) if ovm else {}
+for _id, text in entries.items():
+    print(f"{_id}\t{overrides.get(_id, text)}")
 PY
 )
 

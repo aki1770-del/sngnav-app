@@ -68,6 +68,12 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
       '濡れた路面、橋やトンネル出口で注意',
   'alert_wet_novice_urban':
       '濡れた路面、危険。スピードを落としてください',
+  // The VALUE is the emitter's exact string (the lookup key assetFor matches).
+  // AlertExplainer(wet, professional) in navigation_safety_core returns the
+  // terse 「濡路、注意」— which open_jtalk cannot read (濡路 is not a dictionary
+  // word → SILENCE). We cannot change that string here (it lives in the
+  // published package), so the KEY stays verbatim for the match while the WAV
+  // is rendered from the readable equivalent below (kOfflineSafetyVoiceRenderJa).
   'alert_wet_professional':
       '濡路、注意',
   'alert_wet_agricultural_forestry':
@@ -155,6 +161,31 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   'forecast_snow_valid':
       '出発前に取得した気象庁の予報では、この時間帯は雪の予報です。これは観測ではなく予報です。速度を落とし、車間距離をとってください。',
 };
+
+/// RENDER overrides — id -> the text the WAV is actually synthesised FROM,
+/// when the catalog VALUE (the emitter's exact string, kept verbatim so the
+/// lookup matches) is not voiceable by open_jtalk.
+///
+/// The only entry: `alert_wet_professional`. Its catalog value 「濡路、注意」 is
+/// what AlertExplainer(wet, professional) passes to speak() — but 濡路 is not an
+/// open_jtalk dictionary word and renders to SILENCE, so a professional-profile
+/// driver would hear only 「チューイ」 with no hazard named. We render the WAV from
+/// the readable, semantically-identical sibling form 「濡れた路面、注意」 (the same
+/// phrase the other four wet profiles already use) so HER actually hears the
+/// hazard. The KEY is unchanged, so the runtime lookup and the no-invented-
+/// phrases contract both stay intact; only the bytes she hears change.
+///
+/// The DURABLE fix is upstream: navigation_safety_core alert_explainer.dart:208
+/// should emit 「濡れた路面、注意」 too — then this override can be deleted. Until
+/// that package ships + the app bumps to it, this keeps the mouth honest.
+const Map<String, String> kOfflineSafetyVoiceRenderJa = <String, String>{
+  'alert_wet_professional': '濡れた路面、注意',
+};
+
+/// The text the bundled WAV for [id] is synthesised from — the render override
+/// when present, else the catalog value.
+String offlineSafetyRenderTextFor(String id) =>
+    kOfflineSafetyVoiceRenderJa[id] ?? kOfflineSafetyVoiceJa[id]!;
 
 /// The bundled-audio lookup: the finite mouth.
 abstract final class OfflineSafetyVoice {
