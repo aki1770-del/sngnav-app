@@ -137,7 +137,7 @@ void main() {
     );
   });
 
-  testWidgets('02 — JA drive HUD, CONTINUE (走行を継続)', (tester) async {
+  testWidgets('02 — JA drive HUD, lowest neutral rung (特段の注意なし)', (tester) async {
     final fake = FakeAlertActuators();
     await tester.pumpWidget(
       SngnavApp(actuators: fake, locale: const Locale('ja')),
@@ -152,8 +152,8 @@ void main() {
     await tester.pump();
 
     // The honest default is UNKNOWN (未計測 → heightened); the only truthful way
-    // to reach 走行を継続 is an actual clear reading, so select the CLEAR demo
-    // visibility override before capturing the continue state.
+    // to reach the lowest, choice-neutral rung (特段の注意なし) is an actual clear
+    // reading, so select the CLEAR demo visibility override before capturing.
     final visDropdown = find.byKey(const Key('drive-hud-visibility'));
     await tester.ensureVisible(visDropdown);
     await tester.pump();
@@ -163,9 +163,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     final banner = find.byKey(const Key('drive-hud-caution-banner'));
-    // Confirm we are in the CONTINUE state before capturing.
+    // Confirm we are in the lowest, choice-neutral rung before capturing.
     expect(
-      find.descendant(of: banner, matching: find.text('走行を継続')),
+      find.descendant(of: banner, matching: find.text('特段の注意なし')),
       findsOneWidget,
     );
     await captureApp(

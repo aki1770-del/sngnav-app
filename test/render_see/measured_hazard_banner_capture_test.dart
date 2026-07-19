@@ -4,9 +4,9 @@
 /// Produces fresh ja-rendered PNGs of the `_driveHudPanel` caution banner
 /// (`Key('drive-hud-caution-banner')` in lib/main.dart) so VAA can LOOK at the
 /// thing the fix changes:
-///   10 — no measured hazard, trusted, clear   → grey  「走行を継続」
+///   10 — no measured hazard, trusted, clear   → grey  「特段の注意なし」
 ///   11 — MEASURED black-ice firing, trusted    → amber 「注意して走行」  ← the fix
-///        (the advisor ALONE says 走行を継続; the measured watch RAISES the banner)
+///        (the advisor ALONE is the lowest, neutral rung; the watch RAISES it)
 ///   12 — measured hazard + position LOST        → red   「停車の検討」  (compound)
 ///
 /// HONESTY (so the reader can trust the render): every state is produced by the
@@ -66,9 +66,9 @@ Widget _panel({
     children: [
       Text(
         'The eyes-off compound caution rung. A MEASURED JMA watch (black-ice / '
-        'turmoil) now RAISES this banner so it cannot read 「走行を継続」while a '
-        'measured hazard is firing — and compounds to 「停車の検討」when the hazard '
-        'cannot even be located (position lost).',
+        'turmoil) now RAISES this banner off its lowest, choice-neutral rung '
+        '(「特段の注意なし」) to 「注意して走行」while a measured hazard is firing — and '
+        'compounds to 「停車の検討」when the hazard cannot even be located.',
         style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
       ),
       const SizedBox(height: 6),
@@ -187,7 +187,7 @@ void main() {
     await expectLater(find.byType(MaterialApp), matchesGoldenFile(out));
   }
 
-  testWidgets('10 — no measured hazard, trusted, clear → 走行を継続 (grey)',
+  testWidgets('10 — no measured hazard, trusted, clear → 特段の注意なし (grey)',
       (tester) async {
     final (base, eff, _) =
         drive(hazard: MeasuredWeatherHazard.none, vis: 1500);

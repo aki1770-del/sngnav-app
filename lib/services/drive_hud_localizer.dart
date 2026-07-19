@@ -9,9 +9,21 @@
 ///  - The ceiling rung is *consider stopping* — an INVITATION she owns, never a
 ///    command, and NEVER "turn back" (the package structurally has no turn-back
 ///    rung; the worst case demotes the MAP, never the JOURNEY to her mother).
-///  - `continueDriving` is worded as *continue*, never "safe to continue" — it
-///    is the ABSENCE of a raised concern, not an assertion of safety.
-/// Both wordings are copied from the package's own `DriveAction` doc comments.
+///  - The lowest rung (`continueDriving`) HEADLINE is CHOICE-NEUTRAL — it states
+///    the honest STATE («no elevated caution» / 「特段の注意なし」), it does NOT tell
+///    her to continue/proceed/go and it does NOT reassure ("safe"/"clear"). This
+///    is Design-Floor Refusal #1 (Chair, 2026-07-19): the instrument serves the
+///    WHEEL — honest information so the DRIVER decides — never a confidence-to-
+///    continue. The visual headline once read 「走行を継続」/"Continue", which
+///    ADVOCATED GO; that breach is removed here. Firing basis: this rung fires
+///    ONLY when position is trusted+fresh AND visibility is MEASURED, fresh, and
+///    clear (advisor score 0). It does NOT fire on unknown/stale visibility —
+///    those floor to `heightenedCaution` in the package's `_resolveVisibility`
+///    (concern 1) — so «no elevated caution» is honest on every path that
+///    reaches it (it never displays over an unmeasured or degraded read).
+///  - The voice channel already honours this: `spokenGuidance(continueDriving)`
+///    returns "" (say nothing). This headline is the visual parity of that
+///    silence — an honest absence, never an all-clear.
 library;
 
 import 'package:compound_failure_advisor/compound_failure_advisor.dart';
@@ -24,11 +36,16 @@ class DriveHudLocalizer {
   bool _isJa(String localeTag) => localeTag.toLowerCase().startsWith('ja');
 
   /// A short headline for the caution rung, for the on-screen HUD.
+  ///
+  /// The lowest rung is CHOICE-NEUTRAL by Design-Floor Refusal #1: it names the
+  /// honest absence of elevated caution, never the instruction "continue" and
+  /// never a reassurance of safety. See the library doc for the firing basis
+  /// (this rung reaches HER only on a measured, non-elevated read).
   String actionHeadline(DriveAction action, String localeTag) {
     final ja = _isJa(localeTag);
     switch (action) {
       case DriveAction.continueDriving:
-        return ja ? '走行を継続' : 'Continue';
+        return ja ? '特段の注意なし' : 'No elevated caution';
       case DriveAction.heightenedCaution:
         return ja ? '注意して走行' : 'Heightened caution';
       case DriveAction.considerStopping:
