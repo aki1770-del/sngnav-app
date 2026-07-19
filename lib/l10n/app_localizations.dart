@@ -144,10 +144,19 @@ class AppL10n {
   //   (noaa_nws_client.dart:307) — and short-circuits out-of-coverage points
   //   BEFORE any URI is constructed (:305), so a non-US coordinate never
   //   reaches the NWS either.
-  // - Cadence: a refresh fires about once per ~1 km of travel
-  //   (_maybeRefreshAdvisoriesForFix in main.dart). Coordinates are held only
-  //   in memory, never persisted, never sent to any server this app runs
-  //   (there is none). Foreground-only per AndroidManifest.xml.
+  // - JMA wire (Japan), all region/prefecture-keyed public data — precise
+  //   coordinates are NOT sent: (1) the prefecture warning file
+  //   warning/{prefectureCode}.json (condition_aggregator_jma provider,
+  //   prefectureCodesForPoint on-device); (2) the regional AMeDAS observation
+  //   (jma_fetch.dart, Akita station 32402); (3) the prefecture forecast
+  //   forecast/{areaCode}.json (jma_forecast_fetch.dart, Akita 050000).
+  // - Cadence: the warning refresh fires about once per ~1 km of travel
+  //   (_maybeRefreshAdvisoriesForFix in main.dart, 0.01° gate); the whole JMA
+  //   set (AMeDAS + forecast via _refreshJma, warning via the advisory refresh)
+  //   also fires on a 10-minute foreground ticker (_jmaTicker, main.dart) even
+  //   while stopped. Coordinates are held only in memory, never persisted,
+  //   never sent to any server this app runs (there is none). Foreground-only
+  //   per AndroidManifest.xml.
   //
   // BOTH locales state both regional facts: locale is NOT location — a
   // Japanese-reading driver in the US would hit the NWS point path, so the ja
@@ -157,8 +166,11 @@ class AppL10n {
   String get locationDisclosure => _ja
       ? '現在地を共有すると、周辺の警報・注意報の取得に使われます。'
           '日本国内では座標が端末の外へ送信されることはありません — '
-          '端末内で現在地から都道府県を判定し、気象庁の公開データへは'
-          '都道府県コードのみを（走行約1kmごとに）要求します。'
+          '端末内で現在地から都道府県・地域を判定し、気象庁の公開データに対して、'
+          '都道府県コードによる警報・注意報、地域のアメダス観測、'
+          '都道府県の予報を要求します。いずれも都道府県・地域単位の公開データで、'
+          '正確な座標は送信しません。警報・注意報は走行約1kmごとに更新され、'
+          'これらの取得は使用中であれば停車していても約10分ごとに行われます。'
           'アメリカ合衆国内では、地点の警報を取得するため座標が'
           '米国国立気象局（NWS）へ送信されます。'
           '現在地を管轄しない気象機関へ問い合わせることはありません。'
@@ -166,13 +178,19 @@ class AppL10n {
           '本アプリ独自のサーバーへ送信されることもありません。'
       : 'When you share your location, it is used to fetch nearby weather '
           'advisories. In Japan your coordinates never leave the device: the '
-          'app determines your prefecture on the device and requests only '
-          'that prefecture code from the JMA public data (about once per '
-          'kilometre of travel). In the United States your coordinates are '
-          'sent to the NWS to fetch alerts for your exact point. A service '
-          'that does not cover your location is never contacted. Sharing is '
-          'opt-in, happens only while the app is open, and your location is '
-          "never stored on the device or sent to this app's own servers.";
+          'app determines your prefecture and region on the device and '
+          'requests, from the JMA public data, the warning file for your '
+          'prefecture code, the regional AMeDAS observations, and the '
+          'forecast for your prefecture — all prefecture- or region-keyed '
+          'public data, so your exact coordinates are not sent. The warning '
+          'file is refreshed about once per kilometre of travel; all three '
+          'are re-requested about every 10 minutes while the app is open, '
+          'even when stopped. In the United States your coordinates '
+          'are sent to the NWS to fetch alerts for your exact point. A '
+          'service that does not cover your location is never contacted. '
+          'Sharing is opt-in, happens only while the app is open, and your '
+          "location is never stored on the device or sent to this app's own "
+          'servers.';
 
   // ===== Other-egress disclosure (B27 + B30) — the rest of the wire =====
   //

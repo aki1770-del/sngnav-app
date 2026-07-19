@@ -372,4 +372,32 @@ void main() {
     // Prove the default is the honest unknown, not the old fabricated ice.
     expect(find.text('路面状況不明'), findsWidgets);
   });
+
+  testWidgets(
+      '17 — JA consent disclosure names the FULL JMA egress + stationary '
+      'cadence (BOD P2 D4 fix)', (tester) async {
+    // The card HER reads BEFORE sharing her location must match the measured
+    // wire: three region/prefecture-keyed JMA endpoints (prefecture warning +
+    // regional AMeDAS + prefecture forecast — precise coords NOT sent),
+    // fetched about once per ~1 km AND about every 10 minutes while open,
+    // including stopped. The old copy said "都道府県コードのみを（走行約1kmごとに）"
+    // — false-exhaustive + cadence-incomplete. Capture the disclosure so a
+    // human can SEE the corrected honest text (OPS-066).
+    await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
+    await tester.pump();
+    final disclosure = find.byKey(const Key('location-disclosure'));
+    // Render guard: the corrected terms are actually on the surface HER reads.
+    final rendered = tester.widget<Text>(disclosure).data ?? '';
+    expect(rendered, contains('アメダス'));
+    expect(rendered, contains('予報'));
+    expect(rendered, contains('10分'));
+    expect(rendered, contains('停車'));
+    expect(rendered, isNot(contains('都道府県コードのみ')));
+    await captureApp(
+      tester,
+      target: disclosure,
+      logical: const Size(800, 460),
+      out: '../../render_out/17_ja_consent_disclosure_full_jma_egress.png',
+    );
+  });
 }

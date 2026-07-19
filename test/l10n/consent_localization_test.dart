@@ -202,6 +202,42 @@ void main() {
       expect(d.toLowerCase(), contains('opt-in'));
     });
 
+    test('locationDisclosure names the FULL JMA egress + stationary cadence '
+        '(BOD P2 D4 fix — no false "only prefecture code"/"のみ")', () {
+      // The measured JMA wire on HER Akita path is THREE region/prefecture-
+      // keyed endpoints, not one: warning/{prefectureCode}.json +
+      // AMeDAS observation (station 32402) + forecast/050000.json. And the
+      // cadence is per-~1km-travel AND a ~10-minute stationary ticker
+      // (_jmaTicker, main.dart) — the app re-queries even while parked.
+      // The old copy said "都道府県コードのみを（走行約1kmごとに）" which was
+      // BOTH false-exhaustive (omits AMeDAS + forecast) and cadence-incomplete
+      // (omits the stationary refresh). These assertions fail on the old text.
+
+      // JA: names AMeDAS + forecast, and the stationary 10-minute cadence.
+      expect(ja.locationDisclosure, contains('アメダス'));
+      expect(ja.locationDisclosure, contains('予報'));
+      expect(ja.locationDisclosure, contains('10分'));
+      expect(ja.locationDisclosure, contains('停車'));
+      // The false-exhaustive "only prefecture code" phrasing is GONE.
+      expect(ja.locationDisclosure, isNot(contains('都道府県コードのみ')));
+
+      // EN: names AMeDAS + forecast, and the stationary 10-minute cadence.
+      expect(en.locationDisclosure.toLowerCase(), contains('amedas'));
+      expect(en.locationDisclosure.toLowerCase(), contains('forecast'));
+      expect(en.locationDisclosure, contains('10 '));
+      expect(en.locationDisclosure.toLowerCase(), contains('stopped'));
+      // No "requests only that prefecture code" false-exhaustive.
+      expect(en.locationDisclosure.toLowerCase(),
+          isNot(contains('requests only')));
+
+      // The privacy-positive truth is KEPT (not over-stated): still says the
+      // coordinates never leave the device / exact coordinates are not sent.
+      expect(ja.locationDisclosure,
+          contains('座標が端末の外へ送信されることはありません'));
+      expect(en.locationDisclosure.toLowerCase(),
+          contains('exact coordinates are not sent'));
+    });
+
     test('egress disclosure names all three non-advisory egresses, both '
         'locales', () {
       for (final l in const [AppL10n(Locale('ja')), AppL10n(Locale('en'))]) {
