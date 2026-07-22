@@ -2894,6 +2894,11 @@ class _HomePageState extends State<HomePage> {
                 InvisibleIceWatchResult.watch =>
                   '⚠ ブラックアイスバーンのおそれ（放射冷却の窓）',
                 InvisibleIceWatchResult.clear => '該当なし',
+                // A scope exclusion is NOT an all-clear. Say plainly that
+                // this watch does not cover these conditions, and never
+                // imply the surface is safe (Andon 2026-07-20T13:40Z).
+                InvisibleIceWatchResult.outOfScope =>
+                  '本ウォッチの対象外（この条件は判定していません）',
                 InvisibleIceWatchResult.unknown || null =>
                   '判定不能（気温・湿度・降水の観測値が不足）',
               },

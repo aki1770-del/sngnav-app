@@ -50,22 +50,32 @@ void main() {
     test('sub-zero ambient stays OUT of this alert (cry-wolf contract)', () {
       // Nearly every freezing reading passes the dew-point check; alerting
       // on all of them trains the driver to dismiss the one that matters.
-      expect(
-        evaluateInvisibleIceWatch(
-            _obs(temp: -5.0, humidity: 70, precip10m: 0)),
-        InvisibleIceWatchResult.clear,
-      );
-      expect(
-        evaluateInvisibleIceWatch(_obs(temp: 0.0, humidity: 90, precip10m: 0)),
-        InvisibleIceWatchResult.clear,
-      );
+      // The contract this test protects is unchanged: sub-zero never raises
+      // THIS alert. What changed (Andon 2026-07-20T13:40Z) is how the
+      // exclusion is SPELLED — `outOfScope`, not `clear` — because `clear`
+      // renders to the driver as 該当なし, an affirmative all-clear on a
+      // very likely frozen surface. Out-of-scope is not an all-clear.
+      for (final obs in [
+        _obs(temp: -5.0, humidity: 70, precip10m: 0),
+        _obs(temp: 0.0, humidity: 90, precip10m: 0),
+      ]) {
+        final result = evaluateInvisibleIceWatch(obs);
+        expect(result, InvisibleIceWatchResult.outOfScope);
+        // The defect, asserted directly so it cannot return.
+        expect(result, isNot(InvisibleIceWatchResult.clear));
+        expect(result, isNot(InvisibleIceWatchResult.watch));
+      }
     });
 
-    test('measured precipitation → clear (visible-hazard lanes own it)', () {
-      expect(
-        evaluateInvisibleIceWatch(_obs(temp: 2.0, humidity: 70, precip10m: 0.5)),
-        InvisibleIceWatchResult.clear,
-      );
+    test('measured precipitation → outOfScope (visible-hazard lanes own it)',
+        () {
+      // The comment this test has always carried — the visible-hazard lanes
+      // OWN precipitation — is a statement of SCOPE, and `outOfScope` says
+      // it faithfully where `clear` claimed a measurement never made.
+      final result =
+          evaluateInvisibleIceWatch(_obs(temp: 2.0, humidity: 70, precip10m: 0.5));
+      expect(result, InvisibleIceWatchResult.outOfScope);
+      expect(result, isNot(InvisibleIceWatchResult.clear));
     });
 
     test('warm or dry-air mornings → clear', () {

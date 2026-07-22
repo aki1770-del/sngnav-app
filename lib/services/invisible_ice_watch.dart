@@ -40,7 +40,33 @@ enum InvisibleIceWatchResult {
   watch,
 
   /// Measured fields say the window is not present.
+  ///
+  /// This is a MEASURED negative: every required field was reported, the
+  /// conditions were inside this watch's scope, and the shared classifier
+  /// determined the radiative-frost window is absent. Only this value may
+  /// ever be rendered as 該当なし.
   clear,
+
+  /// The measured conditions are OUTSIDE this watch's scope, so it renders
+  /// no verdict about them — neither hazard nor safety.
+  ///
+  /// Two app-policy gates land here: measured precipitation (this watch
+  /// covers the no-precipitation radiative-frost window only) and sub-zero
+  /// ambient (the sub-zero cry-wolf contract, documented in the library
+  /// header). Both were previously folded into [clear], which meant a
+  /// SCOPE EXCLUSION was rendered to the driver as an affirmative
+  /// all-clear — 該当なし under the label 路面凍結ウォッチ — at ambient
+  /// temperatures where the road surface is very likely frozen. 89% of
+  /// slip accidents occur on a frozen surface; an all-clear there is the
+  /// fabricated-clear failure class this project has now corrected three
+  /// times (Andon 2026-07-20T13:40Z).
+  ///
+  /// Splitting the value removes the false STATEMENT. It deliberately does
+  /// NOT decide the alarm POLICY — whether sub-zero ambient should raise a
+  /// black-ice warning, and on what threshold, is a hazard-calibration
+  /// question reserved to Komada-voice (OPS-068 scale clause). Behavioural
+  /// consumers continue to gate on [watch] alone and are unchanged.
+  outOfScope,
 
   /// A required field (temperature / humidity / precipitation) was not
   /// reported — the watch abstains. Honest unknown, not "clear".
@@ -57,8 +83,9 @@ InvisibleIceWatchResult evaluateInvisibleIceWatch(JmaObservation obs) {
   }
 
   // App-policy gates (mirror of the SNGNav status-bar alert gate).
-  if (precip10m > 0) return InvisibleIceWatchResult.clear;
-  if (temp <= 0) return InvisibleIceWatchResult.clear;
+  // These are SCOPE EXCLUSIONS, not measured negatives — see [outOfScope].
+  if (precip10m > 0) return InvisibleIceWatchResult.outOfScope;
+  if (temp <= 0) return InvisibleIceWatchResult.outOfScope;
 
   // Shared-classifier determination. Only the no-precipitation branch is
   // reachable here, and it reads exactly (temperature, humidityRH); the
