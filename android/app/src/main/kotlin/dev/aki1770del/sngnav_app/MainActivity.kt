@@ -90,55 +90,129 @@ class MainActivity : FlutterActivity() {
                     val asset: String? = call.argument<String>("asset")
                     if (asset.isNullOrBlank()) {
                         result.success(false)
-                        return@setMethodCallHandler
+                        return@setMethodCallHandler // pre-focus: nothing to abandon
                     }
                     // Exactly-once reply guard: completion, error, cap, and
                     // the catch below all race for the single result slot —
                     // a MethodChannel result must never be answered twice.
+                    // `focusAbandoned` mirrors it so audio-focus is abandoned
+                    // exactly once whichever of the four exits wins the race.
                     val replied = java.util.concurrent.atomic.AtomicBoolean(false)
+                    val focusAbandoned = java.util.concurrent.atomic.AtomicBoolean(false)
                     fun reply(ok: Boolean) {
                         if (replied.compareAndSet(false, true)) result.success(ok)
                     }
+
+                    // DUCKING (Chair-lifted ③, 2026-07-23): the bundled offline
+                    // safety voice — the one that works in a dead zone — asks
+                    // HER music/podcast to DUCK for the phrase, so a black-ice
+                    // warning is heard OVER her audio instead of buried under
+                    // it. TRANSIENT_MAY_DUCK only (never TRANSIENT_EXCLUSIVE,
+                    // never USAGE_ALARM — those remain a deferred Chair-gated
+                    // Tier-3; this stays within the ducking she authorized). A
+                    // no-op focus-change listener: a STARTED safety phrase runs
+                    // to completion — we asked music to yield, we never drop a
+                    // half-spoken warning to yield back. On-device ducking is
+                    // OPS-066-DEFERRED (no device here); a car-speaker FM/AM
+                    // radio cannot be ducked by the phone (VOICE_MISSION.md).
+                    val audioManager: AudioManager =
+                        getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                    val focusListener = AudioManager.OnAudioFocusChangeListener { }
+                    val nav = android.media.AudioAttributes.Builder()
+                        .setUsage(
+                            android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE,
+                        )
+                        .setContentType(
+                            android.media.AudioAttributes.CONTENT_TYPE_SPEECH,
+                        )
+                        .build()
+                    // API 26+ carries a request object; 24-25 (our minSdk is 24)
+                    // requests/abandons by listener. The request is INSTANTIATED
+                    // only inside SDK_INT>=26 guards, so the API-26 class never
+                    // loads on 24-25.
+                    val focusRequest: android.media.AudioFocusRequest? =
+                        if (android.os.Build.VERSION.SDK_INT >=
+                            android.os.Build.VERSION_CODES.O) {
+                            android.media.AudioFocusRequest.Builder(
+                                android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+                            )
+                                .setAudioAttributes(nav)
+                                .setOnAudioFocusChangeListener(
+                                    focusListener,
+                                    android.os.Handler(android.os.Looper.getMainLooper()),
+                                )
+                                .build()
+                        } else {
+                            null
+                        }
+                    fun abandonFocus() {
+                        if (focusAbandoned.compareAndSet(false, true)) {
+                            try {
+                                if (android.os.Build.VERSION.SDK_INT >=
+                                    android.os.Build.VERSION_CODES.O) {
+                                    focusRequest?.let {
+                                        audioManager.abandonAudioFocusRequest(it)
+                                    }
+                                } else {
+                                    @Suppress("DEPRECATION")
+                                    audioManager.abandonAudioFocus(focusListener)
+                                }
+                            } catch (_: Exception) {
+                                // best-effort; never crash the surface she drives on
+                            }
+                        }
+                    }
+
                     try {
                         // Flutter assets live under flutter_assets/<declared path>.
                         val key = "flutter_assets/$asset"
                         val afd = assets.openFd(key)
                         val player = android.media.MediaPlayer()
-                        player.setAudioAttributes(
-                            android.media.AudioAttributes.Builder()
-                                .setUsage(
-                                    android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE,
-                                )
-                                .setContentType(
-                                    android.media.AudioAttributes.CONTENT_TYPE_SPEECH,
-                                )
-                                .build(),
-                        )
+                        player.setAudioAttributes(nav)
                         player.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
                         afd.close()
-                        // Free the native player when the phrase finishes; a
-                        // leaked MediaPlayer per warning would exhaust the
-                        // device over a long winter drive. Completion is the
-                        // TRUE resolution: the phrase reached its end.
+                        // Free the native player when the phrase finishes AND
+                        // abandon focus (EXIT 1 — normal end); a leaked
+                        // MediaPlayer or a never-released duck over a long winter
+                        // drive is the failure. Completion is the TRUE
+                        // resolution: the phrase reached its end.
                         player.setOnCompletionListener {
                             it.release()
+                            abandonFocus()
                             reply(true)
                         }
-                        // A mid-phrase error is NOT a completed delivery:
-                        // resolve false so the Dart side can fall back.
+                        // A mid-phrase error is NOT a completed delivery
+                        // (EXIT 2): abandon focus + resolve false so the Dart
+                        // side can fall back.
                         player.setOnErrorListener { mp, _, _ ->
                             mp.release()
+                            abandonFocus()
                             reply(false)
                             true
                         }
                         player.prepare()
+                        // Request the duck AFTER a good prepare() (so a prepare
+                        // failure never leaves music ducked for a phrase that
+                        // never plays) and before start(). DENIAL does not gate
+                        // a safety phrase — we speak regardless; the grant only
+                        // decides whether her audio ducks. Return discarded.
+                        if (android.os.Build.VERSION.SDK_INT >=
+                            android.os.Build.VERSION_CODES.O) {
+                            focusRequest?.let { audioManager.requestAudioFocus(it) }
+                        } else {
+                            @Suppress("DEPRECATION")
+                            audioManager.requestAudioFocus(
+                                focusListener,
+                                android.media.AudioManager.STREAM_MUSIC,
+                                android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+                            )
+                        }
                         player.start()
-                        // Native backstop cap: the longest bundled phrase is
-                        // ~13.5 s; a player still unresolved at 30 s is wedged
-                        // (neither completion nor error will ever fire).
-                        // Release it and answer the channel so the native
-                        // player is not leaked even if the Dart timeout
-                        // already gave up listening.
+                        // Native backstop cap (EXIT 3): a player still unresolved
+                        // at 30 s is wedged (neither completion nor error will
+                        // fire). Release it, abandon focus, and answer the channel
+                        // so nothing is leaked even if the Dart timeout already
+                        // gave up listening. The longest bundled phrase is ~14 s.
                         android.os.Handler(android.os.Looper.getMainLooper())
                             .postDelayed({
                                 if (replied.compareAndSet(false, true)) {
@@ -146,12 +220,16 @@ class MainActivity : FlutterActivity() {
                                         player.release()
                                     } catch (_: Exception) {
                                     }
+                                    abandonFocus()
                                     result.success(false)
                                 }
                             }, 30_000)
                     } catch (e: Exception) {
-                        // Never crash the surface she is driving on. Report the
-                        // failure honestly so the caller can fall back to TTS.
+                        // Never crash the surface she is driving on. Abandon
+                        // focus (EXIT 4 — idempotent whether or not it was held)
+                        // and report the failure honestly so the caller falls
+                        // back to TTS.
+                        abandonFocus()
                         reply(false)
                     }
                 }
