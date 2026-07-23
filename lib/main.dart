@@ -1452,6 +1452,48 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 8),
         ],
+        // Sub-zero frozen-surface CHIP — a calm, persistent glance-surface
+        // WHAT for the driver who cannot hear the spoken warning (deaf / HoH /
+        // ears useless in a roaring whiteout). Chair ruling 2026-07-23:
+        // "add a calm glance chip" — give the frozen-road meaning on the
+        // surface she watches WITHOUT raising the caution banner/rung (that
+        // stays gated on `watch` alone, so this does not cry-wolf every cold
+        // morning). Read-only mirror of the sub-zero verdict; `Icons.ac_unit`
+        // is a Material glyph, so it never tofus like the ⚠ emoji. Blue.900 on
+        // lightBlue.50 measures ~7.7:1, clearing the 4.5:1 accessibility floor.
+        if (_invisibleIceResult == InvisibleIceWatchResult.subZeroFrozen) ...[
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Container(
+              key: const Key('subzero-frozen-chip'),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.lightBlue.shade50,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.ac_unit,
+                      size: 14, color: Colors.blue.shade900),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      _spokenJa ? '路面凍結のおそれ' : 'Road may be frozen',
+                      style: TextStyle(
+                        color: Colors.blue.shade900,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         Text(
           'Fuses HER honest position (localization_fallback: GPS → dead '
           'reckoning → lost, never a confident wrong dot) with visibility + the '
