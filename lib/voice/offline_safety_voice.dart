@@ -139,6 +139,13 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   'black_ice_live':
       'ブラックアイスバーンに注意。路面は濡れて見えても、凍結しているおそれがあります。急ハンドル、急ブレーキは厳禁。速度を落としてください。',
 
+  // --- The live SUB-ZERO frozen-surface warning (subZeroFrozenSpokenText,
+  // _announceWatchTransitions). Distinct from black_ice_live: below zero the
+  // ice is EXPECTED, not the above-zero surprise. The VALUE is kept in exact
+  // sync with kSubZeroFrozenSpokenJa (invisible_ice_watch.dart) by a test.
+  'sub_zero_frozen_live':
+      '気温が0°C以下です。橋の上やトンネルの出口では、路面が凍結している可能性があります。速度を落とし、急ブレーキ・急ハンドルは避けてください。',
+
   // --- Measured-turmoil cautions: rain / wind / both (main.dart:1172).
   'turmoil_rain_and_wind':
       '強い雨と強めの風を観測しています。視界の悪化と横風のおそれがあります。速度を落とし、車間距離をとって慎重に運転してください。',

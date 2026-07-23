@@ -33,6 +33,8 @@ import 'package:routing_engine/routing_engine.dart' show RouteManeuver;
 import 'package:snow_rendering/snow_rendering.dart' as snow_rendering;
 import 'package:sngnav_app/main.dart' show severityForCondition;
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
+import 'package:sngnav_app/services/invisible_ice_watch.dart'
+    show subZeroFrozenSpokenText;
 import 'package:sngnav_app/services/maneuver_narration.dart';
 import 'package:sngnav_app/services/forecast_validity.dart';
 import 'package:sngnav_app/services/staleness_policy.dart';
@@ -72,6 +74,12 @@ Set<String> emittableSafetyStaticJa() {
 
   // (3) main.dart:1161 — the live invisible-black-ice announcement.
   out.add(snow_rendering.invisibleBlackIceAnnouncement.jaSpokenText);
+
+  // (3b) _announceWatchTransitions — the live SUB-ZERO frozen-surface warning
+  // (app-authored, non-slotted, bundled). Emittable ONCE on entry to the
+  // sub-zero regime; must be in the offline mouth or an eyes-off driver hears
+  // silence on a frozen road.
+  out.add(subZeroFrozenSpokenText(ja: true));
 
   // (4) main.dart:1172 — the measured-turmoil caution lines (rain / wind /
   // both are the only announcing states; anything else returns null).

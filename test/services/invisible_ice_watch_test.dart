@@ -31,13 +31,11 @@ void main() {
       );
     });
 
-    test('missing ANY required field → unknown (abstain, never clear)', () {
+    test('missing temperature or precip → unknown; but ABOVE zero also '
+        'needs humidity', () {
+      // Temp and precip are required on every branch.
       expect(
         evaluateInvisibleIceWatch(_obs(temp: null, humidity: 70, precip10m: 0)),
-        InvisibleIceWatchResult.unknown,
-      );
-      expect(
-        evaluateInvisibleIceWatch(_obs(temp: 2.0, humidity: null, precip10m: 0)),
         InvisibleIceWatchResult.unknown,
       );
       expect(
@@ -45,26 +43,82 @@ void main() {
             _obs(temp: 2.0, humidity: 70, precip10m: null)),
         InvisibleIceWatchResult.unknown,
       );
+      // ABOVE zero, no precip: the radiative-frost classifier needs humidity,
+      // so a missing humidity abstains here (unchanged).
+      expect(
+        evaluateInvisibleIceWatch(_obs(temp: 2.0, humidity: null, precip10m: 0)),
+        InvisibleIceWatchResult.unknown,
+      );
     });
 
-    test('sub-zero ambient stays OUT of this alert (cry-wolf contract)', () {
-      // Nearly every freezing reading passes the dew-point check; alerting
-      // on all of them trains the driver to dismiss the one that matters.
-      // The contract this test protects is unchanged: sub-zero never raises
-      // THIS alert. What changed (Andon 2026-07-20T13:40Z) is how the
-      // exclusion is SPELLED — `outOfScope`, not `clear` — because `clear`
-      // renders to the driver as 該当なし, an affirmative all-clear on a
-      // very likely frozen surface. Out-of-scope is not an all-clear.
+    test('sub-zero ambient → subZeroFrozen (Chair calibration 2026-07-23; '
+        'was outOfScope, was clear before that)', () {
+      // The Chair ruled sub-zero SHOULD warn. It now returns a DISTINCT
+      // verdict — not `watch` (that names the above-zero surprise), not
+      // `clear`/`outOfScope` (an affirmative all-clear / non-coverage on a
+      // very likely frozen surface, the fabricated-clear class of Andon
+      // 2026-07-20T13:40Z).
       for (final obs in [
         _obs(temp: -5.0, humidity: 70, precip10m: 0),
         _obs(temp: 0.0, humidity: 90, precip10m: 0),
       ]) {
         final result = evaluateInvisibleIceWatch(obs);
-        expect(result, InvisibleIceWatchResult.outOfScope);
-        // The defect, asserted directly so it cannot return.
+        expect(result, InvisibleIceWatchResult.subZeroFrozen);
         expect(result, isNot(InvisibleIceWatchResult.clear));
+        expect(result, isNot(InvisibleIceWatchResult.outOfScope));
         expect(result, isNot(InvisibleIceWatchResult.watch));
       }
+    });
+
+    test('sub-zero fires EVEN when humidity is missing — the Chuo leaf-drop '
+        'case must not go silent', () {
+      // Humidity is a drop-prone JMA leaf, and the sub-zero verdict does not
+      // consult it. A sub-zero reading with humidity==null must STILL warn,
+      // never abstain into silence (critic Finding, 2026-07-23).
+      final result =
+          evaluateInvisibleIceWatch(_obs(temp: -2.4, humidity: null, precip10m: 0));
+      expect(result, InvisibleIceWatchResult.subZeroFrozen);
+      expect(result, isNot(InvisibleIceWatchResult.unknown));
+    });
+
+    test('sub-zero fires EVEN when the PRECIP gauge dropped — a rimed gauge '
+        'must not silence the Chuo morning', () {
+      // The AMeDAS precip gauge rimes/ices over on exactly a clear sub-zero
+      // morning (QC-flagged → null). The frozen road is present regardless, so
+      // a dropped precip leaf must NOT return silent `unknown` at temp<=0.
+      // (impl-review SHOULD, 2026-07-23 — the same leaf-drop-not-silence
+      // discipline as humidity, which was left open for precip.)
+      final result = evaluateInvisibleIceWatch(
+          _obs(temp: -2.4, humidity: 70, precip10m: null));
+      expect(result, InvisibleIceWatchResult.subZeroFrozen);
+      expect(result, isNot(InvisibleIceWatchResult.unknown));
+      // But ABOVE zero, a dropped precip leaf still abstains (the radiative
+      // window needs no-precip confirmed).
+      expect(
+        evaluateInvisibleIceWatch(_obs(temp: 2.0, humidity: 70, precip10m: null)),
+        InvisibleIceWatchResult.unknown,
+      );
+    });
+
+    test('exactly 0.0 °C fires the sub-zero warning (boundary is inclusive)',
+        () {
+      // The predicate is temp <= 0; 0.0 °C roads freeze, so it must warn — the
+      // wording says 0°C以下 (at or below), matching the predicate, not 氷点下.
+      expect(
+        evaluateInvisibleIceWatch(_obs(temp: 0.0, humidity: 70, precip10m: 0)),
+        InvisibleIceWatchResult.subZeroFrozen,
+      );
+    });
+
+    test('a non-finite temperature abstains — never a fabricated all-clear',
+        () {
+      // NaN <= 0 is false; without the isFinite guard a NaN would fall through
+      // to the above-zero classifier and return `clear` = 該当なし on garbage.
+      expect(
+        evaluateInvisibleIceWatch(
+            _obs(temp: double.nan, humidity: 70, precip10m: 0)),
+        InvisibleIceWatchResult.unknown,
+      );
     });
 
     test('measured precipitation → outOfScope (visible-hazard lanes own it)',

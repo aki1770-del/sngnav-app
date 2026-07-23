@@ -1,25 +1,29 @@
-/// OPS-066 render-SEE captures for the 路面凍結ウォッチ scope split
+/// OPS-066 render-SEE captures for the 路面凍結ウォッチ verdicts
 /// (session-scope; NOT a CI pixel assertion) — produces PNGs into
-/// `ladder_out/w1_ice/` so a human LOOKS at the changed string before the
-/// countermeasure lands:
+/// `ladder_out/w1_ice/` so a human LOOKS at each rendered verdict:
 ///
-///   w1_ice_out_of_scope_subzero_ja.png — −2.4 °C / RH 95 % / no precip
-///   w1_ice_out_of_scope_precip_ja.png  — measured precipitation
-///   w1_ice_clear_ja.png                — a genuine in-scope negative
-///   w1_ice_watch_ja.png                — the hazard still fires
+///   w1_ice_subzero_frozen_warning_ja.png — −2.4 °C / RH 95 % / no precip
+///   w1_ice_out_of_scope_precip_ja.png    — measured precipitation
+///   w1_ice_clear_ja.png                  — a genuine in-scope negative
+///   w1_ice_watch_ja.png                  — the radiative-frost surprise
 ///
 /// Run with:
 ///   flutter test --update-goldens test/render_see/w1_ice_scope_capture_test.dart
 ///
-/// WHY FOUR FRAMES AND NOT ONE. The countermeasure for the fabricated-clear
-/// Andon (2026-07-20T13:40Z) SPLIT one enum value into two: a scope exclusion
-/// that used to render 該当なし now renders 本ウォッチの対象外. One frame would
-/// prove the new string exists. Four prove the split is what we say it is —
-/// that 該当なし was NARROWED to a measured negative rather than deleted, and
-/// that the hazard path still fires. The sub-zero frame carries the exact
-/// measured conditions of the Chuo Expressway nine-vehicle pileup of
-/// 2021-12-15 (−2.4 °C, clear morning, no visible snow): the case where this
-/// surface used to tell HER 該当なし on a very likely frozen road.
+/// WHY FOUR FRAMES. The four render four DISTINCT verdicts the driver can now
+/// see on the 路面凍結ウォッチ row, proving each is what we say:
+///   1. sub-zero → 「⚠ 路面凍結のおそれ（気温氷点下）」 — the Chair-ruled
+///      sub-zero WARNING (2026-07-23). This carries the exact measured
+///      conditions of the Chuo Expressway nine-vehicle pileup of 2021-12-15
+///      (−2.4 °C, clear morning, no visible snow): the case where this
+///      surface first told HER 該当なし (Andon 2026-07-20T13:40Z), then
+///      本ウォッチの対象外 (6c746be), and now WARNS. It is a DISTINCT string,
+///      never the 「ブラックアイスバーン」 surprise line — below zero ice is
+///      expected, not a radiative surprise.
+///   2. precipitation → 本ウォッチの対象外 — the one remaining scope exclusion.
+///   3. genuine in-scope negative → 該当なし — proof the all-clear was
+///      NARROWED to a measured negative, not deleted.
+///   4. above-zero radiative window → the surprise 「ブラックアイスバーン」 line.
 ///
 /// HONEST BOUNDS — three, all measured on 2026-07-23, none narrated:
 ///
@@ -28,16 +32,7 @@
 ///    evidence is a human viewing the PNG on a font-bearing desktop.
 ///    On-device render remains the emulator ladder / device hour's job.
 ///
-/// 2. THE TWO out_of_scope PNGs ARE BYTE-IDENTICAL (md5 08cc895e…, both
-///    frames). The observation field rows that differ between the two causes
-///    scroll ABOVE the captured viewport, so only the verdict rows are in
-///    frame — and those are identical by design. The second PNG therefore
-///    adds NO pixel evidence. It is kept because its GUARD is not redundant:
-///    it asserts that the precipitation branch reaches the same string in the
-///    ice row, which is the branch `frozen_surface_incident_test.dart` does
-///    not cover. Read the frames as three distinct pictures, not four.
-///
-/// 3. THE HARNESS CANNOT SEE NON-CJK SYMBOL DEFECTS — a blind spot in our own
+/// 2. THE HARNESS CANNOT SEE NON-CJK SYMBOL DEFECTS — a blind spot in our own
 ///    instrument, found by looking at `w1_ice_watch_ja.png`. `loadCjkFamily`
 ///    installs IPAGothic + DroidSansFallback UNDER THE FAMILY NAME 'Roboto',
 ///    REPLACING it rather than supplementing it. Neither font maps U+26A0
@@ -152,16 +147,16 @@ void main() {
     await expectLater(find.byType(MaterialApp), matchesGoldenFile(out));
   }
 
-  testWidgets('w1 — scope exclusion, sub-zero ambient (Chuo 2021-12-15) (ja)',
+  testWidgets('w1 — sub-zero frozen-surface WARNING (Chuo 2021-12-15) (ja)',
       (tester) async {
-    // −2.4 °C / RH 95 % / no precipitation. This exact reading rendered
-    // 該当なし before the countermeasure: an affirmative all-clear under the
-    // label 路面凍結ウォッチ on a surface that is very likely frozen.
+    // −2.4 °C / RH 95 % / no precipitation — the exact Chuo pileup reading.
+    // It rendered 該当なし (Andon 2026-07-20), then 本ウォッチの対象外 (6c746be),
+    // and now — on the Chair's calibration ruling (2026-07-23) — WARNS.
     await capture(
       tester,
       observation: _obs(temp: -2.4, humidity: 95, precip10m: 0.0),
-      guardRowText: '本ウォッチの対象外（この条件は判定していません）',
-      out: '../../ladder_out/w1_ice/w1_ice_out_of_scope_subzero_ja.png',
+      guardRowText: '⚠ 路面凍結のおそれ（気温0°C以下）',
+      out: '../../ladder_out/w1_ice/w1_ice_subzero_frozen_warning_ja.png',
     );
   });
 

@@ -107,6 +107,127 @@ void main() {
     });
   });
 
+  // ---- sub-zero frozen-surface WARNING: the live announce path (Chair
+  // calibration 2026-07-23). These pump SngnavApp end-to-end and inspect the
+  // fake actuator, so the bool→enum latch refactor and the iceRose fold cannot
+  // be silently re-muted with the suite still green (impl-review 2026-07-23).
+  group('sub-zero frozen-surface live announce', () {
+    // -3 °C / no precip → subZeroFrozen; and, crucially, watch NEVER fires here
+    // (that needs temp > 0), so this pins that the sub-zero verdict folds into
+    // iceRose and is not dropped by the `if (!iceRose && !turmoilRose) return;`
+    // guard on a calm sub-zero morning (critic Finding 1).
+    JmaObservation subZeroObs() =>
+        _obs(temp: -3.0, humidity: 70, precip10m: 0.0);
+
+    testWidgets('calm sub-zero morning speaks the distinct line exactly once',
+        (tester) async {
+      final fake = FakeAlertActuators();
+      await tester.pumpWidget(SngnavApp(
+        actuators: fake,
+        locale: const Locale('ja'),
+        clock: () => _clockAt(const Duration(minutes: 5)),
+        jmaFetch: () async => JmaSuccess(subZeroObs()),
+      ));
+      await tester.pump();
+      await tester.pump();
+
+      expect(fake.spoken.where((s) => s.text == kSubZeroFrozenSpokenJa),
+          hasLength(1),
+          reason: 'a live sub-zero fetch speaks the frozen-surface line — the '
+              'fold into iceRose must pass the announce guard even though '
+              'watch never fires below zero');
+      // It reaches the deaf/HoH driver on the haptic channel too, warning-tier.
+      expect(fake.haptics, contains(HapticCuePattern.warning));
+      // It is NOT the black-ice surprise line.
+      expect(fake.spoken.where((s) => s.text.contains('ブラックアイスバーン')),
+          isEmpty);
+    });
+
+    testWidgets('a passing snow band (outOfScope) does NOT re-nag on return '
+        'to sub-zero', (tester) async {
+      final fake = FakeAlertActuators();
+      JmaResult next = JmaSuccess(subZeroObs());
+      await tester.pumpWidget(SngnavApp(
+        actuators: fake,
+        locale: const Locale('ja'),
+        clock: () => _clockAt(const Duration(minutes: 5)),
+        jmaFetch: () async => next,
+      ));
+      await tester.pump();
+      await tester.pump();
+      final afterFirst =
+          fake.spoken.where((s) => s.text == kSubZeroFrozenSpokenJa).length;
+      expect(afterFirst, 1);
+
+      // Snow band passes over: precip>0 at -3 °C → outOfScope. Then it clears:
+      // precip 0 → subZeroFrozen again. The latch must stay sticky across the
+      // outOfScope blip so the 14 s line is not re-spoken.
+      next = JmaSuccess(_obs(temp: -3.0, humidity: 70, precip10m: 4.0));
+      await _refetch(tester, fromSuccess: true);
+      next = JmaSuccess(subZeroObs());
+      await _refetch(tester, fromSuccess: true);
+
+      expect(fake.spoken.where((s) => s.text == kSubZeroFrozenSpokenJa),
+          hasLength(1),
+          reason: 'sub-zero is once-per-entry; a snow-band scope-exit is not '
+              'an all-clear and must not re-arm the warning');
+    });
+
+    testWidgets('a genuine warm-up to CLEAR then re-freeze DOES re-warn',
+        (tester) async {
+      final fake = FakeAlertActuators();
+      JmaResult next = JmaSuccess(subZeroObs());
+      await tester.pumpWidget(SngnavApp(
+        actuators: fake,
+        locale: const Locale('ja'),
+        clock: () => _clockAt(const Duration(minutes: 5)),
+        jmaFetch: () async => next,
+      ));
+      await tester.pump();
+      await tester.pump();
+
+      // Warms to a measured dry-air clear (+8 °C), then re-freezes.
+      next = JmaSuccess(_clearObs());
+      await _refetch(tester, fromSuccess: true);
+      next = JmaSuccess(subZeroObs());
+      await _refetch(tester, fromSuccess: true);
+
+      expect(fake.spoken.where((s) => s.text == kSubZeroFrozenSpokenJa),
+          hasLength(2),
+          reason: 'a MEASURED all-clear is a genuine exit; re-freezing after '
+              'it is a new entry and re-warns');
+    });
+
+    testWidgets('crossing 0 °C (watch <-> sub-zero) re-speaks the CORRECT '
+        'distinct line', (tester) async {
+      final fake = FakeAlertActuators();
+      JmaResult next = JmaSuccess(_iceObs()); // +2 °C → watch (surprise line)
+      await tester.pumpWidget(SngnavApp(
+        actuators: fake,
+        locale: const Locale('ja'),
+        clock: () => _clockAt(const Duration(minutes: 5)),
+        jmaFetch: () async => next,
+      ));
+      await tester.pump();
+      await tester.pump();
+      expect(fake.spoken.where((s) => s.text.contains(_liveLooksWet)),
+          hasLength(1));
+      expect(fake.spoken.where((s) => s.text == kSubZeroFrozenSpokenJa),
+          isEmpty);
+
+      // Temperature drops through 0 °C → subZeroFrozen. A different verdict, so
+      // it re-announces — with the sub-zero line, not the surprise line.
+      next = JmaSuccess(subZeroObs());
+      await _refetch(tester, fromSuccess: true);
+      expect(fake.spoken.where((s) => s.text == kSubZeroFrozenSpokenJa),
+          hasLength(1),
+          reason: 'a real 0 °C crossing is a tier change and re-speaks');
+      // The surprise line was not repeated on the crossing.
+      expect(fake.spoken.where((s) => s.text.contains(_liveLooksWet)),
+          hasLength(1));
+    });
+  });
+
   // ---- feed-loss decision table (injected clock) ----
 
   testWidgets('fresh-live: JmaSuccess + ice=watch → the LIVE line (not stale)',

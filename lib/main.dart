@@ -780,9 +780,12 @@ class _HomePageState extends State<HomePage> {
   bool _forecastAnnounceActive = false;
 
   // BETA_PLAN W1 — invisible-ice (radiative-frost) watch state over the
-  // live JMA observation. _invisibleIceAnnounced is the transition gate.
+  // live JMA observation. _lastAnnouncedIceResult is the transition gate: the
+  // ice VERDICT last spoken (watch / subZeroFrozen), or null when the channel
+  // is not firing — so re-entry re-announces and a cross-0 °C tier change
+  // (watch <-> subZeroFrozen) re-speaks the correct distinct line.
   InvisibleIceWatchResult? _invisibleIceResult;
-  bool _invisibleIceAnnounced = false;
+  InvisibleIceWatchResult? _lastAnnouncedIceResult;
 
   // BETA_PLAN W3 — measured-turmoil (downpour / strong-wind) watch over the
   // same live observation (Chair-ratified 2026-07-09: measured actual
@@ -1864,9 +1867,33 @@ class _HomePageState extends State<HomePage> {
     // FRESH-LIVE path — a successful fetch this cycle. UNCHANGED rise-gated
     // behavior: each watch announces ONCE when its live window turns on.
     if (result is JmaSuccess) {
-      final iceFired = _invisibleIceResult == InvisibleIceWatchResult.watch;
-      final iceRose = iceFired && !_invisibleIceAnnounced;
-      _invisibleIceAnnounced = iceFired;
+      // The ice channel now has two mutually-exclusive firing verdicts: `watch`
+      // (above-zero radiative SURPRISE) and `subZeroFrozen` (below-zero
+      // EXPECTED frozen surface). Track WHICH last announced, not a bool, so:
+      // (a) the sub-zero verdict folds into `iceRose` and is NOT silently
+      // dropped by the `!iceRose` guard below — on a calm sub-zero morning the
+      // above-zero `watch` cannot fire, so a separate latch would return at
+      // :1882 and mute the whole feature (critic Finding 1, 2026-07-23); and
+      // (b) crossing 0 °C (watch <-> subZeroFrozen) re-speaks the correct
+      // distinct line rather than staying silent on the transition.
+      final iceResult = _invisibleIceResult;
+      final iceFired = iceResult == InvisibleIceWatchResult.watch ||
+          iceResult == InvisibleIceWatchResult.subZeroFrozen;
+      final iceRose = iceFired && iceResult != _lastAnnouncedIceResult;
+      // Update the latch. A firing verdict is remembered (rise-gate). A
+      // MEASURED `clear` is a genuine all-clear exit → re-arm so a later
+      // re-entry warns again. But `outOfScope` (a passing snow band owns the
+      // road for a few minutes) and `unknown` (a dropped leaf) are NOT
+      // all-clears: hold the latch STICKY across them, or the 14 s sub-zero
+      // line + haptic re-fires every time a snow band clears and returns to
+      // sub-zero — cry-wolf on the live feed, breaking the once-per-entry
+      // discipline. (impl-review SHOULD, 2026-07-23.) Dead-zone re-arm is
+      // handled separately in the feed-loss cases below.
+      if (iceFired) {
+        _lastAnnouncedIceResult = iceResult;
+      } else if (iceResult == InvisibleIceWatchResult.clear) {
+        _lastAnnouncedIceResult = null;
+      }
 
       final turmoil = _turmoilState;
       final turmoilFired = turmoil != null && turmoil.anyCaution;
@@ -1882,11 +1909,20 @@ class _HomePageState extends State<HomePage> {
       if (!iceRose && !turmoilRose) return;
       unawaited(() async {
         if (iceRose) {
+          final String iceText;
+          if (iceResult == InvisibleIceWatchResult.subZeroFrozen) {
+            // Below-zero expected-frozen line — possibility-graded, NOT the
+            // 「ブラックアイスバーン」 surprise wording (Chair calibration
+            // 2026-07-23). Bundled offline (id sub_zero_frozen_live).
+            iceText = subZeroFrozenSpokenText(ja: _spokenJa);
+          } else {
+            iceText = _spokenJa
+                ? invisibleBlackIceAnnouncement.jaSpokenText
+                : invisibleBlackIceAnnouncement.enSpokenText;
+          }
           await _announcer.announce(
             severity: AlertSeverity.warning,
-            text: _spokenJa
-                ? invisibleBlackIceAnnouncement.jaSpokenText
-                : invisibleBlackIceAnnouncement.enSpokenText,
+            text: iceText,
             localeTag: ttsTag,
           );
         }
@@ -1927,7 +1963,7 @@ class _HomePageState extends State<HomePage> {
       // case. NOT reset on every feed-loss cycle (per-blip cry-wolf) and NOT
       // in the stale-ice case (it is actively re-warning via the stamped line).
       case FeedLossForecastMemory(:final line, :final spokenAloud):
-        _invisibleIceAnnounced = false;
+        _lastAnnouncedIceResult = null;
         _turmoilAnnounced = false;
         // C2 RED-1: THE MEMORY, BEFORE THE SILENCE. We have no live reading,
         // but we KNOW something TRUE: a hazard the publisher declared VALID
@@ -1969,7 +2005,7 @@ class _HomePageState extends State<HomePage> {
         }
 
       case FeedLossAbsence():
-        _invisibleIceAnnounced = false;
+        _lastAnnouncedIceResult = null;
         _turmoilAnnounced = false;
         // The honest ABSENCE-LINE (GAP-2). Fires ONCE per entry (gate), so a
         // persistent dead-zone does not spam; re-arms via the JmaSuccess reset.
@@ -2894,6 +2930,11 @@ class _HomePageState extends State<HomePage> {
                 InvisibleIceWatchResult.watch =>
                   '⚠ ブラックアイスバーンのおそれ（放射冷却の窓）',
                 InvisibleIceWatchResult.clear => '該当なし',
+                // Sub-zero ambient, no precip: expected-frozen regime. Distinct,
+                // possibility-graded, NOT the surprise wording (Chair
+                // calibration 2026-07-23; Andon 2026-07-20T13:40Z).
+                InvisibleIceWatchResult.subZeroFrozen =>
+                  '⚠ 路面凍結のおそれ（気温0°C以下）',
                 // A scope exclusion is NOT an all-clear. Say plainly that
                 // this watch does not cover these conditions, and never
                 // imply the surface is safe (Andon 2026-07-20T13:40Z).

@@ -18,6 +18,8 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sngnav_app/services/invisible_ice_watch.dart'
+    show kSubZeroFrozenSpokenJa, subZeroFrozenSpokenText;
 import 'package:sngnav_app/services/staleness_policy.dart';
 import 'package:sngnav_app/voice/offline_safety_voice.dart';
 
@@ -90,6 +92,21 @@ void main() {
       expect(OfflineSafetyVoice.assetFor('ブラックアイスバーン に注意。'), isNull);
       expect(OfflineSafetyVoice.assetFor('圧雪路面です。'), isNull);
       expect(OfflineSafetyVoice.assetFor(''), isNull);
+    });
+
+    test('the sub-zero frozen line is bundled AND stays in sync with its '
+        'single source of truth', () {
+      // The app-authored sub-zero line (invisible_ice_watch.dart) and the
+      // offline mouth's `sub_zero_frozen_live` value must be the exact same
+      // literal, or the eyes-off driver hears silence on a frozen road. Same
+      // discipline the black_ice_live entry follows against the package line.
+      expect(kOfflineSafetyVoiceJa['sub_zero_frozen_live'],
+          kSubZeroFrozenSpokenJa);
+      expect(subZeroFrozenSpokenText(ja: true), kSubZeroFrozenSpokenJa);
+      expect(OfflineSafetyVoice.assetFor(kSubZeroFrozenSpokenJa), isNotNull);
+      // It must NOT be the surprise line — a distinct verdict, distinct voice.
+      expect(kSubZeroFrozenSpokenJa,
+          isNot(kOfflineSafetyVoiceJa['black_ice_live']));
     });
 
     test('whitespace around a real phrase still finds it', () {
