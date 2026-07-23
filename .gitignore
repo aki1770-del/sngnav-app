@@ -45,3 +45,8 @@ app.*.map.json
 /android/app/release
 test/render_see/failures/
 .claude/worktrees/
+
+# Inspection copies of our external consumer drunkenv2 (drunken_flutter) —
+# foreign to this repo; re-fetchable (delve Observe #5). Never commit here.
+dv2l.yaml
+dv2p.yaml
