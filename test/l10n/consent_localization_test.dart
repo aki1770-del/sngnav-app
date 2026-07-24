@@ -15,6 +15,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:condition_aggregator/condition_aggregator.dart';
+import 'package:navigation_safety_core/navigation_safety_core.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 import 'package:sngnav_app/widgets/advisory_cards.dart';
@@ -334,7 +335,18 @@ void main() {
       // ...and the English label is gone from the surface.
       expect(find.text('Announce to driver (audio + haptic)'), findsNothing);
 
-      // Default condition is ice => critical => the "fires" helper, in JA.
+      // The honest default is `unknown` (info-class); drive the "Mocked road
+      // condition" selector to ice so the CRITICAL "fires" helper renders,
+      // then verify that helper is in JA (not the info-class no-fire helper).
+      final condDropdown = find.byType(DropdownButton<RoadSurfaceCondition>);
+      await tester.ensureVisible(condDropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(condDropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ice').last);
+      await tester.pumpAndSettle();
+
+      // ice => critical => the "fires" helper, in JA.
       expect(find.text(jaL10n.announceFiresHelper('critical')), findsOneWidget);
       // No English helper leak.
       expect(

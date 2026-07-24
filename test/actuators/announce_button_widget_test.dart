@@ -34,11 +34,11 @@ JmaObservation _clearObs() => JmaObservation(
 
 void main() {
   testWidgets(
-    'tapping Announce (default ageingRural + ice) => speak(JA ice text, '
-    'ja-JP) + critical haptic',
+    'selecting ice then tapping Announce => speak(JA ice text, ja-JP) + '
+    'critical haptic (honest unknown default announces nothing)',
     (tester) async {
       final fake = FakeAlertActuators();
-      // The guidance the default (ageingRural, ice) surface should speak.
+      // The guidance the ice surface should speak.
       final expected = AlertExplainer.forConditionAndProfile(
         RoadSurfaceCondition.ice,
         DriverProfile.ageingRural,
@@ -55,6 +55,31 @@ void main() {
 
       final button = find.byKey(const Key('announce-alert-button'));
       expect(button, findsOneWidget);
+
+      // ANTI-FABRICATION: the surface starts at the honest `unknown` default
+      // (info-class -> severityForCondition = info -> announced on NEITHER
+      // channel), so tapping Announce before a hazard is selected must stay
+      // SILENT. This is the fabricated-clear-3 regression guard: the app must
+      // not speak a hazard it has not measured.
+      await tester.ensureVisible(button);
+      await tester.pump();
+      await tester.tap(button);
+      await tester.pump();
+      await tester.pump();
+      expect(fake.spoken, isEmpty,
+          reason: 'unknown default is info-class and must announce nothing');
+      expect(fake.haptics, isEmpty);
+
+      // Drive the "Mocked road condition" selector to ice — the real hazard
+      // the announce path exists for — then Announce must reach BOTH channels.
+      final condDropdown = find.byType(DropdownButton<RoadSurfaceCondition>);
+      await tester.ensureVisible(condDropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(condDropdown);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ice').last);
+      await tester.pumpAndSettle();
+
       await tester.ensureVisible(button);
       await tester.pump();
       await tester.tap(button);
