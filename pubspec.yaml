@@ -15,12 +15,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # CAPPED (AAE-3, measured 2026-07-05 via pub.dev API): core ^0.11.x is
-  # UNREACHABLE hosted — SIX siblings pin navigation_safety_core ^0.10.0:
-  # voice_guidance 0.7.2, navigation_safety 0.9.3, offline_tiles 0.5.3,
-  # map_viewport_bloc 0.4.3, driving_conditions 0.5.4, snow_rendering 0.2.5.
-  # Needs a coordinated catalog-side republish wave against core ^0.11.x
-  # (FDD lane) before this app can float. Do NOT force past the resolver.
+  # CAP HEALED (measured 2026-07-25 via pub.dev API): the six siblings that
+  # once pinned navigation_safety_core ^0.10.0 now ALL admit >=0.10.0 <0.12.0
+  # (voice_guidance 0.7.3, navigation_safety 0.9.5, offline_tiles 0.5.4,
+  # map_viewport_bloc 0.4.4, driving_conditions 0.5.5, snow_rendering 0.2.8),
+  # so navigation_safety_core 0.11.x is now hosted-reachable.
   navigation_safety_core: '>=0.10.0 <0.12.0'
   navigation_safety: ^0.9.0
   voice_guidance: ^0.7.2
@@ -38,9 +37,13 @@ dependencies:
   routing_engine: ^0.5.0
   fleet_hazard: ^0.5.0
   snow_rendering: ^0.2.0
-  condition_aggregator: ^0.0.3
+  # WIDENED 2026-07-25: ^0.0.3 (= >=0.0.3 <0.0.4) excluded the locked+live
+  # 0.0.8, so a clean `pub get` silently DOWNGRADED the aggregator in HER
+  # build and `--enforce-lockfile` hard-failed. >=0.0.3 <0.1.0 admits all
+  # 0.0.x (measured live 2026-07-25: latest 0.0.8). Same for noaa_nws_adapter.
+  condition_aggregator: '>=0.0.3 <0.1.0'
   condition_aggregator_jma: ^0.3.0
-  noaa_nws_adapter: ^0.0.3
+  noaa_nws_adapter: '>=0.0.3 <0.1.0'
   flutter_map: ^8.2.2
   flutter_bloc: ^9.0.0
   latlong2: ^0.9.1
