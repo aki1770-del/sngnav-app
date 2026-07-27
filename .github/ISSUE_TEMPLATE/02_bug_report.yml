@@ -1,0 +1,61 @@
+name: 不具合の報告（アプリの調子がおかしいとき）
+description: アプリが落ちる、地図が出ない、声が出ない、など。位置情報は書かなくて大丈夫です。
+title: "[不具合] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ご報告ありがとうございます。**運転中は書かないでください。** 停まってからで大丈夫です。
+
+        **お願い**: ご自宅や目的地が分かる内容（住所・正確な場所など）は書かないでください。
+        「橋の上」「山道」「市街地」くらいの言葉で十分です。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 何が起きましたか？
+      description: あなたの言葉で大丈夫です。
+      placeholder: 例：走っている途中で画面が真っ暗になった。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 本当はどうなってほしかったですか？
+      placeholder: 例：地図が出たままでいてほしかった。
+    validations:
+      required: false
+  - type: input
+    id: device
+    attributes:
+      label: お使いのスマートフォン
+      description: 分かれば教えてください（例：Pixel 8、AQUOS sense8 など）。空欄でも大丈夫です。
+      placeholder: 例：Pixel 8
+    validations:
+      required: false
+  - type: input
+    id: app-version
+    attributes:
+      label: アプリのバージョン
+      description: 画面をいちばん下まで動かすと、小さな文字で書かれています（例：sngnav-app 0.0.5）。分からなければ空欄で大丈夫です。
+      placeholder: 例：0.0.5
+    validations:
+      required: false
+  - type: dropdown
+    id: repro
+    attributes:
+      label: 何回も起きますか？
+      options:
+        - 毎回起きる
+        - ときどき起きる
+        - 一度だけ起きた
+        - わからない
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: ログの貼り付け（できれば）
+      description: アプリの「ログを共有」ボタンで表示される文字をここに貼ると、原因を調べやすくなります。ログが自動で送られることはありません。あなたが貼り付けたときだけです。
+    validations:
+      required: false

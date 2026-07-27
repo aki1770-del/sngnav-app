@@ -1,0 +1,53 @@
+name: 警告についての報告（冬道の警告は役立ちましたか？）
+description: 運転が終わってから、このアプリの警告がどうだったかを教えてください。位置情報は書かなくて大丈夫です。
+title: "[警告] "
+labels: ["beta-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ご報告ありがとうございます。**運転が終わって、安全な場所に停まってから**書いてください。
+
+        **お願い**: ご自宅や目的地が分かる内容（住所・正確な場所など）は書かないでください。
+        「橋の上」「山道」「市街地」くらいの言葉で十分です。
+  - type: dropdown
+    id: road-condition
+    attributes:
+      label: そのときの路面はどうでしたか？
+      options:
+        - 乾燥
+        - 濡れ・シャーベット
+        - 積雪
+        - 圧雪
+        - 凍結・アイスバーン
+        - 吹雪・視界不良
+        - わからない
+    validations:
+      required: true
+  - type: dropdown
+    id: advisory
+    attributes:
+      label: このアプリの警告はどうでしたか？
+      options:
+        - 警告あり・役立った
+        - 警告あり・役立たなかった（遅かった・誤りなど）
+        - 警告なし（危ない場面だったのに鳴らなかった）
+        - わからない・使わなかった
+    validations:
+      required: true
+  - type: input
+    id: when
+    attributes:
+      label: いつごろでしたか？
+      description: 日付とだいたいの時間帯（例：1月15日の朝、夜明け前 など）。思い出せなければ「わからない」でも大丈夫です。
+      placeholder: 例：1月15日 朝6時ごろ
+    validations:
+      required: true
+  - type: textarea
+    id: note
+    attributes:
+      label: くわしく教えてください
+      description: あなたの言葉で大丈夫です。（例：橋の上で警告が遅かった、乾いた道なのに凍結警告が出た など）
+      placeholder: 例：峠の下りで凍結の警告が出て、スピードを落とせた。
+    validations:
+      required: true
