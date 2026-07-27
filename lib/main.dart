@@ -74,6 +74,7 @@ import 'services/advisory_service.dart';
 import 'services/drive_hud_controller.dart';
 import 'services/error_log.dart';
 import 'services/log_share.dart';
+import 'services/drive_diary.dart';
 import 'services/drive_hud_localizer.dart';
 import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
@@ -111,7 +112,12 @@ Future<void> main() async {
   // boot (best-effort install; a null log renders the action honestly
   // disabled).
   final errorLog = await installCrashBoundary();
-  runApp(SngnavApp(errorLog: errorLog));
+  // Ring-2 運転日記 — consented post-drive diary (services/drive_diary.dart):
+  // local file only, zero telemetry, leaves the device only via the
+  // user-initiated 日記を共有 action. Best-effort open (errorLog idiom); a
+  // null diary renders the card's actions honestly disabled.
+  final diary = await openDriveDiary();
+  runApp(SngnavApp(errorLog: errorLog, diary: diary));
 }
 
 /// WS5 — app-level severity for a mocked road-surface condition, used to gate
@@ -513,6 +519,8 @@ class SngnavApp extends StatelessWidget {
     this.jmaForecastFetch,
     this.errorLog,
     this.logShareSink,
+    this.diary,
+    this.diaryShareSink,
     this.voiceLaneReader,
     this.speechUnverified,
     this.audioReadinessProbe,
@@ -530,6 +538,12 @@ class SngnavApp extends StatelessWidget {
   final Future<JmaForecastResult> Function()? jmaForecastFetch;
   final LocalErrorLog? errorLog;
   final LogShareSink? logShareSink;
+
+  /// Ring-2 post-drive diary handle (運転日記; null -> actions disabled).
+  final DriveDiary? diary;
+
+  /// Injectable diary share exit door (null -> [shareDiaryViaShareSheet]).
+  final DiaryShareSink? diaryShareSink;
   final Future<VoiceLaneVerdict> Function()? voiceLaneReader;
   final ValueNotifier<bool>? speechUnverified;
   final AudioReadinessProbe? audioReadinessProbe;
@@ -576,6 +590,8 @@ class SngnavApp extends StatelessWidget {
         jmaForecastFetch: jmaForecastFetch,
         errorLog: errorLog,
         logShareSink: logShareSink,
+        diary: diary,
+        diaryShareSink: diaryShareSink,
         voiceLaneReader: voiceLaneReader,
         speechUnverified: speechUnverified,
         audioReadinessProbe: audioReadinessProbe,
@@ -595,6 +611,8 @@ class HomePage extends StatefulWidget {
     this.jmaForecastFetch,
     this.errorLog,
     this.logShareSink,
+    this.diary,
+    this.diaryShareSink,
     this.voiceLaneReader,
     this.speechUnverified,
     this.audioReadinessProbe,
@@ -623,6 +641,12 @@ class HomePage extends StatefulWidget {
 
   /// Injectable share exit door (null -> [shareLogViaShareSheet]).
   final LogShareSink? logShareSink;
+
+  /// Ring-2 post-drive diary handle (運転日記; null -> actions disabled).
+  final DriveDiary? diary;
+
+  /// Injectable diary share exit door (null -> [shareDiaryViaShareSheet]).
+  final DiaryShareSink? diaryShareSink;
 
   /// Injectable A1 voice-lane readiness read (null ->
   /// [readVoiceLaneReadiness]).
@@ -2747,6 +2771,11 @@ class _HomePageState extends State<HomePage> {
               child: _logSharePanel(),
             ),
             const SizedBox(height: 16),
+            _section(
+              title: AppL10n.of(context).diarySectionTitle,
+              child: _diaryPanel(),
+            ),
+            const SizedBox(height: 16),
             const _Footer(),
           ],
         ),
@@ -2849,6 +2878,94 @@ class _HomePageState extends State<HomePage> {
       // A share-sheet failure must never take the app down — the log
       // itself still holds the evidence for a later retry (parity with
       // LocalErrorLog's never-throws discipline).
+    }
+  }
+
+  /// Ring-2 運転日記 — the season's consented evidence card (three-month
+  /// plan §2). Same shape as the log-share panel: liveRegion status line,
+  /// actions Wrap-ped (phone-width overflow discipline), disclosure last.
+  /// Consent-preserving by construction: entries persist only to a local
+  /// file (services/drive_diary.dart), no coordinates are recorded, and the
+  /// diary leaves the device only via the explicit 日記を共有 tap.
+  Widget _diaryPanel() {
+    final l = AppL10n.of(context);
+    final diary = widget.diary;
+    final status = diary == null
+        ? l.diaryUnavailable
+        : (diary.hasEntries() ? l.diaryHasEntries : l.diaryEmpty);
+    return Column(
+      key: const Key('diary-panel'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // liveRegion: assistive tech announces the diary-state line when it
+        // changes (OPS-059 floor — parity with the log-share card).
+        Semantics(
+          liveRegion: true,
+          child: Text(
+            status,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          ),
+        ),
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TextButton(
+                key: const Key('diary-write-button'),
+                onPressed: diary == null ? null : _writeDiaryEntry,
+                child: Text(l.diaryWriteButton),
+              ),
+              TextButton(
+                key: const Key('diary-share-button'),
+                onPressed: diary == null ? null : _shareDiary,
+                child: Text(l.diaryShareButton),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          key: const Key('diary-disclosure'),
+          l.diaryDisclosure,
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+        ),
+      ],
+    );
+  }
+
+  /// Opens the post-drive entry form (three taps and a line — parked, never
+  /// while driving; this card lives below the fold, off the drive HUD).
+  Future<void> _writeDiaryEntry() async {
+    final diary = widget.diary;
+    if (diary == null) return;
+    final l = AppL10n.of(context);
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => _DiaryEntryDialog(diary: diary),
+    );
+    if (!mounted || saved == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(saved ? l.diarySavedLine : l.diarySaveFailedLine)),
+    );
+    if (saved) setState(() {}); // status line: empty -> has-entries
+  }
+
+  /// Composes header + diary text and hands it to the injected sink
+  /// (production: the platform share sheet). Payload composition is pure
+  /// (services/drive_diary.dart) so tests pin it without a device; the OS
+  /// share sheet itself is on-device verify DEFERRED (OPS-066, AAE
+  /// env-bound).
+  Future<void> _shareDiary() async {
+    final diary = widget.diary;
+    if (diary == null) return;
+    final payload = composeDiarySharePayload(diaryText: diary.readAll());
+    try {
+      await (widget.diaryShareSink ?? shareDiaryViaShareSheet)(payload);
+    } catch (_) {
+      // A share-sheet failure must never take the app down — the diary
+      // itself still holds the entries for a later retry.
     }
   }
 
@@ -4341,6 +4458,142 @@ class _Banner extends StatelessWidget {
         'it does not control the vehicle.',
         style: TextStyle(fontSize: 12),
       ),
+    );
+  }
+}
+
+/// Post-drive diary entry form (Ring-2, three-month plan §2): two chip
+/// questions + two optional text fields. Chip labels come from the enums'
+/// own ja/token pairs (services/drive_diary.dart) so the persisted file and
+/// the screen can never diverge; en locale shows the stable token.
+///
+/// Pops with `true` (persisted), `false` (write failed — honest line), or
+/// null (cancelled; nothing recorded).
+class _DiaryEntryDialog extends StatefulWidget {
+  const _DiaryEntryDialog({required this.diary});
+
+  final DriveDiary diary;
+
+  @override
+  State<_DiaryEntryDialog> createState() => _DiaryEntryDialogState();
+}
+
+class _DiaryEntryDialogState extends State<_DiaryEntryDialog> {
+  DiaryRoadCondition _road = DiaryRoadCondition.unknown;
+  DiaryAdvisoryExperience _advisory = DiaryAdvisoryExperience.notSure;
+  final _areaController = TextEditingController();
+  final _noteController = TextEditingController();
+
+  // Re-entry guard: two near-simultaneous taps (save+save or save+cancel)
+  // must not record twice nor pop twice (a double pop removes the HomePage
+  // route under the dialog — a black screen).
+  bool _popped = false;
+
+  @override
+  void dispose() {
+    _areaController.dispose();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
+    final ja = l.locale.languageCode == 'ja';
+    return AlertDialog(
+      title: Text(l.diaryWriteButton),
+      content: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(l.diaryRoadQuestion,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final c in DiaryRoadCondition.values)
+                  ChoiceChip(
+                    key: Key('diary-road-${c.token}'),
+                    label: Text(ja ? c.ja : c.token),
+                    selected: _road == c,
+                    onSelected: (_) => setState(() => _road = c),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(l.diaryAdvisoryQuestion,
+                style: const TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final a in DiaryAdvisoryExperience.values)
+                  ChoiceChip(
+                    key: Key('diary-advisory-${a.token}'),
+                    label: Text(ja ? a.ja : a.token),
+                    selected: _advisory == a,
+                    onSelected: (_) => setState(() => _advisory = a),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              key: const Key('diary-area-field'),
+              controller: _areaController,
+              decoration: InputDecoration(
+                labelText: l.diaryAreaLabel,
+                border: const OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              key: const Key('diary-note-field'),
+              controller: _noteController,
+              decoration: InputDecoration(
+                labelText: l.diaryNoteLabel,
+                hintText: l.diaryNoteHint,
+                hintMaxLines: 2,
+                border: const OutlineInputBorder(),
+              ),
+              minLines: 2,
+              maxLines: 4,
+              // Bounds one entry well under the diary's rotation half-cap so
+              // a single save can never dominate the ring buffer.
+              maxLength: 500,
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          key: const Key('diary-cancel-button'),
+          onPressed: () {
+            if (_popped) return;
+            _popped = true;
+            Navigator.of(context).pop();
+          },
+          child: Text(l.diaryCancelButton),
+        ),
+        TextButton(
+          key: const Key('diary-save-button'),
+          onPressed: () {
+            if (_popped) return;
+            _popped = true;
+            final ok = widget.diary.record(
+              road: _road,
+              advisory: _advisory,
+              area: _areaController.text,
+              note: _noteController.text,
+            );
+            Navigator.of(context).pop(ok);
+          },
+          child: Text(l.diarySaveButton),
+        ),
+      ],
     );
   }
 }

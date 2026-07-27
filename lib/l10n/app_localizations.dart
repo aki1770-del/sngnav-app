@@ -485,6 +485,86 @@ class AppL10n {
           'upload, no telemetry, and no account. The log contains only '
           'error records; it holds no location history. You choose the '
           "destination in your device's share sheet.";
+
+  // ===== Ring-2 運転日記 — post-drive diary surface (three-month plan §2) =====
+  //
+  // Honesty-traced to real code: entries persist ONLY to a local file
+  // (services/drive_diary.dart — zero telemetry), record no coordinates
+  // (the only place is the one SHE TYPES), and leave the device only via
+  // the explicit share tap.
+
+  /// Section title for the drive-diary card.
+  String get diarySectionTitle =>
+      _ja ? '運転日記 — 走った後にひとこと' : 'Drive diary — a note after the drive';
+
+  /// Opens the post-drive entry form.
+  String get diaryWriteButton => _ja ? '日記を書く' : 'Write an entry';
+
+  /// One-tap share of the whole diary (log-share idiom).
+  String get diaryShareButton => _ja ? '日記を共有' : 'Share diary';
+
+  /// Status line when the documents directory could not be resolved —
+  /// actions are honestly disabled.
+  String get diaryUnavailable => _ja
+      ? '運転日記はこの環境では利用できません。'
+      : 'The drive diary is unavailable in this environment.';
+
+  /// Status line when no entries exist yet.
+  String get diaryEmpty => _ja
+      ? '日記はまだありません。走った後に、路面のようすをひとこと残せます。'
+      : 'No entries yet. After a drive, you can leave a note about the road.';
+
+  /// Status line when entries are present.
+  String get diaryHasEntries => _ja
+      ? '日記の記録があります。共有ボタンで送れます。'
+      : 'Diary entries are present. Use the share button to send them.';
+
+  /// Form: road-condition question.
+  String get diaryRoadQuestion => _ja ? '路面はどうでしたか？' : 'How was the road?';
+
+  /// Form: advisory-experience question.
+  String get diaryAdvisoryQuestion =>
+      _ja ? 'このアプリの警告はどうでしたか？' : "How were this app's warnings?";
+
+  /// Form: optional area field label (her words, never a sensor read).
+  String get diaryAreaLabel =>
+      _ja ? '地域（任意・例：横手市郊外）' : 'Area (optional, e.g. rural Yokote)';
+
+  /// Form: optional free-text field label.
+  String get diaryNoteLabel => _ja ? 'メモ（任意）' : 'Note (optional)';
+
+  /// Form: note-field hint — carries the too-late vs false-alarm
+  /// disambiguation the chip label cannot (it clips at dialog width).
+  String get diaryNoteHint => _ja
+      ? '例：橋の上で警告が遅かった、誤警告だった など'
+      : 'e.g. the warning came late on the bridge, or was a false alarm';
+
+  /// Form: save action.
+  String get diarySaveButton => _ja ? '保存' : 'Save';
+
+  /// Form: cancel action.
+  String get diaryCancelButton => _ja ? 'キャンセル' : 'Cancel';
+
+  /// Post-save confirmation (SnackBar) — names where the entry went.
+  String get diarySavedLine => _ja
+      ? '保存しました（この端末の中だけに記録されます）'
+      : 'Saved (recorded only on this device).';
+
+  /// Honest failure line when the entry could not be persisted.
+  String get diarySaveFailedLine => _ja
+      ? '保存できませんでした。もう一度お試しください。'
+      : 'Could not save. Please try again.';
+
+  /// Consent-framing disclosure under the diary actions (location-disclosure
+  /// discipline: state WHERE the data goes BEFORE the tap).
+  String get diaryDisclosure => _ja
+      ? '日記はこの端末の中だけに保存されます。自動送信は一切なく、'
+          '位置情報は記録されません（地域欄はあなたが書いた言葉だけです）。'
+          '共有ボタンを押したときだけ、端末の共有画面で選んだ相手に送られます。'
+      : 'The diary is stored only on this device. Nothing is sent '
+          'automatically, and no location is recorded (the area '
+          'field is only your own words). It leaves the device only when '
+          'you tap share and choose a destination yourself.';
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {
