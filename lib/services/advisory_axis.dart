@@ -42,15 +42,29 @@
 /// The countermeasure is the other direction: **withhold the reassurance.**
 /// The rung is untouched; the positive all-clear is what we decline to print.
 ///
-/// ## Why the level cannot be read on its own
+/// ## What this type guarantees — and what it does NOT
 ///
-/// [readAdvisoryAxis] is the ONLY way to obtain the level. It returns the
-/// completeness state welded to it, so no caller can consume the rung input
-/// while silently dropping the fact that we may never have looked. The former
-/// free function `topAdvisoryLevel` returned a bare `AdvisoryLevel?`, and
-/// every caller that took it inherited a completeness claim nobody had
-/// checked. Closing that by construction is the same discipline the advisory
-/// CARD surface already uses.
+/// [readAdvisoryAxis] CARRIES the completeness state alongside the level, and
+/// the app uses both. The three drive-brain feeds take `.level` alone —
+/// `_feedDriveHud`, `_pushMeasuredHazardToDriveHud` and `_onVisibilityChanged`
+/// in main.dart, because `DriveSituation` has no completeness channel to hand
+/// it to — while `_appUnknowns` reads `.completenessProven` separately. That
+/// second read is what puts an unproven lookup into the 「不明な点」 row and
+/// scopes the lowest-rung reassurance.
+///
+/// That is a DISCIPLINE THE TESTS GUARD, not a structure the compiler
+/// enforces. This is a plain class with a public const constructor and two
+/// public final fields: a caller can construct one, destructure one, or take
+/// `.level` and leave `.completenessProven` on the floor — and only a test
+/// will object. What pairing the two values buys is narrower and real: it
+/// removes the DEFAULT of dropping the completeness claim. The former free
+/// function `topAdvisoryLevel` returned a bare `AdvisoryLevel?`, so every
+/// caller inherited a completeness claim nobody had checked.
+///
+/// A structural guarantee looks different. `condition_aggregator`'s own 0.1.0
+/// line makes the lookup a SEALED `AdvisoryLookup`, where an exhaustive
+/// `switch` refuses a caller who never handled "could not look". This app
+/// resolves 0.0.8, and this type is not sealed — do not read it as a proof.
 library;
 
 import 'package:compound_failure_advisor/compound_failure_advisor.dart'

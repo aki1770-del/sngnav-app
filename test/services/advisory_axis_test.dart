@@ -19,9 +19,10 @@
 /// member on `Unknown`) is a later, package-side change.
 ///
 /// [AdvisoryAxis] is the app-side answer. It carries the completeness state
-/// BESIDE the level and is the ONLY way to read the level, so no caller can
-/// consume the rung input while silently dropping the fact that we may not
-/// have looked.
+/// BESIDE the level, so dropping it becomes a deliberate act rather than the
+/// default. Nothing structural forbids the drop — the class is not sealed and
+/// its constructor is public — which is exactly why these tests exist. They
+/// are the guard; the compiler is not.
 ///
 /// The direction is settled and it is NOT "raise the rung": an outage is an
 /// unknown, not a hazard. Manufacturing a warning from a feed failure is the
