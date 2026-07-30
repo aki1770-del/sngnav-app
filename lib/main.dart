@@ -13,13 +13,12 @@
 library;
 
 import 'package:compound_failure_advisor/compound_failure_advisor.dart'
-    show AdvisoryLevel, DriveAction;
+    show DriveAction;
 import 'package:condition_aggregator/condition_aggregator.dart'
     show
         Advisory,
         AdvisoryAggregateResult,
         AdvisoryProviderError,
-        AdvisorySeverity,
         AdvisorySource;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -70,7 +69,9 @@ import 'corridor_row.dart';
 import 'her_position.dart';
 import 'jma_fetch.dart';
 import 'route_fetch.dart';
+import 'services/advisory_axis.dart';
 import 'services/advisory_service.dart';
+import 'services/app_unknowns.dart';
 import 'services/drive_hud_controller.dart';
 import 'services/error_log.dart';
 import 'services/log_share.dart';
@@ -142,34 +143,29 @@ AlertSeverity severityForCondition(RoadSurfaceCondition condition) {
   }
 }
 
-/// Map the app's real aggregated advisory result to the advisor's mirror
-/// [AdvisoryLevel] — the single MOST-severe active advisory in force, or
-/// `null` when there is none. The advisor does NOT aggregate; it consumes
-/// the one severity the integrator selects.
+/// The result the app synthesizes when [AdvisoryService.fetchAtPoint] THROWS.
 ///
-/// `unknown` maps to [AdvisoryLevel.moderate], NOT null. In
-/// `condition_aggregator`, `unknown` only ever rides a REAL, constructed
-/// advisory — it means "a warning IS in force, but its severity could not
-/// be graded". A live warning we cannot grade must not vanish from the
-/// drive brain (same deliberate pinning as drive_situation_fusion 0.1.0
-/// `advisoryLevelOf`, read from its src/fuse.dart). Absent (`null` result
-/// or empty list) is the only shape that maps to null.
+/// The throw fired before any provider answered, so ZERO sources were
+/// successfully asked. Stating that explicitly makes `isUnavailable` true (we
+/// did not look) rather than leaving the result to be read as a partial one,
+/// and keeps `canAssertNoAdvisory` false on its OWN arithmetic instead of only
+/// via the synthetic error entry below.
 ///
-/// Top-level + public so the tests can pin the mapping directly.
-AdvisoryLevel? topAdvisoryLevel(AdvisoryAggregateResult? result) {
-  if (result == null || result.advisories.isEmpty) return null;
-  var top = AdvisorySeverity.unknown;
-  for (final a in result.advisories) {
-    if (a.severity.index > top.index) top = a.severity;
-  }
-  return switch (top) {
-    AdvisorySeverity.unknown => AdvisoryLevel.moderate,
-    AdvisorySeverity.minor => AdvisoryLevel.minor,
-    AdvisorySeverity.moderate => AdvisoryLevel.moderate,
-    AdvisorySeverity.severe => AdvisoryLevel.severe,
-    AdvisorySeverity.extreme => AdvisoryLevel.extreme,
-  };
-}
+/// Named + top-level because the provenance was previously an untested literal
+/// at the call site: a mutant that dropped `sourcesQueried: 0` survived the
+/// suite. It is pinned in
+/// `test/services/advisory_thrown_path_provenance_test.dart`.
+AdvisoryAggregateResult advisoryResultForThrownFetch(Object error) =>
+    AdvisoryAggregateResult(
+      advisories: const [],
+      providerErrors: [
+        AdvisoryProviderError(
+          source: AdvisorySource.other,
+          message: error.toString(),
+        ),
+      ],
+      sourcesQueried: 0,
+    );
 
 /// The single "is this hazard still in force at [now]?" predicate shared by
 /// [retainAdvisoriesOnFailure] and [cullExpiredRetainedAdvisories], so the
@@ -829,6 +825,19 @@ class _HomePageState extends State<HomePage> {
   InvisibleIceWatchResult? _invisibleIceResult;
   InvisibleIceWatchResult? _lastAnnouncedIceResult;
 
+  /// Liveness of the measured-weather lane, tracked SEPARATELY from the watch
+  /// verdicts.
+  ///
+  /// The verdicts alone cannot carry this: a feed LOSS clears them to
+  /// unknown/null and a cold START leaves them null, and both then look
+  /// EXACTLY like a measured all-clear at [_currentMeasuredHazard] — which
+  /// feeds the drive brain a not-firing floor. The brain has no channel to say
+  /// "we could not look" (see services/advisory_axis.dart for the same
+  /// asymmetry on the advisory axis), so the app carries it here and states it
+  /// as a first-class unknown on the glance instead. It never raises the rung:
+  /// an outage is an unknown, not a hazard (no cry-wolf, Chair 2026-07-23).
+  MeasuredWatchFeed _measuredWatchFeed = MeasuredWatchFeed.notYetRead;
+
   // BETA_PLAN W3 — measured-turmoil (downpour / strong-wind) watch over the
   // same live observation (Chair-ratified 2026-07-09: measured actual
   // weather, never historical assumption). Same transition-gate discipline.
@@ -1355,7 +1364,7 @@ class _HomePageState extends State<HomePage> {
     // does the single recompute+announce with the current environment.
     _driveHud.visibilityMeters = _effectiveVisibilityMeters;
     _driveHud.visibilityAgeSeconds = _effectiveVisibilityAgeSeconds();
-    _driveHud.advisorySeverity = topAdvisoryLevel(_advisoryResult);
+    _driveHud.advisorySeverity = readAdvisoryAxis(_advisoryResult).level;
     _driveHud.speedMetersPerSecond = null;
     _driveHud.measuredHazard = _currentMeasuredHazard();
     // A fresh trusted fix resets the blackout clock; a PositionUnavailable
@@ -1372,6 +1381,15 @@ class _HomePageState extends State<HomePage> {
   /// non-firing (`_refreshJma` sets the live verdicts to unknown/null), so no
   /// STALE hazard keeps the rung raised — the dead-zone memory lane handles the
   /// offline case separately.
+  ///
+  /// HONEST BOUND — this floor CANNOT distinguish "measured, and clear" from
+  /// "we could not look". A cold start, a failed read and a genuine all-clear
+  /// all produce [MeasuredWeatherHazard.none]. That is deliberate on the RUNG
+  /// (an outage is an unknown, not a hazard — raising it would cry wolf every
+  /// time the network hiccuped, Chair 2026-07-23), and it is why the liveness
+  /// is tracked separately in [_measuredWatchFeed] and reported as a
+  /// first-class unknown by [_appUnknowns]. Do not read a `none` here as
+  /// evidence about the road.
   MeasuredWeatherHazard _currentMeasuredHazard() => measuredWeatherHazardFrom(
         blackIceFiring: _invisibleIceResult == InvisibleIceWatchResult.watch,
         turmoilFiring: _turmoilState?.anyCaution ?? false,
@@ -1385,7 +1403,7 @@ class _HomePageState extends State<HomePage> {
     _driveHud.updateEnvironment(
       visibilityMeters: _effectiveVisibilityMeters,
       visibilityAgeSeconds: _effectiveVisibilityAgeSeconds(),
-      advisorySeverity: topAdvisoryLevel(_advisoryResult),
+      advisorySeverity: readAdvisoryAxis(_advisoryResult).level,
       speedMetersPerSecond: null,
       measuredHazard: _currentMeasuredHazard(),
     );
@@ -1400,7 +1418,7 @@ class _HomePageState extends State<HomePage> {
     _driveHud.updateEnvironment(
       visibilityMeters: _effectiveVisibilityMeters,
       visibilityAgeSeconds: _effectiveVisibilityAgeSeconds(),
-      advisorySeverity: topAdvisoryLevel(_advisoryResult),
+      advisorySeverity: readAdvisoryAxis(_advisoryResult).level,
       speedMetersPerSecond: null,
     );
   }
@@ -1427,9 +1445,33 @@ class _HomePageState extends State<HomePage> {
     ('ホワイトアウト ~80 m', 80),
   ];
 
+  /// The unknowns the app owns because the drive brain has no channel for
+  /// them — an unprovable advisory lookup, and an unread/failed weather feed.
+  /// Rendered into the SAME 「不明な点」 row as the package's own unknowns.
+  List<AppUnknown> _appUnknowns() => appUnknownsFor(
+        advisoryCompletenessProven:
+            readAdvisoryAxis(_advisoryResult).completenessProven,
+        measuredWatchFeed: _measuredWatchFeed,
+      );
+
   Widget _driveHudPanel() {
     final estimate = _driveHud.estimate;
     final advice = _driveHud.advice;
+    final l = AppL10n.of(context);
+    final appUnknowns = _appUnknowns();
+    // Scoping inputs for the lowest-rung reassurance. None of these raises the
+    // rung; they qualify the CLAIM so it never says more than was measured.
+    final advisoryUnconfirmed =
+        appUnknowns.contains(AppUnknown.advisoryLookupIncomplete);
+    final measuredUnconfirmed = appUnknowns.any((u) =>
+        u == AppUnknown.measuredWatchFeedLost ||
+        u == AppUnknown.measuredWatchNotYetRead);
+    // The sub-zero frozen-surface chip (Chair 2026-07-23) renders directly
+    // above this banner and deliberately does NOT raise the rung. A chip
+    // reading 路面凍結のおそれ beside an unscoped 「特段の注意なし」 is a
+    // glance-level contradiction; the chip is correct, so the headline yields.
+    final calmNoteInForce =
+        _invisibleIceResult == InvisibleIceWatchResult.subZeroFrozen;
     // The EFFECTIVE rung after the measured-weather floor is fused in — so this
     // WS6 caution section cannot show a 「走行を継続」banner while a measured
     // black-ice / turmoil watch is firing on-screen (a full-screen driver HUD is
@@ -1615,7 +1657,12 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Text(
                   _driveHudText.actionHeadline(
-                      effective ?? advice.action, 'ja'),
+                    effective ?? advice.action,
+                    'ja',
+                    advisoryUnconfirmed: advisoryUnconfirmed,
+                    measuredUnconfirmed: measuredUnconfirmed,
+                    calmNoteInForce: calmNoteInForce,
+                  ),
                   style: TextStyle(
                     color: textColor,
                     fontSize: 18,
@@ -1653,12 +1700,17 @@ class _HomePageState extends State<HomePage> {
               [for (final r in advice.reasons) _driveHudText.reasonLabel(r, 'ja')]
                   .join(' · '),
             ),
-          if (advice.unknowns.isNotEmpty)
+          // The package's own unknowns PLUS the app-owned ones it has no
+          // channel for (advisory-lookup completeness, measured-feed
+          // liveness). One row, one convention — an outage is STATED here, not
+          // left to be inferred from a silent hazard floor.
+          if (advice.unknowns.isNotEmpty || appUnknowns.isNotEmpty)
             _kv(
               '不明な点',
               [
                 for (final u in advice.unknowns)
-                  _driveHudText.unknownLabel(u, 'ja')
+                  _driveHudText.unknownLabel(u, 'ja'),
+                for (final u in appUnknowns) appUnknownLabel(u, l),
               ].join(' · '),
             ),
           if (advice.sightStoppingSpeedHintMps != null)
@@ -1753,31 +1805,15 @@ class _HomePageState extends State<HomePage> {
       // retention shape as a provider-errored fetch: before this, setting
       // only _advisoryErrorMessage made AdvisoryCards early-return the error
       // banner ALONE — prior in-force hazard cards vanished from the visible
-      // surface while topAdvisoryLevel kept feeding them to the drive brain
+      // surface while the advisory axis kept feeding them to the drive brain
       // (a spoken warning with no visible counterpart). Synthesizing a
       // failed aggregate result renders retained hazards under the honest
       // degraded/stale banners instead, and applies the expiry cull.
       final now = _now();
       setState(() {
-        _applyAdvisoryResult(
-          AdvisoryAggregateResult(
-            advisories: const [],
-            providerErrors: [
-              AdvisoryProviderError(
-                source: AdvisorySource.other,
-                message: e.toString(),
-              ),
-            ],
-            // B04-2 — the throw fired before any provider answered, so ZERO
-            // sources were successfully asked. Stating that honestly makes
-            // `isUnavailable` true (we did not look) rather than leaving the
-            // result to be read as a partial one, and keeps
-            // `canAssertNoAdvisory` false on its own arithmetic instead of
-            // only via the synthetic error entry.
-            sourcesQueried: 0,
-          ),
-          now,
-        );
+        // B04-2 provenance lives in the named builder so the call site carries
+        // no untested literal (see advisoryResultForThrownFetch).
+        _applyAdvisoryResult(advisoryResultForThrownFetch(e), now);
         _advisoryErrorMessage = null;
         _advisoryLoading = false;
       });
@@ -1913,6 +1949,9 @@ class _HomePageState extends State<HomePage> {
         unawaited(_captureTripHazardMemory());
         _invisibleIceResult = evaluateInvisibleIceWatch(result.observation);
         _turmoilState = evaluateTurmoilWatch(result.observation);
+        // The lane is LIVE: the non-firing verdicts below are now MEASURED
+        // negatives, and the glance may stop reporting the lane as unknown.
+        _measuredWatchFeed = MeasuredWatchFeed.live;
       } else {
         // W0 feed loss: do NOT discard _lastGoodObservation — that retention is
         // the whole point. The LIVE verdicts become unknown/null (the live
@@ -1920,6 +1959,12 @@ class _HomePageState extends State<HomePage> {
         // decision is made in _announceWatchTransitions from the retained obs.
         _invisibleIceResult = InvisibleIceWatchResult.unknown;
         _turmoilState = null;
+        // A READ THAT FAILED — distinct from the cold start this session began
+        // in. Both leave the watches non-firing, and a not-firing watch is
+        // indistinguishable from a measured all-clear at the hazard floor; the
+        // difference is carried here and STATED on the glance, never inferred
+        // from the floor's silence.
+        _measuredWatchFeed = MeasuredWatchFeed.lost;
       }
     });
     // Raise (or clear) the eyes-off compound rung from the just-evaluated

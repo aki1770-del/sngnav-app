@@ -37,6 +37,34 @@ const Color kCautionTextOnAmber = Color(0xFF6B4600);
 /// there; this dark orange-brown measures ~7.1:1.
 const Color kCautionTextOnOrange = Color(0xFF8A3B00);
 
+/// Fill for the CHRONIC coverage note — the one honesty state that is not a
+/// degradation at all.
+///
+/// "No supported publisher covers this point" is a PERMANENT boundary of what
+/// this app can answer. Retrying does not help, nothing is broken, and nothing
+/// will change when the network recovers. Rendering it on the same amber as
+/// the transient "we could not look right now" states made one tint carry four
+/// different meanings, and taught HER to read amber as noise. Blue-grey reads
+/// as a standing note rather than an active caution, and is still clearly not
+/// the calm grey of a real all-clear.
+///
+/// #ECEFF1 (`blueGrey.shade50`) under [kNoteTextOnBlueGrey] measures ~13:1,
+/// well clear of the OPS-059 4.5:1 floor.
+const Color kNoteFillBlueGrey = Color(0xFFECEFF1);
+
+/// Text/icon colour for [kNoteFillBlueGrey] (`blueGrey.shade900`).
+const Color kNoteTextOnBlueGrey = Color(0xFF263238);
+
+/// Leading glyph for a TRANSIENT unknown — we tried to look, or cannot prove
+/// we looked, right now. Both live in the bundled `SnGNavSymbols` subset
+/// (U+26A0), so neither can tofu on a device whose system fonts lack them.
+const String kGlyphTransientUnknown = '⚠';
+
+/// Leading glyph for the CHRONIC coverage note (U+203B ※ — the Japanese
+/// footnote/reference mark, which is exactly what this state is: a standing
+/// caveat, not an alarm).
+const String kGlyphChronicNote = '※';
+
 class AdvisoryCards extends StatelessWidget {
   const AdvisoryCards({
     super.key,
@@ -140,38 +168,37 @@ class AdvisoryCards extends StatelessWidget {
         // provably complete lookup; anything left over falls to the
         // named-no-cause backstop. Absence must never render as calm.
         if (r.advisories.isEmpty && r.providerErrors.isNotEmpty)
-          Container(
+          // TRANSIENT — we asked, and the publisher failed. Stepped DOWN from
+          // the red fill it used to carry: an OUTAGE IS NOT A HAZARD, and a
+          // full red banner made a feed failure shout louder than a real
+          // extreme-severity advisory in force (which renders as a thin
+          // severity border plus a 15%-alpha chip). The strongest fill on this
+          // surface belongs to a warning that is actually in force; an unknown
+          // gets the caution tint and says what it does not know.
+          _honestyBanner(
             key: const Key('advisory-unknown-degraded'),
-            padding: const EdgeInsets.all(8),
-            color: Colors.red.shade50,
-            // liveRegion — the all-clear→unknown flip is exactly the state
-            // change this banner exists to make loud; assistive tech must
-            // announce it, not merely hold it in the tree (OPS-059 floor).
-            child: Semantics(
-              liveRegion: true,
-              child: Text(
-                l.advisoryFetchUnknown,
-                style: TextStyle(color: Colors.red.shade900, fontSize: 13),
-              ),
-            ),
+            glyph: kGlyphTransientUnknown,
+            text: l.advisoryFetchUnknown,
+            fill: Colors.amber.shade50,
+            color: kCautionTextOnAmber,
           )
         else if (r.advisories.isEmpty && !pointCovered)
           // B04 sibling — an UNCOVERED point: nobody was asked, so the
           // positive all-clear would be a publisher claim nobody made.
-          // Caution-styled (not calm grey, not error red — the app is fine,
-          // its coverage just ends here).
-          Container(
+          //
+          // CHRONIC, not transient. This is the only one of the four honesty
+          // states that will not change when the network recovers: no
+          // supported publisher covers this point, and none will next cycle.
+          // It used to share the amber of the "we could not look right now"
+          // states, which made one tint mean four things. Blue-grey + ※ reads
+          // as the standing coverage note it is — still plainly not the calm
+          // grey of a real all-clear.
+          _honestyBanner(
             key: const Key('advisory-no-covering-publisher'),
-            padding: const EdgeInsets.all(8),
-            color: Colors.amber.shade50,
-            child: Semantics(
-              liveRegion: true,
-              child: Text(
-                l.advisoryNoCoveringPublisher,
-                style:
-                    const TextStyle(color: kCautionTextOnAmber, fontSize: 13),
-              ),
-            ),
+            glyph: kGlyphChronicNote,
+            text: l.advisoryNoCoveringPublisher,
+            fill: kNoteFillBlueGrey,
+            color: kNoteTextOnBlueGrey,
           )
         else if (r.advisories.isEmpty && r.canAssertNoAdvisory)
           // B04-2 — the ONLY shape in which the positive all-clear is true:
@@ -191,23 +218,15 @@ class AdvisoryCards extends StatelessWidget {
           // impossible to make by accident: any future result-construction
           // site that forgets `sourcesQueried` lands here, not on a
           // fabricated clear.
-          Container(
+          // TRANSIENT, same class as the degraded banner above — we cannot
+          // prove we looked. Same ⚠ + amber; the SENTENCE is what separates
+          // them, because this one has no cause to name.
+          _honestyBanner(
             key: const Key('advisory-lookup-incomplete'),
-            padding: const EdgeInsets.all(8),
-            color: Colors.amber.shade50,
-            // liveRegion — same reasoning as the degraded banner: the
-            // all-clear→unknown flip is the state change this exists to
-            // make loud, so assistive tech must announce it (OPS-059).
-            child: Semantics(
-              liveRegion: true,
-              child: Text(
-                l.advisoryLookupIncomplete,
-                style: const TextStyle(
-                  color: kCautionTextOnAmber,
-                  fontSize: 13,
-                ),
-              ),
-            ),
+            glyph: kGlyphTransientUnknown,
+            text: l.advisoryLookupIncomplete,
+            fill: Colors.amber.shade50,
+            color: kCautionTextOnAmber,
           )
         else ...[
           // N10 — retained (stale) hazard data carries a visible age label;
@@ -411,6 +430,57 @@ String _sourceLabel(AdvisorySource source) {
       return 'Source';
   }
 }
+
+/// One honesty state, rendered so it separates from its siblings AT A GLANCE.
+///
+/// [glyph] is the leading mark ([kGlyphTransientUnknown] ⚠ for "we could not
+/// look right now", [kGlyphChronicNote] ※ for the standing coverage note).
+/// Both are in the bundled `SnGNavSymbols` subset, so neither tofus on a
+/// device whose system fonts lack them.
+///
+/// The glyph is rendered as its OWN [Text], never folded into the localized
+/// sentence: the sentence must stay byte-identical to the one the in-drive
+/// glance shows for the same state, so the card and the glance can never drift
+/// into two different statements about one fact.
+///
+/// `liveRegion` — the all-clear→unknown flip is exactly the state change these
+/// banners exist to make loud, so assistive tech must ANNOUNCE it rather than
+/// merely hold it in the tree (OPS-059 floor). The glyph sits outside the
+/// announced text and is marked [ExcludeSemantics] so a screen reader speaks
+/// the sentence, not "warning sign".
+Widget _honestyBanner({
+  required Key key,
+  required String glyph,
+  required String text,
+  required Color fill,
+  required Color color,
+}) =>
+    Container(
+      key: key,
+      padding: const EdgeInsets.all(8),
+      color: fill,
+      child: Semantics(
+        liveRegion: true,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ExcludeSemantics(
+              child: Text(
+                glyph,
+                style: TextStyle(color: color, fontSize: 13),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                text,
+                style: TextStyle(color: color, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
 
 Color _severityColor(AdvisorySeverity severity) {
   switch (severity) {

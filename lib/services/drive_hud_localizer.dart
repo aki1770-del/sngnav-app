@@ -19,8 +19,21 @@
 ///    ONLY when position is trusted+fresh AND visibility is MEASURED, fresh, and
 ///    clear (advisor score 0). It does NOT fire on unknown/stale visibility —
 ///    those floor to `heightenedCaution` in the package's `_resolveVisibility`
-///    (concern 1) — so «no elevated caution» is honest on every path that
-///    reaches it (it never displays over an unmeasured or degraded read).
+///    (concern 1).
+///
+///    HONEST SCOPE — this guarantee covers the POSITION and VISIBILITY axes
+///    ONLY, because those are the only axes `compound_failure_advisor` models
+///    as first-class unknowns. It does NOT cover the ADVISORY axis: 0.1.2's
+///    `Unknown` enum has no advisory member and `advisorySeverity: null` is
+///    documented as "no advisory in force", so an advisory-feed OUTAGE is
+///    indistinguishable from a quiet sky and this rung DOES fire over it. The
+///    file previously claimed the headline "never displays over an unmeasured
+///    or degraded read"; that was measurably false on the advisory axis, and
+///    is retired. The countermeasure is [actionHeadline]'s scoping flags —
+///    when an input could not be confirmed the caller qualifies the claim
+///    rather than raising the rung, because an outage is an unknown and not a
+///    hazard (no cry-wolf; Chair 2026-07-23). See
+///    `services/advisory_axis.dart` for the measured asymmetry.
 ///  - The voice channel already honours this: `spokenGuidance(continueDriving)`
 ///    returns "" (say nothing). This headline is the visual parity of that
 ///    silence — an honest absence, never an all-clear.
@@ -40,12 +53,57 @@ class DriveHudLocalizer {
   /// The lowest rung is CHOICE-NEUTRAL by Design-Floor Refusal #1: it names the
   /// honest absence of elevated caution, never the instruction "continue" and
   /// never a reassurance of safety. See the library doc for the firing basis
-  /// (this rung reaches HER only on a measured, non-elevated read).
-  String actionHeadline(DriveAction action, String localeTag) {
+  /// and for the axes that basis does NOT cover.
+  ///
+  /// ## Scoping the reassurance
+  ///
+  /// 「特段の注意なし」 is a claim about the WHOLE picture, so it may only be
+  /// printed unscoped when the whole picture was measured. The three flags let
+  /// the caller qualify it — they NEVER raise the rung, because an outage is
+  /// an unknown and not a hazard (no cry-wolf; Chair 2026-07-23). We withhold
+  /// the reassurance; we never manufacture the warning.
+  ///
+  ///  - [advisoryUnconfirmed] — the advisory lookup could not prove it was
+  ///    complete (`AdvisoryAxis.completenessUnproven`).
+  ///  - [measuredUnconfirmed] — the measured-weather observation was not read
+  ///    (cold start) or could not be read (feed loss).
+  ///  - [calmNoteInForce] — everything WAS read, and a calm note is in force
+  ///    that deliberately does not raise the rung (the sub-zero
+  ///    frozen-surface chip, Chair 2026-07-23). A chip reading 路面凍結のおそれ
+  ///    directly above an unscoped 「特段の注意なし」 is a glance-level
+  ///    contradiction; the chip is correct, so the headline is what yields.
+  ///
+  /// PRECEDENCE — an unconfirmed input outranks a confirmed calm note. A thing
+  /// we could not look at is the more dangerous omission; the note is a thing
+  /// we DID look at and deliberately chose not to escalate, and it stays fully
+  /// visible in its own chip row either way.
+  ///
+  /// Only this rung is scoped. 注意して走行 and 停車の検討 assert nothing an
+  /// unknown could falsify — they are already the cautious reading.
+  String actionHeadline(
+    DriveAction action,
+    String localeTag, {
+    bool advisoryUnconfirmed = false,
+    bool measuredUnconfirmed = false,
+    bool calmNoteInForce = false,
+  }) {
     final ja = _isJa(localeTag);
     switch (action) {
       case DriveAction.continueDriving:
-        return ja ? '特段の注意なし' : 'No elevated caution';
+        final base = ja ? '特段の注意なし' : 'No elevated caution';
+        if (advisoryUnconfirmed && measuredUnconfirmed) {
+          return ja ? '$base（一部未確認）' : '$base (some inputs unconfirmed)';
+        }
+        if (advisoryUnconfirmed) {
+          return ja ? '$base（警報・注意報は未確認）' : '$base (advisories unconfirmed)';
+        }
+        if (measuredUnconfirmed) {
+          return ja ? '$base（気象観測は未確認）' : '$base (observation unconfirmed)';
+        }
+        if (calmNoteInForce) {
+          return ja ? '$base（下記に注意）' : '$base (see note below)';
+        }
+        return base;
       case DriveAction.heightenedCaution:
         return ja ? '注意して走行' : 'Heightened caution';
       case DriveAction.considerStopping:

@@ -163,10 +163,31 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     final banner = find.byKey(const Key('drive-hud-caution-banner'));
-    // Confirm we are in the lowest, choice-neutral rung before capturing.
+    // Confirm we are in the lowest, choice-neutral rung before capturing —
+    // and that the claim is SCOPED to what this harness actually measured.
+    //
+    // Nothing here feeds an advisory result or a JMA observation, so at
+    // capture time the advisory lookup cannot prove completeness AND the
+    // measured-weather lane has never been read. The bare 「特段の注意なし」 is
+    // therefore a claim about a picture we did not look at, and it is
+    // correctly unreachable in this state. This expectation used to pin the
+    // unscoped string — the same fabricated-clear shape B04-2 removed from the
+    // advisory CARD, still standing on the GLANCE.
+    //
+    // The rung is unchanged: an outage is an unknown, not a hazard, and
+    // raising it would cry wolf (Chair 2026-07-23). Only the reassurance is
+    // withheld.
     expect(
       find.descendant(of: banner, matching: find.text('特段の注意なし')),
+      findsNothing,
+      reason: 'the unscoped global all-clear must not survive an unmeasured '
+          'advisory axis and an unread weather feed',
+    );
+    expect(
+      find.descendant(
+          of: banner, matching: find.text('特段の注意なし（一部未確認）')),
       findsOneWidget,
+      reason: 'the honest STATE is kept; the CLAIM is scoped to it',
     );
     await captureApp(
       tester,

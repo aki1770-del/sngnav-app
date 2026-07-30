@@ -8,23 +8,40 @@
 /// moment we could not look.
 ///
 /// Produces ja-rendered PNGs into `render_out/` so the reviewer can LOOK at
-/// the three states and SEE that they now differ:
-///   18a — feed outage, ZERO sources asked   → amber honest-unknown
-///   18b — a covering publisher ERRORED      → red degraded-unknown
-///   18c — complete lookup, nothing in force → grey all-clear (unchanged)
+/// the FOUR states and SEE that they now differ:
+///   18a — forgotten-provenance BACKSTOP      → amber honest-unknown (⚠)
+///   18b — a covering publisher ERRORED       → amber degraded-unknown (⚠)
+///   18c — complete lookup, nothing in force  → grey all-clear (unchanged)
+///   18d — un-catalogued Japanese point       → blue-grey coverage note (※)
 ///
 /// 18c is the anti-cry-wolf half of the evidence: an instrument that can
 /// never say "clear" is as useless to HER as one that always does. The
 /// capture is only honest if it shows BOTH that the false clear is gone and
 /// that the true clear survives.
 ///
-/// HONESTY (so the reader can trust the render): the widget under test is
-/// the REAL [AdvisoryCards], fed the exact result shapes the production
-/// paths now produce — `sourcesQueried: 0` from
-/// `AdvisoryService.fetchAtPoint`'s no-covering-provider return and from
-/// `_refreshAdvisories`'s thrown path, and the aggregator's own
-/// `sourcesQueried: n` on a clean fetch. No stub widget, no hand-written
-/// string. Run with:
+/// HONESTY (so the reader can trust the render) — corrected 2026-07-31, the
+/// previous version of this block overstated 18a:
+///
+///  - The widget under test is the REAL [AdvisoryCards] throughout. No stub
+///    widget, no hand-written string.
+///  - 18b, 18c and 18d ARE producible shapes. 18b is what a covering
+///    publisher's failure yields; 18c is the aggregator's own
+///    `sourcesQueried: n` on a clean fetch; 18d is a real un-catalogued
+///    Japanese point (`pointCovered: false`).
+///  - **18a is NOT a producible outage.** It pairs `sourcesQueried: 0` with
+///    `pointCovered: true`, and no production path emits that pair: when no
+///    provider covers the point, `AdvisoryService.fetchAtPoint` returns
+///    `sourcesQueried: 0` AND the caller's `coversPoint` is false, which is
+///    18d; and `_refreshAdvisories`'s thrown path attaches a provider error,
+///    which is 18b. 18a therefore depicts the FORGOTTEN-PROVENANCE BACKSTOP —
+///    the branch that catches a future result-construction site that forgets
+///    `sourcesQueried`, so a completeness claim stays impossible by accident.
+///    That is worth capturing, but it is a guard against OUR future mistake,
+///    not a picture of a feed outage. **The real outage capture is 18b.**
+///  - The thrown path's own provenance is pinned separately, in
+///    `test/services/advisory_thrown_path_provenance_test.dart`.
+///
+/// Run with:
 ///   flutter test --update-goldens \
 ///     test/render_see/advisory_fabricated_clear_capture_test.dart
 /// On a host without CJK fonts the pixel claim is withdrawn (the render
@@ -49,12 +66,23 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
-    if (!cjkLoaded) installNoopGoldenComparator();
+    // These banners now carry ⚠ / ※ leading glyphs. Without the app's own
+    // bundled subset the capture renders them as TOFU (□) — measured here on
+    // 2026-07-31, exactly the failure `assets/fonts/SnGNavSymbols.ttf` exists
+    // to prevent. A capture that tofus a glyph HER device renders correctly is
+    // not evidence about HER device, so this suite loads the SAME bytes the
+    // APK ships and mirrors the app's real fallback chain below.
+    final symbolsLoaded = await loadBundledSymbolsFont();
+    if (!cjkLoaded || !symbolsLoaded) installNoopGoldenComparator();
   });
 
   Widget host(AdvisoryAggregateResult result, {bool pointCovered = true}) =>
       MaterialApp(
         locale: const Locale('ja'),
+        // Mirrors main.dart's ThemeData.fontFamilyFallback (const
+        // ['SnGNavSymbols']) so the glyphs resolve through the same chain HER
+        // device uses: system fonts first, the bundled subset filling holes.
+        theme: ThemeData(fontFamilyFallback: const ['SnGNavSymbols']),
         localizationsDelegates: const [
           AppL10n.delegate,
           GlobalMaterialLocalizations.delegate,
@@ -76,12 +104,14 @@ void main() {
       );
 
   testWidgets(
-      '18a — feed outage (zero sources asked) renders honest-unknown, '
+      '18a — the forgotten-provenance BACKSTOP renders honest-unknown, '
       'NOT the all-clear', (tester) async {
-    // The shape `AdvisoryService.fetchAtPoint` returns when no covering
-    // provider exists, and the shape a result carries when the lookup never
-    // completed. Empty advisories, NO provider error to point at — the
-    // hardest case, because nothing looks broken.
+    // NOT a producible outage — see the HONESTY block: `sourcesQueried: 0`
+    // with `pointCovered: true` is a pair no production path emits (the real
+    // outage capture is 18b). This is the branch that catches a FUTURE
+    // result-construction site that forgets to state its provenance: empty
+    // advisories, no provider error to point at, and nothing that looks
+    // broken. It must still refuse to render the all-clear.
     await tester.pumpWidget(host(
       const AdvisoryAggregateResult(
         advisories: [],

@@ -326,6 +326,25 @@ class AppL10n {
       : 'Cannot confirm the advisory lookup was complete — whether any '
           'warning or advisory is in force is unknown.';
 
+  /// Measured-weather lane NOT YET READ this session — the cold-start state.
+  /// The invisible-ice and turmoil watches are non-firing because nobody has
+  /// been asked yet, which looks EXACTLY like a measured all-clear on the
+  /// drive brain's floor. Says so plainly instead. Deliberately not a hazard
+  /// claim: an unread feed is an unknown, not a warning.
+  String get measuredWatchNotYetRead => _ja
+      ? '気象観測をまだ取得していません — 路面凍結・荒天の測定状況は不明です。'
+      : 'The weather observation has not been read yet — the measured '
+          'road-ice and turmoil watches are unknown.';
+
+  /// Measured-weather lane READ AND FAILED. Distinct from the cold start
+  /// above: something went wrong, and the resulting non-firing watches say
+  /// nothing about the road. Same anti-cry-wolf discipline — we report the
+  /// outage, we do not invent a hazard out of it.
+  String get measuredWatchFeedLost => _ja
+      ? '気象観測を取得できませんでした — 路面凍結・荒天の測定状況は不明です。'
+      : 'The weather observation could not be read — the measured road-ice '
+          'and turmoil watches are unknown.';
+
   /// Uncovered-point state: NO supported publisher covers this point, so
   /// nobody was queried (no request left the device) and NOBODY made a
   /// statement. The positive all-clear line would be a publisher claim

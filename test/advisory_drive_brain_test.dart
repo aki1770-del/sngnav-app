@@ -1,9 +1,13 @@
 /// Pins the two advisory→drive-brain honesty rules in main.dart:
 ///
-/// 1. `topAdvisoryLevel` — an `unknown`-severity advisory is a LIVE warning
-///    we cannot grade; it must reach the drive brain as a moderate-equivalent
-///    concern, never vanish as null (same deliberate pinning as
-///    drive_situation_fusion's `advisoryLevelOf`).
+/// 1. The advisory axis reaches the drive brain through [readAdvisoryAxis] —
+///    an `unknown`-severity advisory is a LIVE warning we cannot grade and
+///    must arrive as a moderate-equivalent concern, never vanish as null
+///    (same deliberate pinning as drive_situation_fusion's `advisoryLevelOf`);
+///    and an EMPTY list must carry whether the lookup could prove itself
+///    complete, because an outage and a quiet sky are the same empty list.
+///    Full coverage of the completeness half lives in
+///    `test/services/advisory_axis_test.dart`.
 /// 2. `retainAdvisoriesOnFailure` — asymmetric overwrite: a failed fetch
 ///    retains prior in-force hazards (until the publisher's declared expires
 ///    passes); the clear side is never retained.
@@ -14,10 +18,8 @@ import 'package:compound_failure_advisor/compound_failure_advisor.dart'
 import 'package:condition_aggregator/condition_aggregator.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/main.dart'
-    show
-        cullExpiredRetainedAdvisories,
-        retainAdvisoriesOnFailure,
-        topAdvisoryLevel;
+    show cullExpiredRetainedAdvisories, retainAdvisoriesOnFailure;
+import 'package:sngnav_app/services/advisory_axis.dart';
 
 Advisory _advisory({
   AdvisorySeverity severity = AdvisorySeverity.severe,
@@ -38,11 +40,19 @@ Advisory _advisory({
   );
 }
 
+/// [sourcesQueried] defaults to 1 — a lookup that ASKED somebody — so every
+/// pre-existing case here keeps meaning what it meant. The completeness cases
+/// below pass it explicitly, because that is the whole point of them.
 AdvisoryAggregateResult _result(
   List<Advisory> advisories, {
   List<AdvisoryProviderError> errors = const [],
+  int? sourcesQueried = 1,
 }) =>
-    AdvisoryAggregateResult(advisories: advisories, providerErrors: errors);
+    AdvisoryAggregateResult(
+      advisories: advisories,
+      providerErrors: errors,
+      sourcesQueried: sourcesQueried,
+    );
 
 const _jmaError = AdvisoryProviderError(
   source: AdvisorySource.jmaJapan,
@@ -50,21 +60,51 @@ const _jmaError = AdvisoryProviderError(
 );
 
 void main() {
-  group('topAdvisoryLevel', () {
-    test('null result maps to null (nothing in force)', () {
-      expect(topAdvisoryLevel(null), isNull);
+  group('readAdvisoryAxis', () {
+    test('null result: no level, and NOT a proven clear — we never looked', () {
+      final axis = readAdvisoryAxis(null);
+      expect(axis.level, isNull);
+      expect(axis.completenessProven, isFalse);
     });
 
-    test('empty advisory list maps to null (nothing in force)', () {
-      expect(topAdvisoryLevel(_result(const [])), isNull);
+    test(
+        'an empty list is only an all-clear when the lookup PROVED it was '
+        'complete — an outage and a quiet sky are the same empty list', () {
+      // Complete: somebody was asked, and answered.
+      final complete = readAdvisoryAxis(_result(const []));
+      expect(complete.level, isNull, reason: 'nothing is in force');
+      expect(complete.completenessProven, isTrue);
+
+      // Incomplete: NOBODY was asked. Same empty list, different fact.
+      final incomplete = readAdvisoryAxis(_result(const [], sourcesQueried: 0));
+      expect(incomplete.level, complete.level,
+          reason: 'the RUNG is identical — an outage is an unknown, not a '
+              'hazard; we withhold the reassurance, we never cry wolf');
+      expect(incomplete.completenessProven, isFalse,
+          reason: 'THIS is what the old `expect(topAdvisoryLevel(empty), '
+              'isNull)` pinned as correct: it asserted the fabricated clear');
+
+      // No provenance at all — the result cannot account for itself.
+      expect(
+        readAdvisoryAxis(_result(const [], sourcesQueried: null))
+            .completenessProven,
+        isFalse,
+      );
+
+      // A covering publisher errored.
+      expect(
+        readAdvisoryAxis(_result(const [], errors: [_jmaError]))
+            .completenessProven,
+        isFalse,
+      );
     });
 
     test(
         'a live unknown-severity advisory maps to moderate, NOT null — '
         'a warning we cannot grade must not vanish from the drive brain', () {
-      final level = topAdvisoryLevel(
+      final level = readAdvisoryAxis(
         _result([_advisory(severity: AdvisorySeverity.unknown)]),
-      );
+      ).level;
       expect(level, isNotNull);
       expect(level, AdvisoryLevel.moderate);
     });
@@ -77,7 +117,7 @@ void main() {
         (AdvisorySeverity.extreme, AdvisoryLevel.extreme),
       ]) {
         expect(
-          topAdvisoryLevel(_result([_advisory(severity: severity)])),
+          readAdvisoryAxis(_result([_advisory(severity: severity)])).level,
           expected,
           reason: 'severity $severity',
         );
@@ -85,11 +125,11 @@ void main() {
     });
 
     test('the single MOST severe advisory wins across a mixed list', () {
-      final level = topAdvisoryLevel(_result([
+      final level = readAdvisoryAxis(_result([
         _advisory(severity: AdvisorySeverity.minor),
         _advisory(severity: AdvisorySeverity.extreme),
         _advisory(severity: AdvisorySeverity.unknown),
-      ]));
+      ])).level;
       expect(level, AdvisoryLevel.extreme);
     });
   });
