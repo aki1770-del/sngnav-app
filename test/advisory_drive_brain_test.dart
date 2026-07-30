@@ -371,4 +371,76 @@ void main() {
       expect(culled!.advisories, [freshNoExpires]);
     });
   });
+
+  // ===================================================================
+  // B04-2 — provenance survives the app's own rebuilds.
+  //
+  // `canAssertNoAdvisory` is computed from `sourcesQueried`. Both retention
+  // helpers REBUILD the aggregate result, and a rebuild that drops
+  // `sourcesQueried` destroys the very evidence the all-clear gate depends
+  // on. Dropping it fails SAFE (an unprovable clear renders as unknown),
+  // but it fails safe by ACCIDENT and it makes the card cry wolf on
+  // results whose lookup genuinely was complete. Provenance is carried
+  // through, not re-derived.
+  // ===================================================================
+  group('B04-2 — sourcesQueried survives the app\'s rebuilds', () {
+    final expiresAt = DateTime.utc(2026, 1, 15, 18);
+    final hazard = _advisory(expires: expiresAt);
+    final now = DateTime.utc(2026, 1, 15, 17);
+
+    test('retainAdvisoriesOnFailure carries the fresh cycle\'s provenance '
+        'into the retained result', () {
+      final prior = AdvisoryAggregateResult(
+        advisories: [hazard],
+        providerErrors: const [],
+        sourcesQueried: 1,
+      );
+      // This cycle errored, so the prior in-force hazard is retained and
+      // the result is REBUILT — the seam where provenance was being lost.
+      final fresh = const AdvisoryAggregateResult(
+        advisories: [],
+        providerErrors: [_jmaError],
+        sourcesQueried: 1,
+      );
+      final applied = retainAdvisoriesOnFailure(
+        prior: prior,
+        fresh: fresh,
+        now: now,
+      );
+      expect(applied.retained, isTrue);
+      expect(applied.result.sourcesQueried, 1,
+          reason: 'the rebuilt result must still be able to say who was asked');
+    });
+
+    test('a clean fetch passes through with its provenance intact '
+        '(the all-clear must stay reachable)', () {
+      const fresh = AdvisoryAggregateResult(
+        advisories: [],
+        providerErrors: [],
+        sourcesQueried: 2,
+      );
+      final applied =
+          retainAdvisoriesOnFailure(prior: null, fresh: fresh, now: now);
+      expect(applied.retained, isFalse);
+      expect(applied.result.sourcesQueried, 2);
+      expect(applied.result.canAssertNoAdvisory, isTrue,
+          reason: 'a complete lookup with no advisories IS an all-clear');
+    });
+
+    test('cullExpiredRetainedAdvisories preserves provenance — culling '
+        'changes WHAT was seen, never WHO was asked', () {
+      final held = AdvisoryAggregateResult(
+        advisories: [hazard],
+        providerErrors: const [_jmaError],
+        sourcesQueried: 1,
+      );
+      final culled =
+          cullExpiredRetainedAdvisories(held, DateTime.utc(2026, 1, 15, 19));
+      expect(culled, isNotNull);
+      expect(culled!.advisories, isEmpty);
+      expect(culled.sourcesQueried, 1);
+      expect(culled.canAssertNoAdvisory, isFalse,
+          reason: 'a covering publisher still errored — not an all-clear');
+    });
+  });
 }

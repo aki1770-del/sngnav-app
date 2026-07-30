@@ -311,6 +311,21 @@ class AppL10n {
       : 'Advisory fetch failed — whether any warning or advisory is in '
           'force is unknown.';
 
+  /// Incomplete-lookup state: the result carries no proof that every source
+  /// answered (`canAssertNoAdvisory` false) and yet no covering publisher
+  /// reported an error and the point IS covered — so neither of the two
+  /// named causes above applies. We cannot say what happened, and therefore
+  /// cannot say the sky is clear. The fail-safe backstop: any advisory
+  /// result that cannot account for its own completeness renders here rather
+  /// than as the positive all-clear. Deliberately NOT a hazard claim — an
+  /// outage is an unknown, not a warning, and crying wolf would teach HER to
+  /// ignore the instrument.
+  String get advisoryLookupIncomplete => _ja
+      ? '警報・注意報の照会が完了したか確認できません — '
+          '有効な警報・注意報の有無は不明です。'
+      : 'Cannot confirm the advisory lookup was complete — whether any '
+          'warning or advisory is in force is unknown.';
+
   /// Uncovered-point state: NO supported publisher covers this point, so
   /// nobody was queried (no request left the device) and NOBODY made a
   /// statement. The positive all-clear line would be a publisher claim

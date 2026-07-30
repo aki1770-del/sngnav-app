@@ -120,13 +120,25 @@ class AdvisoryCards extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // B04 — the all-clear line is a POSITIVE claim ("no advisories are in
-        // force"). When every advisory is absent AND a covering publisher
-        // errored, that claim is unverified: the absence is a fetch failure,
-        // not a publisher statement. Render honest-unknown instead — absence
-        // must never render as calm. All-clear renders only when no covering
-        // publisher errored (with region-gating, that means the regional
-        // publisher answered).
+        // B04 / B04-2 — the all-clear line is a POSITIVE claim ("no
+        // advisories are in force"), and it is a claim about COMPLETENESS:
+        // it is true only when every source was asked and every source
+        // answered. An empty `advisories` list alone cannot back it — a
+        // total feed outage produces exactly the same empty list as a clear
+        // sky.
+        //
+        // The gate is `AdvisoryAggregateResult.canAssertNoAdvisory`
+        // (condition_aggregator 0.0.8), which is false on ALL THREE
+        // incomplete shapes: a provider errored, zero sources were asked, or
+        // the result carries no provenance. B04 checked only the first of
+        // those, so the other two still rendered 「この地点に有効な警報・注意報は
+        // ありません。」 when the truth was "we could not look."
+        //
+        // Branch order is deliberate: the two shapes whose CAUSE we can name
+        // (a publisher errored / no publisher covers this point) render
+        // their specific honest line first; the all-clear renders only on a
+        // provably complete lookup; anything left over falls to the
+        // named-no-cause backstop. Absence must never render as calm.
         if (r.advisories.isEmpty && r.providerErrors.isNotEmpty)
           Container(
             key: const Key('advisory-unknown-degraded'),
@@ -161,10 +173,41 @@ class AdvisoryCards extends StatelessWidget {
               ),
             ),
           )
-        else if (r.advisories.isEmpty)
+        else if (r.advisories.isEmpty && r.canAssertNoAdvisory)
+          // B04-2 — the ONLY shape in which the positive all-clear is true:
+          // every source was asked and every source answered
+          // (`canAssertNoAdvisory`, condition_aggregator 0.0.8). Calm grey,
+          // because this one genuinely is calm.
           Text(
             l.advisoryNoneActive,
             style: TextStyle(color: Colors.grey.shade700, fontSize: 13),
+          )
+        else if (r.advisories.isEmpty)
+          // B04-2 backstop — empty, nothing errored, the point IS covered,
+          // and still the lookup cannot prove it was complete (no sources
+          // asked, or a result carrying no provenance at all). The two
+          // branches above name a CAUSE; this one honestly reports that we
+          // have none to name. It exists so that a completeness claim is
+          // impossible to make by accident: any future result-construction
+          // site that forgets `sourcesQueried` lands here, not on a
+          // fabricated clear.
+          Container(
+            key: const Key('advisory-lookup-incomplete'),
+            padding: const EdgeInsets.all(8),
+            color: Colors.amber.shade50,
+            // liveRegion — same reasoning as the degraded banner: the
+            // all-clear→unknown flip is the state change this exists to
+            // make loud, so assistive tech must announce it (OPS-059).
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                l.advisoryLookupIncomplete,
+                style: const TextStyle(
+                  color: kCautionTextOnAmber,
+                  fontSize: 13,
+                ),
+              ),
+            ),
           )
         else ...[
           // N10 — retained (stale) hazard data carries a visible age label;

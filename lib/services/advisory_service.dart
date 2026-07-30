@@ -98,6 +98,13 @@ class AdvisoryService {
       return const AdvisoryAggregateResult(
         advisories: [],
         providerErrors: [],
+        // B04-2 — say so explicitly: ZERO sources were asked. This makes the
+        // result self-describing (`canAssertNoAdvisory` false, `isUnavailable`
+        // true) instead of relying on the caller's separate `coversPoint`
+        // read to keep the all-clear off the screen. Two independent
+        // computations agreeing is not a guarantee; the result carrying its
+        // own provenance is.
+        sourcesQueried: 0,
       );
     }
     // Reuse the library's tested fan-out (per-provider isolation + merge)

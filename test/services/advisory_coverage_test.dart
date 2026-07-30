@@ -194,6 +194,66 @@ void main() {
       expect(result.providerErrors, isEmpty);
     });
 
+    test(
+        'B04-2 end-to-end: an un-catalogued JAPANESE point queries NOBODY '
+        'and cannot assert an all-clear', () async {
+      // Tokyo. Inside the old hand-drawn all-Japan box, outside the six
+      // prefectures `condition_aggregator_jma` actually catalogs.
+      //
+      // Before the fix this point was "covered": JMA was queried, returned
+      // an empty list WITHOUT throwing, and the result
+      // (`sourcesQueried: 1`, no errors) satisfied `canAssertNoAdvisory` —
+      // so the card rendered the positive all-clear having sent no request.
+      // This is the full chain, through the REAL AdvisoryService, not the
+      // predicate alone.
+      final nws = _InstrumentedProvider(src: AdvisorySource.nwsUnitedStates);
+      final jma = _InstrumentedProvider(src: AdvisorySource.jmaJapan);
+      final svc = AdvisoryService(providers: [
+        CoveredProvider(provider: nws, covers: nwsCoverage),
+        CoveredProvider(provider: jma, covers: jmaCoverage),
+      ]);
+      await svc.init();
+
+      const tokyoLat = 35.68;
+      const tokyoLon = 139.69;
+      expect(svc.coversPoint(tokyoLat, tokyoLon), isFalse);
+
+      final result =
+          await svc.fetchAtPoint(latitude: tokyoLat, longitude: tokyoLon);
+
+      expect(jma.fetchCount, 0,
+          reason: 'the adapter has no data for Tokyo — asking it would only '
+              'manufacture a silent empty answer');
+      expect(nws.fetchCount, 0);
+      expect(result.advisories, isEmpty);
+      expect(result.providerErrors, isEmpty);
+      // The load-bearing assertion: an empty list that CANNOT be read as calm.
+      expect(result.canAssertNoAdvisory, isFalse,
+          reason: 'nobody was asked, so nothing may be claimed');
+      expect(result.isUnavailable, isTrue);
+    });
+
+    test(
+        'B04-2 contrast: HER Akita point IS catalogued — JMA is queried and '
+        'a clean answer still yields a real all-clear', () async {
+      final nws = _InstrumentedProvider(src: AdvisorySource.nwsUnitedStates);
+      final jma = _InstrumentedProvider(src: AdvisorySource.jmaJapan);
+      final svc = AdvisoryService(providers: [
+        CoveredProvider(provider: nws, covers: nwsCoverage),
+        CoveredProvider(provider: jma, covers: jmaCoverage),
+      ]);
+      await svc.init();
+
+      expect(svc.coversPoint(akitaLat, akitaLon), isTrue);
+      final result =
+          await svc.fetchAtPoint(latitude: akitaLat, longitude: akitaLon);
+
+      expect(jma.fetchCount, 1, reason: 'HER prefecture is in the catalog');
+      expect(nws.fetchCount, 0);
+      // Asked and answered — she may honestly be told nothing is in force.
+      expect(result.canAssertNoAdvisory, isTrue);
+    });
+
     test('per-provider isolation survives gating: a covering provider that '
         'throws is surfaced via providerErrors, not swallowed', () async {
       // Two US-covering providers; one throws. At a US point both are queried
@@ -242,10 +302,41 @@ void main() {
       expect(nwsCoverage(35.68, 139.69), isFalse); // Tokyo
     });
 
-    test('jmaCoverage includes Japan, excludes the US', () {
-      expect(jmaCoverage(akitaLat, akitaLon), isTrue); // HER Akita point
-      expect(jmaCoverage(35.68, 139.69), isTrue); // Tokyo
-      expect(jmaCoverage(26.2, 127.7), isTrue); // Naha, Okinawa
+    test(
+        'jmaCoverage covers the prefectures the adapter ACTUALLY catalogs, '
+        'and disclaims the Japanese points it cannot answer for', () {
+      // HER Akita point, and the rest of the snow-zone catalog.
+      expect(jmaCoverage(akitaLat, akitaLon), isTrue); // Akita  (050000)
+      expect(jmaCoverage(43.06, 141.35), isTrue); // Sapporo    (010000)
+      expect(jmaCoverage(40.82, 140.74), isTrue); // Aomori     (020000)
+      expect(jmaCoverage(39.70, 141.15), isTrue); // Morioka    (030000)
+      expect(jmaCoverage(38.24, 140.36), isTrue); // Yamagata   (060000)
+      expect(jmaCoverage(37.90, 139.02), isTrue); // Niigata    (150000)
+
+      // B04-2 — the fabricated-clear seam. `condition_aggregator_jma` 0.3.1
+      // ships a SIX-PREFECTURE bounding-box catalog and, for a point outside
+      // it, returns an EMPTY advisory list WITHOUT throwing
+      // (jma_advisory_provider.dart:169-175). Under region-gating no other
+      // provider is queried for a Japanese point (the NWS boxes are disjoint
+      // in longitude), so the adapter's own stated fallback — "the
+      // aggregator's other providers cover points outside the catalog" — does
+      // not hold here.
+      //
+      // A too-wide JMA box therefore does NOT cost "one wasted query near a
+      // border" as the generous-box rationale assumes. It produces
+      // `advisories: [], providerErrors: [], sourcesQueried: 1` →
+      // `canAssertNoAdvisory == true` → the positive all-clear
+      // 「この地点に有効な警報・注意報はありません。」 rendered to a driver in
+      // unexpected snow WITHOUT A SINGLE REQUEST HAVING BEEN SENT.
+      //
+      // `canAssertNoAdvisory` cannot catch this: the provider lied by
+      // silence — it counted as asked-and-answered while never asking.
+      // The only honest coverage claim is the adapter's real catalog.
+      expect(jmaCoverage(35.68, 139.69), isFalse); // Tokyo — not catalogued
+      expect(jmaCoverage(35.18, 136.91), isFalse); // Nagoya — not catalogued
+      expect(jmaCoverage(34.69, 135.50), isFalse); // Osaka  — not catalogued
+      expect(jmaCoverage(26.2, 127.7), isFalse); // Naha   — not catalogued
+
       expect(jmaCoverage(47.9, -97.0), isFalse); // North Dakota
       expect(jmaCoverage(21.3, -157.8), isFalse); // Honolulu
     });

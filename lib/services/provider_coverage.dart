@@ -14,17 +14,31 @@
 /// region is a deployment fact, not a package fact), so it lives in the
 /// app, not in the pub.dev catalog packages.
 ///
-/// Coverage is expressed as simple inclusive lat/lon bounding boxes. They
-/// are deliberately GENEROUS (a box, not a precise coastline): the cost of
-/// a slightly-too-wide box is at worst one wasted query near a border; the
-/// cost of a too-tight box is missing HER own advisory. When in doubt, over-
-/// cover — but never cover a point on the wrong side of the planet (the US
-/// and Japan boxes are disjoint in longitude, so neither ever answers for
-/// the other's driver).
+/// Coverage is expressed EITHER as a generous lat/lon bounding box, OR by
+/// delegating to the adapter's own catalog — and which one is correct
+/// depends on **how the adapter behaves for a point it cannot answer.**
+///
+///  * **NWS** errors (HTTP 400) on a point outside its data. A too-wide box
+///    therefore costs at worst one wasted query near a border, while a
+///    too-tight box costs a missed advisory. Over-cover: `kNwsBoxes`.
+///
+///  * **JMA** returns an EMPTY LIST, silently, for a point outside the six
+///    prefectures it catalogs. A too-wide box there does NOT cost a wasted
+///    query — it manufactures a positive all-clear out of a question nobody
+///    was asked (B04-2). Over-covering is the defect, so `jmaCoverage`
+///    delegates to the adapter's own `prefectureCodesForPoint`.
+///
+/// The generous-box rule is therefore NOT universal: it is safe only for a
+/// publisher that FAILS LOUDLY. For one that fails silently, coverage must
+/// be exactly what the adapter can actually answer for. Either way the US
+/// and Japan surfaces stay disjoint in longitude, so neither ever answers
+/// for the other's driver.
 library;
 
 import 'package:condition_aggregator/condition_aggregator.dart'
     show AdvisoryProvider;
+import 'package:condition_aggregator_jma/condition_aggregator_jma.dart'
+    show prefectureCodesForPoint;
 
 /// Predicate: true when the publisher behind a provider can answer for the
 /// point `(latitude, longitude)` in WGS84 decimal degrees.
@@ -81,11 +95,40 @@ const List<GeoBoundingBox> kNwsBoxes = <GeoBoundingBox>[
 bool nwsCoverage(double latitude, double longitude) =>
     kNwsBoxes.any((b) => b.contains(latitude, longitude));
 
-/// JMA coverage = Japan (its four main islands through the Nansei chain).
-/// Positive longitude — disjoint from every NWS box.
-const GeoBoundingBox kJmaBox =
-    GeoBoundingBox(minLat: 24, maxLat: 46, minLon: 122, maxLon: 154);
-
-/// True when `(lat, lon)` is inside JMA (Japan) coverage.
+/// JMA coverage — delegated to the ADAPTER'S OWN prefecture catalog, never
+/// to a box we draw ourselves.
+///
+/// **B04-2 — why this is not a bounding box.** This predicate used to be a
+/// hand-drawn all-Japan box (lat 24–46, lon 122–154). That box was wrong in
+/// a way the generous-box rationale above does not cover, and it produced a
+/// fabricated all-clear:
+///
+///  * `condition_aggregator_jma` 0.3.1 ships a SIX-PREFECTURE snow-zone
+///    catalog (北海道 / 青森 / 岩手 / 秋田 / 山形 / 新潟), and for a point
+///    outside it returns an EMPTY advisory list **without throwing**
+///    (`jma_advisory_provider.dart:169-175`). No request is sent.
+///  * The adapter's stated fallback for that case is "the aggregator's other
+///    providers cover points outside the catalog" — which is FALSE under
+///    region-gating: the NWS boxes are disjoint in longitude, so for a
+///    Japanese point JMA is the only provider queried.
+///  * So a Tokyo / Nagoya / Osaka / Naha point produced
+///    `advisories: [], providerErrors: [], sourcesQueried: 1` →
+///    `canAssertNoAdvisory == true` → the POSITIVE all-clear
+///    「この地点に有効な警報・注意報はありません。」 shown to a driver when
+///    nobody had been asked anything.
+///
+/// `canAssertNoAdvisory` cannot catch that: the provider lied by silence —
+/// it counted as asked-and-answered while never asking. The generous-box
+/// trade above assumes a too-wide box costs "one wasted query"; for a
+/// provider that answers empty-without-error it costs a fabricated clear,
+/// which is the one thing this app must never render.
+///
+/// Deriving the predicate from `prefectureCodesForPoint` (the same catalog
+/// the adapter itself consults) makes over-claim structurally impossible:
+/// when the catalog grows, coverage grows with it in the same release, and
+/// the two can never drift apart again. A Japanese point outside the catalog
+/// now renders the honest 「この地点を管轄する対応データ提供元がありません」
+/// line — true, because we genuinely cannot check it.
 bool jmaCoverage(double latitude, double longitude) =>
-    kJmaBox.contains(latitude, longitude);
+    prefectureCodesForPoint(latitude: latitude, longitude: longitude)
+        .isNotEmpty;

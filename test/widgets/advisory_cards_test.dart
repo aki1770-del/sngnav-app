@@ -8,12 +8,17 @@ import 'package:sngnav_app/widgets/advisory_cards.dart';
 void main() {
   Widget wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
 
-  testWidgets('empty result renders honest no-data message', (tester) async {
+  testWidgets('COMPLETE empty result renders honest no-data message',
+      (tester) async {
     await tester.pumpWidget(wrap(AdvisoryCards(
       loading: false,
+      // B04-2 — `sourcesQueried` is what makes this an all-clear rather than
+      // an unknown. Before the gate this test passed WITHOUT it, which is
+      // precisely the defect: it pinned the fabricated clear as correct.
       result: const AdvisoryAggregateResult(
         advisories: [],
         providerErrors: [],
+        sourcesQueried: 1,
       ),
       errorMessage: null,
       onRefresh: () {},
@@ -155,18 +160,25 @@ void main() {
 
   testWidgets(
       'all-clear still renders when the fetch genuinely succeeded clean '
-      '(no provider errors)', (tester) async {
+      '(every source asked, none errored)', (tester) async {
     await tester.pumpWidget(wrap(AdvisoryCards(
       loading: false,
+      // B04-2 — this test's original name was "(no provider errors)", which
+      // was the B04-era belief that an absence of errors is enough to back
+      // the all-clear. It is not: nobody having errored is also true when
+      // nobody was ASKED. The rule is `canAssertNoAdvisory` — asked AND
+      // answered — so the provenance below is load-bearing, not decoration.
       result: const AdvisoryAggregateResult(
         advisories: [],
         providerErrors: [],
+        sourcesQueried: 1,
       ),
       errorMessage: null,
       onRefresh: () {},
     )));
     expect(find.text('No active advisories at this location.'), findsOneWidget);
     expect(find.byKey(const Key('advisory-unknown-degraded')), findsNothing);
+    expect(find.byKey(const Key('advisory-lookup-incomplete')), findsNothing);
   });
 
   testWidgets(
@@ -239,6 +251,109 @@ void main() {
       onRefresh: _noop,
     )));
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
+
+  // ===================================================================
+  // B04-2 — the fabricated-clear gate.
+  //
+  // A total feed outage and a genuinely clear sky arrive at this widget as
+  // the SAME value: an empty `advisories` list. The positive all-clear
+  // ("no advisories are in force") is a CLAIM ABOUT COMPLETENESS, and it
+  // may only render when the lookup was complete —
+  // `AdvisoryAggregateResult.canAssertNoAdvisory` (condition_aggregator
+  // 0.0.8) is the one predicate that answers that, and it is false on all
+  // three incomplete shapes: a provider errored, nobody was asked, or the
+  // result carries no provenance at all.
+  //
+  // Before this gate the widget checked only `providerErrors.isNotEmpty` —
+  // ONE of those three. The other two rendered 「この地点に有効な警報・注意報は
+  // ありません。」 to a driver in unexpected snow when the truth was
+  // "we could not look."
+  // ===================================================================
+  group('fabricated-clear gate — an empty list is not an all-clear', () {
+    testWidgets(
+        'ZERO sources asked (nobody was queried) does NOT render the '
+        'positive all-clear', (tester) async {
+      await tester.pumpWidget(wrap(AdvisoryCards(
+        loading: false,
+        // canAssertNoAdvisory == false: n == 0. No provider ERRORED —
+        // there was no provider to error. Absence of a lookup, not calm.
+        result: const AdvisoryAggregateResult(
+          advisories: [],
+          providerErrors: [],
+          sourcesQueried: 0,
+        ),
+        errorMessage: null,
+        onRefresh: _noop,
+      )));
+      expect(
+        find.text('No active advisories at this location.'),
+        findsNothing,
+        reason: 'zero sources asked is not an all-clear',
+      );
+      expect(
+        find.byKey(const Key('advisory-lookup-incomplete')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+        'UNKNOWN provenance (sourcesQueried absent) does NOT render the '
+        'positive all-clear', (tester) async {
+      await tester.pumpWidget(wrap(AdvisoryCards(
+        loading: false,
+        // canAssertNoAdvisory == false: n == null. We will not claim
+        // completeness on a result that cannot say who answered. This is
+        // the fail-safe backstop — any future result-construction site
+        // that forgets provenance renders honest-unknown, never a
+        // fabricated clear.
+        result: const AdvisoryAggregateResult(
+          advisories: [],
+          providerErrors: [],
+        ),
+        errorMessage: null,
+        onRefresh: _noop,
+      )));
+      expect(
+        find.text('No active advisories at this location.'),
+        findsNothing,
+        reason: 'a result with no provenance cannot back a completeness claim',
+      );
+      expect(
+        find.byKey(const Key('advisory-lookup-incomplete')),
+        findsOneWidget,
+      );
+    });
+
+    // The anti-cry-wolf pin. This test must pass BEFORE and AFTER the gate:
+    // it proves the fix distinguishes "could not look" from "looked and it
+    // is clear" rather than blanket-suppressing the all-clear. An
+    // instrument that can never say "clear" is as useless to HER as one
+    // that always does.
+    testWidgets(
+        'a COMPLETE lookup with no advisories DOES render the all-clear '
+        '(no cry-wolf)', (tester) async {
+      await tester.pumpWidget(wrap(AdvisoryCards(
+        loading: false,
+        // canAssertNoAdvisory == true: every source answered, none errored.
+        // The silence is real and she may be told so.
+        result: const AdvisoryAggregateResult(
+          advisories: [],
+          providerErrors: [],
+          sourcesQueried: 1,
+        ),
+        errorMessage: null,
+        onRefresh: _noop,
+      )));
+      expect(
+        find.text('No active advisories at this location.'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('advisory-lookup-incomplete')),
+        findsNothing,
+      );
+    });
   });
 }
 

@@ -261,6 +261,11 @@ bool _advisoryInForce(Advisory a, DateTime now, DateTime? lastFreshAt) {
     result: AdvisoryAggregateResult(
       advisories: [...fresh.advisories, ...retained],
       providerErrors: fresh.providerErrors,
+      // B04-2 — carry the fresh cycle's provenance through the rebuild.
+      // `canAssertNoAdvisory` is computed from `sourcesQueried`; a rebuild
+      // that drops it destroys the evidence the all-clear gate reads.
+      // Retention changes WHAT was seen, never WHO was asked.
+      sourcesQueried: fresh.sourcesQueried,
     ),
     retained: true,
   );
@@ -307,6 +312,9 @@ AdvisoryAggregateResult? cullExpiredRetainedAdvisories(
   return AdvisoryAggregateResult(
     advisories: kept,
     providerErrors: result.providerErrors,
+    // B04-2 — the cull drops EXPIRED hazards; it does not re-run the
+    // lookup. Who was asked is unchanged, so the provenance rides through.
+    sourcesQueried: result.sourcesQueried,
   );
 }
 
@@ -1760,6 +1768,13 @@ class _HomePageState extends State<HomePage> {
                 message: e.toString(),
               ),
             ],
+            // B04-2 — the throw fired before any provider answered, so ZERO
+            // sources were successfully asked. Stating that honestly makes
+            // `isUnavailable` true (we did not look) rather than leaving the
+            // result to be read as a partial one, and keeps
+            // `canAssertNoAdvisory` false on its own arithmetic instead of
+            // only via the synthetic error entry.
+            sourcesQueried: 0,
           ),
           now,
         );

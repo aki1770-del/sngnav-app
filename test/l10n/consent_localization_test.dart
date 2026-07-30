@@ -372,9 +372,12 @@ void main() {
         const Locale('ja'),
         AdvisoryCards(
           loading: false,
+          // B04-2 — a COMPLETE lookup (every source answered) is the only
+          // shape in which the positive all-clear may render.
           result: const AdvisoryAggregateResult(
             advisories: [],
             providerErrors: [],
+            sourcesQueried: 1,
           ),
           errorMessage: null,
           onRefresh: () {},
@@ -437,9 +440,11 @@ void main() {
         const Locale('en'),
         AdvisoryCards(
           loading: false,
+          // B04-2 — complete lookup; see the ja sibling above.
           result: const AdvisoryAggregateResult(
             advisories: [],
             providerErrors: [],
+            sourcesQueried: 1,
           ),
           errorMessage: null,
           onRefresh: () {},
