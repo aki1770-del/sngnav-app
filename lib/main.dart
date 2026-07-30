@@ -570,6 +570,16 @@ class SngnavApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
         useMaterial3: true,
+        // 1b tofu fix (plan 2026-07-25 §1): HER-facing strings carry a small
+        // symbol set (⚠ ❄ ※ → ° …) the ja system font stack does not
+        // guarantee — measured 2026-07-30: Noto Sans CJK JP lacks U+2744 ❄,
+        // and U+26A0 ⚠ coverage is fallback-dependent (the render-see
+        // harness tofus it). A 15.7 KB bundled subset backstops every
+        // theme-derived TextStyle: system fonts still resolve first, the
+        // fallback only fills their holes, so a warning row can never
+        // render as tofu. Coverage drift-guarded by
+        // test/fonts/symbol_font_coverage_test.dart.
+        fontFamilyFallback: const ['SnGNavSymbols'],
       ),
       // HER reads Japanese. The Global*Localizations delegates localize the
       // Material/Cupertino/Widgets chrome (date pickers, tooltips, semantics)

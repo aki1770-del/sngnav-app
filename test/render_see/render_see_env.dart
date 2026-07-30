@@ -50,6 +50,15 @@ Future<bool> loadCjkFamily(String family, List<String> paths) async {
   return true;
 }
 
+/// Load the app's own bundled symbols-subset font (the APK-shipped bytes at
+/// `assets/fonts/SnGNavSymbols.ttf`) under its REAL family name — the one
+/// `ThemeData.fontFamilyFallback` in main.dart names — so a capture renders
+/// the ⚠/❄-class glyphs from the same bytes HER device ships instead of
+/// tofu. Opt-in per capture suite: existing goldens were cut without it and
+/// stay pixel-stable unless a suite loads it deliberately.
+Future<bool> loadBundledSymbolsFont() =>
+    loadCjkFamily('SnGNavSymbols', ['assets/fonts/SnGNavSymbols.ttf']);
+
 /// Replace the golden comparator with one that SKIPS (pass + honest
 /// note) every comparison. Call ONLY when [loadCjkFamily] returned
 /// false — on the font-bearing dev host the real comparator stays.

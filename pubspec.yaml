@@ -124,3 +124,20 @@ flutter:
     # Source of truth: lib/voice/offline_safety_voice.dart
     # Re-render:      bash tool/render_offline_voice.sh
     - assets/audio/ja/
+    # Font attribution rides in the APK beside the font it licenses
+    # (Bitstream Vera license requires the notice to accompany copies).
+    - assets/fonts/LICENSE-SnGNavSymbols.txt
+  fonts:
+    # SnGNavSymbols — a 14-glyph symbols subset (⚠ ❄ → ※ ° … et al.) cut
+    # from DejaVu Sans and renamed per its license's modification clause
+    # (assets/fonts/LICENSE-SnGNavSymbols.txt). Bundled because the ja
+    # system font stack does NOT guarantee these glyphs (measured
+    # 2026-07-30: Noto Sans CJK JP lacks U+2744 ❄; harness fonts lack
+    # U+26A0 ⚠ — the 1b reach-class tofu defect, plan 2026-07-25 §1).
+    # Wired as app-wide ThemeData.fontFamilyFallback in main.dart; glyph
+    # coverage is drift-guarded by test/fonts/symbol_font_coverage_test.dart
+    # (a new symbol in a lib/ string literal fails the suite until the
+    # subset is re-cut — tool/subset_symbols_font.md documents the re-cut).
+    - family: SnGNavSymbols
+      fonts:
+        - asset: assets/fonts/SnGNavSymbols.ttf
