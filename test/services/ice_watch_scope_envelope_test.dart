@@ -267,14 +267,30 @@ void main() {
         radiativeFrostJudgementDeclined(t: inBand, rhPercent: 25),
         isTrue,
       );
-      // The whole in-band row must decline, at every in-domain humidity.
-      final judged = <int>[
-        for (var rh = 5; rh <= 105; rh++)
-          if (!radiativeFrostJudgementDeclined(t: inBand, rhPercent: rh.toDouble())) rh,
+      // CLASS B — the out-of-domain humidities. Added after the build-track
+      // review (SDE SHOULD, CT MUST): the first version of this pin looped
+      // rh 5..105 only, so it covered the 20 in-domain cells (Class A) and was
+      // BLIND to a second, disjoint class of 98 cells.
+      //
+      // Before the short-circuit, the RH-domain branch returned `!aboveCeiling`
+      // — so an IN-BAND cell whose humidity was null, non-finite, or outside
+      // [5,105] answered "judged" and printed a bare 該当なし: a DOUBLE-BLIND
+      // all-clear, where the ceiling constant was untrustworthy AND there was
+      // no humidity evidence at all. Restoring that form leaves the rh 5..105
+      // loop entirely green, which is why it must be listed explicitly.
+      const humidities = <double?>[
+        null, 0, 4, 4.999, 5, 25, 80, 81, 90, 97, 100, 102, 105, 106, 120,
+      ];
+      final judged = <String>[
+        for (final rh in humidities)
+          if (!radiativeFrostJudgementDeclined(t: inBand, rhPercent: rh))
+            'rh=$rh',
       ];
       expect(judged, isEmpty,
-          reason: 'every in-domain humidity at ${inBand}C must decline; '
-              'these did not: $judged');
+          reason: 'EVERY humidity at ${inBand}C must decline — in-domain '
+              '(the estimate is untrustworthy) and out-of-domain (there is no '
+              'humidity evidence at all, on top of an untrustworthy ceiling). '
+              'These did not: $judged');
     },
   );
 

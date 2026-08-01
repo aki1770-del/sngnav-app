@@ -211,6 +211,20 @@ void main() {
             '`_lost`-latch doctrine forbids. If that change is ever wanted it '
             'must be a deliberate Chair calibration, not a silent regression.',
       );
+      // THE HAPTIC HALF — pinned explicitly (FSE, build-track review).
+      // The commit names the cost as losing "the 14-second sub-zero line AND
+      // its haptic", but the first version of this guard asserted only
+      // `fake.spoken`. Haptic is the EYES-OFF channel: it is what reaches a
+      // driver who cannot look at the screen and cannot hear over road noise,
+      // so leaving it unpinned left the more important half of the named cost
+      // resting on a comment.
+      expect(
+        fake.haptics.where((h) => h == HapticCuePattern.warning),
+        hasLength(1),
+        reason: 'the warning haptic is once-per-entry on the same latch as the '
+            'spoken line; if this reads 2 the envelope has begun re-arming on '
+            'the eyes-off channel.',
+      );
       // And the decline itself stays silent on both channels.
       expect(fake.spoken.where((s) => s.text.contains('判定範囲外')), isEmpty);
     });
