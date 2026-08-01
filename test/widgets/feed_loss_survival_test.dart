@@ -173,6 +173,48 @@ void main() {
               'an all-clear and must not re-arm the warning');
     });
 
+    testWidgets(
+        'the model DECLINING (outsideModelEnvelope) does NOT re-nag on return '
+        'to sub-zero — the accepted cost, pinned', (tester) async {
+      // ADDED 2026-08-01 (build-track review, AAE): the two announce-path costs
+      // accepted when `outsideModelEnvelope` shipped were pinned only by a
+      // COMMENT in main.dart. A comment is not a loom. This is the sibling of
+      // the outOfScope case above, for the new value.
+      final fake = FakeAlertActuators();
+      JmaResult next = JmaSuccess(subZeroObs());
+      await tester.pumpWidget(SngnavApp(
+        actuators: fake,
+        locale: const Locale('ja'),
+        clock: () => _clockAt(const Duration(minutes: 5)),
+        jmaFetch: () async => next,
+      ));
+      await tester.pump();
+      await tester.pump();
+      expect(fake.spoken.where((s) => s.text == kSubZeroFrozenSpokenJa).length,
+          1);
+
+      // Warms to +0.5 °C at 98 % RH with precipitation measured at 0: every
+      // field present and in range, and the shared classifier still DECLINES
+      // (estimate +0.22 °C — cal:112-115's documented non-coverage band). Then
+      // it re-freezes.
+      next = JmaSuccess(_obs(temp: 0.5, humidity: 98, precip10m: 0));
+      await _refetch(tester, fromSuccess: true);
+      next = JmaSuccess(subZeroObs());
+      await _refetch(tester, fromSuccess: true);
+
+      expect(
+        fake.spoken.where((s) => s.text == kSubZeroFrozenSpokenJa),
+        hasLength(1),
+        reason: 'THIS IS THE ACCEPTED COST, NOT A BUG — a non-judgement is not '
+            'an all-clear, so it must not re-arm. If this ever reads 2, the '
+            'latch has been made to re-arm on absence of evidence, which the '
+            '`_lost`-latch doctrine forbids. If that change is ever wanted it '
+            'must be a deliberate Chair calibration, not a silent regression.',
+      );
+      // And the decline itself stays silent on both channels.
+      expect(fake.spoken.where((s) => s.text.contains('判定範囲外')), isEmpty);
+    });
+
     testWidgets('a genuine warm-up to CLEAR then re-freeze DOES re-warn',
         (tester) async {
       final fake = FakeAlertActuators();

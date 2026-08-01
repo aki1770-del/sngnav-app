@@ -238,6 +238,47 @@ void main() {
   });
 
   test(
+    'IN-BAND SIGN PIN (permanent, must stay GREEN) — inside the band, a cell '
+    'declines regardless of the estimate\'s sign',
+    () {
+      // ADDED 2026-08-01 (build-track review, SDE MUST). The in-band branch
+      // originally abstained only when the estimate was <= 0, which left 20
+      // reachable cells at 3.1 C / RH 81-100 printing a bare 該当なし with the
+      // estimate ABOVE freezing — cal:112-115's non-coverage band verbatim.
+      // That was fixed, and the fix SHIPPED WITHOUT A GUARD: reverting the
+      // branch to `dew <= 0` restored all 20 cells with the suite still GREEN.
+      // Third instance in this file's history of a fix arriving without its
+      // loom; this closes it.
+      const inBand = radiativeFrostAmbientCeilingCelsius +
+          kGuardJmaTemperatureStepCelsius; // 3.1 C, the top of the band
+      // Estimate ABOVE freezing here (saturated air): the sign-dependent form
+      // returned "judged" and printed 該当なし. It must decline.
+      expect(
+        radiativeFrostJudgementDeclined(t: inBand, rhPercent: 90),
+        isTrue,
+        reason: 'In the ceiling band with the estimate ABOVE freezing, BOTH '
+            'in-band reasons are declines: the constant ended the warning, AND '
+            'this is the documented non-coverage band. If this is false, the '
+            'in-band branch has been made sign-dependent again and the '
+            'fabricated-clear is back inside its own countermeasure.',
+      );
+      // And below freezing in the same band — the other in-band reason.
+      expect(
+        radiativeFrostJudgementDeclined(t: inBand, rhPercent: 25),
+        isTrue,
+      );
+      // The whole in-band row must decline, at every in-domain humidity.
+      final judged = <int>[
+        for (var rh = 5; rh <= 105; rh++)
+          if (!radiativeFrostJudgementDeclined(t: inBand, rhPercent: rh.toDouble())) rh,
+      ];
+      expect(judged, isEmpty,
+          reason: 'every in-domain humidity at ${inBand}C must decline; '
+              'these did not: $judged');
+    },
+  );
+
+  test(
     'BAND WIDTH PIN (permanent, must stay GREEN) — production must not widen '
     'the declined band beyond one feed step',
     () {
