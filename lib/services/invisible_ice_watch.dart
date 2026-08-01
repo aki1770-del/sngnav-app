@@ -33,6 +33,13 @@ library;
 import 'package:driving_conditions/driving_conditions.dart'
     show RoadSurfaceState;
 import 'package:driving_weather/driving_weather.dart';
+// The coverage boundary is CALLED, never re-derived — the calibration package
+// forbids a second copy of this threshold logic by name (cal:123-129).
+import 'package:navigation_safety_calibration/navigation_safety_calibration.dart'
+    show
+        computeEffectiveTemperatureCelsius,
+        radiativeFrostAmbientCeilingCelsius,
+        radiativeFrostSurfaceTempCelsius;
 
 import '../jma_fetch.dart';
 
@@ -46,7 +53,13 @@ enum InvisibleIceWatchResult {
   /// This is a MEASURED negative: every required field was reported, the
   /// conditions were inside this watch's scope, and the shared classifier
   /// determined the radiative-frost window is absent. Only this value may
-  /// ever be rendered as 該当なし.
+  /// ever be rendered as a bare 該当なし.
+  ///
+  /// AMENDED 2026-08-01: cells the classifier DECLINED to judge — and the
+  /// one-feed-step band above its ambient ceiling — now return
+  /// [outsideModelEnvelope] instead of landing here. Until then they were
+  /// `clear`, which made the sentence above false in ~36 measured cells: the
+  /// value was rendered as 該当なし on readings that were never judged.
   clear,
 
   /// The measured conditions are OUTSIDE this watch's scope, so it renders
@@ -64,6 +77,41 @@ enum InvisibleIceWatchResult {
   /// calibration ruling ("sub-zero warning yes do address it") it now returns
   /// [subZeroFrozen] and warns. See that value.
   outOfScope,
+
+  /// The shared classifier did not JUDGE these measured conditions, so this
+  /// watch renders no verdict about them — neither hazard nor safety.
+  ///
+  /// DISTINCT from [outOfScope]. [outOfScope] is an APP-POLICY exclusion (we
+  /// hand a wet or snowy road to the visible-hazard lanes). This value says
+  /// something narrower and harder: every field was measured and in range, the
+  /// conditions were inside the app's scope, and the MODEL still produced no
+  /// judgement. See [radiativeFrostJudgementDeclined] for the three paths and
+  /// their citations.
+  ///
+  /// WHY IT IS NOT [clear]: `clear`'s own dartdoc reserves that value for a
+  /// MEASURED negative — "the conditions were inside this watch's scope, and
+  /// the shared classifier determined the radiative-frost window is absent."
+  /// `isRadiativeFrostBlackIce` returns a bare `bool`, so a DECLINE and a
+  /// JUDGED-ABSENT collapse into the same `false`; until this value existed the
+  /// app rendered both as 該当なし. That is the fabricated-clear failure class
+  /// this project has corrected three times (Andon 2026-07-20T13:40Z).
+  ///
+  /// WHY IT IS NOT SPOKEN: it is the ABSENCE of a judgement, not a hazard. It
+  /// must not enter `iceFired` (main.dart:2016-2017). Reached only when every
+  /// field was measured and in range, it is nonetheless CORRELATED with the
+  /// hazard (saturated air, 0–3 °C), unlike [unknown]/[outOfScope] which are
+  /// reachable year-round — so silence here uniquely licenses the false
+  /// inference "measured, and it's fine". That is why the ROW must say
+  /// something even though the VOICE does not.
+  ///
+  /// DOES NOT RE-ARM the announce latch (main.dart:2028-2032). Like
+  /// [outOfScope] and [unknown], and unlike [clear], it is not an all-clear
+  /// EXIT. Named cost, recorded rather than hidden: a same-verdict re-entry
+  /// (`watch → outsideModelEnvelope → watch`) is not re-announced, and that is
+  /// exactly the radiative-frost morning. A first warning still fires — the
+  /// gate is `iceFired && iceResult != _lastAnnouncedIceResult`, so
+  /// `watch → outsideModelEnvelope → subZeroFrozen` DOES announce.
+  outsideModelEnvelope,
 
   /// Sub-zero ambient, no precipitation: the road surface is very likely
   /// frozen and the driver cannot judge it by eye.
@@ -121,6 +169,119 @@ const String kSubZeroFrozenSpokenJa =
     '気温が0°C以下です。橋の上やトンネルの出口では、路面が凍結している可能性があります。'
     '速度を落とし、急ブレーキ・急ハンドルは避けてください。';
 
+/// The JMA AMeDAS temperature reporting step, °C.
+///
+/// A property of the FEED, not of the calibration — so it lives here, beside
+/// the fetch path that relays it. It bounds the ceiling band in
+/// [radiativeFrostJudgementDeclined]: two readings one step apart are the
+/// finest distinction this feed can express, and the row may not flip from a
+/// hazard warning to an affirmative 該当なし across it.
+const double kJmaTemperatureStepCelsius = 0.1;
+
+/// Did the shared radiative-frost classifier DECLINE to judge this reading,
+/// rather than judge it and find no frost?
+///
+/// `isRadiativeFrostBlackIce` returns a bare `bool`, so structurally different
+/// `false`s collapse into one value (navigation_safety_calibration 0.1.3,
+/// `humidity_dependent_temperature.dart`, cited below as cal:NNN):
+///
+///  * cal:163 — RH null / non-finite / outside `[5, 105]`: the input is
+///    REJECTED and the model never looks. The package calls sub-5 % RH
+///    "almost certainly a mis-wired FRACTION" (cal:146-151). DECLINE.
+///  * cal:158 — a non-finite ambient is likewise a rejected input. DECLINE.
+///  * cal:174 — the effective surface estimate is ABOVE 0 °C: the documented
+///    non-coverage band — verbatim, "near-zero SATURATED FREEZING FOG above
+///    ~ +1 °C (dew point >= 0) is therefore NOT detected by this model — a
+///    genuine hazard this function does not cover" (cal:112-115). DECLINE.
+///  * cal:159 — ambient above [radiativeFrostAmbientCeilingCelsius]: a
+///    DETERMINATION, not a decline. cal:88-90 gives it an affirmative reason
+///    ("keeps the classification inside the physics the calibration
+///    documents", naming the 20 °C / 25 % RH false positive it prevents), and
+///    cal:135-153's list of EVERY rejected input class does not contain it.
+///    A bare 該当なし above the ceiling is EARNED — with ONE bounded exception.
+///
+/// THE CEILING BAND. Exactly at the ceiling the determination is the constant,
+/// not the evidence. Measured 2026-08-01: at 3.0 °C / 30 % RH the model's own
+/// estimate is −12.914 °C and the row WARNS; at the NEXT REPRESENTABLE DOUBLE
+/// the estimate is unchanged to 15 significant figures
+/// (−12.914063344967174 → −12.914063344967172; Δ 1.8e-15 °C — nothing physical
+/// changed) and the row printed an affirmative 該当なし. That flip spans 76 of
+/// the 96 in-domain humidities; worst cell
+/// 3.1 °C / 5 % RH with the estimate at −33.05 °C. So: within
+/// [kJmaTemperatureStepCelsius] of the ceiling, where the feed cannot express a
+/// finer distinction, we say we did not judge — REGARDLESS of the estimate's
+/// sign, because both in-band reasons are declines (see the in-band branch).
+///
+/// An earlier draft abstained in-band only when the estimate was at or below
+/// freezing. That left 20 cells at 3.1 °C / RH 81–100 % printing a bare 該当なし
+/// with the estimate ABOVE freezing — the non-coverage band cal:112-115 names
+/// verbatim. The fabricated-clear survived inside its own countermeasure until
+/// the 2026-08-01 review caught it.
+///
+/// The band is ONE step wide DELIBERATELY. Unbounded ("estimate <= 0 above the
+/// ceiling") covers ~95,000 measured cells including 20 °C / 25 % RH — the
+/// exact cry-wolf the ceiling exists to prevent, re-imported through the back
+/// door; the estimate stays <= 0 up to 17.81 °C at 30 % RH. Banded: ~760.
+///
+/// HONEST BOUND: this removes the warning→all-clear ADJACENCY. It does not
+/// certify the +3.0 °C ceiling, whose only provenance is the package's own
+/// prose. The residual non-claim→claim step one rung higher (3.1 → 3.2) is
+/// recorded, not fixed; the durable repair is a tri-state upstream so the
+/// classifier can say "I declined" instead of returning a bare `bool`.
+///
+/// Total and non-throwing on every input, like the classifier it mirrors.
+bool radiativeFrostJudgementDeclined({
+  required double t,
+  required double? rhPercent,
+}) {
+  if (!t.isFinite) return true; // cal:158 — REJECTED input
+  if (t <= 0) return false; // sub-zero never reaches the above-zero branch
+
+  final aboveCeiling = t > radiativeFrostAmbientCeilingCelsius;
+  if (aboveCeiling &&
+      t > radiativeFrostAmbientCeilingCelsius + kJmaTemperatureStepCelsius) {
+    return false; // cal:159 — DETERMINATION, clear of the band
+  }
+
+  // IN THE BAND: every cell is a decline, regardless of the estimate's sign.
+  //
+  // CORRECTED 2026-08-01 (review MUST-5/MUST-8, both CONFIRMED under
+  // adversarial refutation). This branch previously abstained only when
+  // `dew <= 0`, which left 20 cells at t = 3.1 °C / RH 81–100 % printing a bare
+  // 該当なし while the model's own estimate was ABOVE freezing (+0.155 …
+  // +3.10 °C) — i.e. inside cal:112-115's documented non-coverage band,
+  // verbatim "a genuine hazard this function does not cover". Those cells had
+  // TWO independent decline reasons and the code honoured neither: the
+  // fabricated-clear this whole change exists to end, surviving inside its own
+  // countermeasure, one JMA step from cells that correctly abstain.
+  //
+  // Both in-band reasons are declines and neither is a determination:
+  //   dew <= 0 — the CONSTANT, not the evidence, ended the warning;
+  //   dew  > 0 — cal:112-115's non-coverage band.
+  // The band is one feed step wide, so this abstains over at most 0.1 °C.
+  if (aboveCeiling) return true;
+
+  // At or below the ceiling from here.
+  final rh = rhPercent;
+  if (rh == null || !rh.isFinite || rh < 5.0 || rh > 105.0) {
+    return true; // cal:163 — REJECTED input, the model never looked
+  }
+
+  // cal:165 — the >100 clamp. NOT optional: the primitive THROWS on any
+  // humidityRH > 1.0 (cal:65-71), so omitting this line CRASHES across
+  // (100, 105], it does not merely disagree.
+  final fraction = rh > 100.0 ? 1.0 : rh / 100.0;
+  final dew = computeEffectiveTemperatureCelsius(
+    ambientCelsius: t,
+    humidityRH: fraction,
+  );
+
+  // At/below the ceiling: cal:174 fires on `<= 0`, so the non-fire complement
+  // is `>` — the documented non-coverage band (cal:112-115). The in-band case
+  // returned above, so `aboveCeiling` is necessarily false here.
+  return dew > radiativeFrostSurfaceTempCelsius;
+}
+
 /// Evaluate the invisible-ice window from a verbatim JMA observation.
 InvisibleIceWatchResult evaluateInvisibleIceWatch(JmaObservation obs) {
   final temp = obs.temperatureCelsius;
@@ -177,9 +338,22 @@ InvisibleIceWatchResult evaluateInvisibleIceWatch(JmaObservation obs) {
     humidityRH: humidity.toDouble(),
     timestamp: obs.fetchedAt,
   ));
-  return surface == RoadSurfaceState.blackIce
-      ? InvisibleIceWatchResult.watch
-      : InvisibleIceWatchResult.clear;
+  if (surface == RoadSurfaceState.blackIce) {
+    return InvisibleIceWatchResult.watch;
+  }
+
+  // NOT blackIce — but that is a bare `bool` false, and three of the paths that
+  // produce it are DECLINES, not determinations. `clear` is a MEASURED negative
+  // and its own dartdoc reserves it for a cell the classifier actually JUDGED,
+  // so say we did not judge rather than print 該当なし on a road the model
+  // never assessed.
+  if (radiativeFrostJudgementDeclined(
+    t: temp,
+    rhPercent: humidity.toDouble(),
+  )) {
+    return InvisibleIceWatchResult.outsideModelEnvelope;
+  }
+  return InvisibleIceWatchResult.clear;
 }
 
 /// Honest stale-framed black-ice line (W0 detection-survival). App-authored;

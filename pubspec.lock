@@ -542,7 +542,7 @@ packages:
     source: hosted
     version: "0.9.5"
   navigation_safety_calibration:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: navigation_safety_calibration
       sha256: "8a214f0992e1378b660bc17fece8704a474909cbf718923a25d48baed672d5ac"

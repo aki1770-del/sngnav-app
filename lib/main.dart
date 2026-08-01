@@ -2025,6 +2025,37 @@ class _HomePageState extends State<HomePage> {
       // sub-zero — cry-wolf on the live feed, breaking the once-per-entry
       // discipline. (impl-review SHOULD, 2026-07-23.) Dead-zone re-arm is
       // handled separately in the feed-loss cases below.
+      // `outsideModelEnvelope` (2026-08-01) falls through BOTH branches and is
+      // therefore STICKY. That is a DECISION, not an omission — recorded here so
+      // the next reader does not "fix" it into a re-arm:
+      //   * Doctrine: only positive evidence clears a safety latch. The
+      //     `_lost` latch states it outright — "The ONLY way to clear it is a
+      //     trusted fix" — and holds even for a QUALIFIED positive ("an
+      //     imprecise, beyond-horizon trusted fix is adopted as the baseline
+      //     but we remain honestly `lost`"). A non-judgement is not evidence.
+      //   * A first warning still fires. The gate below is
+      //     `iceFired && iceResult != _lastAnnouncedIceResult`, so an armed
+      //     latch announces a genuine hazard, and
+      //     `watch → outsideModelEnvelope → subZeroFrozen` DOES announce.
+      //   * NAMED COST, not hidden — TWO sequences, both measured through this
+      //     latch (review 2026-08-01, both CONFIRMED under refutation):
+      //       `watch → outsideModelEnvelope → watch` is NOT re-announced, and
+      //       that is exactly the radiative-frost morning; and
+      //       `subZeroFrozen → outsideModelEnvelope → subZeroFrozen` loses the
+      //       14-second sub-zero spoken line AND its haptic across a 0 °C
+      //       oscillation into saturated air (measured: subZero=1 with the
+      //       envelope between, subZero=2 with `clear` between).
+      //     Accepted because the alternative re-speaks the black-ice line on
+      //     0.1 °C feed jitter — the cry-wolf the 2026-07-23 calibration ruling
+      //     exists to prevent. A time-bounded re-arm was considered and
+      //     rejected as a periodic nag that reconstructs that cry-wolf.
+      //   * Benefit and cost are ONE mechanism, and it is stronger than
+      //     "narrowing". Measured over the whole above-zero sub-ceiling domain
+      //     (0.1–3.0 °C × 5–100 % RH, 2880 cells): watch 2554,
+      //     outsideModelEnvelope 326, `clear` ZERO. Below the 3.0 °C ceiling
+      //     `clear` is now UNREACHABLE, so this does not narrow the live
+      //     re-arm path in that range — it ELIMINATES it (326 → 0). An earlier
+      //     version of this comment said "narrows"; that understated it.
       if (iceFired) {
         _lastAnnouncedIceResult = iceResult;
       } else if (iceResult == InvisibleIceWatchResult.clear) {
@@ -3159,6 +3190,15 @@ class _HomePageState extends State<HomePage> {
                 InvisibleIceWatchResult.watch =>
                   '⚠ ブラックアイスバーンのおそれ（放射冷却の窓）',
                 InvisibleIceWatchResult.clear => '該当なし',
+                // The classifier DECLINED to judge this reading — every field
+                // was measured and in range, and it still produced no verdict.
+                // Deliberately distinguishable from `outOfScope`'s
+                // 「本ウォッチの対象外」: that says another lane owns these
+                // conditions, which is false here — no lane covers it (the app
+                // has no fog concept at all). Not spoken: it is the absence of
+                // a judgement, not a hazard (see the enum's dartdoc).
+                InvisibleIceWatchResult.outsideModelEnvelope =>
+                  '判定範囲外（この気象条件は判定していません）',
                 // Sub-zero ambient, no precip: expected-frozen regime. Distinct,
                 // possibility-graded, NOT the surprise wording (Chair
                 // calibration 2026-07-23; Andon 2026-07-20T13:40Z).
