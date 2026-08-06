@@ -69,13 +69,15 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   'alert_wet_novice_urban':
       '濡れた路面、危険。スピードを落としてください',
   // The VALUE is the emitter's exact string (the lookup key assetFor matches).
-  // AlertExplainer(wet, professional) in navigation_safety_core returns the
-  // terse 「濡路、注意」— which open_jtalk cannot read (濡路 is not a dictionary
-  // word → SILENCE). We cannot change that string here (it lives in the
-  // published package), so the KEY stays verbatim for the match while the WAV
-  // is rendered from the readable equivalent below (kOfflineSafetyVoiceRenderJa).
+  // Until navigation_safety_core 0.11.3 this read 「濡路、注意」, which open_jtalk
+  // cannot pronounce (濡路 is not a dictionary word → SILENCE), so the WAV was
+  // rendered from a readable sibling via kOfflineSafetyVoiceRenderJa while the
+  // KEY stayed verbatim to keep the lookup matching. 0.11.3 fixed it upstream:
+  // AlertExplainer(wet, professional) now emits the readable form itself, so
+  // the key moves here to match the emitter and the override is retired. The
+  // WAV bytes are unchanged — they were always synthesised from this phrase.
   'alert_wet_professional':
-      '濡路、注意',
+      '濡れた路面、注意',
   'alert_wet_agricultural_forestry':
       '濡れた路面、未舗装路では泥濘に注意',
   'alert_snow_ageing_rural':
@@ -173,21 +175,24 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
 /// when the catalog VALUE (the emitter's exact string, kept verbatim so the
 /// lookup matches) is not voiceable by open_jtalk.
 ///
-/// The only entry: `alert_wet_professional`. Its catalog value 「濡路、注意」 is
-/// what AlertExplainer(wet, professional) passes to speak() — but 濡路 is not an
-/// open_jtalk dictionary word and renders to SILENCE, so a professional-profile
-/// driver would hear only 「チューイ」 with no hazard named. We render the WAV from
-/// the readable, semantically-identical sibling form 「濡れた路面、注意」 (the same
-/// phrase the other four wet profiles already use) so HER actually hears the
-/// hazard. The KEY is unchanged, so the runtime lookup and the no-invented-
-/// phrases contract both stay intact; only the bytes she hears change.
+/// EMPTY, and that is the goal state: no phrase the app can emit currently
+/// needs one. The seam stays because the next unvoiceable term will need it.
 ///
-/// The DURABLE fix is upstream: navigation_safety_core alert_explainer.dart:208
-/// should emit 「濡れた路面、注意」 too — then this override can be deleted. Until
-/// that package ships + the app bumps to it, this keeps the mouth honest.
-const Map<String, String> kOfflineSafetyVoiceRenderJa = <String, String>{
-  'alert_wet_professional': '濡れた路面、注意',
-};
+/// It held exactly one entry, `alert_wet_professional`, from the day the
+/// catalog value was AlertExplainer(wet, professional)'s 「濡路、注意」 — a string
+/// open_jtalk renders as SILENCE, leaving a professional-profile driver hearing
+/// 「チューイ」 with no hazard named at all. The WAV was rendered from the readable
+/// sibling 「濡れた路面、注意」 while the KEY stayed verbatim so the lookup matched.
+///
+/// navigation_safety_core 0.11.3 made the DURABLE fix upstream — the emitter now
+/// sends the readable form — so the catalog key moved to match it and this
+/// override retired. Note the coupling, because it is a trap: bumping the
+/// package WITHOUT moving the key silences that driver offline. The reverse
+/// index below is built from catalog VALUES, so an emitter string the catalog
+/// no longer holds finds no asset and falls through to a TTS that is not there.
+/// Three guards catch it (no-invented-phrases, no-dead-weight, runtime
+/// coverage); they were red on the bare bump before the key moved.
+const Map<String, String> kOfflineSafetyVoiceRenderJa = <String, String>{};
 
 /// The text the bundled WAV for [id] is synthesised from — the render override
 /// when present, else the catalog value.

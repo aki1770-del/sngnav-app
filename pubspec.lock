@@ -553,10 +553,10 @@ packages:
     dependency: "direct main"
     description:
       name: navigation_safety_core
-      sha256: "5881505a9d935da652edd9870cd00a4e07a3b043397bce41a0536f5f012e6495"
+      sha256: f2c76564e175084f05df8a42a8b3d226a7e651bd13dee53752a5d07bf00c38be
       url: "https://pub.dev"
     source: hosted
-    version: "0.11.2"
+    version: "0.11.3"
   navigation_safety_enums:
     dependency: "direct main"
     description:
@@ -790,10 +790,10 @@ packages:
     dependency: "direct main"
     description:
       name: snow_rendering
-      sha256: "8ae8f854078f22f1d1ec627b937409a9584fedb2e42c4c46e14461093dbda018"
+      sha256: e943ed0ea4def3ad535fb14621f2b166929f805b20f89dbc9b385f80f15c755c
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.8"
+    version: "0.2.9"
   source_span:
     dependency: transitive
     description:
