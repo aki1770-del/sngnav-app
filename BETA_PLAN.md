@@ -1,4 +1,9 @@
-# BETA_PLAN v2 — alpha → beta in one month (target gate: 2026-08-05)
+# BETA_PLAN v2 — alpha → beta in one month (target gate: 2026-08-05 — **FELL, 0 of 6**)
+
+> **Status as of 2026-08-06: this plan's gate passed unmet.** See "GATE OUTCOME
+> 2026-08-05" below before reading anything here as current. The dates below
+> are the plan as written, not the state of the app; the owed rescope is the
+> Chair's, and per the plan's own rule the date is never quietly moved.
 
 **Chair directive (2026-07-08, verbatim)**: *"Turn alpha SNGNav app into beta one … find better way to find better way to find better way to achieve it in a month"* — §12 triple-recursive priority-finding.
 **v2 (2026-07-09)**: Chair-directed self-review of the method (*"find some improvement point of view … go ahead and improve"*). Nine weaknesses found in v1; every one is fixed in the structure below. v1's level-3/level-2 derivation stands (beta = HER drive-loop verified on real hardware through a real channel); what changed is HOW the month runs.
@@ -21,7 +26,7 @@ plausible path by the mid-month checkpoint triggers the rescope rule below.
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
 | C1 | Drive-loop device-verified: HEAR (ja voice) + FEEL (haptic) + SEE (GPS dot, alert) on a physical phone (OPS-066) | ⬜ | — |
-| C2 | Offline survival: map + alerts through airplane-mode mid-drive, device-verified | 🟡 PARTIAL | `test/dead_zone/c2_offline_survival_test.dart`. MAP: real (bundled Akita MBTiles, airplane-mode pass 2026-07-10). MOUTH: RED-2 **closed** — all **37/37** safety-class lines the app can EMIT at runtime have bundled bytes (no TTS, no network), proven in the built APK (`unzip -l … \| grep audio/ja` → 37). MEMORY: **RED-1 STILL RED, deliberately** — the app models observation AGE and has no concept of forecast VALIDITY, so at T+90 nothing valid reaches her. Device-verified: **NO**. |
+| C2 | Offline survival: map + alerts through airplane-mode mid-drive, device-verified | 🟡 PARTIAL | `test/dead_zone/c2_offline_survival_test.dart`. MAP: real (bundled Akita MBTiles, airplane-mode pass 2026-07-10). MOUTH: RED-2 **closed** — all safety-class lines the app can EMIT at runtime have bundled bytes (no TTS, no network). **Re-measured 2026-08-06: 39/39 covered, 0 dead** (`flutter test test/voice/runtime_voice_coverage_test.dart`); the "37/37" this row carried was the 2026-07-12 figure and had drifted as the 荒天ウォッチ lines landed. Bytes in the APK ≠ audible: **nobody has heard any of them** (C1). MEMORY: **RED-1 STILL RED, deliberately** — the app models observation AGE and has no concept of forecast VALIDITY, so at T+90 nothing valid reaches her. Device-verified: **NO**. |
 | C3 | Real channel: release-signed build on Play internal testing; ≥1 tester installed via the track | ⬜ | — |
 | C4 | Train wired: JMA humidity → invisible-ice watch live; pins current | 🟡 PARTIAL | commit `67e1eb8` (watch + verbatim announcement + honest-unknown row; APK builds). **CORRECTION 2026-07-12**: the words "ja announcements spoken" were FALSE and are struck. **NOBODY HAS EVER HEARD THIS APP SPEAK.** The one "confirmed" TTS run was an API-30 emulator with `-no-audio`, binding a **server** (network) voice — the exact channel that is silent offline. The wiring is verified; the SPEAKING is not. On-device HEAR → C1. |
 | C5 | ja floor on every HER-facing surface + OPS-059 accessibility floor | ⬜ | consent + advisories + watch row done; chrome audit owed |
@@ -277,6 +282,39 @@ accounts). A beta tester sends feedback the way she sends a photo.
   core 0.11 line; suite run at BOTH bounds 12/12; committed SNGNav `581e990`;
   panel READY-TO-REPUBLISH zero MUST) —
   `PUBLISH=1 bash /home/komada/SNGNav/scripts/publish-from-target-dart.sh /home/komada/SNGNav/packages/nav2_safety_layer`
+
+## GATE OUTCOME 2026-08-05 — THE GATE FELL AT 0 OF 6
+
+**Recorded 2026-08-06, the day after, by the document audit rather than by the
+gate protocol — which is itself the finding.** The W4 gate date passed with
+every W4 box unchecked. Measured against the scoreboard above, counting
+criteria with EVIDENCE only per the checkpoint rule:
+
+| | C1 | C2 | C3 | C4 | C5 | C6 |
+|---|---|---|---|---|---|---|
+| status | ⬜ | 🟡 | ⬜ | 🟡 | ⬜ | ⬜ |
+
+**0 of 6 met.** No physical device has run the drive-loop (C1); no
+distribution channel exists and no tester has installed anything (C3). There
+is **no beta program in progress** — a fact the repo's own GitHub description
+still contradicts, which is a Chair decision, not a file edit.
+
+Two failures of the plan's own machinery, recorded rather than smoothed:
+
+1. **The rescope rule did not fire.** It reads: fewer than 4 of 6 → *"RESCOPE
+   with the Chair same-day: shrink the beta definition HONESTLY … or move the
+   date; never relabel."* At 0 of 6 it was owed on 2026-08-05 and is still
+   owed. This document must not be re-dated in its place.
+2. **The weekly gate protocol stopped.** Gate history below has no entry after
+   2026-07-12 — the mid-month checkpoint of 2026-07-22 and the weekly gates of
+   07-25, 08-01 are all unrecorded. A scoreboard nobody re-reads on cadence
+   decays into exactly the "story the pen tells itself" that fix #7 was
+   written against.
+
+The honest reading is that the drive-loop never reached hardware, so the
+August scope — a real device through a real channel — was never approachable
+on this timeline. The ice mission at first snow (~2026-11) is untouched by
+this and remains the load-bearing date.
 
 ## Gate history
 - 2026-07-09 (ladder return): W1 emulator item CLOSED as API-30-full +
