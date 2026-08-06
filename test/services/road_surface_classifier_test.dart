@@ -1,3 +1,14 @@
+// NOTE (2026-08-06, snow_rendering 0.3.0 recall): the no-precipitation
+// conditions in this file previously carried NO humidity. That made them
+// fabricated readings, and they classified as `dry` — which is precisely the
+// recall defect ("no data -> dry -> gripFactor 1.0 -> Conditions normal").
+// These tests are about the HYSTERESIS FILTER, not about absence, so each such
+// condition now carries a measured `humidityRH` and the `dry` verdicts below
+// are EARNED rather than defaulted. The absence behaviour is pinned separately
+// and deliberately in `road_surface_absence_exposure_test.dart`.
+//
+// `classify` now returns `RoadSurfaceState?` — `null` means "cannot judge".
+
 import 'package:driving_conditions/driving_conditions.dart'
     show HysteresisFilter, RoadSurfaceState;
 import 'package:driving_weather/driving_weather.dart'
@@ -17,6 +28,7 @@ void main() {
         temperatureCelsius: 5.0,
         visibilityMeters: 10000.0,
         windSpeedKmh: 0.0,
+        humidityRH: 40.0,
         timestamp: ts,
       );
       expect(classifier.current, isNull);
@@ -38,6 +50,7 @@ void main() {
         temperatureCelsius: 5.0,
         visibilityMeters: 10000.0,
         windSpeedKmh: 0.0,
+        humidityRH: 40.0,
         timestamp: ts,
       );
       final wet = WeatherCondition(
@@ -46,6 +59,7 @@ void main() {
         temperatureCelsius: 5.0,
         visibilityMeters: 5000.0,
         windSpeedKmh: 5.0,
+        humidityRH: 80.0,
         timestamp: ts,
       );
 
@@ -79,6 +93,7 @@ void main() {
         temperatureCelsius: 5.0,
         visibilityMeters: 10000.0,
         windSpeedKmh: 0.0,
+        humidityRH: 40.0,
         timestamp: ts,
       );
       classifier.classify(dry);

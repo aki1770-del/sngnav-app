@@ -84,7 +84,12 @@ class ScenarioFrame {
   final WeatherCondition weather;
 
   /// Debounced surface state from `RoadSurfaceClassifier`.
-  final RoadSurfaceState surfaceState;
+  ///
+  /// `null` means the classifier ABSTAINED — the reading could not support a
+  /// determination. It is never `dry`, and it is not an alarm. See the
+  /// snow_rendering 0.3.0 recall note on [RoadSurfaceClassifier.classify]: a
+  /// surface a driver is told is fine must be one the model actually judged.
+  final RoadSurfaceState? surfaceState;
 
   /// Per-segment route forecast at this frame.
   final RouteForecast forecast;
@@ -148,7 +153,31 @@ class NagoyaUnexpectedSnowScenario {
     final ts = departedAt.add(elapsed);
     final mins = elapsed.inMinutes;
     if (mins < 60) {
-      return WeatherCondition.clear(timestamp: ts);
+      // An explicitly MEASURED clear morning — not `WeatherCondition.clear()`.
+      //
+      // That constructor is the snow_rendering 0.3.0 recall's named fabrication
+      // vector: driving_weather 0.4.5 hardcodes temperatureCelsius = 5.0,
+      // visibilityMeters = 10000, windSpeedKmh = 0, iceRisk = false and
+      // humidityRH = null, so NOTHING in it is a measurement — yet it
+      // classified as `dry`, gripFactor 1.0, "Conditions normal". A demo that
+      // narrates an all-clear off fabricated fields teaches the exact lesson
+      // this app exists to unteach. driving_weather 0.5.0 REMOVED the
+      // constructor for that reason, so this is also the forward-compatible
+      // shape.
+      //
+      // These are plausible readings for a clear February morning near Nagoya,
+      // and crucially they include humidity — so the radiative-frost check can
+      // actually run and the resulting `dry` is EARNED, not defaulted.
+      return WeatherCondition(
+        precipType: PrecipitationType.none,
+        intensity: PrecipitationIntensity.none,
+        temperatureCelsius: 5.0,
+        visibilityMeters: 10000.0,
+        windSpeedKmh: 0.0,
+        humidityRH: 45.0,
+        iceRisk: false,
+        timestamp: ts,
+      );
     }
     if (mins < 75) {
       return WeatherCondition(

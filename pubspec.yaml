@@ -36,6 +36,51 @@ dependencies:
   # "reaches HER" claim (docs/on_device_verify_checklist.md).
   routing_engine: ^0.5.0
   fleet_hazard: ^0.5.0
+  # ⚠ PINNED BELOW ITS OWN SAFETY RECALL — BLOCKED CATALOG-SIDE, NOT BY CHOICE.
+  #
+  # snow_rendering 0.3.0 (published 2026-07-26) is a SAFETY RECALL. Verbatim
+  # from its CHANGELOG: "Up to and including 0.2.7, this package told drivers
+  # 'Conditions normal' about roads it had no data for." The chain was
+  #   no data -> RoadSurfaceState.dry -> gripFactor 1.0 (MAXIMUM GRIP)
+  #           -> RecommendedResponse.proceed -> "Conditions normal".
+  # 0.3.0 fixes it in the type system: fromCondition returns RoadSurfaceState?,
+  # and null means "cannot classify" — never dry.
+  #
+  # ^0.2.0 (= >=0.2.0 <0.3.0) cannot receive it. We TRIED to move; the resolver
+  # refused. Measured 2026-08-06 against the live pub.dev API, with the real
+  # `flutter pub get` output:
+  #
+  #   1. snow_rendering >=0.3.0 depends on driving_weather ^0.5.0.
+  #      "Because snow_rendering >=0.3.0 depends on driving_weather ^0.5.0 and
+  #       sngnav_app depends on driving_weather ^0.4.0, snow_rendering >=0.3.0
+  #       is forbidden."
+  #   2. Widening driving_weather to ^0.5.0 then fails on a SIBLING:
+  #      "Because adaptive_reroute >=0.1.1 depends on driving_weather ^0.4.0
+  #       and sngnav_app depends on driving_weather ^0.5.0, adaptive_reroute
+  #       >=0.1.1 is forbidden."
+  #
+  # The complete set of caps, at each package's LATEST PUBLISHED version:
+  #   driving_conditions       0.5.5 -> snow_rendering ^0.2.1  AND dw ^0.4.0
+  #   adaptive_reroute         0.1.6 -> driving_weather  ^0.4.0
+  #   route_condition_forecast 0.1.5 -> driving_weather  ^0.4.0
+  # NO published version of ANY sibling admits snow_rendering ^0.3.0.
+  #
+  # So this is a CATALOG-side blocker, not an app-side one: it clears only when
+  # those three are republished admitting driving_weather ^0.5.0 (and
+  # driving_conditions admitting snow_rendering ^0.3.0). AAE-3 forbids forcing
+  # a constraint past the resolver, and this workspace is fully hosted — no
+  # path deps, no dependency_overrides — so no override is used here.
+  #
+  # Note for whoever does the catalog work: local snow_rendering carries a
+  # FURTHER abstention fix (an abstained frost check returning null instead of
+  # dry) that is NOT in published 0.3.0, while still labelled `version: 0.3.0`.
+  # pub.dev versions are immutable, so that must publish as 0.3.1+.
+  #
+  # MEANWHILE, the guarantee is enforced at OUR CALL SITE — which is what
+  # snow_rendering 0.2.9's own dartdoc instructs: "Never call this with fields
+  # you did not measure; gate absence at your call site and tell your user
+  # 'unknown'." See lib/services/road_surface_classifier.dart and the pinning
+  # test test/services/road_surface_absence_exposure_test.dart.
   snow_rendering: ^0.2.0
   # WIDENED 2026-07-25: ^0.0.3 (= >=0.0.3 <0.0.4) excluded the locked+live
   # 0.0.8, so a clean `pub get` silently DOWNGRADED the aggregator in HER
