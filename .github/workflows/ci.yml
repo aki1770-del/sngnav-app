@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Manual trigger for the installable-APK job below. Deliberately NOT on every
+  # push: a release-signed artifact is a thing a stranger installs on a phone,
+  # so producing one is an act, not a side effect of committing.
+  workflow_dispatch:
 
 jobs:
   test:
@@ -44,10 +48,18 @@ jobs:
       - name: Test
         run: flutter test
 
-  # Proves the APK actually builds on an SDK-bearing runner (the local dev env
-  # has no Android SDK, so this build is verified in CI, not on the author's
-  # machine — honest per OPS-066). The perm-assert also gates here so a manifest
-  # that lost the WS1 perms fails BEFORE a dead APK is ever produced.
+  # Proves the APK actually builds on a clean SDK-bearing runner, independently
+  # of any one machine's local toolchain. The perm-assert also gates here so a
+  # manifest that lost the WS1 perms fails BEFORE a dead APK is ever produced.
+  #
+  # CORRECTED 2026-08-06: this comment used to read "the local dev env has no
+  # Android SDK, so this build is verified in CI, not on the author's machine".
+  # That is false and was measured false — the dev machine carries SDK platforms
+  # 34/35/36 and build-tools 34/35/36, and release APKs have been built on it.
+  # The real reason to build here is environment independence, not absence.
+  # A live skew remains and is NOT fixed: this job pins Flutter 3.41.4 stable
+  # while the dev machine runs 3.45.0-1.0.pre-48 (user-branch), so the two do
+  # not necessarily compile the same way.
   android-build:
     runs-on: ubuntu-24.04
     steps:
@@ -85,3 +97,119 @@ jobs:
 
       - name: Build debug APK
         run: flutter build apk --debug
+
+  # ---------------------------------------------------------------------------
+  # The VEHICLE. Until this job runs, nobody outside one laptop can install this
+  # app: `android-build` above proves the APK compiles and then throws it away
+  # with the runner, and there is no other artifact anywhere in the repo.
+  #
+  # It is release-SIGNED or it does not exist. An APK is what a person can
+  # actually put on a phone (`adb install`, or tap it in a file manager); an
+  # .aab cannot be installed at all and is not a vehicle.
+  #
+  # SECRETS ARE REQUIRED AND ARE NOT IN THIS REPO. The upload keystore is
+  # deliberately gitignored and has never been committed (android/.gitignore
+  # lines 12-14). So this job cannot sign until the Chair adds:
+  #   ANDROID_KEYSTORE_BASE64  - base64 of android/app/upload-keystore.jks
+  #   ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_PASSWORD, ANDROID_KEY_ALIAS
+  # Until then the job FAILS LOUDLY on the guard below. That is the intent: the
+  # alternative is gradle's dev-convenience fallback quietly debug-signing an
+  # artifact labelled "release", which is precisely the thing we must never hand
+  # to a stranger.
+  # ---------------------------------------------------------------------------
+  release-apk:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.41.4'
+
+      # The same gates the other jobs run. An installable artifact may not be
+      # built off a tree that has not passed them.
+      - name: Loom mutation gate (a guard is not INSERTED until PROVEN to FAIL)
+        run: bash tool/loom_mutation_gate.sh --self-test
+
+      - name: Manifest guard self-test (the loom proves itself before it judges)
+        run: bash tool/assert_manifest_perms.sh --self-test
+
+      - name: Assert Android manifest perms + voice-lane <queries> (dead-HER blocker guard)
+        run: bash tool/assert_manifest_perms.sh
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      # No artifact off an unrun tree. Tests-green is not "verified" (OPS-066),
+      # but an unrun suite is not even green.
+      - name: Test
+        run: flutter test
+
+      - name: Require signing secrets (never debug-sign a "release")
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KS" ]; then
+            echo "::error::ANDROID_KEYSTORE_BASE64 is not set."
+            echo "Refusing to build: without it, gradle falls back to DEBUG keys"
+            echo "and would produce a debug-signed APK labelled 'release'."
+            echo "Add the keystore secrets, or build locally where key.properties exists."
+            exit 1
+          fi
+
+      - name: Restore keystore + key.properties
+        env:
+          KS:    ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STOREPW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEYPW:   ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ALIAS:   ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          echo "$KS" | base64 -d > android/app/upload-keystore.jks
+          # Same four keys android/app/build.gradle.kts reads, same relative
+          # storeFile path (resolved against the :app project dir).
+          {
+            echo "storePassword=$STOREPW"
+            echo "keyPassword=$KEYPW"
+            echo "keyAlias=$ALIAS"
+            echo "storeFile=upload-keystore.jks"
+          } > android/key.properties
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      # THE LOOM. Signing is the whole point of this job, so it is verified,
+      # not assumed — and it is verified by REFUSING the debug certificate by
+      # name rather than by trusting that the fallback did not fire.
+      - name: Verify the APK is NOT debug-signed
+        run: |
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
+          "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/certs.txt
+          if grep -q "CN=Android Debug" /tmp/certs.txt; then
+            echo "::error::APK is DEBUG-SIGNED. Refusing to upload."
+            exit 1
+          fi
+          echo "Release signature confirmed."
+
+      - name: Clean up signing material
+        if: always()
+        run: rm -f android/app/upload-keystore.jks android/key.properties
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sngnav-app-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 90
