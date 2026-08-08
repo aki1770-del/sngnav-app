@@ -71,6 +71,7 @@ import 'her_position.dart';
 import 'jma_fetch.dart';
 import 'route_fetch.dart';
 import 'services/advisory_service.dart';
+import 'services/caution_journal.dart';
 import 'services/drive_hud_controller.dart';
 import 'services/error_log.dart';
 import 'services/log_share.dart';
@@ -1049,6 +1050,16 @@ class _HomePageState extends State<HomePage> {
       // AAA F1: was a hardcoded 'ja' — DriveHudLocalizer ships full ja+en
       // pairs, so the HUD's spoken lane follows the resolved locale.
       localeTag: _spokenLanguageCode,
+      // Record WHAT THE CONTROLLER DECIDED into the SAME LocalErrorLog as
+      // crashes (the established idiom above), so a Ring-2 diary entry reading
+      // 「警告は来なかった」 can be told apart from a deliberate mute and from a dead
+      // code path. Rides the existing ログを共有 exit door — no new file, no new
+      // consent surface, no telemetry. Null log (app-support dir unresolved) =>
+      // no journal, exactly as before.
+      journal: switch (widget.errorLog) {
+        final LocalErrorLog log => CautionJournal(log: log),
+        null => null,
+      },
     );
     _driveHud.addListener(_onDriveHudChanged);
     _telemetry = LoomFitTelemetry();

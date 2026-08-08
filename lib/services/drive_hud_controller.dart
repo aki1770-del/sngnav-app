@@ -36,6 +36,7 @@ import 'package:routing_engine/routing_engine.dart' show RouteManeuver;
 import '../actuators/alert_actuators.dart';
 import '../actuators/alert_announcer.dart';
 import '../her_position.dart';
+import 'caution_journal.dart';
 import 'drive_hud_localizer.dart';
 import 'drive_safety_fusion.dart';
 import 'maneuver_narration.dart';
@@ -58,12 +59,27 @@ class DriveHudController extends ChangeNotifier {
   ///   [actuators] (the test default).
   /// - [localization]: injectable so a test can seed the honest-position state
   ///   machine.
+  /// - [journal]: optional — records WHAT THIS CONTROLLER DECIDED (rung
+  ///   transitions + every announce outcome) to the local shared log, so a
+  ///   diary-writer's 「警告は来なかった」 can be told apart from a deliberate mute
+  ///   and from a dead code path. **Default null = nothing is recorded**, so
+  ///   existing callers and every off-device test are unaffected.
+  ///
+  ///   IO honesty (against this file's "NO IO" contract above): the journal is
+  ///   an injected collaborator, exactly like [actuators] / [announcer], which
+  ///   already reach the platform. This file still performs no IO itself. The
+  ///   injected implementation appends synchronously with flush — chosen
+  ///   deliberately over async because the crash is precisely the event that
+  ///   must survive — and it is bounded to TRANSITIONS AND ANNOUNCE DECISIONS
+  ///   ONLY (a handful per drive, never per tick), so the drive surface never
+  ///   pays a per-frame disk cost.
   factory DriveHudController({
     required AlertActuators actuators,
     AlertAnnouncer? announcer,
     LocalizationController? localization,
     DriveHudLocalizer text = const DriveHudLocalizer(),
     String localeTag = 'ja',
+    CautionJournal? journal,
   }) {
     return DriveHudController._(
       localizer: DriveLocalizer(controller: localization),
@@ -71,6 +87,7 @@ class DriveHudController extends ChangeNotifier {
       text: text,
       narrator: ManeuverNarrator(text: text),
       localeTag: localeTag,
+      journal: journal,
     );
   }
 
@@ -80,15 +97,40 @@ class DriveHudController extends ChangeNotifier {
     required DriveHudLocalizer text,
     required ManeuverNarrator narrator,
     required this.localeTag,
+    CautionJournal? journal,
   })  : _localizer = localizer,
         _announcer = announcer,
         _text = text,
-        _narrator = narrator;
+        _narrator = narrator,
+        _journal = journal;
 
   final DriveLocalizer _localizer;
   final AlertAnnouncer _announcer;
   final DriveHudLocalizer _text;
   final ManeuverNarrator _narrator;
+
+  /// Optional decision recorder; null = record nothing (the default).
+  final CautionJournal? _journal;
+
+  /// The last effective rung written to [_journal], so a transition is
+  /// recorded once. Tracked SEPARATELY from [_lastSpokenRung]: the journal
+  /// must see every rung change, including the muted rises and the downgrades
+  /// that the spoken tracker deliberately does not advance on.
+  DriveAction? _lastJournaledRung;
+
+  /// The last `rung/reason` suppression pair written to [_journal], so a
+  /// STEADY muted caution is recorded once instead of once per tick.
+  ///
+  /// This is load-bearing, not tidiness. [_lastSpokenRung] deliberately does
+  /// NOT advance on a suppressed rise (the OPS-068 fix that keeps the announce
+  /// slot open for a later grounded caution), so `risesAboveSpoken` stays true
+  /// on EVERY subsequent evaluation while the rung holds. Without this
+  /// de-dup the journal wrote one entry per position fix — thousands on a long
+  /// drive — which would evict crash evidence from the log's shared cap.
+  /// Caught by reading a real sample rather than trusting the design note.
+  /// Cleared on any rung transition and on any spoken line, so a genuine
+  /// re-occurrence after a change is still recorded.
+  String? _lastJournaledSuppression;
 
   /// BCP-47-ish tag for the driver-facing surface (defaults to `ja` — HER).
   final String localeTag;
@@ -255,6 +297,17 @@ class DriveHudController extends ChangeNotifier {
   void _maybeAnnounce(DriveAdvice advice) {
     final effective = _effectiveAction ?? advice.action;
 
+    // Journal the rung transition, including the FIRST evaluation of a session
+    // (from == null). This is the entry that proves the evaluator was ALIVE:
+    // without it, "evaluated and correctly stayed quiet" and "the code path was
+    // dead" produce exactly the same silence in her diary.
+    if (effective != _lastJournaledRung) {
+      _journal?.rungChanged(from: _lastJournaledRung?.name, to: effective.name);
+      _lastJournaledRung = effective;
+      // A new rung means a later identical suppression is genuinely new.
+      _lastJournaledSuppression = null;
+    }
+
     // Downgrade clamp: never let the spoken tracker sit ABOVE the current rung,
     // so a real re-rise back up to it re-announces.
     if (_lastSpokenRung != null && effective.index < _lastSpokenRung!.index) {
@@ -263,17 +316,35 @@ class DriveHudController extends ChangeNotifier {
 
     final risesAboveSpoken = effective.index > (_lastSpokenRung?.index ?? -1);
     if (risesAboveSpoken &&
-        effective.index >= DriveAction.heightenedCaution.index &&
-        _shouldSpeakRise(advice, effective)) {
-      final line = _text.spokenGuidance(effective, localeTag);
-      if (line.isNotEmpty) {
-        unawaited(_announcer.announce(
-          severity: _severityFor(effective),
-          text: line,
-          localeTag: localeTag,
-        ));
-        // Advance the SPOKEN tracker ONLY when a line actually fired.
-        _lastSpokenRung = effective;
+        effective.index >= DriveAction.heightenedCaution.index) {
+      // Behaviour is UNCHANGED: `_suppressReason(...) == null` is exactly the
+      // old `_shouldSpeakRise(...)`. The branch is split only so the journal
+      // can record WHICH mute rule decided, instead of a bare silence.
+      final reason = _suppressReason(advice, effective);
+      if (reason != null) {
+        // De-dup: a STEADY muted caution is one entry, not one per tick.
+        final key = '${effective.name}/$reason';
+        if (key != _lastJournaledSuppression) {
+          _journal?.suppressed(rung: effective.name, reason: reason);
+          _lastJournaledSuppression = key;
+        }
+      } else {
+        final line = _text.spokenGuidance(effective, localeTag);
+        if (line.isNotEmpty) {
+          unawaited(_announcer.announce(
+            severity: _severityFor(effective),
+            text: line,
+            localeTag: localeTag,
+          ));
+          // Advance the SPOKEN tracker ONLY when a line actually fired.
+          _lastSpokenRung = effective;
+          _journal?.spoke(effective.name);
+          _lastJournaledSuppression = null;
+        } else {
+          // Passed every gate and still said nothing — a real defect that
+          // until now left no trace anywhere.
+          _journal?.emptyGuidanceLine(effective.name);
+        }
       }
     }
   }
@@ -295,16 +366,27 @@ class DriveHudController extends ChangeNotifier {
   ///    visibility reading" is an honest DISPLAYED state (視程 未計測), never an
   ///    alarm to announce on every drive that lacks a visibility sensor
   ///    (cry-wolf).
-  bool _shouldSpeakRise(DriveAdvice advice, DriveAction effective) {
-    if (effective == DriveAction.considerStopping) return true;
+  bool _shouldSpeakRise(DriveAdvice advice, DriveAction effective) =>
+      _suppressReason(advice, effective) == null;
+
+  /// The mute rule that suppressed a rise, or `null` when the rise SPEAKS.
+  ///
+  /// This is [_shouldSpeakRise]'s logic, unchanged and now single-sourced —
+  /// the boolean above delegates here so the two can never drift. It returns a
+  /// STABLE TOKEN rather than prose so a diary reader can collate on it.
+  String? _suppressReason(DriveAdvice advice, DriveAction effective) {
+    if (effective == DriveAction.considerStopping) return null;
     // effective == heightenedCaution here (continueDriving never reaches speak).
     // Rose solely from the measured floor → the watch lane already spoke it.
-    if (advice.action.index < DriveAction.heightenedCaution.index) return false;
+    if (advice.action.index < DriveAction.heightenedCaution.index) {
+      return 'measured-floor-only';
+    }
     // Advisor grounded it: speak only if something other than unknown/stale
     // visibility raised it.
-    return advice.reasons.any((r) =>
+    final grounded = advice.reasons.any((r) =>
         r != CautionReason.unknownVisibility &&
         r != CautionReason.staleVisibility);
+    return grounded ? null : 'visibility-unknown-only';
   }
 
   // --- (e) honest confidence-gated maneuver narration ---
