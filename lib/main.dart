@@ -2742,6 +2742,21 @@ class _HomePageState extends State<HomePage> {
                     onPressed: _fireAlertSequence,
                     child: const Text('Fire 8 sequential warning alerts'),
                   ),
+                  const SizedBox(height: 4),
+                  // AAE-7: this control evaluates AlertDensityThrottle and
+                  // records telemetry. It does NOT call _announcer — no audio,
+                  // no haptic, nothing reaches HER from this button. It is a
+                  // throttle-decision simulation, and it says so, because the
+                  // 2026-07-09 on-device walk read its green result word as
+                  // proof the alert path actuates. It is not that proof.
+                  Text(
+                    'Throttle decision only — this control does not announce '
+                    '(no audio, no haptic).',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   if (_attempts.isEmpty)
                     const Text('(no attempts yet)')
@@ -2752,7 +2767,7 @@ class _HomePageState extends State<HomePage> {
                           .map((a) => Text(
                                 'Attempt ${a.index} '
                                 '(t+${a.relativeSeconds}s): '
-                                '${a.fired ? "FIRED" : "throttled"}',
+                                '${a.fired ? "WOULD FIRE" : "throttled"}',
                                 style: TextStyle(
                                   color: a.fired
                                       ? Colors.green.shade700

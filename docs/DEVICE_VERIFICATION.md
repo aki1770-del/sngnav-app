@@ -93,7 +93,16 @@ Andon, not a footnote.
 
 ## Status
 
-**DEFERRED** — no Android device in this environment. Until every item above is
-PASS on a real device, the app claims only: *"the caution code-path reaches HER
-on audio + haptic; on-device HEAR / FEEL is deferred."* It never claims *"works
-on Android."*
+**DEFERRED** — no **physical** Android device in this environment. An Android
+SDK, an emulator and the AVD `sngnav_api30` DO exist here and were walked on
+2026-07-09 (`ladder_out/`, 71 files tracked in git; airplane-mode pass
+2026-07-10). Until every item above is PASS on a **physical phone**, the app
+claims only: *"the caution code-path reaches HER on audio + haptic; on-device
+HEAR / FEEL is deferred."* It never claims *"works on Android."*
+
+> **Corrected 2026-08-09 (AAE, OPS-RULE-002).** This line read *"no Android
+> device in this environment"* — false since 2026-07-09, and never propagated.
+> The deferral itself was and remains correct: the emulator ladder ran
+> `-no-audio` and bound a **server** voice, so it cannot discharge HEAR or FEEL.
+> Measured this turn: `flutter devices` → `Found 1 connected device: Linux
+> (desktop)`; `adb devices` → empty.

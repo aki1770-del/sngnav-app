@@ -1,8 +1,21 @@
 # On-Device OPS-066 Verify — Published JA Narration + Voice (the 10-minute act)
 
-**Owner**: AAE (android-app-engineer). **Status**: **DEFERRED — no Android device
-in the build environment.** Everything below is PREPARED; the moment a device is
-plugged in, this is a ~10-minute verification, not a build session.
+**Owner**: AAE (android-app-engineer). **Status**: **DEFERRED — no PHYSICAL
+Android device. An emulator exists and has been walked.** Everything below is
+PREPARED; the moment a phone is plugged in, this is a ~10-minute verification,
+not a build session.
+
+> **Corrected 2026-08-09 (AAE, OPS-RULE-002).** This line read *"no Android
+> device in the build environment"* and was **false as written**, contradicted
+> ~32 lines below in this same file (`SDK /home/komada/android-sdk`, registered
+> via `flutter config`) and by **71 files tracked in git** at `ladder_out/` — a
+> full API-30 emulator walk dated **2026-07-09**, with a 2026-07-10 airplane-mode
+> pass appended. The stale sentence was mine and stood for a month; a later
+> reader took it at face value and reported a rediscovery as a discovery.
+> **What remains TRUE and DEFERRED:** no physical phone. Measured this turn —
+> `flutter devices` → `Found 1 connected device: Linux (desktop)`; `adb devices`
+> → empty. Emulator ≠ phone: `ladder_out/` ran `-no-audio`, so **nobody has yet
+> HEARD this app speak** (`BETA_PLAN.md:31`). HEAR/FEEL stays ⬜.
 
 **Companion**: `docs/DEVICE_VERIFICATION.md` (the WS5/WS6 actuator deep
 checklist — audio quality, haptic distinguishability, wakelock, long-drive).
