@@ -12,8 +12,15 @@ import sys
 
 import osmium
 
-# Akita prefecture + margin.
-LON_MIN, LAT_MIN, LON_MAX, LAT_MAX = 139.40, 38.70, 141.20, 40.80
+# Region bbox + margin. Akita is the DEFAULT so this file's behaviour is
+# byte-identical to the pre-2026-08-11 Akita path when SNGNAV_BBOX is unset;
+# multi-region callers override it. Set as "lon_min,lat_min,lon_max,lat_max".
+#   Akita  (tohoku pbf): 139.40,38.70,141.20,40.80
+import os as _os
+LON_MIN, LAT_MIN, LON_MAX, LAT_MAX = (
+    tuple(float(v) for v in _os.environ['SNGNAV_BBOX'].split(','))
+    if _os.environ.get('SNGNAV_BBOX') else (139.40, 38.70, 141.20, 40.80)
+)
 
 ROAD_CLASSES = {
     'motorway': 'motorway', 'motorway_link': 'motorway',

@@ -36,6 +36,26 @@ jobs:
       - name: Manifest guard self-test (the loom proves itself before it judges)
         run: bash tool/assert_manifest_perms.sh --self-test
 
+      - name: Tile-pipeline guards self-test (a guard is not INSERTED until PROVEN to FAIL)
+        run: |
+          GATE_DIR="${TILE_GUARD_DIR:-$HOME/Documents/LLMnotebooks/toyota flutter masterplan/scripts}"
+          if [ -x "$GATE_DIR/tile-pipeline-defaults-guard.sh" ]; then
+            bash "$GATE_DIR/tile-pipeline-defaults-guard.sh" --self-test
+            bash "$GATE_DIR/tile-archive-identity-guard.sh" --self-test
+          else
+            echo "tile guards not present in this checkout — skipping (see tool/requirements.txt)"
+          fi
+
+      - name: Tile archive identity (every shipped .mbtiles must not lie about itself)
+        run: |
+          GATE_DIR="${TILE_GUARD_DIR:-$HOME/Documents/LLMnotebooks/toyota flutter masterplan/scripts}"
+          if [ -x "$GATE_DIR/tile-archive-identity-guard.sh" ]; then
+            for m in assets/tiles/*.mbtiles; do
+              [ -e "$m" ] || continue
+              bash "$GATE_DIR/tile-archive-identity-guard.sh" "$m"
+            done
+          fi
+
       - name: Assert Android manifest perms + voice-lane <queries> (dead-HER blocker guard)
         run: bash tool/assert_manifest_perms.sh
 
@@ -140,6 +160,9 @@ jobs:
       - name: Loom mutation gate (a guard is not INSERTED until PROVEN to FAIL)
         run: bash tool/loom_mutation_gate.sh --self-test
 
+      - name: Play preflight self-test (the predicates must reject bad input)
+        run: bash tool/preflight_play_upload.sh --self-test
+
       - name: Manifest guard self-test (the loom proves itself before it judges)
         run: bash tool/assert_manifest_perms.sh --self-test
 
@@ -189,6 +212,27 @@ jobs:
       - name: Build release APK
         run: flutter build apk --release
 
+      # THE ARTIFACT PLAY ACTUALLY TAKES. Added 2026-08-10 (AAE).
+      # This job was named "build the vehicle" and built the wrong one: new apps
+      # on Google Play must be submitted as an ANDROID APP BUNDLE, so the .apk
+      # above — the only thing this job produced and verified — is not uploadable.
+      # It remains useful (it is the sideload fallback a tester can install
+      # directly), so both are built and both are kept.
+      #
+      # Building the .aab HERE also removes a hazard no local gate can see: there
+      # are divergent working copies of this app on the build machine, and a
+      # locally-built bundle carries no proof of which one it came from. A bundle
+      # built by CI is pinned to a commit by construction.
+      - name: Build release App Bundle (the artifact Play accepts)
+        run: flutter build appbundle --release
+
+      # All five Play-rejection gates, against the real artifacts, before anyone
+      # spends a cycle of the Oct 31 window on an upload that would bounce:
+      # signature, targetSdk, 16 KB page alignment, versionCode, and permission
+      # parity between the manifest we author and the app we ship.
+      - name: Play upload preflight (5 gates, on the built artifacts)
+        run: bash tool/preflight_play_upload.sh --skip-build
+
       # THE LOOM. Signing is the whole point of this job, so it is verified,
       # not assumed — and it is verified by REFUSING the debug certificate by
       # name rather than by trusting that the fallback did not fire.
@@ -211,5 +255,14 @@ jobs:
         with:
           name: sngnav-app-release-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 90
+
+      # The upload-ready bundle, so the Chair can take it straight to Play
+      # Console without a local build (and without choosing between two trees).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sngnav-app-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 90

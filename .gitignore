@@ -50,3 +50,10 @@ test/render_see/failures/
 # foreign to this repo; re-fetchable (delve Observe #5). Never commit here.
 dv2l.yaml
 dv2p.yaml
+
+# Tile-pipeline intermediates. RETAINED ON DISK, deliberately NOT in git —
+# gunma_extract.json is 59MB. The 2026-08-11 rule "never ship a generated
+# artifact without retaining what regenerates it" means retained, not committed;
+# git is the wrong store for a 59MB derived blob. The pinned source_cut in each
+# archive's metadata (e.g. geofabrik/kanto-260810) is what makes it re-derivable.
+tool/*_extract.json

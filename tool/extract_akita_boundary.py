@@ -8,9 +8,14 @@ neighbor-prefecture slivers in the bbox are not rendered for no cohort.
 Data © OpenStreetMap contributors, ODbL 1.0.
 """
 import json
+import os
 import sys
 
 import osmium
+
+# Prefecture whose admin_level=4 boundary is extracted. Akita is the DEFAULT,
+# so behaviour is unchanged from the pre-2026-08-11 path when unset.
+PREF_NAME = os.environ.get('SNGNAV_PREF_NAME', '秋田県')
 
 
 class Handler(osmium.SimpleHandler):
@@ -22,7 +27,7 @@ class Handler(osmium.SimpleHandler):
         t = a.tags
         if not (t.get('boundary') == 'administrative'
                 and t.get('admin_level') == '4'
-                and t.get('name') == '秋田県'):
+                and t.get('name') == PREF_NAME):
             return
         for outer in a.outer_rings():
             pts = []

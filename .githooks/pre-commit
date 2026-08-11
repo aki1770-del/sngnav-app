@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Tile-pipeline gate. Fires only when the tile tools or tile assets are staged.
+# Installed 2026-08-11 after two defects shipped past a build that exited 0.
+CHANGED=$(git diff --cached --name-only)
+if grep -qE '^(tool/.*\.py|tool/requirements\.txt|assets/tiles/.*\.mbtiles)$' <<<"$CHANGED"; then
+  echo "[pre-commit] tile pipeline touched — running gate…"
+  GATE="/home/komada/Documents/LLMnotebooks/toyota flutter masterplan/scripts/tile-pipeline-gate.sh"
+  if [ -x "$GATE" ]; then
+    "$GATE" || { echo "[pre-commit] BLOCKED: tile-pipeline gate failed."; exit 1; }
+  else
+    echo "[pre-commit] WARNING: gate script not found at $GATE — not blocking."
+  fi
+fi
+exit 0

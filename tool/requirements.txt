@@ -1,0 +1,72 @@
+# Offline-basemap tile pipeline — the complete PYTHON dependency closure.
+#
+# NOT the complete THIRD-PARTY closure — see the SYSTEM DEPENDENCIES section at
+# the foot of this file. That distinction was corrected by CT's independent
+# certification on 2026-08-11, which found this file claiming "COMPLETE
+# third-party dependency closure" while omitting the CJK fonts. Overstating a
+# closure inside the very artifact built to fix an understated one is the same
+# defect wearing the opposite sign.
+#
+# This file exists because the dependency list used to live in prose, in a memory
+# record, and was wrong. On 2026-08-11 a rebuild following our own documented
+# instructions ("pure Python; venv with osmium+pillow") crashed with
+# ModuleNotFoundError: No module named 'shapely'.
+#
+# shapely was never a secret — render_akita_mbtiles.py:528 states verbatim that
+# "shapely is mandatory for the whole pipeline since sea fill". The code knew.
+# (Cited as :527 when this file was written; the `def` is at :527 and the quoted
+# words at :528. Corrected by CT 2026-08-11 — and it matters, because this
+# unit's own charter verifier FAILS a misattributed line number by design.)
+# The record did not carry it. That is a propagation failure, not an oversight,
+# and the countermeasure is that the dependency list is now an ARTIFACT YOU CAN
+# RUN rather than a sentence someone has to remember to update.
+#
+# Measured closure (ast scan of all four tools, module-level AND function-local
+# imports — shapely appears only inside functions, which is exactly how a
+# top-of-file scan missed it):
+#
+#   osmium   extract_akita.py:13, extract_akita_boundary.py:14
+#   PIL      render_akita_mbtiles.py:29, make_placeholder_mbtiles.py:39
+#   shapely  render_akita_mbtiles.py:161, :162, :531, :532, :602   (5 sites)
+#
+# There is no fourth. No gdal, no tilemaker, no osmconvert — that part of the
+# original claim was true.
+#
+# Usage:
+#   python3 -m venv .venv && .venv/bin/pip install -r tool/requirements.txt
+#
+# Versions below are the ones that actually built the Gunma archive
+# (777 tiles, cut kanto-260810) on 2026-08-11 — measured, not assumed.
+#
+# HONEST BOUND: the original Akita build (2026-07-10) ran on pyosmium 3.x; the
+# exact version was never recorded and that venv no longer exists. osmium 4.3.1
+# was checked against the four API surfaces these tools use (SimpleHandler,
+# InvalidLocationError, Area.outer_rings, apply_file(locations, idx)) and all are
+# present — but "the API exists" is not "the output is identical". If a rebuild
+# of Akita ever diverges, the osmium major-version bump is the first suspect.
+
+osmium==4.3.1
+pillow==12.3.0
+shapely==2.1.2
+
+# ─── SYSTEM DEPENDENCIES (not installable by pip; found by CT, 2026-08-11) ───
+#
+# CJK FONTS ARE LOAD-BEARING AND WERE OMITTED FROM THIS FILE'S FIRST VERSION.
+# render_akita_mbtiles.py:107-109 hardcodes three paths:
+#
+#   /usr/share/fonts/opentype/ipafont-gothic/ipag.ttf
+#   /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+#   /usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc
+#
+# Debian/Ubuntu:  apt install fonts-ipafont-gothic fonts-noto-cjk
+#
+# WHY THIS IS WORSE THAN THE SHAPELY DEFECT, NOT MILDER:
+# load_font() (:139) falls through to ImageFont.load_default() at :146 — with NO
+# warning and NO non-zero exit. The shapely defect failed LOUDLY, with a
+# traceback, which is why it was found in minutes. A missing CJK font fails
+# SILENTLY: the build exits 0, the tile count is right, every guard passes, and
+# the archive ships with 前橋市 / 高崎市 / 秋田市 rendered as boxes or dropped.
+# That is an unreadable map handed to a driver who needs to read it at a glance.
+#
+# Present on the build host as of 2026-08-11 (12 matching font files), so this
+# is LATENT, not live. It is recorded because the next rebuild may be elsewhere.

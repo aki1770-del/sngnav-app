@@ -28,8 +28,23 @@ from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFont
 
-PREF = (139.40, 38.70, 141.20, 40.80)
-CITY = (139.99, 39.63, 140.21, 39.81)
+# Region geometry. Akita is the DEFAULT so the shipped Akita path is unchanged
+# when these are unset (2026-08-11 multi-region parameterisation).
+#   SNGNAV_PREF = prefecture bbox   "lon_min,lat_min,lon_max,lat_max"
+#   SNGNAV_CITY = deep-zoom window  "lon_min,lat_min,lon_max,lat_max"
+# Gunma, measured from kanto-260810 OSM (NOT recalled):
+#   PREF 138.35,35.94,139.72,37.11
+#   CITY 138.89,36.23,139.17,36.48  (前橋市 139.06328,36.38934 + 高崎市 139.00328,36.32210)
+import os as _os
+
+
+def _bbox(env, default):
+    v = _os.environ.get(env)
+    return tuple(float(x) for x in v.split(',')) if v else default
+
+
+PREF = _bbox('SNGNAV_PREF', (139.40, 38.70, 141.20, 40.80))
+CITY = _bbox('SNGNAV_CITY', (139.99, 39.63, 140.21, 39.81))
 
 SS = 2          # supersample factor
 TILE = 256
@@ -522,6 +537,50 @@ def load_boundary(boundary_json):
                               for p in polys]))
 
 
+def build_metadata(cut='unpinned'):
+    """Compose the MBTiles metadata dict. Extracted from main() 2026-08-11 so a
+    guard can assert the DEFAULTS against the shipped archive without rendering
+    16MB of tiles. Region identity is env-overridable; every default is the
+    literal shipped Akita value.
+
+    `center` is deliberately a literal, NOT a computed bbox midpoint: Akita's
+    shipped centre is 140.10000,39.72000 (the city), while the midpoint would be
+    140.30000,39.75000. A computed default silently moves the initial view of an
+    archive already in a beta app — that regression was introduced and caught on
+    2026-08-11, and scripts/tile-pipeline-defaults-guard.sh exists to catch it
+    mechanically next time.
+    """
+    region = _os.environ.get('SNGNAV_REGION_NAME', 'Akita')
+    region_ja = _os.environ.get('SNGNAV_REGION_JA', 'Akita prefecture')
+    window = _os.environ.get('SNGNAV_WINDOW_NAME', 'Akita city')
+    src = _os.environ.get('SNGNAV_SOURCE_NAME', 'Tohoku')
+    ctr = _os.environ.get('SNGNAV_CENTER', '140.10000,39.72000,11')
+    return {
+        'name': f'{region} offline basemap (OSM render)',
+        'source_cut': f'geofabrik/{cut}',
+        'format': 'png',
+        'minzoom': '8',
+        'maxzoom': '13',
+        'bounds': f'{PREF[0]:.5f},{PREF[1]:.5f},{PREF[2]:.5f},{PREF[3]:.5f}',
+        'center': ctr,
+        'type': 'baselayer',
+        'version': '3',
+        'attribution': '© OpenStreetMap contributors (ODbL 1.0)',
+        'description': (f'Real OpenStreetMap cartography for {region_ja} '
+                        f'(z8-z12) + {window} window (z13, plus selective '
+                        'rural z13 within the prefecture boundary when '
+                        'built with the boundary input), rendered from '
+                        f'the Geofabrik {src} extract (cut {cut}) with a '
+                        'minimal pure-Python '
+                        'style (sea fill from the OSM coastline, roads by '
+                        'class, route-number shields, bridge/tunnel '
+                        'styling, rail, rivers, lakes, ja place labels). '
+                        'Data (c) OpenStreetMap contributors, ODbL 1.0. '
+                        'Style is intentionally simple; not a full '
+                        'OSM-carto render.'),
+    }
+
+
 def main(extract_json, out_mbtiles, boundary_json=None):
     with open(extract_json) as f:
         data = json.load(f)
@@ -577,31 +636,7 @@ def main(extract_json, out_mbtiles, boundary_json=None):
         total += n
         print(f'z{z}: {n} tiles', flush=True)
 
-    cut = data.get('source_cut', 'unpinned')
-    meta = {
-        'name': 'Akita offline basemap (OSM render)',
-        'source_cut': f'geofabrik/{cut}',
-        'format': 'png',
-        'minzoom': '8',
-        'maxzoom': '13',
-        'bounds': f'{PREF[0]:.5f},{PREF[1]:.5f},{PREF[2]:.5f},{PREF[3]:.5f}',
-        'center': '140.10000,39.72000,11',
-        'type': 'baselayer',
-        'version': '3',
-        'attribution': '© OpenStreetMap contributors (ODbL 1.0)',
-        'description': ('Real OpenStreetMap cartography for Akita prefecture '
-                        '(z8-z12) + Akita city window (z13, plus selective '
-                        'rural z13 within the prefecture boundary when '
-                        'built with the boundary input), rendered from '
-                        f'the Geofabrik Tohoku extract (cut {cut}) with a '
-                        'minimal pure-Python '
-                        'style (sea fill from the OSM coastline, roads by '
-                        'class, route-number shields, bridge/tunnel '
-                        'styling, rail, rivers, lakes, ja place labels). '
-                        'Data (c) OpenStreetMap contributors, ODbL 1.0. '
-                        'Style is intentionally simple; not a full '
-                        'OSM-carto render.'),
-    }
+    meta = build_metadata(data.get('source_cut', 'unpinned'))
     db.executemany('INSERT INTO metadata VALUES (?,?)', meta.items())
     db.commit()
     db.close()
