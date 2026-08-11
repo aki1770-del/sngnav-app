@@ -11,5 +11,12 @@ Enable them once per clone:
 
 `pre-commit` runs the tile-pipeline gate when `tool/*.py`, `tool/requirements.txt`
 or `assets/tiles/*.mbtiles` are staged. It is quiet on every other path.
-CI runs the same guards' `--self-test`, so a clone that never enables hooks is
-still covered at the CI seam.
+CI runs the same guards' `--self-test` from `tool/`, so a clone that never
+enables hooks is still covered at the CI seam.
+
+(2026-08-11: this sentence was FALSE when first written. The CI steps resolved
+the guards through a path inside a different, private repo that a runner never
+checks out, so both steps were permanent no-ops that always passed — measured by
+FBR with a clean $HOME. The guards are now vendored into `tool/` beside the
+sibling guards that actually run, and the CI step exits 1 rather than skipping
+if they are absent.)

@@ -36,25 +36,27 @@ jobs:
       - name: Manifest guard self-test (the loom proves itself before it judges)
         run: bash tool/assert_manifest_perms.sh --self-test
 
+      # 2026-08-11: these two steps previously resolved the guards through a path
+      # inside a DIFFERENT, PRIVATE repo ($HOME/Documents/...) that a runner never
+      # checks out, so both were permanent no-ops that always passed — while
+      # .githooks/README.md told cloners CI covered them. Measured false by FBR
+      # with a clean $HOME. The guards are now vendored into tool/ beside the
+      # sibling guards that actually run, and a missing guard is RED, not skipped.
       - name: Tile-pipeline guards self-test (a guard is not INSERTED until PROVEN to FAIL)
         run: |
-          GATE_DIR="${TILE_GUARD_DIR:-$HOME/Documents/LLMnotebooks/toyota flutter masterplan/scripts}"
-          if [ -x "$GATE_DIR/tile-pipeline-defaults-guard.sh" ]; then
-            bash "$GATE_DIR/tile-pipeline-defaults-guard.sh" --self-test
-            bash "$GATE_DIR/tile-archive-identity-guard.sh" --self-test
-          else
-            echo "tile guards not present in this checkout — skipping (see tool/requirements.txt)"
-          fi
+          test -x tool/tile-pipeline-defaults-guard.sh || { echo "tile guards missing from checkout"; exit 1; }
+          test -x tool/tile-archive-identity-guard.sh  || { echo "tile guards missing from checkout"; exit 1; }
+          bash tool/tile-pipeline-defaults-guard.sh --self-test
+          bash tool/tile-archive-identity-guard.sh --self-test
 
       - name: Tile archive identity (every shipped .mbtiles must not lie about itself)
         run: |
-          GATE_DIR="${TILE_GUARD_DIR:-$HOME/Documents/LLMnotebooks/toyota flutter masterplan/scripts}"
-          if [ -x "$GATE_DIR/tile-archive-identity-guard.sh" ]; then
-            for m in assets/tiles/*.mbtiles; do
-              [ -e "$m" ] || continue
-              bash "$GATE_DIR/tile-archive-identity-guard.sh" "$m"
-            done
-          fi
+          shopt -s nullglob
+          archives=(assets/tiles/*.mbtiles)
+          test ${#archives[@]} -gt 0 || { echo "no tile archives in checkout"; exit 1; }
+          for m in "${archives[@]}"; do
+            bash tool/tile-archive-identity-guard.sh "$m"
+          done
 
       - name: Assert Android manifest perms + voice-lane <queries> (dead-HER blocker guard)
         run: bash tool/assert_manifest_perms.sh
