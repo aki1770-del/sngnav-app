@@ -42,6 +42,56 @@ jobs:
       # .githooks/README.md told cloners CI covered them. Measured false by FBR
       # with a clean $HOME. The guards are now vendored into tool/ beside the
       # sibling guards that actually run, and a missing guard is RED, not skipped.
+      # 2026-08-15 (AAE): the step below went RED the FIRST time it ever really
+      # ran. That is the vendoring above working, not a regression.
+      #
+      # tile-pipeline-defaults-guard.sh loads tool/render_akita_mbtiles.py to
+      # read the renderer's LIVE defaults — its own header (line 14) says why:
+      # "It calls the REAL renderer code — not a replica of it, which would
+      # drift." The renderer imports PIL at module scope
+      # (render_akita_mbtiles.py:29), so on a runner without it exec_module
+      # raises, the guard prints LOAD_ERROR and exits 1, and self-test case 1
+      # reports `real renderer REJECTED`. That is the guard correctly refusing
+      # to certify a renderer it could not load. Reproduced 2026-08-15 against a
+      # deps-free venv: identical signature — 5 cases, case 1 failing. With the
+      # deps present: 5/5 OK, exit 0.
+      #
+      # MEASURED, recorded so the next reader does not have to re-derive it:
+      #   - PIL is the only module-scope import that matters. shapely is
+      #     function-local (:161,:162,:531,:532,:602) and build_metadata()
+      #     (:540-581) calls nothing but .get(), so shapely never loads here.
+      #     We install the whole of tool/requirements.txt regardless, because
+      #     that file IS the declared closure; hand-trimming it here would
+      #     create a second dependency list that drifts — the exact defect
+      #     requirements.txt was written to end.
+      #   - The CJK fonts requirements.txt calls load-bearing are NOT needed by
+      #     this step: FONT_CANDIDATES (:106) is a path list, and load_font()
+      #     (:139) is called neither at import nor by build_metadata(). So no
+      #     apt step. The corollary is the honest bound, and it matters more
+      #     than the fix: a GREEN here does NOT verify the tile RENDER path,
+      #     and specifically does not cover the silent
+      #     ImageFont.load_default() fallback that ships a map a driver cannot
+      #     read. This step verifies the DEFAULTS only.
+      #   - osmium/pillow/shapely all resolve as cp312 manylinux wheels
+      #     (verified with --only-binary=:all:), so the runner needs no build
+      #     toolchain and no cache is warranted for three small wheels.
+      #
+      # The fix is to give CI the deps — never to skip the case, because a guard
+      # that skips when it cannot check is the anti-loom this file already names
+      # two comments above.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # python3, not python: the guard resolves its own interpreter with
+      # `command -v python3` (tile-pipeline-defaults-guard.sh:29). Installing
+      # into a different interpreter would leave the guard RED with a signature
+      # indistinguishable from a real default drift — the worst kind of red,
+      # because it points the next reader at the shipped archive instead of at
+      # the environment.
+      - name: Tile-renderer deps (the guard loads the real renderer; it needs them)
+        run: python3 -m pip install --disable-pip-version-check -q -r tool/requirements.txt
+
       - name: Tile-pipeline guards self-test (a guard is not INSERTED until PROVEN to FAIL)
         run: |
           test -x tool/tile-pipeline-defaults-guard.sh || { echo "tile guards missing from checkout"; exit 1; }
