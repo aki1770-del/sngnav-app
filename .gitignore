@@ -52,8 +52,46 @@ dv2l.yaml
 dv2p.yaml
 
 # Tile-pipeline intermediates. RETAINED ON DISK, deliberately NOT in git —
-# gunma_extract.json is 59MB. The 2026-08-11 rule "never ship a generated
-# artifact without retaining what regenerates it" means retained, not committed;
-# git is the wrong store for a 59MB derived blob. The pinned source_cut in each
-# archive's metadata (e.g. geofabrik/kanto-260810) is what makes it re-derivable.
+# gunma_extract.json is 59MB, and git is the wrong store for a derived blob
+# that size.
+#
+# ⚑ THE ORIGINAL VERSION OF THIS NOTE SAID: "The pinned source_cut in each
+# archive's metadata (e.g. geofabrik/kanto-260810) is what makes it
+# re-derivable." THAT IS MEASURED FALSE (2026-08-11). FBR flagged it UNVERIFIED
+# the same day; measuring it refuted it outright:
+#
+#   Geofabrik DAILY snapshots live about ONE WEEK.
+#     tohoku-260805 (6 days old)  -> HTTP 200
+#     tohoku-260731 (11 days old) -> HTTP 404
+#   Only -YYMM01 snapshots are archival (verified back to 2018-01).
+#
+#   akita_offline.mbtiles pins geofabrik/tohoku-260709 — a DAILY. It is GONE.
+#   The shipped Akita archive is PERMANENTLY IRREPRODUCIBLE byte-for-byte.
+#   RE-MEASURED 2026-08-15 and it holds: tohoku-260709 -> 404, and the archival
+#   tohoku-260701 -> 200. This is the archive that actually ships, so this half
+#   is the serious half.
+#
+#   ⚑ CORRECTED 2026-08-15 (AAE) BY READING THE ARTIFACT INSTEAD OF THE NOTE.
+#   This line used to read "gunma_offline.mbtiles pins geofabrik/kanto-260810 —
+#   also a DAILY, one day old at time of writing, and it will age out within
+#   about a week." That is the opposite of the truth. gunma_offline.mbtiles's
+#   own metadata table says source_cut = geofabrik/kanto-260801 — an ARCHIVAL
+#   snapshot, HTTP 200 on re-measure. Gunma IS re-derivable, and it already
+#   follows rule 1 below.
+#   UNRESOLVED, left visible rather than tidied away: tool/requirements.txt:39
+#   makes the same wrong claim ("cut kanto-260810 — measured, not assumed")
+#   about the same archive — same 777 tiles, so it is the same build, not two.
+#   The artifact is ground truth; which document to correct, and whether an
+#   earlier 260810 build was overwritten, is the tile lane's call and not this
+#   file's. Recorded because a note that was itself written to correct a false
+#   re-derivability claim had a false claim of its own inside it.
+#
+# So a pinned cut alone does NOT confer re-derivability. Two things do, and
+# future builds should use both:
+#   1. CUT FROM AN ARCHIVAL SNAPSHOT (-YYMM01), never a daily, when the archive
+#      is going to ship. The date precision costs nothing; the retention is the
+#      whole point.
+#   2. RETAIN THE EXTRACT JSON on disk (this ignore rule keeps it out of git,
+#      not off the machine). It is the only artifact that survives Geofabrik's
+#      retention window at all.
 tool/*_extract.json
