@@ -109,9 +109,22 @@ if [[ "${1:-}" == "--self-test" ]]; then
   mkdir -p "$tmp/corpus/mutants" "$tmp/corpus/healthy"
 
   MF='<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">'
+  # COMPLETED 2026-08-15 (AAE) with WAKE_LOCK + VIBRATE. This fixture set is the
+  # HEALTHY corpus, so it has to satisfy whatever the CURRENT guard requires. When
+  # the 2026-08-10 change added the two eyes-off actuator perms to
+  # assert_manifest_perms.sh's REQUIRED_PERMS, it completed that file's own
+  # hand-rolled fixtures and missed this one — a fixture living in the OTHER guard.
+  # The result was case [2] reporting `WOLF good.xml -> guard rejected a HEALTHY
+  # input` and the gate refusing to certify a guard that was in fact correct.
+  # Found by running the gate before committing, not by CI: CI has only ever run
+  # the 3-perm committed guard, against which this 3-perm corpus agreed.
+  # The corpus is completed, never the requirement weakened — the same call the
+  # 2026-08-10 change made for multiline.xml and x6_perm_replace_ok.xml.
   PERMS='<uses-permission android:name="android.permission.INTERNET"/>
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>'
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<uses-permission android:name="android.permission.WAKE_LOCK"/>
+<uses-permission android:name="android.permission.VIBRATE"/>'
   QUERIES='<queries><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries>'
 
   # MUTANT — the real one. HER location dot, killed by a documented merger directive.

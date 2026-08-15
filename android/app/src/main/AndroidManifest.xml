@@ -11,6 +11,22 @@
     <!-- WS5 actuator channel: WAKE_LOCK holds the screen on so a driver
          glancing at a live hazard never finds a dark screen (wakelock_plus). -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- VIBRATE: the haptic cue she feels WITHOUT LOOKING — the one alert
+         channel that survives a whiteout and a screen she cannot glance at
+         (AAE-2). Driven by the `vibration` plugin at
+         lib/actuators/mobile_alert_actuators.dart:191-192.
+
+         DECLARED HERE 2026-08-10 (AAE). It was ALREADY SHIPPING — the plugin
+         injected it at manifest-merge time — but it was absent from this file,
+         the file humans read when they write declarations. That gap is not
+         cosmetic: the public privacy policy was written from this manifest,
+         listed four permissions, stated "no other permissions are requested",
+         and was FALSE for a month against an app that requests five. A
+         permission we ship must be visible in the source we author, or the next
+         declaration written from it is wrong again. Gate 5 of
+         tool/preflight_play_upload.sh now compares this list against the built
+         artifact so the drift cannot recur silently. -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
     <!-- Foreground-service perms REMOVED 2026-07-10 (W3 OPS-062 entry gate):
          they were DECLARED ONLY — no Service exists — and a manifest that
          requests location-class capabilities it does not use is a false

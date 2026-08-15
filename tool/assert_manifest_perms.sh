@@ -61,10 +61,22 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # The WS1-blocker set: without these a release build is silently dead for HER.
+#
+# EXTENDED 2026-08-10 (AAE, AAE-2) with the two EYES-OFF ACTUATOR perms. The
+# WS1 set guards the lanes that carry DATA (network, position). It did not guard
+# the lanes that carry the ALERT TO HER BODY, and those are the ones that matter
+# at ten metres' visibility: WAKE_LOCK keeps the screen lit so a glance finds
+# something, VIBRATE is the cue she feels WITHOUT LOOKING. Both are genuinely
+# used (wakelock_plus; vibration at lib/actuators/mobile_alert_actuators.dart:191).
+# Unguarded, a plugin or manifest edit could drop either and this script would
+# print PASS over an app whose whiteout alert channel is dead — the same shape as
+# the founding dead-location-dot Andon, one lane over.
 REQUIRED_PERMS=(
   "android.permission.INTERNET"
   "android.permission.ACCESS_FINE_LOCATION"
   "android.permission.ACCESS_COARSE_LOCATION"
+  "android.permission.WAKE_LOCK"
+  "android.permission.VIBRATE"
 )
 
 # The VOICE-LANE blocker set (BOD-19, 2026-07-11 — AAE Andon).
@@ -228,7 +240,9 @@ if [[ "${1:-}" == "--self-test" ]]; then
   MF='<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">'
   PERMS_OK='<uses-permission android:name="android.permission.INTERNET"/>
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>'
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<uses-permission android:name="android.permission.WAKE_LOCK"/>
+<uses-permission android:name="android.permission.VIBRATE"/>'
   QUERIES_OK='<queries><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries>'
 
   cat > "$tmp/good.xml" <<EOF
@@ -263,12 +277,20 @@ $MF
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 $QUERIES_OK</manifest>
 EOF
+  # Two actuator perms appended 2026-08-10 (AAE): this fixture hand-rolls its perm
+  # block rather than using $PERMS_OK, so the expanded REQUIRED_PERMS made it an
+  # unhealthy manifest and it was correctly rejected. What it exists to test is
+  # multi-line / spaced / mixed-quote FORMATTING, so the block is completed rather
+  # than the requirement weakened.
   cat > "$tmp/multiline.xml" <<EOF
 $MF
 <uses-permission
     android:name = "android.permission.INTERNET" />
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<uses-permission android:name="android.permission.WAKE_LOCK"/>
+<uses-permission
+    android:name = 'android.permission.VIBRATE' />
 <queries><intent><action
     android:name = 'android.intent.action.TTS_SERVICE' /></intent></queries></manifest>
 EOF
@@ -413,11 +435,16 @@ $MF
 <queries><uses-permission android:name="android.permission.INTERNET"/><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries></manifest>
 EOF
   # X6 — perms lane must also honour non-removal 'replace' (no over-correction).
+  # Two actuator perms appended 2026-08-10 (AAE), same reason as multiline.xml: this
+  # fixture hand-rolls its perm block. It exists to prove tools:node="replace" is
+  # NOT read as a removal, so the block is completed, not the requirement relaxed.
   cat > "$tmp/x6_perm_replace_ok.xml" <<EOF
 $MF
 <uses-permission android:name="android.permission.INTERNET" tools:node="replace"/>
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<uses-permission android:name="android.permission.WAKE_LOCK"/>
+<uses-permission android:name="android.permission.VIBRATE"/>
 $QUERIES_OK</manifest>
 EOF
   # --- DIA round-4 (Y): a removal directive that coexists with a LIVE declaration.
@@ -438,10 +465,38 @@ EOF
   # TYPE, which would strip our blockers too. DIA could not execute the merger to
   # settle it, and neither can I — so we FAIL SAFE. An unverified risk aimed at HER
   # location dot is disqualifying, never dismissable.
+  #
+  # SIBLING CHANGED 2026-08-10 (AAE): this fixture used WAKE_LOCK, which is now a
+  # GUARDED perm — the case would still have been rejected, but for the wrong
+  # reason, and it would no longer test what its own comment says it tests. CAMERA
+  # is a perm we do not request and do not guard, so the fixture again exercises
+  # exactly the node-type-removeAll fail-safe it was written for.
   cat > "$tmp/y1_removeall_sibling.xml" <<EOF
 $MF
 $PERMS_OK
-<uses-permission android:name="android.permission.WAKE_LOCK" tools:node="removeAll"/>
+<uses-permission android:name="android.permission.CAMERA" tools:node="removeAll"/>
+$QUERIES_OK</manifest>
+EOF
+  # Z1/Z2 — the EYES-OFF ACTUATOR lane (AAE, 2026-08-10). Before this change both
+  # of these PASSED: the guard had no opinion about the channels that carry the
+  # alert to HER BODY. Z2 is the one that matters most — a whiteout is exactly the
+  # condition in which she cannot look, so a dropped VIBRATE is a silent, total
+  # loss of the only cue left, on the day the app exists for.
+  cat > "$tmp/z1_wakelock_missing.xml" <<EOF
+$MF
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<uses-permission android:name="android.permission.VIBRATE"/>
+$QUERIES_OK</manifest>
+EOF
+  cat > "$tmp/z2_vibrate_removeall.xml" <<EOF
+$MF
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<uses-permission android:name="android.permission.WAKE_LOCK"/>
+<uses-permission android:name="android.permission.VIBRATE" tools:node="removeAll"/>
 $QUERIES_OK</manifest>
 EOF
   # Y2 — the same, one lane over: a live TTS <queries> beside a removeAll'd <queries>.
@@ -495,6 +550,9 @@ EOF
   check y3_live_and_removed.xml 1
   check y1_removeall_sibling.xml 1
   check y2_queries_removeall_sibling.xml 1
+  # AAE 2026-08-10: the eyes-off actuator lane. Both PASSED before this change.
+  check z1_wakelock_missing.xml 1
+  check z2_vibrate_removeall.xml 1
   echo "SELF-TEST: $pass/$total PASS"
   [[ "$pass" == "$total" ]] || exit 1
   exit 0

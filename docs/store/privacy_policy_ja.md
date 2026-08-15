@@ -1,6 +1,6 @@
 # プライバシーポリシー — sngnav-app
 
-最終更新: 2026-07-10
+最終更新: 2026-08-10
 
 <!-- Play Console は位置情報を要求するアプリに公開されたプライバシーポリシー URL を
      求める。本ファイルはその原文（ja 主・en 全訳付き）。ホスティング先が決まったら
@@ -9,7 +9,20 @@
      FOREGROUND_SERVICE / FOREGROUND_SERVICE_LOCATION は本チェンジセットで
      マニフェストから削除されるため記載しない（宣言のみ・未使用だったもの。
      scout 062-6）。万一削除が着地しないまま公開する場合は、本ページの権限一覧を
-     マニフェストの実態に合わせて更新すること。 -->
+     マニフェストの実態に合わせて更新すること。
+
+     2026-08-10 AAE 訂正（OPS-062(A) / AAE-7）— 出典を「ソースのマニフェスト」から
+     「実際に配布されるマニフェスト」へ切り替えた。
+     旧版の権限表は android/app/src/main/AndroidManifest.xml（＝我々が書いた行）だけを
+     読んで作られていた。APK に実際に入るのはプラグインをマージした後のマニフェストで、
+     そこには vibration プラグイン由来の VIBRATE が含まれる。旧版はそれを載せないまま
+     「これ以外の権限は要求しません」と書いており、配布物と食い違っていた。
+     本表の出典は、この日ビルドした release APK の
+     build/app/intermediates/packaged_manifests/release/
+       processReleaseManifestForPackage/AndroidManifest.xml:15,21,22,27,53,59
+     （aapt2 dump badging でも同一を確認）。
+     権限を足したのではない — 前から入っていたものを、初めて正直に書いた。
+     以後この表を更新するときは、必ずマージ後のマニフェストを読むこと。 -->
 
 本アプリ（sngnav-app）は、雪道の運転を支えるための情報アプリです。私たちは、あなたのデータをできる限り端末の外に出さない設計を選んでいます。このページは、アプリが何を使い、何を送り、何を送らないかを、実際のコードのとおりに説明するものです。
 
@@ -30,10 +43,21 @@
 | ACCESS_FINE_LOCATION | 地図上の現在地表示。**同意した場合のみ**・アプリの使用中のみ |
 | ACCESS_COARSE_LOCATION | 同上（端末が精密な位置を返せない場合の粗い位置） |
 | WAKE_LOCK | 走行中に画面を消灯させないため（走行画面の表示中のみ） |
+| VIBRATE | 危険を知らせる**振動**（前を見たまま気づけるように）。音を聞き取りにくい方・吹雪で画面を見られない場面のための channel です |
 
-<!-- AndroidManifest.xml:5,9,10,13; 用途の根拠は scout_full_3 §(2) の code evidence -->
+<!-- 出典＝配布されるマニフェスト（マージ後）:
+     build/app/intermediates/packaged_manifests/release/
+       processReleaseManifestForPackage/AndroidManifest.xml:15,21,22,27,53
+     VIBRATE の実使用: lib/actuators/mobile_alert_actuators.dart:191-192
+     （Vibration.hasVibrator / Vibration.vibrate）。宣言のみの権限ではない。 -->
 
 これ以外の権限（ストレージ・カメラ・連絡先・バックグラウンド位置情報など）は要求しません。
+
+なお、ビルドの都合で `dev.aki1770del.sngnav_app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`
+という**アプリ自身にしか効かない権限**が1つ自動生成されます（AndroidX が付与するもので、
+`protectionLevel="signature"`）。これはアプリ内部の受信機を外部に公開しないための鍵であり、
+端末のデータへのアクセス権ではありません。あなたの情報には一切関係しません。
+<!-- packaged_manifests/…/AndroidManifest.xml:56-57（permission 宣言）, :59（uses-permission） -->
 
 ## 端末の外に出るデータ（この4つがすべてです）
 
@@ -68,7 +92,7 @@
 
 # Privacy Policy — sngnav-app (English)
 
-Last updated: 2026-07-10
+Last updated: 2026-08-10
 
 sngnav-app is an advisory app that supports driving on snowy roads. We deliberately keep your data on your device wherever possible. This page explains — matching the actual code — what the app uses, what it sends, and what it does not send.
 
@@ -88,8 +112,21 @@ sngnav-app is an advisory app that supports driving on snowy roads. We deliberat
 | ACCESS_FINE_LOCATION | Showing your position on the map. **Only after you consent**, and only while the app is in use |
 | ACCESS_COARSE_LOCATION | Same flow (a coarse position when a precise one is unavailable) |
 | WAKE_LOCK | Keeping the screen on while the driving surface is shown |
+| VIBRATE | The **haptic** hazard cue — so a warning can be noticed without looking. This is the channel for a driver who cannot hear well, or cannot look at the screen in a whiteout |
 
 No other permissions (storage, camera, contacts, background location, etc.) are requested.
+
+One further permission is generated automatically by the build and is listed here for
+completeness: `dev.aki1770del.sngnav_app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. AndroidX
+defines it with `protectionLevel="signature"` so that the app's own dynamically registered
+broadcast receivers are not exported to other apps. It grants no access to anything on your
+device and touches none of your data.
+
+*Correction note (2026-08-10): the VIBRATE row was missing from earlier versions of this page.
+The permission was always present in the shipped app — the page had been written from the
+manifest we author by hand, not from the merged manifest that is actually packaged. Nothing was
+added to the app; a permission it already requested is now stated honestly. The source for this
+table is the packaged release manifest of a build made on the date above.*
 
 ## Data that leaves your device (these four flows are all of it)
 

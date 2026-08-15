@@ -183,6 +183,35 @@ accounts). A beta tester sends feedback the way she sends a photo.
       installed (Settings→TTS→download offline ja) and DEVICE_VERIFICATION
       gains that step; the beta notes state the dependency honestly.
 - [ ] Play internal track created + first signed build uploaded (A4)
+      **The artifact side of A4 is DONE and gated (AAE, 2026-08-10).** Play takes
+      an **App Bundle**, not the APK that CI builds — so the uploaded file is
+      `build/app/outputs/bundle/release/app-release.aab`, and it is produced and
+      checked by one command:
+
+          bash tool/preflight_play_upload.sh          # builds AAB + APK, then gates
+
+      **Five** gates, each a real Play rejection, all measured on the 2026-08-10
+      build and all PASSING: bundle signed `CN=SNGNav Upload` (valid to 2053, not
+      the silent debug fallback in `android/app/build.gradle.kts:65-69`) ·
+      targetSdk **36** (Play requires API 36 from **2026-08-31**) · every
+      64-bit `.so` LOAD-aligned ≥ 16 KB (16 KB page-size rule) · versionCode **2**
+      unspent per `tool/play_uploaded_version_codes.txt` · **permission parity**
+      between the manifest we author and the manifest the bundle actually ships.
+      Guards proven to reject bad input first: `--self-test` → **23/23 PASS**.
+
+      *Corrected 2026-08-15 (AAE) before this paragraph was ever committed. It
+      said "Four gates" and "17/17 PASS" — written before gate 5 (permission
+      parity) was added on the same day, and never re-measured. Re-run today:
+      `bash tool/preflight_play_upload.sh --self-test` → 23/23, and the script
+      prints `gate 1/5` … `gate 5/5`. Gate 5 is the one that catches the exact
+      VIBRATE drift this changeset exists to fix, so leaving it out of our own
+      count would have undersold the only gate that has already caught something.
+      The "21 days out" clause is dropped rather than re-arithmetic'd: a countdown
+      written into prose is wrong every day after it is written.*
+      **What remains in A4 is entirely Chair-side and is not an engineering item:**
+      the Play Console account itself. A4's own due date was **2026-07-15**;
+      as of 2026-08-10 nothing has been uploaded to any track. The artifact has
+      not been the blocker for some time.
 - [x] **Offline basemap → default with REAL cartography (built 2026-07-10)**:
       placeholder grid replaced by a real-OSM render — Geofabrik Tohoku
       extract → tool/extract_akita.py (273k line features, 9.4k water polys,

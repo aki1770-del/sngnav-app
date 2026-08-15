@@ -1,0 +1,19 @@
+# versionCodes ALREADY CONSUMED on a Google Play track.
+#
+# Play refuses a versionCode that has been uploaded before, on any track, ever —
+# including a release that was later discarded. There is no way to free one.
+# pubspec.yaml carries the discipline ("versionCode must never repeat on the
+# track"); this file is what makes it checkable, because a discipline that lives
+# only in a comment is remembered, not enforced.
+#
+# One integer per line. APPEND the number AFTER an upload is accepted, and commit
+# it in the same change. Do not pre-register a number you have not spent — a
+# ledger that runs ahead of reality is worse than no ledger.
+#
+# Read by tool/preflight_play_upload.sh (gate 4/4).
+#
+# STATE AS OF 2026-08-10: EMPTY. Nothing has ever been uploaded to any Play
+# track — measured, not assumed: BETA_PLAN.md's own checklist still carries
+# "[ ] Play internal track created + first signed build uploaded (A4)" unticked,
+# and criterion C3 (a tester installing through the track) is unmet. The first
+# upload will therefore be versionCode 2 (pubspec.yaml: version 0.0.5+2).
