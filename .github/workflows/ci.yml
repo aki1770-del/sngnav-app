@@ -25,16 +25,91 @@ jobs:
           # into passing — a gate that skips when it cannot check is the anti-loom.
           fetch-depth: 0
 
-      - uses: subosito/flutter-action@v2
+      # MOVED DOWN 2026-08-16 (AAE), on FBR FINDING F5 — see below the dead-HER
+      # assert for where it went and why.
+
+      # MOVED UP 2026-08-16 (AAE), on adversarial-review finding C3. This used to sit BELOW the
+      # dead-HER assert, which was wrong the moment that assert moved up:
+      # assert_manifest_perms.sh:126 runs `python3 - "$manifest"`, so BOTH it and
+      # its self-test need an interpreter. Measured with python3 shimmed to 127:
+      # the assert exits 127 and its self-test exits 1. Leaving setup-python
+      # below them would have traded a pinned 3.12 for whatever the runner image
+      # happens to ship — a quieter dependency, not a smaller one. Pinning first
+      # costs seconds and is what the previous ordering actually gave us.
+      - uses: actions/setup-python@v5
         with:
-          channel: stable
-          flutter-version: '3.41.4'
+          python-version: '3.12'
 
       - name: Loom mutation gate (a guard is not INSERTED until PROVEN to FAIL)
         run: bash tool/loom_mutation_gate.sh --self-test
 
       - name: Manifest guard self-test (the loom proves itself before it judges)
         run: bash tool/assert_manifest_perms.sh --self-test
+
+      # MOVED UP 2026-08-16 (AAE). This assert used to sit AFTER the tile-pipeline
+      # steps, and was skipped on BOTH of the last two runs — 31885771720 (guard
+      # could not load the renderer) and 31891584985 (guard's fixture absent from
+      # the checkout). Twice in a row, a tile-pipeline ENVIRONMENT problem stopped
+      # the unit from learning whether HER location dot and haptic channel were
+      # still declared.
+      #
+      # ⚑ TWO CLAIMS THAT STOOD HERE WERE FALSE, and are corrected rather than
+      # deleted, because both were the author's own and both were refuted by
+      # measurement (adversarial-review findings C3, C4):
+      #
+      #   "This one needs nothing but bash and the manifest we wrote" — FALSE.
+      #   assert_manifest_perms.sh:126 shells out to python3. The interpreter is
+      #   now pinned ABOVE this step so the claim's INTENT survives even though
+      #   its wording did not.
+      #
+      #   "a defect in a heavier lane can NEVER AGAIN hide a dead-HER blocker" —
+      #   over-reached. ⚑ AND THE CORRECTION ITSELF WENT STALE THE SAME DAY,
+      #   caught by FBR round-3: it said "TWO steps still precede this one".
+      #   THREE do — actions/setup-python@v5, the loom mutation gate, and the
+      #   manifest guard's own self-test. The omitted one is the ONLY
+      #   network-fetching action of the three, i.e. the same failure class this
+      #   ordering exists to remove. The C3 fix moved setup-python up and nobody
+      #   re-swept the correction sitting directly above this assert. A count in
+      #   an honest-bounds note is load-bearing; this one is now recomputed from
+      #   the file, not remembered.
+      #   If any of those three breaks, this assert is skipped exactly as before.
+      #   What is true, and all that is claimed: THE TILE-PIPELINE LANE and THE
+      #   SDK DOWNLOAD can no longer hide it, and the tile lane is what hid it
+      #   twice.
+      #
+      # The ordering rationale that survives both corrections: this check is the
+      # highest-severity and much the cheapest, so it runs before python wheels,
+      # a fixture build and a worktree materialisation. Nothing is weakened —
+      # every step below still runs and still blocks; only the order changed.
+      # ⚑ AND THAT LAST SENTENCE WAS ALSO WRONG, FBR round-3. It read
+      # "android-build and release-apk already ran it early; the test job was
+      # the odd one out" — true relative to the BUILD, false relative to the SDK
+      # DOWNLOAD, which precedes the assert in both of those jobs. They are
+      # reordered to match this one. The purpose survived regardless, because
+      # `test` carries no `if:` and runs on every trigger, so the dead-HER
+      # answer was always obtained somewhere; what was missing was the
+      # redundancy, and redundancy on this particular guard is the point.
+      - name: Assert Android manifest perms + voice-lane <queries> (dead-HER blocker guard)
+        run: bash tool/assert_manifest_perms.sh
+
+      # ⚑ FBR FINDING F5, 2026-08-16 — flutter-action MOVED HERE, from ABOVE the
+      # dead-HER assert. The correction note above this assert claimed the tile
+      # lane could no longer hide it; true, and insufficient. The SDK download is
+      # the heaviest and most network-fragile step in this job, it sat ABOVE the
+      # assert, and IT IS NEEDED BY NOTHING ABOVE IT — FBR proved the assert and
+      # both preceding guards run to exit 0 with `flutter` never invoked. So a
+      # flaky SDK download still rendered the dead-HER blocker guard `skipped`:
+      # her location dot and her haptic channel unchecked, the exact symptom this
+      # change exists to remove.
+      #
+      # Order is now: checkout · pin python (the assert needs an interpreter) ·
+      # loom mutation gate · manifest guard self-test · THE DEAD-HER ASSERT ·
+      # then everything heavy. Nothing is weakened — every step below still runs
+      # and still blocks. Only the order changed, and it costs nothing.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.41.4'
 
       # 2026-08-11: these two steps previously resolved the guards through a path
       # inside a DIFFERENT, PRIVATE repo ($HOME/Documents/...) that a runner never
@@ -79,9 +154,10 @@ jobs:
       # The fix is to give CI the deps — never to skip the case, because a guard
       # that skips when it cannot check is the anti-loom this file already names
       # two comments above.
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+      #
+      # (actions/setup-python now runs near the TOP of this job — see the note
+      # there. The dead-HER assert also needs python3, so pinning had to happen
+      # before it. Deliberately not duplicated here.)
 
       # python3, not python: the guard resolves its own interpreter with
       # `command -v python3` (tile-pipeline-defaults-guard.sh:29). Installing
@@ -99,6 +175,56 @@ jobs:
           bash tool/tile-pipeline-defaults-guard.sh --self-test
           bash tool/tile-archive-identity-guard.sh --self-test
 
+      # 2026-08-16 (AAE): the step above went RED at 7339570 because
+      # tile-archive-identity-guard.sh's --self-test read its fixture from
+      # assets/tiles/gunma_offline.mbtiles — a local build intermediate that is
+      # not tracked and not ignored, so it is in no checkout a runner ever makes.
+      # Those four detection cases had therefore NEVER RUN: the guard had never
+      # been proven to detect anything. The fixture is now BUILT in a tmpdir
+      # instead of FOUND on disk, which is the idiom the other self-tests here
+      # already use.
+      #
+      # THIS step is the loom for the CLASS, not for that instance. Nothing
+      # asserted that a guard's --self-test could run from a clean checkout —
+      # the others are hermetic by accident of idiom, not because anything
+      # checks. It materialises the committed tree in a throwaway worktree
+      # (tracked files only, history intact) and runs every tool/*.sh
+      # --self-test there, and in the live tree, so it can tell "depends on
+      # something not in the repo" from "fails everywhere". Fail-closed: a
+      # self-test it cannot evaluate is exit 3, never green.
+      #
+      # PROVEN TO FAIL before insertion, on the REAL defect, measured 2026-08-16:
+      # against a 7339570 worktree with the untracked gunma_offline.mbtiles
+      # restored, the OLD self-test reports "4/4 OK" exit 0 while this guard
+      # reports NON-HERMETIC exit 1. It would have caught ae1bcf6 at author time.
+      #
+      # It runs AFTER the deps step on purpose: it executes the real self-tests,
+      # and tile-pipeline-defaults-guard.sh needs PIL. Without the deps it would
+      # report UNDETERMINED — honest, but a red pointing at the environment
+      # rather than at hermeticity.
+      # ⚑ FBR ROUND-3 MEASURED THAT THIS STEP WAS LARGELY ORNAMENT IN CI, and the
+      # reason is structural, not a bug: a runner checkout has ZERO
+      # untracked-not-ignored paths, so PRISTINE and SEEDED are byte-identical
+      # and the NON-HERMETIC and DIVERGENT verdicts are UNREACHABLE HERE. They
+      # catch the defect on a DEVELOPER's machine, which is where the untracked
+      # fixture lives. The OUTSIDE-REPO check added this round is the only
+      # verdict in the file that can fire on a runner at all — so it is the only
+      # thing standing between CI and a guard wired through a path CI does not
+      # have, which is precisely the 2026-08-11 defect.
+      #
+      # It needs `strace`, and without it the class is UNCHECKED. Installing it
+      # costs seconds; REQUIRE_TRACE=1 then makes an unchecked class a hard
+      # fail-closed 3 instead of a NOTE scrolling past in a log — FBR's words,
+      # "UNVERIFIED that clears the gate is cleared."
+      - name: Self-test hermeticity (a guard's self-test must run from a CLEAN CHECKOUT)
+        env:
+          SELFTEST_HERMETIC_REQUIRE_TRACE: '1'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq strace
+          strace -V | head -1
+          bash tool/selftest-hermeticity-guard.sh --self-test
+          bash tool/selftest-hermeticity-guard.sh
+
       - name: Tile archive identity (every shipped .mbtiles must not lie about itself)
         run: |
           shopt -s nullglob
@@ -108,8 +234,9 @@ jobs:
             bash tool/tile-archive-identity-guard.sh "$m"
           done
 
-      - name: Assert Android manifest perms + voice-lane <queries> (dead-HER blocker guard)
-        run: bash tool/assert_manifest_perms.sh
+      # (the dead-HER blocker assert now runs near the TOP of this job — see the
+      # note there. Deliberately NOT duplicated here: two copies would drift, and
+      # the point of the move is that it runs before anything heavier can fail.)
 
       - name: Resolve dependencies
         run: flutter pub get
@@ -150,10 +277,19 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: subosito/flutter-action@v2
+
+      # 2026-08-16 (AAE): pin the interpreter here too. The dead-HER blocker
+      # assert below shells out to python3 (assert_manifest_perms.sh:126), and
+      # this job had NO setup-python at all — so it ran against whatever the
+      # runner image happened to ship. Not a live break on ubuntu-24.04, and not
+      # a regression: it predates this change. It is listed here because the C3
+      # reasoning that moved the pin in the `test` job applies identically to
+      # this one, and leaving two of the three jobs unpinned would have made the
+      # fix a local tidy rather than a repair. Found by the second adversarial
+      # review, which noted these jobs were never simulated.
+      - uses: actions/setup-python@v5
         with:
-          channel: stable
-          flutter-version: '3.41.4'
+          python-version: '3.12'
 
       - name: Loom mutation gate (a guard is not INSERTED until PROVEN to FAIL)
         run: bash tool/loom_mutation_gate.sh --self-test
@@ -163,6 +299,14 @@ jobs:
 
       - name: Assert Android manifest perms + voice-lane <queries> (dead-HER blocker guard)
         run: bash tool/assert_manifest_perms.sh
+
+      # FBR ROUND-3 / F5 residual B: moved BELOW the dead-HER assert, to match
+      # the `test` job. The SDK download is the heaviest and most
+      # network-fragile step and the assert needs nothing from it.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.41.4'
 
       - name: Resolve dependencies
         run: flutter pub get
@@ -202,13 +346,22 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          flutter-version: '3.41.4'
 
       # The same gates the other jobs run. An installable artifact may not be
       # built off a tree that has not passed them.
+      # 2026-08-16 (AAE): pin the interpreter here too. The dead-HER blocker
+      # assert below shells out to python3 (assert_manifest_perms.sh:126), and
+      # this job had NO setup-python at all — so it ran against whatever the
+      # runner image happened to ship. Not a live break on ubuntu-24.04, and not
+      # a regression: it predates this change. It is listed here because the C3
+      # reasoning that moved the pin in the `test` job applies identically to
+      # this one, and leaving two of the three jobs unpinned would have made the
+      # fix a local tidy rather than a repair. Found by the second adversarial
+      # review, which noted these jobs were never simulated.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       - name: Loom mutation gate (a guard is not INSERTED until PROVEN to FAIL)
         run: bash tool/loom_mutation_gate.sh --self-test
 
@@ -220,6 +373,14 @@ jobs:
 
       - name: Assert Android manifest perms + voice-lane <queries> (dead-HER blocker guard)
         run: bash tool/assert_manifest_perms.sh
+
+      # FBR ROUND-3 / F5 residual B: moved BELOW the dead-HER assert, to match
+      # the `test` job. The SDK download is the heaviest and most
+      # network-fragile step and the assert needs nothing from it.
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.41.4'
 
       - name: Resolve dependencies
         run: flutter pub get
