@@ -40,9 +40,15 @@ command -v sqlite3 >/dev/null || { echo "SUBSTRATE ERROR: sqlite3 absent"; exit 
 # touches the renderer or the shipped archive.
 if [[ "$SELFTEST" == "1" ]]; then
   SELF="$(readlink -f "$0")"
-  T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+  # FBR FINDING F4, 2026-08-16 — HARDENED. `T=$(mktemp -d)` was unchecked: with
+  # TMPDIR unwritable, T is empty, every "$T/..." becomes an absolute path at /,
+  # and the fixtures silently do not exist. A self-test that cannot make its own
+  # fixtures must say so, not test nothing.
+  T=$(mktemp -d 2>/dev/null) || { echo "SELF-TEST SUBSTRATE ERROR: mktemp -d failed; refusing to test nothing."; exit 2; }
+  [ -d "$T" ] || { echo "SELF-TEST SUBSTRATE ERROR: mktemp -d gave '$T', not a directory."; exit 2; }
+  trap 'rm -rf "$T"' EXIT
   st_fail=0
-  echo "self-test: 3 cases — real PASS · D2 defect FAIL · fail-open FAIL"
+  echo "self-test: 5 cases — real PASS · D2 defect FAIL · fail-open FAIL · REQUIRED_FIELDS · absent archive"
 
   if "$SELF" >/dev/null 2>&1; then echo "  PASS  real renderer accepted"
   else echo "  FAIL  real renderer REJECTED (guard is broken, or a default really drifted)"; st_fail=1; fi
@@ -59,16 +65,61 @@ if [[ "$SELFTEST" == "1" ]]; then
     echo "  FAIL  fail-open: guard PASSED having compared nothing"; st_fail=1
   else echo "  PASS  fail-open correctly REJECTED (compared nothing => RED)"; fi
 
-  # FBR-CERT (C2): REQUIRED_FIELDS is half the Defect-1 fix and had no case —
+  # ADVERSARIAL-REVIEW C2: REQUIRED_FIELDS is half the Defect-1 fix and had no case —
   # deleting it left --self-test still reporting OK. An archive keeping the
   # incidental fields but missing name/bounds/center must be REJECTED.
-  cp "$SHIPPED" "$T/partial.mbtiles" 2>/dev/null
-  sqlite3 "$T/partial.mbtiles" "DELETE FROM metadata WHERE name IN ('name','bounds','center');" 2>/dev/null
-  if "$SELF" "$RENDERER" "$T/partial.mbtiles" >/dev/null 2>&1; then
-    echo "  FAIL  archive missing identity fields was ACCEPTED (REQUIRED_FIELDS dead)"; st_fail=1
-  else echo "  PASS  archive missing identity fields correctly REJECTED"; fi
+  # ⚑ FBR FINDING F4, 2026-08-16 — THIS CASE FAILED OPEN AND IT IS THE WORST
+  # PLACE IN THIS FILE FOR THAT, because it is the case that exists to prove
+  # REQUIRED_FIELDS is alive. Measured: with `cp` shimmed to exit 1 AND
+  # REQUIRED_FIELDS deliberately blanked, this printed `self-test 5/5 OK`,
+  # exit 0 — A DEAD LOOM, GREEN. The mechanism is that the fixture was never
+  # created, so the guard rejected an ABSENT archive, and the test read that
+  # rejection as proof the loom detected a missing FIELD. Same observable,
+  # opposite meaning.
+  #
+  # THREE THINGS ARE NOW ASSERTED BEFORE THE REJECTION IS BELIEVED, because a
+  # rejection is only evidence if the thing rejected is the thing intended:
+  #   1. the copy actually happened,
+  #   2. the fixture is a real, readable archive that HAS the fields, and
+  #   3. the DELETE actually removed them.
+  # This is the same discipline the sibling guard learned as FBR defect-2 last
+  # round; carrying it into this file is the whole point — "a countermeasure
+  # preserved in one file and not carried into the next is the defect this
+  # commit is about" (tile-archive-identity-guard.sh:103).
+  if ! cp "$SHIPPED" "$T/partial.mbtiles" 2>/dev/null; then
+    echo "  FAIL  could not copy $SHIPPED to build the REQUIRED_FIELDS fixture — tested nothing"; st_fail=1
+  elif ! [ -s "$T/partial.mbtiles" ]; then
+    echo "  FAIL  REQUIRED_FIELDS fixture is empty after copy — tested nothing"; st_fail=1
+  else
+    _pre=$(sqlite3 "$T/partial.mbtiles" "SELECT COUNT(*) FROM metadata WHERE name IN ('name','bounds','center');" 2>/dev/null)
+    if [ "${_pre:-0}" -eq 0 ]; then
+      echo "  FAIL  fixture never had name/bounds/center to delete (pre=${_pre:-unreadable}) — the case would pass for the wrong reason"; st_fail=1
+    else
+      sqlite3 "$T/partial.mbtiles" "DELETE FROM metadata WHERE name IN ('name','bounds','center');" 2>/dev/null
+      _post=$(sqlite3 "$T/partial.mbtiles" "SELECT COUNT(*) FROM metadata WHERE name IN ('name','bounds','center');" 2>/dev/null)
+      if [ "${_post:-1}" -ne 0 ]; then
+        echo "  FAIL  DELETE did not remove the identity fields (pre=$_pre post=${_post:-unreadable}) — mutation never took"; st_fail=1
+      else
+        # ⚑ FBR ROUND-3: `pre>0 && post==0` proves THE DELETE RAN. It does not
+        # prove REQUIRED_FIELDS did the rejecting. FBR demonstrated the gap with
+        # two coordinated edits — blank REQUIRED_FIELDS plus one unrelated
+        # fail-closed assertion of exactly the kind this file gains every round
+        # — and got `self-test 5/5 OK`, exit 0, printing "mutation proven".
+        # A dead loom, green, with a reassuring number beside it. That is this
+        # file's own line 78 one level up: same observable, opposite meaning.
+        # ASSERT THE REASON, NOT THE EXIT CODE.
+        _out="$("$SELF" "$RENDERER" "$T/partial.mbtiles" 2>&1)"; _rc=$?
+        if [ "$_rc" -eq 0 ]; then
+          echo "  FAIL  archive missing identity fields was ACCEPTED (REQUIRED_FIELDS dead)"; st_fail=1
+        elif ! printf '%s' "$_out" | grep -q "required field 'name' was never compared"; then
+          echo "  FAIL  rejected, but NOT for the missing identity field — REQUIRED_FIELDS may be dead"
+          echo "        (exit $_rc; expected the \"required field 'name' was never compared\" reason)"; st_fail=1
+        else echo "  PASS  archive missing identity fields correctly REJECTED (mutation proven: $_pre -> $_post; reason asserted)"; fi
+      fi
+    fi
+  fi
 
-  # FBR-CERT (A): a crafted metadata key must not forge a comparison.
+  # ADVERSARIAL-REVIEW A: a crafted metadata key must not forge a comparison.
   if "$SELF" "$RENDERER" "/nonexistent-archive-$$.mbtiles" >/dev/null 2>&1; then
     echo "  FAIL  absent shipped archive was ACCEPTED"; st_fail=1
   else echo "  PASS  absent shipped archive correctly REJECTED"; fi
@@ -121,7 +172,7 @@ REQUIRED_FIELDS="name bounds center"   # the three that decide the artifact's id
 ALLOWED_FIELDS="name bounds center minzoom maxzoom version type"
 check() { # field  default_value
   local field="$1" got="$2" want
-  # FBR-CERT (A): $field reached sqlite3 by interpolation, so a crafted key
+  # ADVERSARIAL-REVIEW A: $field reached sqlite3 by interpolation, so a crafted key
   # (name' AND 0 UNION SELECT 'X) made the archive echo the guard's own value
   # back at it — a forged PASS needing zero knowledge of the shipped archive.
   # The field name is data from the renderer, not a literal; it is allowlisted.
