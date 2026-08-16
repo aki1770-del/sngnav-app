@@ -121,7 +121,12 @@ jobs:
       # ran. That is the vendoring above working, not a regression.
       #
       # tile-pipeline-defaults-guard.sh loads tool/render_akita_mbtiles.py to
-      # read the renderer's LIVE defaults — its own header (line 14) says why:
+      # read the renderer's LIVE defaults. The GUARD's own header says why —
+      # not the renderer's, which is how a stranger reads "its own" after
+      # "the renderer's", and the renderer's line 14 carries nothing of the
+      # sort. Quoted verbatim from tool/tile-pipeline-defaults-guard.sh
+      # line 14, verified 2026-08-16 (AAE) by: grep -n "REAL renderer code"
+      # tool/ — one hit, that file, that line.
       # "It calls the REAL renderer code — not a replica of it, which would
       # drift." The renderer imports PIL at module scope
       # (render_akita_mbtiles.py:29), so on a runner without it exec_module
@@ -324,8 +329,12 @@ jobs:
   # .aab cannot be installed at all and is not a vehicle.
   #
   # SECRETS ARE REQUIRED AND ARE NOT IN THIS REPO. The upload keystore is
-  # deliberately gitignored and has never been committed (android/.gitignore
-  # lines 12-14). So this job cannot sign until the Chair adds:
+  # deliberately gitignored and has never been committed. Both halves verified
+  # 2026-08-16 (AAE): android/.gitignore is 14 lines long and its
+  # lines 12-14 are verbatim `key.properties`, `**/*.keystore`, `**/*.jks`;
+  # and `git log --all -- 'android/app/upload-keystore.jks' '*.jks'
+  # '*.keystore' 'android/key.properties'` returns no commits at all.
+  # So this job cannot sign until the Chair adds:
   #   ANDROID_KEYSTORE_BASE64  - base64 of android/app/upload-keystore.jks
   #   ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_PASSWORD, ANDROID_KEY_ALIAS
   # Until then the job FAILS LOUDLY on the guard below. That is the intent: the
