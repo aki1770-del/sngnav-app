@@ -1268,19 +1268,50 @@ class _HomePageState extends State<HomePage> {
     // B32 — drive start: re-probe the audio cautions NOW (the initState read
     // may be app-open-hours old; the drive is when a mute matters).
     _probeAudioCautions();
-    _herSub = (widget.positionSource ?? herPositionStream)().listen((fix) {
-      if (!mounted) return;
-      // N8 — any event (fix OR honest unavailability) proves the position
-      // pipeline is alive and feeding the drive brain itself; the watchdog
-      // only covers the SILENT drought where nothing arrives at all.
-      _lastPositionEventAt = _now();
-      setState(() => _herFix = fix);
-      _maybeRefreshAdvisoriesForFix(fix);
-      _feedDriveHud(fix);
-    });
+    _herSub = (widget.positionSource ?? herPositionStream)().listen(
+      _onPositionEvent,
+      // D10 — an ERRORED event must land on the same honest surface an
+      // honest unavailability does.
+      //
+      // [herPositionStream]'s own library doc promises it emits
+      // PositionUnavailable on a stream error and "never silently stalls on a
+      // stale fix". Today that promise is kept by ONE implementation and
+      // enforced by nothing — and this is the app's only position ingest,
+      // over a SWAPPABLE source ([HomePage.positionSource]; the dead-reckoning
+      // fallback her_position.dart names as deferred). An error arriving here
+      // with no handler goes to the zone, which is invisible to her in a
+      // release build, while her last dot stays on screen looking measured
+      // until the N8 watchdog degrades it up to a 30 s cadence later. The
+      // abstention must reach her pixel at the instant the loom knows it,
+      // not a cadence after (AAE-6/AAE-7).
+      //
+      // The reason string matches her_position.dart's own wording verbatim so
+      // AppL10n._localizeReason already renders it in HER language
+      // ('GPSストリームのエラー') — no new string, one vocabulary.
+      //
+      // Deliberately NOT cancelOnError: an error is one bad event, not the end
+      // of the drive. Dart leaves the subscription live by default, so a feed
+      // that recovers can still tell her she is found again.
+      onError: (Object e) =>
+          _onPositionEvent(PositionUnavailable('GPS stream error: $e')),
+    );
     // N8 — start the blackout watchdog for the real position feed.
     _positionWatchdog ??=
         Timer.periodic(_watchdogTickEvery, (_) => _watchdogTick());
+  }
+
+  /// One event from HER position feed: a fix, an honest unavailability, or a
+  /// stream error converted into one by [_shareLocation]'s onError. Single
+  /// path, so all three keep the watchdog fed and reach the same surfaces.
+  void _onPositionEvent(PositionFix fix) {
+    if (!mounted) return;
+    // N8 — any event (fix OR honest unavailability) proves the position
+    // pipeline is alive and feeding the drive brain itself; the watchdog
+    // only covers the SILENT drought where nothing arrives at all.
+    _lastPositionEventAt = _now();
+    setState(() => _herFix = fix);
+    _maybeRefreshAdvisoriesForFix(fix);
+    _feedDriveHud(fix);
   }
 
   /// N8 — one watchdog tick: poll the drive brain iff no position event
