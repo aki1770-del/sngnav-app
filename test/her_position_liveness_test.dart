@@ -162,4 +162,73 @@ void main() {
       await sub.cancel();
     });
   });
+
+  group('herPositionStream — platform stream ERROR (D10)', () {
+    test('a platform stream error surfaces as PositionUnavailable, never as '
+        'the last dot left standing', () async {
+      final platform = StreamController<Position>();
+      final events = <PositionFix>[];
+      final sub = herPositionStream(
+        isServiceEnabled: () async => true,
+        checkPermission: () async => LocationPermission.always,
+        positionStream: () => platform.stream,
+      ).listen(events.add);
+
+      platform.add(positionAt());
+      await pumpEventQueue();
+      expect(events.single, isA<PositionAvailable>(),
+          reason: 'baseline: a good fix relays, so a missing second event '
+              'below is the error path and not a dead harness');
+
+      // The platform GPS stream errors mid-drive. This is the one termination
+      // class B20 never pinned: onDone was covered, onError was not, and an
+      // unhandled error here escapes to the zone while her last dot stays on
+      // screen looking measured.
+      platform.addError(StateError('platform GPS stream failed'));
+      await pumpEventQueue();
+
+      expect(events, hasLength(2),
+          reason: 'the error must arrive as an EVENT on her feed, not vanish '
+              'into the zone');
+      expect(events.last, isA<PositionUnavailable>());
+      expect(
+        (events.last as PositionUnavailable).reason,
+        contains('GPS stream error'),
+        reason: 'AppL10n keys her ja line off this exact prefix — the wording '
+            'is a contract, not a message',
+      );
+
+      await platform.close();
+      await sub.cancel();
+    });
+
+    test('an error is one bad event, not the end of her drive: the feed stays '
+        'open and a recovered platform still reaches her', () async {
+      final platform = StreamController<Position>();
+      final events = <PositionFix>[];
+      final sub = herPositionStream(
+        isServiceEnabled: () async => true,
+        checkPermission: () async => LocationPermission.always,
+        positionStream: () => platform.stream,
+      ).listen(events.add);
+
+      platform.addError(StateError('transient platform GPS stream failure'));
+      await pumpEventQueue();
+      expect(events.single, isA<PositionUnavailable>());
+
+      // cancelOnError defaults to false and must stay that way: a GPS radio
+      // that stumbles for one sample has not ended the drive, and she must be
+      // told she is found again.
+      platform.add(positionAt());
+      await pumpEventQueue();
+
+      expect(events, hasLength(2));
+      expect(events.last, isA<PositionAvailable>(),
+          reason: 'a stream cancelled on its first error would leave her '
+              'permanently lost after one recoverable stumble');
+
+      await platform.close();
+      await sub.cancel();
+    });
+  });
 }
