@@ -109,10 +109,10 @@ packages:
     dependency: "direct main"
     description:
       name: condition_aggregator_jma
-      sha256: "693f4084b39ca26be66dd5adecc9fb832eb7548b00712a5a1472aace4c8e6304"
+      sha256: "216cc99ad14db5c52e47f0ebb2e524ffb7900c06cbec3f630cc43bcb424473ef"
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.1"
+    version: "0.5.0"
   cross_file:
     dependency: transitive
     description:
