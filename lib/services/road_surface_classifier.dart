@@ -41,8 +41,14 @@ class RoadSurfaceClassifier {
   RoadSurfaceState? get current => _filter.current;
 
   /// Classify [condition] and return the debounced state.
-  RoadSurfaceState classify(WeatherCondition condition) {
+  ///
+  /// Returns `null` when the condition cannot be classified at all -
+  /// driving_conditions 0.6.0 stopped resolving an unmeasured condition into
+  /// `dry`. `null` means NOT DETERMINED and must never be read as "dry road":
+  /// that substitution is the defect this whole release train exists to remove.
+  RoadSurfaceState? classify(WeatherCondition condition) {
     final raw = RoadSurfaceState.fromCondition(condition);
+    if (raw == null) return null;
     return _filter.add(raw);
   }
 

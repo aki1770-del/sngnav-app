@@ -1,7 +1,7 @@
 import 'package:driving_conditions/driving_conditions.dart'
     show HysteresisFilter, RoadSurfaceState;
 import 'package:driving_weather/driving_weather.dart'
-    show PrecipitationIntensity, PrecipitationType, WeatherCondition;
+    show ObservationSource, PrecipitationIntensity, PrecipitationType, WeatherCondition;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/services/road_surface_classifier.dart';
 
@@ -17,6 +17,7 @@ void main() {
         temperatureCelsius: 5.0,
         visibilityMeters: 10000.0,
         windSpeedKmh: 0.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       );
       expect(classifier.current, isNull);
@@ -38,6 +39,7 @@ void main() {
         temperatureCelsius: 5.0,
         visibilityMeters: 10000.0,
         windSpeedKmh: 0.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       );
       final wet = WeatherCondition(
@@ -46,6 +48,7 @@ void main() {
         temperatureCelsius: 5.0,
         visibilityMeters: 5000.0,
         windSpeedKmh: 5.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       );
 
@@ -66,6 +69,7 @@ void main() {
         temperatureCelsius: -5.0,
         visibilityMeters: 800.0,
         windSpeedKmh: 20.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       );
       expect(classifier.classify(snow), RoadSurfaceState.compactedSnow);
@@ -79,6 +83,7 @@ void main() {
         temperatureCelsius: 5.0,
         visibilityMeters: 10000.0,
         windSpeedKmh: 0.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       );
       classifier.classify(dry);

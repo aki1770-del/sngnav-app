@@ -25,18 +25,18 @@ dependencies:
   voice_guidance: ^0.7.2
   offline_tiles: ^0.5.0
   map_viewport_bloc: ^0.4.0
-  driving_conditions: ^0.5.0
-  driving_weather: ^0.4.0
-  adaptive_reroute: ^0.1.5
-  route_condition_forecast: ^0.1.0
+  driving_conditions: ^0.6.0
+  driving_weather: ^0.5.0
+  adaptive_reroute: ^0.2.0
+  route_condition_forecast: ^0.2.0
   # CAP RELEASED (2026-07-05): route_condition_forecast 0.1.5 widened its
   # routing_engine range, unblocking 0.5.0 — the language-honoring
   # turn-by-turn line (Japanese by default; the instruction the voice lane
   # speaks verbatim). On-device OPS-066 verification still owed before any
   # "reaches HER" claim (docs/on_device_verify_checklist.md).
-  routing_engine: ^0.5.0
-  fleet_hazard: ^0.5.0
-  snow_rendering: ^0.2.0
+  routing_engine: ^0.6.0
+  fleet_hazard: ^0.6.0
+  snow_rendering: ^0.3.0
   # WIDENED 2026-07-25: ^0.0.3 (= >=0.0.3 <0.0.4) excluded the locked+live
   # 0.0.8, so a clean `pub get` silently DOWNGRADED the aggregator in HER
   # build and `--enforce-lockfile` hard-failed. >=0.0.3 <0.1.0 admits all
@@ -71,6 +71,16 @@ dependencies:
   vibration: ^3.2.0
   wakelock_plus: ^1.6.1
   navigation_safety_enums: ^0.1.4
+  # Ring-2 運転日記 vocabulary source (2026-08-10). Already resolved
+  # transitively at 0.2.3 via snow_rendering; declared DIRECT because
+  # lib/services/drive_diary.dart now imports it to ground the diary's
+  # road-condition chips in the catalog's canonical JP terms instead of
+  # app-local translations-from-English. The package exists precisely to
+  # stop "the silent erasure of finer-grained JA vocabulary by
+  # English-language collapse" — which is what a hand-authored chip list
+  # in an app is. A drift guard pins our labels to its terms
+  # (test/services/drive_diary_vocabulary_test.dart).
+  japanese_snow_vocabulary: ^0.2.3
   flutter_localizations:
     sdk: flutter
   compound_failure_advisor: ^0.1.1

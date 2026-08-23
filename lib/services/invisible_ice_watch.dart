@@ -169,6 +169,10 @@ InvisibleIceWatchResult evaluateInvisibleIceWatch(JmaObservation obs) {
   // the filler fields are not consulted on this branch. With ambient > 0 the
   // branch returns blackIce IFF the radiative-frost check fires.
   final surface = RoadSurfaceState.fromCondition(WeatherCondition(
+    // DERIVED, not measured: this probe is assembled from the real
+    // (temperature, humidityRH) pair to drive the shared classifier. The other
+    // fields are not consulted on this branch and are not observations.
+    source: ObservationSource.derived,
     precipType: PrecipitationType.none,
     intensity: PrecipitationIntensity.none,
     temperatureCelsius: temp,
