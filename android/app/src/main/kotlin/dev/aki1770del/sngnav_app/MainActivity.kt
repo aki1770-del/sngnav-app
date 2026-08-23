@@ -49,6 +49,15 @@ class MainActivity : FlutterActivity() {
                                 audioManager.getStreamVolume(AudioManager.STREAM_MUSIC),
                             "mediaVolumeMax" to
                                 audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
+                            // A stream can be MUTED at a non-zero index, and
+                            // Android answers that through a different call.
+                            // Measured 2026-08-22 on AVD sngnav_api30:
+                            // dumpsys audio said "STREAM_MUSIC: Muted: true"
+                            // while getStreamVolume returned 5 of 15 — so the
+                            // index alone read a silent device as audible and
+                            // HER media-muted caution never rendered.
+                            "streamMuted" to
+                                audioManager.isStreamMute(AudioManager.STREAM_MUSIC),
                             "ttsServiceVisible" to ttsServiceVisible,
                         ),
                     )

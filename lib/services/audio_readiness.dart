@@ -30,6 +30,7 @@ final class AudioReadiness {
     required this.mediaVolume,
     required this.mediaVolumeMax,
     required this.ttsServiceVisible,
+    this.streamMuted,
   });
 
   /// Current STREAM_MUSIC volume (platform index units, 0..[mediaVolumeMax]).
@@ -42,6 +43,19 @@ final class AudioReadiness {
   /// with no TTS engine cannot speak regardless of volume.
   final bool ttsServiceVisible;
 
+  /// Whether the platform reports STREAM_MUSIC as MUTED, independent of the
+  /// index. `null` = the platform did not say (an APK predating the key) —
+  /// honest-unknown, and [mediaMuted] then rests on the index alone rather
+  /// than guessing.
+  ///
+  /// ⚑ Added 2026-08-22 after measuring the counter-example on a device: the
+  /// AVD reported `STREAM_MUSIC: Muted: true` in `dumpsys audio` while
+  /// `getStreamVolume` returned 5 of 15, so this app read a silent device as
+  /// audible and HER media-muted caution never rendered. Index and mute are
+  /// two platform facts behind two different calls; reading one and calling
+  /// it the other is an absent measurement rendered as the safe value.
+  final bool? streamMuted;
+
   /// Volume as a 0–100 percentage. A `mediaVolumeMax <= 0` reply (never
   /// observed on real devices, but the platform type allows it) is guarded
   /// to 0 rather than dividing by zero.
@@ -49,8 +63,9 @@ final class AudioReadiness {
       ? 0
       : ((mediaVolume * 100) / mediaVolumeMax).round().clamp(0, 100);
 
-  /// True when the media stream is at zero: every spoken alert is silent.
-  bool get mediaMuted => mediaVolume <= 0;
+  /// True when no spoken alert can be heard: the index is at zero, OR the
+  /// platform reports the stream muted at any index.
+  bool get mediaMuted => mediaVolume <= 0 || (streamMuted ?? false);
 }
 
 /// Injectable probe seam. `null` = probe unavailable (non-Android, test
@@ -95,10 +110,17 @@ final class ChannelAudioReadinessProbe implements AudioReadinessProbe {
         ttsServiceVisible is! bool) {
       return null;
     }
+    // ABSENT and WRONG-TYPED are different answers and are treated
+    // differently: an APK that predates this key says nothing (null =
+    // unknown, decode continues), while a key of the wrong type is a
+    // corrupt reply and the whole reading is discarded.
+    final streamMuted = raw['streamMuted'];
+    if (streamMuted != null && streamMuted is! bool) return null;
     return AudioReadiness(
       mediaVolume: mediaVolume,
       mediaVolumeMax: mediaVolumeMax,
       ttsServiceVisible: ttsServiceVisible,
+      streamMuted: streamMuted as bool?,
     );
   }
 }

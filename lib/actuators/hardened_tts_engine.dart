@@ -72,7 +72,7 @@ abstract class TtsAdapter {
 /// Production adapter over the real plugin.
 class FlutterTtsAdapter implements TtsAdapter {
   FlutterTtsAdapter({FlutterTts? flutterTts})
-      : _tts = flutterTts ?? FlutterTts();
+    : _tts = flutterTts ?? FlutterTts();
 
   final FlutterTts _tts;
 
@@ -178,8 +178,7 @@ class HardenedTtsEngine implements TtsEngine {
   bool get pluginAvailable => _pluginAvailable;
 
   Duration _timeoutFor(String text) {
-    final scaled = speakTimeoutFloor +
-        speakTimeoutPerChar * text.length;
+    final scaled = speakTimeoutFloor + speakTimeoutPerChar * text.length;
     return scaled > speakTimeoutCeiling ? speakTimeoutCeiling : scaled;
   }
 
@@ -265,8 +264,9 @@ class HardenedTtsEngine implements TtsEngine {
       // kt:795-806 AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK; released in onDone,
       // kt:128), so HER music/radio ducks under the warning instead of
       // drowning it. Non-Android ignores the flag (flutter_tts.dart:355-362).
-      final dynamic result =
-          await _adapter.speak(text, focus: true).timeout(timeout);
+      final dynamic result = await _adapter
+          .speak(text, focus: true)
+          .timeout(timeout);
       // Verified success/failure semantics (Android, FlutterTtsPlugin.kt):
       //   1 = utterance completed (kt:120-121 onDone → speakCompletion(1))
       //       or accepted when awaitSpeakCompletion is off (kt:324);
@@ -281,8 +281,9 @@ class HardenedTtsEngine implements TtsEngine {
       // state, class doc). stop() makes the Kotlin side complete + clear it
       // (kt:373-383) and flushes the engine, so the NEXT announce starts
       // from a clean slot instead of leaking the stale one.
-      await _guard(() => _adapter.stop())
-          .timeout(const Duration(seconds: 2), onTimeout: () => null);
+      await _guard(
+        () => _adapter.stop(),
+      ).timeout(const Duration(seconds: 2), onTimeout: () => null);
       return _SpeakOutcome.timedOut;
     } on MissingPluginException {
       _pluginAvailable = false;

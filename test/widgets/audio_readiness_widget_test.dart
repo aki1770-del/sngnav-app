@@ -57,11 +57,12 @@ void main() {
     await tester.ensureVisible(find.byKey(cautionKey));
     expect(find.byKey(cautionKey), findsOneWidget);
     expect(
-      find.text('メディア音量がゼロです。音声警告が聞こえません。振動でお知らせします。'),
+      find.text('音声警告は聞こえません（メディア音声が無音です）。'
+          '警告は画面に表示され、振動も試みますが、この端末では未確認です。'),
       findsOneWidget,
     );
     expect(find.byKey(ackButtonKey), findsOneWidget);
-    expect(find.text('承知しました（振動のみで続行）'), findsOneWidget);
+    expect(find.text('承知しました（音声なしで続行）'), findsOneWidget);
     expect(find.byKey(ackedKey), findsNothing);
   });
 
@@ -71,8 +72,9 @@ void main() {
 
     await tester.ensureVisible(find.byKey(cautionKey));
     expect(
-      find.text('Media volume is zero — spoken alerts cannot be heard. '
-          'Haptic alerts will still notify you.'),
+      find.text('Spoken alerts cannot be heard — the media stream is silent. '
+          'Warnings still appear on screen; vibration is attempted but is '
+          'not verified on this device.'),
       findsOneWidget,
     );
   });
@@ -87,7 +89,7 @@ void main() {
 
     expect(find.byKey(cautionKey), findsNothing);
     expect(find.byKey(ackedKey), findsOneWidget);
-    expect(find.text('振動のみモード承知済み'), findsOneWidget);
+    expect(find.text('音声なしモード承知済み'), findsOneWidget);
   });
 
   testWidgets('audible reading -> NOTHING rendered', (tester) async {

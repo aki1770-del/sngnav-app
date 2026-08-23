@@ -17,14 +17,14 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:navigation_safety_enums/navigation_safety_enums.dart'
-    show HapticCuePattern, HapticCuePatternRendering;
-import 'package:vibration/vibration.dart';
+    show HapticCuePattern;
 import 'package:voice_guidance/voice_guidance.dart' show TtsEngine;
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 import '../services/error_log.dart';
 import '../voice/bundled_audio_engine.dart';
 import 'alert_actuators.dart';
+import 'hardened_haptic_channel.dart';
 import 'hardened_tts_engine.dart';
 
 /// True only on a real android/ios target (never web, never desktop, and —
@@ -73,16 +73,15 @@ TtsEngine buildMobileTtsEngine({
   void Function()? onSpeechUnverified,
   void Function()? onSpeechVerified,
   PlayAsset? playAsset,
-}) =>
-    BundledAudioEngine(
-      fallback: HardenedTtsEngine(
-        errorLog: errorLog,
-        onSpeechUnverified: onSpeechUnverified,
-        onSpeechVerified: onSpeechVerified,
-      ),
-      playAsset: playAsset,
-      onBundledSpoken: (_) => onSpeechVerified?.call(),
-    );
+}) => BundledAudioEngine(
+  fallback: HardenedTtsEngine(
+    errorLog: errorLog,
+    onSpeechUnverified: onSpeechUnverified,
+    onSpeechVerified: onSpeechVerified,
+  ),
+  playAsset: playAsset,
+  onBundledSpoken: (_) => onSpeechVerified?.call(),
+);
 
 /// Returns the actuator appropriate for the current platform: a real
 /// [MobileAlertActuators] on android/ios, else a [NoOpAlertActuators].
@@ -100,14 +99,17 @@ AlertActuators defaultAlertActuators({
   LocalErrorLog? errorLog,
   void Function()? onSpeechUnverified,
   void Function()? onSpeechVerified,
-}) =>
-    _isMobilePlatform
-        ? MobileAlertActuators(
-            errorLog: errorLog,
-            onSpeechUnverified: onSpeechUnverified,
-            onSpeechVerified: onSpeechVerified,
-          )
-        : const NoOpAlertActuators();
+  void Function()? onHapticUnverified,
+  void Function()? onHapticVerified,
+}) => _isMobilePlatform
+    ? MobileAlertActuators(
+        errorLog: errorLog,
+        onSpeechUnverified: onSpeechUnverified,
+        onSpeechVerified: onSpeechVerified,
+        onHapticUnverified: onHapticUnverified,
+        onHapticVerified: onHapticVerified,
+      )
+    : const NoOpAlertActuators();
 
 /// Drives the real phone actuators. Speech goes through the app's
 /// [HardenedTtsEngine] (Tier-1 voice-lane hardening: awaitSpeakCompletion +
@@ -126,21 +128,37 @@ class MobileAlertActuators implements AlertActuators {
   /// [errorLog] / [onSpeechUnverified] / [onSpeechVerified] are handed to
   /// the lazily-built [HardenedTtsEngine] (ignored when [ttsEngine] is
   /// injected — the injector owns its engine's reporting).
+  /// [hapticChannel] / [onHapticUnverified] / [onHapticVerified] are the
+  /// tactile twins of the speech parameters above. They did not exist before
+  /// 2026-08-21, and that absence WAS the defect: the audio channel had an
+  /// injectable seam, an error log and delivery reporting, and the haptic
+  /// channel — the only channel a deaf or hard-of-hearing driver has — had
+  /// none of the three. The asymmetry was visible in this very parameter list.
   MobileAlertActuators({
     TtsEngine? ttsEngine,
     LocalErrorLog? errorLog,
     void Function()? onSpeechUnverified,
     void Function()? onSpeechVerified,
-  })  : _injectedTts = ttsEngine,
-        _errorLog = errorLog,
-        _onSpeechUnverified = onSpeechUnverified,
-        _onSpeechVerified = onSpeechVerified;
+    HapticChannel? hapticChannel,
+    void Function()? onHapticUnverified,
+    void Function()? onHapticVerified,
+  }) : _injectedTts = ttsEngine,
+       _errorLog = errorLog,
+       _onSpeechUnverified = onSpeechUnverified,
+       _onSpeechVerified = onSpeechVerified,
+       _injectedHaptics = hapticChannel,
+       _onHapticUnverified = onHapticUnverified,
+       _onHapticVerified = onHapticVerified;
 
   final TtsEngine? _injectedTts;
   final LocalErrorLog? _errorLog;
   final void Function()? _onSpeechUnverified;
   final void Function()? _onSpeechVerified;
   TtsEngine? _resolvedTts;
+  final HapticChannel? _injectedHaptics;
+  final void Function()? _onHapticUnverified;
+  final void Function()? _onHapticVerified;
+  HapticChannel? _resolvedHaptics;
 
   /// The TTS engine, resolved on first use. An injected engine (tests) is used
   /// as-is; otherwise the real engine is built by [buildMobileTtsEngine] —
@@ -150,7 +168,8 @@ class MobileAlertActuators implements AlertActuators {
   /// network, no voice pack, no TTS engine), and only slotted / non-safety
   /// text is delegated to TTS. Before this, the system TTS was the ONLY mouth
   /// — and with no network it is silent, then hangs.
-  TtsEngine get _tts => _resolvedTts ??= (_injectedTts ??
+  TtsEngine get _tts => _resolvedTts ??=
+      (_injectedTts ??
       buildMobileTtsEngine(
         errorLog: _errorLog,
         onSpeechUnverified: _onSpeechUnverified,
@@ -172,30 +191,34 @@ class MobileAlertActuators implements AlertActuators {
     }
   }
 
-  /// N9 — cap on each raw vibration-plugin await. The announcer awaits
-  /// `haptic()` BEFORE `speak()` (haptic-first, OPS-059), so a platform
-  /// channel that never answers here would hold the SPOKEN warning hostage
-  /// forever — a hang is not a throw, and only the throw was guarded. The
-  /// codebase's own rule (HardenedTtsEngine): a timeout is the only recovery.
-  /// 2 s is generous for a query/enqueue call (the vibrate() Future resolves
-  /// when the platform accepts the waveform, not when the buzzing ends) and
-  /// short enough that a wedged haptic channel delays the voice by at most
-  /// ~4 s instead of silencing it for good — true channel independence.
-  static const Duration _hapticCallTimeout = Duration(seconds: 2);
+  /// The tactile channel, resolved on first use — the exact mirror of `_tts`
+  /// above, and it did not exist until 2026-08-21.
+  ///
+  /// Before this, `haptic()` called the plugin statically and had **two silent
+  /// exits**: a `hasVibrator()` false branch that did nothing, and a bare
+  /// `catch (_)` that swallowed every fault. Measured on a device that day, an
+  /// announce at severity `critical` dispatched Japanese TTS and registered
+  /// ZERO vibrations — with nobody told, because there was nothing to tell
+  /// with. [HardenedHapticChannel] carries the reporting; the guards and the
+  /// never-throw contract are unchanged.
+  HapticChannel get _haptics => _resolvedHaptics ??=
+      (_injectedHaptics ??
+      HardenedHapticChannel(
+        errorLog: _errorLog,
+        onHapticUnverified: _onHapticUnverified,
+        onHapticVerified: _onHapticVerified,
+      ));
 
   @override
   Future<void> haptic(HapticCuePattern pattern) async {
-    if (!_isMobilePlatform) return;
-    if (!pattern.isTactile) return; // none -> no sensation (info-class)
-    try {
-      if (await Vibration.hasVibrator().timeout(_hapticCallTimeout)) {
-        await Vibration.vibrate(pattern: _waveformFor(pattern))
-            .timeout(_hapticCallTimeout);
-      }
-    } catch (_) {
-      // A missing vibrator / platform fault / timeout must not crash — or
-      // block — the drive surface. speak() still fires after this returns.
-    }
+    // Non-mobile is not a delivery failure: desktop/test genuinely owes no
+    // sensation and uses NoOpAlertActuators. Reporting here would cry wolf on
+    // every surface that never had a vibrator to begin with.
+    if (!_isMobilePlatform && _injectedHaptics == null) return;
+    // Fire-and-report. The outcome is deliberately not rethrown or awaited by
+    // the caller for anything but ordering: AlertAnnouncer awaits haptic
+    // BEFORE speak (haptic-first, OPS-059), so this must always complete.
+    await _haptics.fire(pattern);
   }
 
   @override
@@ -206,21 +229,4 @@ class MobileAlertActuators implements AlertActuators {
     } catch (_) {}
   }
 
-  /// Android waveform `[initialWaitMs, vibrateMs, waitMs, vibrateMs, ...]`
-  /// built from the catalog grammar's [HapticCuePattern.pulseCount]
-  /// (warning = 2 measured pulses, critical = 3 urgent pulses). The two
-  /// announced tiers are distinguishable by COUNT — so a deaf driver can tell
-  /// "reduce speed" (warning) from "consider stopping" (critical) — and by
-  /// a longer per-pulse duration on critical (a second distinguishing axis),
-  /// per HapticCuePattern's cited deaf/HoH-driver rationale.
-  List<int> _waveformFor(HapticCuePattern pattern) {
-    final onMs = pattern == HapticCuePattern.critical ? 350 : 200;
-    const gapMs = 150;
-    final wave = <int>[0];
-    for (var i = 0; i < pattern.pulseCount; i++) {
-      wave.add(onMs);
-      if (i < pattern.pulseCount - 1) wave.add(gapMs);
-    }
-    return wave;
-  }
 }

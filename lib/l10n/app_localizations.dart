@@ -451,6 +451,45 @@ class AppL10n {
   String get speechUnverifiedChip =>
       _ja ? '音声警告を確認できませんでした' : 'Voice alert could not be verified';
 
+  /// In-drive HUD chip while the LAST tactile cue that was OWED did not land
+  /// (no vibrator / platform fault / platform never answered). Cleared on the
+  /// next cue the platform accepts.
+  ///
+  /// The tactile twin of [speechUnverifiedChip], and it did not exist until
+  /// 2026-08-22. Measured on a device the day before: an announce at severity
+  /// `critical` dispatched Japanese speech and produced ZERO vibrations, and
+  /// nothing anywhere said so. For a deaf or hard-of-hearing driver — and for
+  /// any driver whose ears are useless inside a roaring whiteout — this is not
+  /// the second channel. It is the only one.
+  String get hapticUnverifiedChip =>
+      _ja ? '振動警告を確認できませんでした' : 'Vibration alert could not be verified';
+
+  /// Shown INSIDE the media-muted caution when the tactile channel has also
+  /// reported an owed cue lost.
+  ///
+  /// [mediaMutedCaution] promises her 「振動でお知らせします」 and offers a button
+  /// that says 「承知しました（振動のみで続行）」. If the vibration channel is not
+  /// landing either, that promise is false and she is being asked to consent
+  /// to it. This line withdraws it in the same glance, and names what is
+  /// actually left: the screen.
+  /// PRE-DRIVE caution when the platform reports NO vibrator at all.
+  ///
+  /// The stronger, measured statement AAA's G-3 makes possible: not *"we could
+  /// not verify"* after a warning was already lost, but *"this device has
+  /// none"* before she commits to the drive. Rendered ONLY on a `false`
+  /// answer — `null` (unreadable / off-mobile / test binding) renders nothing,
+  /// because a caution about a device that may vibrate perfectly well is a
+  /// false alarm on the channel that can least afford one.
+  String get hapticUnavailableCaution => _ja
+      ? 'この端末は振動に対応していません。'
+          '音が聞こえない場合、警告は画面表示のみになります。'
+      : 'This device reports no vibration. If you cannot hear the sound, '
+          'warnings will be on screen only.';
+
+  String get hapticUnverifiedInMutedNote => _ja
+      ? '振動も確認できませんでした。警告は画面表示のみです。'
+      : 'Vibration could not be verified either — warnings are on-screen only.';
+
   // ===== Tier-2 audio readiness — media-volume-zero probe =====
   //
   // Shown ONLY when the read-only platform probe PROVED the media stream is
@@ -459,20 +498,46 @@ class AppL10n {
   // always drives, and we NEVER touch her volume (the Tier-3 dignity
   // boundary the Chair holds).
 
-  /// Strong pre-drive caution when the media volume is zero: every spoken
-  /// safety alert is silent until SHE raises it.
+  /// Strong pre-drive caution when no spoken safety alert can be heard.
+  ///
+  /// ⚑ REWRITTEN 2026-08-22 on AAA's PUSHBACK (G-1), which found two defects
+  /// in the one sentence this used to be — *"メディア音量がゼロです。音声警告が
+  /// 聞こえません。振動でお知らせします。"*:
+  ///
+  /// (a) **the stated cause was false.** Since `isStreamMute` reached the
+  ///     probe the same day, this row also fires at a NON-ZERO index on a
+  ///     muted stream — measured on AVD `sngnav_api30` at index 5 of 15.
+  ///     "Silent" is true of both; "volume is zero" was true of one.
+  /// (b) **the second clause promised a delivery the app only ATTEMPTS.**
+  ///     Future tense, unconditional, about the one channel that had no
+  ///     prospective probe. AAA: *claimed delivery, earned attempt.*
+  ///
+  /// The wording below is AAA's, verbatim from its verdict, and carries three
+  /// checkable properties: the cause is stated as silent; the tactile channel
+  /// is attempted, not promised; and what REMAINS — the screen — is named,
+  /// because a caution that removes a channel without naming what is left is
+  /// not actionable.
   String get mediaMutedCaution => _ja
-      ? 'メディア音量がゼロです。音声警告が聞こえません。振動でお知らせします。'
-      : 'Media volume is zero — spoken alerts cannot be heard. '
-          'Haptic alerts will still notify you.';
+      ? '音声警告は聞こえません（メディア音声が無音です）。'
+          '警告は画面に表示され、振動も試みますが、この端末では未確認です。'
+      : 'Spoken alerts cannot be heard — the media stream is silent. '
+          'Warnings still appear on screen; vibration is attempted but is '
+          'not verified on this device.';
 
-  /// Acknowledge action on the media-muted caution (haptics-only consent).
-  String get mediaMutedAckButton =>
-      _ja ? '承知しました（振動のみで続行）' : 'Understood (continue with haptics only)';
+  /// Acknowledge action on the media-muted caution.
+  ///
+  /// ⚑ RENAMED 2026-08-22 on AAA's PUSHBACK (G-2). This used to read
+  /// 「承知しました（振動のみで続行）」 — asking her to consent to, and then
+  /// labelling her whole drive by, a channel the app had never verified. The
+  /// measured fact is the AUDIO loss, not the haptic presence, so the mode is
+  /// named after what was measured.
+  String get mediaMutedAckButton => _ja
+      ? '承知しました（音声なしで続行）'
+      : 'Understood — continue without spoken alerts';
 
   /// Compact line after acknowledgment collapses the caution.
   String get mediaMutedAckedLine =>
-      _ja ? '振動のみモード承知済み' : 'Haptics-only mode acknowledged';
+      _ja ? '音声なしモード承知済み' : 'No-spoken-alerts mode acknowledged';
 
   // ===== C6 ログを共有 — beta feedback share-log surface (BETA_PLAN fix #8) =====
   //

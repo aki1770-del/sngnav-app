@@ -88,6 +88,7 @@ import 'services/trip_hazard_memory.dart';
 import 'services/route_consent.dart';
 import 'services/jma_advisory_provider_factory.dart';
 import 'services/audio_readiness.dart';
+import 'services/haptic_readiness.dart';
 import 'services/voice_lane_readiness.dart';
 import 'package:snow_rendering/snow_rendering.dart'
     show invisibleBlackIceAnnouncement;
@@ -510,6 +511,21 @@ class SngnavApp extends StatelessWidget {
   /// (null = the page owns one, fed by the hardened TTS engine's callbacks).
   /// Tests inject a notifier and toggle it to pin the chip's show/clear.
   ///
+  /// [hapticUnverified] is the exact tactile twin, fed by
+  /// [HardenedHapticChannel]'s callbacks. It exists because on 2026-08-21 the
+  /// app was measured on a device firing a critical announce that dispatched
+  /// speech and produced zero vibrations, with nothing on HER screen saying
+  /// so — the only channel a deaf or hard-of-hearing driver has was the one
+  /// channel with no delivery report.
+  ///
+  /// [hapticReadinessProbe] overrides the pre-drive TACTILE readiness probe
+  /// (null = the real [DriverHapticReadinessProbe], honestly `null` off-mobile
+  /// and under test — and `null` renders NOTHING). Built 2026-08-22 on AAA's
+  /// G-3 PUSHBACK: the audio channel was probed at four triggers and the
+  /// tactile channel at none, so the app could warn her before the drive that
+  /// speech would not reach her and only after a lost warning that vibration
+  /// had not.
+  ///
   /// [audioReadinessProbe] overrides the Tier-2 pre-drive media-volume probe
   /// (null = the real [ChannelAudioReadinessProbe], which is honestly `null`
   /// off-mobile/under-test — null renders NOTHING). Same idiom as
@@ -527,7 +543,9 @@ class SngnavApp extends StatelessWidget {
     this.diaryShareSink,
     this.voiceLaneReader,
     this.speechUnverified,
+    this.hapticUnverified,
     this.audioReadinessProbe,
+    this.hapticReadinessProbe,
     this.clock,
     this.positionSource,
   });
@@ -550,7 +568,9 @@ class SngnavApp extends StatelessWidget {
   final DiaryShareSink? diaryShareSink;
   final Future<VoiceLaneVerdict> Function()? voiceLaneReader;
   final ValueNotifier<bool>? speechUnverified;
+  final ValueNotifier<bool>? hapticUnverified;
   final AudioReadinessProbe? audioReadinessProbe;
+  final HapticReadinessProbe? hapticReadinessProbe;
 
   /// W0 detection-survival: injectable clock for host-deterministic staleness
   /// (null -> [DateTime.now]). Tests inject a fixed `now` consistent with the
@@ -608,7 +628,9 @@ class SngnavApp extends StatelessWidget {
         diaryShareSink: diaryShareSink,
         voiceLaneReader: voiceLaneReader,
         speechUnverified: speechUnverified,
+        hapticUnverified: hapticUnverified,
         audioReadinessProbe: audioReadinessProbe,
+        hapticReadinessProbe: hapticReadinessProbe,
         clock: clock,
         positionSource: positionSource,
       ),
@@ -629,7 +651,9 @@ class HomePage extends StatefulWidget {
     this.diaryShareSink,
     this.voiceLaneReader,
     this.speechUnverified,
+    this.hapticUnverified,
     this.audioReadinessProbe,
+    this.hapticReadinessProbe,
     this.clock,
     this.positionSource,
   });
@@ -670,9 +694,19 @@ class HomePage extends StatefulWidget {
   /// the hardened TTS engine's callbacks).
   final ValueNotifier<bool>? speechUnverified;
 
+  /// Injectable tactile-verification flag (null -> page-owned notifier fed by
+  /// [HardenedHapticChannel]'s callbacks). The OPS-059 twin of
+  /// [speechUnverified].
+  final ValueNotifier<bool>? hapticUnverified;
+
   /// Injectable Tier-2 audio readiness probe (null ->
   /// [ChannelAudioReadinessProbe]).
   final AudioReadinessProbe? audioReadinessProbe;
+
+  /// Injectable pre-drive tactile readiness probe (null ->
+  /// [DriverHapticReadinessProbe]). The OPS-059 twin of the audio probe, on
+  /// the same cadence by construction — see [_probeAlertChannelReadiness].
+  final HapticReadinessProbe? hapticReadinessProbe;
 
   /// W0 detection-survival: injectable clock (null -> [DateTime.now]). Makes the
   /// feed-loss staleness age computation host-deterministic (OPS-066).
@@ -729,6 +763,17 @@ class _HomePageState extends State<HomePage> {
   // test injects its own notifier. Never disposed here when injected.
   late final ValueNotifier<bool> _speechUnverified;
 
+  // OPS-059 tactile twin — true while the LAST tactile cue that was OWED did
+  // not land (no vibrator / fault / the platform never answered), cleared on
+  // the next cue the platform accepts. Same ownership rule as the speech
+  // flag: page-owned unless a test injects one, never disposed when injected.
+  //
+  // Until 2026-08-22 this did not exist, and the comment on the speech chip
+  // below asserted the tactile channel was "unaffected either way" — an
+  // assumption about a channel nothing had ever measured. Measured on device
+  // 2026-08-21, it was firing nothing.
+  late final ValueNotifier<bool> _hapticUnverified;
+
   // A1 pre-drive voice-lane verdict. Starts (and off-device stays) unknown —
   // unknown renders NOTHING (never a false warning where we cannot read the
   // voice list). Resolved async in initState.
@@ -739,6 +784,15 @@ class _HomePageState extends State<HomePage> {
   // honest-unknown, never a guess. Resolved async in initState alongside the
   // A1 read.
   AudioReadiness? _audioReadiness;
+
+  // Pre-drive tactile readiness. true = the platform reports a vibrator ·
+  // false = it reports none (the caution-worthy answer) · null = it did not
+  // answer, and null renders NOTHING — same honest-unknown discipline as
+  // _audioReadiness and _voiceLaneVerdict. Resolved async on the SAME cadence
+  // as the audio probe (_probeAlertChannelReadiness), which is the whole
+  // point of AAA's G-3: the two eyes-off channels are probed together or the
+  // asymmetry comes back.
+  bool? _hapticAvailable;
 
   // True once HER has tapped 承知しました on the media-muted caution: the
   // strong row collapses to the compact acknowledged line. Informed
@@ -1024,6 +1078,8 @@ class _HomePageState extends State<HomePage> {
     // this state.
     _speechUnverified = widget.speechUnverified ?? ValueNotifier<bool>(false);
     _speechUnverified.addListener(_onSpeechVerificationChanged);
+    _hapticUnverified = widget.hapticUnverified ?? ValueNotifier<bool>(false);
+    _hapticUnverified.addListener(_onHapticVerificationChanged);
     _actuators = widget.actuators ??
         defaultAlertActuators(
           errorLog: widget.errorLog,
@@ -1033,6 +1089,15 @@ class _HomePageState extends State<HomePage> {
           onSpeechVerified: () {
             if (mounted) _speechUnverified.value = false;
           },
+          // The tactile half. Both directions are wired deliberately: without
+          // the verified path a single transient fault would pin the chip on
+          // HER screen for the rest of the drive, which is its own dishonesty.
+          onHapticUnverified: () {
+            if (mounted) _hapticUnverified.value = true;
+          },
+          onHapticVerified: () {
+            if (mounted) _hapticUnverified.value = false;
+          },
         );
     _announcer = AlertAnnouncer(actuators: _actuators);
     // A1 + Tier-2 — pre-drive voice-lane + media-volume reads (honest
@@ -1040,10 +1105,10 @@ class _HomePageState extends State<HomePage> {
     // same probes re-run on a ticker + on drive start (_probeAudioCautions)
     // so a MID-DRIVE mute or voice-pack change is detected, not just a
     // pre-drive one.
-    _probeAudioCautions();
+    _probeAlertChannelReadiness();
     _audioReadinessTicker = Timer.periodic(
       const Duration(seconds: 45),
-      (_) => _probeAudioCautions(),
+      (_) => _probeAlertChannelReadiness(),
     );
     // AAA F1 — resolve the spoken-lane locale ONCE, from the same inputs
     // MaterialApp resolves the screen from: the injected override first,
@@ -1164,7 +1229,17 @@ class _HomePageState extends State<HomePage> {
   ///   (`_mediaMutedAcked = false`): a NEW mid-drive mute is a new event and
   ///   must surface at full strength, not arrive pre-acknowledged from a
   ///   mute she dismissed an hour ago.
-  void _probeAudioCautions() {
+  /// Probes BOTH eyes-off channels on one cadence.
+  ///
+  /// ⚑ Was `_probeAudioCautions` until 2026-08-22. AAA's verdict §2.1 found
+  /// the audio channel probed at four triggers and the tactile channel at
+  /// none — *"the channel with the higher dignity load has the weaker
+  /// instrument."* Giving the tactile probe four call sites of ITS OWN would
+  /// have recreated that defect the first time someone added a fifth audio
+  /// trigger and forgot this one. One method, one cadence; the anti-drift
+  /// test in `test/actuators/haptic_report_wiring_test.dart` fails if either
+  /// probe is lifted out.
+  void _probeAlertChannelReadiness() {
     unawaited(
       (widget.voiceLaneReader ?? readVoiceLaneReadiness)()
           .then((verdict) {
@@ -1190,6 +1265,17 @@ class _HomePageState extends State<HomePage> {
           _audioReadiness = reading;
           if (!wasMuted && reading.mediaMuted) _mediaMutedAcked = false;
         });
+      }).catchError((Object _) {}),
+    );
+    // The tactile half — the same shape, the same fail-soft, the same
+    // honest-unknown. A null answer changes nothing on screen.
+    unawaited(
+      (widget.hapticReadinessProbe ?? const DriverHapticReadinessProbe())
+          .read()
+          .then((available) {
+        if (!mounted || available == null) return;
+        if (available == _hapticAvailable) return; // no rebuild churn
+        setState(() => _hapticAvailable = available);
       }).catchError((Object _) {}),
     );
   }
@@ -1245,6 +1331,7 @@ class _HomePageState extends State<HomePage> {
     // Close the offline MBTiles archive (sqlite3) + its network provider.
     unawaited(_offlineBaseProvider?.dispose());
     _speechUnverified.removeListener(_onSpeechVerificationChanged);
+    _hapticUnverified.removeListener(_onHapticVerificationChanged);
     _driveHud.removeListener(_onDriveHudChanged);
     _driveHud.dispose();
     _herSub?.cancel();
@@ -1265,9 +1352,11 @@ class _HomePageState extends State<HomePage> {
       _herFix = null;
       _isMockPosition = false;
     });
-    // B32 — drive start: re-probe the audio cautions NOW (the initState read
-    // may be app-open-hours old; the drive is when a mute matters).
-    _probeAudioCautions();
+    // B32 — drive start: re-probe BOTH eyes-off channels NOW (the initState
+    // read may be app-open-hours old; the drive is when a mute matters — and
+    // equally when a dead vibrator matters, for the driver who has nothing
+    // else).
+    _probeAlertChannelReadiness();
     _herSub = (widget.positionSource ?? herPositionStream)().listen(
       _onPositionEvent,
       // D10 — an ERRORED event must land on the same honest surface an
@@ -1339,7 +1428,7 @@ class _HomePageState extends State<HomePage> {
     _positionWatchdog = null;
     _lastPositionEventAt = null;
     // B32 — the dev drive start re-probes too (symmetry with real start).
-    _probeAudioCautions();
+    _probeAlertChannelReadiness();
     final mockFix = PositionAvailable(
       latitude: akitaStation.latitude,
       longitude: akitaStation.longitude,
@@ -1362,6 +1451,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onSpeechVerificationChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  void _onHapticVerificationChanged() {
     if (!mounted) return;
     setState(() {});
   }
@@ -1530,10 +1624,16 @@ class _HomePageState extends State<HomePage> {
       children: [
         // Tier-1 voice-lane hardening — shown while the LAST announce could
         // not be verified as delivered (the platform never reported the
-        // utterance complete). Cleared on the next verified speak. Haptic
-        // parity is unconditional in the announcer, so the tactile channel
-        // is unaffected either way; this chip tells HER the AUDIO half may
-        // not have sounded.
+        // utterance complete). Cleared on the next verified speak. This chip
+        // tells HER the AUDIO half may not have sounded.
+        //
+        // ⚑ CORRECTED 2026-08-22. This comment used to end: "Haptic parity is
+        // unconditional in the announcer, so the tactile channel is unaffected
+        // either way." The announcer does fire haptic unconditionally — and on
+        // 2026-08-21 that call was measured on a device producing ZERO
+        // vibrations while dispatching speech. "Fired unconditionally" was
+        // read as "arrives", on the one channel nothing could report. The
+        // tactile chip below is the other half; neither speaks for the other.
         if (_speechUnverified.value) ...[
           Align(
             alignment: AlignmentDirectional.centerStart,
@@ -1558,6 +1658,46 @@ class _HomePageState extends State<HomePage> {
                         color: Colors.amber.shade900,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+        // OPS-059 tactile lane — shown while the LAST tactile cue that was
+        // OWED did not land. Independent of the speech chip above: the two
+        // channels fail independently and the deaf / hard-of-hearing driver
+        // this one is written for reads no meaning at all in the other.
+        if (_hapticUnverified.value) ...[
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Container(
+              key: const Key('haptic-unverified-chip'),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade100,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.vibration,
+                      size: 14, color: Colors.amber.shade900),
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        AppL10n.of(context).hapticUnverifiedChip,
+                        style: TextStyle(
+                          color: Colors.amber.shade900,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ),
@@ -2862,6 +3002,16 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 8),
                     _voiceLaneCautionRow(),
                   ],
+                  // G-3 (AAA 2026-08-22) — pre-drive TACTILE caution, in the
+                  // same region she reads BEFORE driving, on a `false` answer
+                  // only. `null` (unreadable / off-mobile / test) renders
+                  // NOTHING: a caution about a device that may vibrate
+                  // perfectly well is a false alarm on the channel that can
+                  // least afford one.
+                  if (_hapticAvailable == false) ...[
+                    const SizedBox(height: 8),
+                    _hapticUnavailableCautionRow(),
+                  ],
                   // Tier-2 — media-volume-zero caution, same pre-drive
                   // voice-lane region. Rendered ONLY on a proven-muted probe
                   // reading (null probe = NOTHING). Acknowledgment collapses
@@ -2873,6 +3023,21 @@ class _HomePageState extends State<HomePage> {
                       _mediaMutedAckedLine()
                     else
                       _mediaMutedCautionRow(),
+                    // ⚑ The muted caution names vibration as attempted, and
+                    // she taps a button to continue without spoken alerts. If
+                    // the tactile channel is not landing either, say so in the
+                    // same glance — and after her tap too, since the state
+                    // outlives the row she accepted it in.
+                    //
+                    // SUPPRESSED when the pre-drive caution already told her
+                    // this device has NO vibrator: "could not be verified" is
+                    // strictly weaker than "has none", and saying both on one
+                    // glance surface is noise, not honesty. A device that HAS
+                    // a vibrator and lost the cue still gets this line.
+                    if (_hapticUnverified.value && _hapticAvailable != false) ...[
+                      const SizedBox(height: 6),
+                      _hapticUnverifiedInMutedNote(),
+                    ],
                   ],
                 ],
               ),
@@ -3682,6 +3847,80 @@ class _HomePageState extends State<HomePage> {
           child: Text(
             l.mediaMutedAckedLine,
             style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Pre-drive caution: the platform reports NO vibrator.
+  ///
+  /// The stronger, MEASURED statement — *this device has none* — said before
+  /// she commits to the drive, rather than *we could not verify* said after a
+  /// warning was already lost. Red-tinted like the media-muted row rather than
+  /// amber like the A1 voice row: for the driver whose ears are out, this is
+  /// not a degradation of one channel among two, it is the loss of the last
+  /// non-visual one. liveRegion so assistive tech announces it (OPS-059).
+  Widget _hapticUnavailableCautionRow() {
+    final l = AppL10n.of(context);
+    return Container(
+      key: const Key('haptic-unavailable-caution'),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.vibration, size: 16, color: Colors.red.shade900),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                l.hapticUnavailableCaution,
+                style: TextStyle(
+                  color: Colors.red.shade900,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Says, inside the media-muted region, that the tactile channel did not
+  /// land either.
+  ///
+  /// Rendered ONLY when the tactile channel has actually reported an owed cue
+  /// lost — never pre-emptively, because a device that vibrates fine must not
+  /// be told it might not (the same cry-wolf discipline that keeps the
+  /// info-class cue silent). liveRegion so assistive tech announces it: the
+  /// driver this line is for may be reading the screen through a
+  /// screen-reader, and it is the only channel left.
+  Widget _hapticUnverifiedInMutedNote() {
+    final l = AppL10n.of(context);
+    return Row(
+      key: const Key('haptic-unverified-note'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.vibration, size: 14, color: Colors.red.shade900),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Semantics(
+            liveRegion: true,
+            child: Text(
+              l.hapticUnverifiedInMutedNote,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.red.shade900,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ),
       ],
