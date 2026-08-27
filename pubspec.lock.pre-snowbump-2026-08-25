@@ -5,10 +5,10 @@ packages:
     dependency: "direct main"
     description:
       name: adaptive_reroute
-      sha256: "34feba8c9426adec48135e1a6c5f4fbdc2083ac1694ceffac07c88020a3f5ecd"
+      sha256: c49df5a3df0f028baeaaf9f1bfac57065a1c90f5b4b33015f98614b4255dd676
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.0"
+    version: "0.1.6"
   archive:
     dependency: transitive
     description:
@@ -181,18 +181,18 @@ packages:
     dependency: "direct main"
     description:
       name: driving_conditions
-      sha256: f6d00aca4f92e1d43cffc63e15b06e5c688882e5ddb7a0cb272287c622f2d95b
+      sha256: "58b0770ea21222cbfd78b6c07e8bff218c6058beb52f8531a3b88e4b0c29ffdb"
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.0"
+    version: "0.5.7"
   driving_weather:
     dependency: "direct main"
     description:
       name: driving_weather
-      sha256: d904db194fc64e7a424dfd6498f8d13ec5ba90dd66453d9cddc91c63e22abd69
+      sha256: ae5f61167ad0557ec70c221abe93f8b03c77c595d46d0ecec951142c8bbafb59
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.0"
+    version: "0.4.5"
   equatable:
     dependency: transitive
     description:
@@ -753,18 +753,18 @@ packages:
     dependency: "direct main"
     description:
       name: route_condition_forecast
-      sha256: "026bce33c69a75c10933bcb152bedd632b38e2f2db586868c801aae98cc8b75f"
+      sha256: c795e52efa5f752ab3d5ccd052979d96d19205dc7bc2e3d7a98c810740359654
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.0"
+    version: "0.1.5"
   routing_engine:
     dependency: "direct main"
     description:
       name: routing_engine
-      sha256: "1f1d01c16f7d785c59aaab793d0b69848889c7f6e801fd229bcba9662949b955"
+      sha256: d3aac4d03b5af9db675989fadde3f53dfde8e7393659b814961fc5a1ad86364d
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.1"
+    version: "0.5.2"
   share_plus:
     dependency: "direct main"
     description:
@@ -798,10 +798,10 @@ packages:
     dependency: "direct main"
     description:
       name: snow_rendering
-      sha256: "804d08773cf1590aa41ca9cf7e566f918970c6231547644c90874c85a32e0b56"
+      sha256: e943ed0ea4def3ad535fb14621f2b166929f805b20f89dbc9b385f80f15c755c
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.0"
+    version: "0.2.9"
   source_span:
     dependency: transitive
     description:
@@ -958,10 +958,10 @@ packages:
     dependency: "direct main"
     description:
       name: voice_guidance
-      sha256: "050938a3d8231c5cd0985e6212de3657e21c7745499a1ee6d5eb1a9ac830a098"
+      sha256: "8fe296657b47d0aab44b789ec2f2b84229a4c2565bcfe9e059bf25e6d66bbbbc"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.5"
+    version: "0.7.4"
   wakelock_plus:
     dependency: "direct main"
     description:

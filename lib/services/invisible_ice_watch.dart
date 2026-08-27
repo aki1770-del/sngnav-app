@@ -226,9 +226,18 @@ InvisibleIceWatchResult evaluateInvisibleIceWatch(JmaObservation obs) {
     precipType: PrecipitationType.none,
     intensity: PrecipitationIntensity.none,
     temperatureCelsius: temp,
-    visibilityMeters: 10000, // unused on the no-precip branch
-    windSpeedKmh: 0, // unused on the no-precip branch
+    // NOT measured on this branch. Until `driving_weather` 0.5.0 the type
+    // forced a number here, so we passed 10000/0 with a comment saying they
+    // were unused — invented readings a downstream consumer could not tell
+    // apart from observed ones. Absence is representable now, so absence is
+    // what we pass.
+    visibilityMeters: null,
+    windSpeedKmh: null,
     humidityRH: humidity.toDouble(),
+    // `source` records the provenance of the fields that ARE present: the
+    // temperature and humidity both come from the JMA observation. The absent
+    // fields are carried by `null` above, never by a filler value.
+    source: ObservationSource.measured,
     timestamp: obs.fetchedAt,
   ));
   if (surface == RoadSurfaceState.blackIce) {

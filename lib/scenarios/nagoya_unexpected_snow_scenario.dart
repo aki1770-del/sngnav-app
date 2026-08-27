@@ -42,7 +42,12 @@ import 'package:adaptive_reroute/adaptive_reroute.dart'
 import 'package:driving_conditions/driving_conditions.dart'
     show RoadSurfaceState;
 import 'package:driving_weather/driving_weather.dart'
-    show PrecipitationIntensity, PrecipitationType, WeatherCondition;
+    show
+        ObservationSource,
+        PrecipitationIntensity,
+        PrecipitationType,
+        SafetyVerdict,
+        WeatherCondition;
 import 'package:latlong2/latlong.dart';
 import 'package:route_condition_forecast/route_condition_forecast.dart'
     show RouteForecast;
@@ -100,8 +105,18 @@ class ScenarioFrame {
   /// True when the advisor recommends rerouting (severity-class).
   bool get rerouteRecommended => rerouteDecision.shouldReroute;
 
-  /// True when ANY segment of the forecast is hazardous.
-  bool get anyHazard => forecast.hasAnyHazard;
+  /// The route's hazard verdict. **Tri-state — `unknown` is not `notHazardous`.**
+  ///
+  /// Was `bool get anyHazard => forecast.hasAnyHazard` until
+  /// `route_condition_forecast` 0.2.0. A `bool` cannot say "no segment was
+  /// assessed", so a route nobody had looked at answered `false` — the
+  /// clear-road branch — and that is the recall this bump carries.
+  SafetyVerdict get hazardVerdict => forecast.hazard;
+
+  /// True only for a MEASURED hazard. `false` here means hazardous-or-unknown
+  /// is absent; it does NOT mean the route was assessed and found clear — read
+  /// [hazardVerdict] for that.
+  bool get anyHazard => forecast.hazard == SafetyVerdict.hazardous;
 }
 
 /// Driver-replayable demo scenario: Nagoya departure → mountain-pass
@@ -176,6 +191,7 @@ class NagoyaUnexpectedSnowScenario {
         windSpeedKmh: 0.0,
         humidityRH: 45.0,
         iceRisk: false,
+        source: ObservationSource.simulated,
         timestamp: ts,
       );
     }
@@ -186,6 +202,7 @@ class NagoyaUnexpectedSnowScenario {
         temperatureCelsius: 1.0,
         visibilityMeters: 5000.0,
         windSpeedKmh: 10.0,
+        source: ObservationSource.simulated,
         timestamp: ts,
       );
     }
@@ -196,6 +213,7 @@ class NagoyaUnexpectedSnowScenario {
       visibilityMeters: 400.0,
       windSpeedKmh: 25.0,
       iceRisk: true,
+      source: ObservationSource.simulated,
       timestamp: ts,
     );
   }

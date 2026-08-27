@@ -12,7 +12,7 @@
 import 'package:driving_conditions/driving_conditions.dart'
     show HysteresisFilter, RoadSurfaceState;
 import 'package:driving_weather/driving_weather.dart'
-    show PrecipitationIntensity, PrecipitationType, WeatherCondition;
+    show ObservationSource, PrecipitationIntensity, PrecipitationType, WeatherCondition;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/services/road_surface_classifier.dart';
 
@@ -23,6 +23,7 @@ void main() {
     test('first reading sets state immediately', () {
       final classifier = RoadSurfaceClassifier();
       final dryAir = WeatherCondition(
+        source: ObservationSource.simulated,
         precipType: PrecipitationType.none,
         intensity: PrecipitationIntensity.none,
         temperatureCelsius: 5.0,
@@ -45,6 +46,7 @@ void main() {
         ),
       );
       final dry = WeatherCondition(
+        source: ObservationSource.simulated,
         precipType: PrecipitationType.none,
         intensity: PrecipitationIntensity.none,
         temperatureCelsius: 5.0,
@@ -54,6 +56,7 @@ void main() {
         timestamp: ts,
       );
       final wet = WeatherCondition(
+        source: ObservationSource.simulated,
         precipType: PrecipitationType.rain,
         intensity: PrecipitationIntensity.light,
         temperatureCelsius: 5.0,
@@ -75,6 +78,7 @@ void main() {
     test('classifies snow + cold + heavy as compactedSnow', () {
       final classifier = RoadSurfaceClassifier();
       final snow = WeatherCondition(
+        source: ObservationSource.simulated,
         precipType: PrecipitationType.snow,
         intensity: PrecipitationIntensity.heavy,
         temperatureCelsius: -5.0,
@@ -88,6 +92,7 @@ void main() {
     test('reset clears state', () {
       final classifier = RoadSurfaceClassifier();
       final dry = WeatherCondition(
+        source: ObservationSource.simulated,
         precipType: PrecipitationType.none,
         intensity: PrecipitationIntensity.none,
         temperatureCelsius: 5.0,

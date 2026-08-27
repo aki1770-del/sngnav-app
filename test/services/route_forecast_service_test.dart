@@ -1,5 +1,5 @@
 import 'package:driving_weather/driving_weather.dart'
-    show PrecipitationIntensity, PrecipitationType, WeatherCondition;
+    show ObservationSource, SafetyVerdict, PrecipitationIntensity, PrecipitationType, WeatherCondition;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sngnav_app/route_fetch.dart' as local;
@@ -32,9 +32,20 @@ void main() {
       final svc = RouteForecastService(distanceSegmentKm: 5.0);
       final forecast = await svc.project(
         route: osrmSuccess(),
-        currentWeather: WeatherCondition.clear(timestamp: ts),
+        currentWeather: WeatherCondition(
+        source: ObservationSource.simulated,
+        precipType: PrecipitationType.none,
+        intensity: PrecipitationIntensity.none,
+        temperatureCelsius: 5.0,
+        visibilityMeters: 10000,
+        windSpeedKmh: 0,
+        iceRisk: false,
+        timestamp: ts,
+        ),
       );
-      expect(forecast.hasAnyHazard, isFalse);
+      // Tri-state since route_condition_forecast 0.2.0: `notHazardous` is a
+      // MEASURED negative. `isFalse` used to pass for an unassessed route too.
+      expect(forecast.hazard, SafetyVerdict.notHazardous);
       expect(forecast.segments, isNotEmpty);
       // 30 km route at 5 km / segment yields 6 segments.
       expect(forecast.segments.length, 6);
@@ -43,6 +54,7 @@ void main() {
     test('snow + ice → every segment hazardous', () async {
       final svc = RouteForecastService(distanceSegmentKm: 5.0);
       final hazardWeather = WeatherCondition(
+        source: ObservationSource.simulated,
         precipType: PrecipitationType.snow,
         intensity: PrecipitationIntensity.heavy,
         temperatureCelsius: -3.0,
@@ -55,7 +67,7 @@ void main() {
         route: osrmSuccess(),
         currentWeather: hazardWeather,
       );
-      expect(forecast.hasAnyHazard, isTrue);
+      expect(forecast.hazard, SafetyVerdict.hazardous);
       expect(forecast.firstHazardEtaSeconds, isNotNull);
       // Confidence at t=0 is 1.0, degrades with ETA.
       expect(forecast.minimumConfidence, lessThanOrEqualTo(1.0));

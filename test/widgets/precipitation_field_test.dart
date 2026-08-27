@@ -1,5 +1,5 @@
 import 'package:driving_weather/driving_weather.dart'
-    show PrecipitationIntensity, PrecipitationType, WeatherCondition;
+    show ObservationSource, PrecipitationIntensity, PrecipitationType, WeatherCondition;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:snow_rendering/snow_rendering.dart' show PrecipitationConfig;
@@ -13,8 +13,17 @@ void main() {
       tester,
     ) async {
       final config = PrecipitationConfig.fromCondition(
-        WeatherCondition.clear(timestamp: ts),
-      );
+        WeatherCondition(
+        source: ObservationSource.simulated,
+        precipType: PrecipitationType.none,
+        intensity: PrecipitationIntensity.none,
+        temperatureCelsius: 5.0,
+        visibilityMeters: 10000,
+        windSpeedKmh: 0,
+        iceRisk: false,
+        timestamp: ts,
+        ),
+      )!;
       expect(config.particleCount, 0);
       await tester.pumpWidget(SizedBox(
         width: 200,
@@ -29,6 +38,7 @@ void main() {
 
     testWidgets('paints heavy snow with stable seed', (tester) async {
       final heavySnow = WeatherCondition(
+        source: ObservationSource.simulated,
         precipType: PrecipitationType.snow,
         intensity: PrecipitationIntensity.heavy,
         temperatureCelsius: -5.0,
@@ -36,7 +46,7 @@ void main() {
         windSpeedKmh: 20.0,
         timestamp: ts,
       );
-      final config = PrecipitationConfig.fromCondition(heavySnow);
+      final config = PrecipitationConfig.fromCondition(heavySnow)!;
       // Heavy snow → particleCount = 500 (1.0 * 500).
       expect(config.particleCount, 500);
       await tester.pumpWidget(SizedBox(
@@ -50,21 +60,23 @@ void main() {
 
     testWidgets('repaints when config changes', (tester) async {
       final light = PrecipitationConfig.fromCondition(WeatherCondition(
+        source: ObservationSource.simulated,
         precipType: PrecipitationType.snow,
         intensity: PrecipitationIntensity.light,
         temperatureCelsius: 0.0,
         visibilityMeters: 5000.0,
         windSpeedKmh: 5.0,
         timestamp: ts,
-      ));
+      ))!;
       final heavy = PrecipitationConfig.fromCondition(WeatherCondition(
+        source: ObservationSource.simulated,
         precipType: PrecipitationType.snow,
         intensity: PrecipitationIntensity.heavy,
         temperatureCelsius: -5.0,
         visibilityMeters: 400.0,
         windSpeedKmh: 20.0,
         timestamp: ts,
-      ));
+      ))!;
       await tester.pumpWidget(SizedBox(
         width: 200,
         height: 200,
