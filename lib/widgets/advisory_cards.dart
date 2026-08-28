@@ -148,6 +148,40 @@ class AdvisoryCards extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ⚑ FEED-HEALTH, ABOVE EVERYTHING — including a warning in force.
+        //
+        // A publisher document that has stopped being rewritten fails in two
+        // directions and only one of them is visible below. If it lists
+        // warnings, they render as live (Akita served a 雷注意報 from May for 88
+        // days). If it lists nothing, the empty list is the identical value a
+        // clear sky produces (Niigata, 90 days, zero warnings).
+        //
+        // `staleSources` is the aggregator's harvest of every provider that
+        // implements `AdvisoryFeedFreshnessReporting` and reported itself
+        // stale. It is what makes `canAssertNoAdvisory` false, so the all-clear
+        // branch below already cannot fire — but suppressing a false all-clear
+        // is silent, and she is left reading a dead warning with nothing
+        // marking it. This says the quiet part out loud.
+        //
+        // Rendered FIRST and unconditionally, because it qualifies every row
+        // beneath it: those rows may be months old. It is `minor`-weight in
+        // colour — a feed-health fact, never a hazard, and it must not shout
+        // over a real advisory in force.
+        if (r.hasStaleSource)
+          _honestyBanner(
+            key: const Key('advisory_stale_feed_banner'),
+            glyph: '⚠',
+            text: isJa
+                ? '気象情報の更新が止まっています'
+                  '（${_worstStaleAgeText(r, isJa)}）。'
+                  '以下の内容は最新ではない可能性があり、'
+                  '警報が出ていない場合でも安全とは限りません。'
+                : 'The weather feed has stopped updating '
+                  '(${_worstStaleAgeText(r, isJa)}). Anything below may be out '
+                  'of date, and no warning shown does not mean it is safe.',
+            fill: const Color(0x1FFFA000),
+            color: const Color(0xFFB26A00),
+          ),
         // B04 / B04-2 — the all-clear line is a POSITIVE claim ("no
         // advisories are in force"), and it is a claim about COMPLETENESS:
         // it is true only when every source was asked and every source
@@ -495,4 +529,25 @@ Color _severityColor(AdvisorySeverity severity) {
     case AdvisorySeverity.unknown:
       return Colors.grey.shade600;
   }
+}
+
+/// Worst (largest) measured feed age across every stale source, rendered the
+/// way the publisher's own notice renders it: days once past a day, hours
+/// below. Reads the aggregator's harvest; never re-derives an age of its own.
+String _worstStaleAgeText(AdvisoryAggregateResult r, bool isJa) {
+  // `age` is NULLABLE, and a null is not a zero. A source can be known stale
+  // (its document carries no readable timestamp) without its age being
+  // measurable. Rendering that as "about 0 hours" would report an UNMEASURED
+  // quantity as a measured one, and understate it maximally — the same defect
+  // class as an absent accuracy read as 0.0.
+  Duration? worst;
+  for (final s in r.staleSources) {
+    final a = s.age;
+    if (a != null && (worst == null || a > worst)) worst = a;
+  }
+  if (worst == null) return isJa ? '期間不明' : 'duration unknown';
+  final d = worst.inDays;
+  if (d >= 1) return isJa ? '約$d日' : 'about $d day${d == 1 ? '' : 's'}';
+  final h = worst.inHours;
+  return isJa ? '約$h時間' : 'about $h hour${h == 1 ? '' : 's'}';
 }

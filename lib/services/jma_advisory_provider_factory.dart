@@ -31,10 +31,17 @@ import 'package:http/http.dart' as http;
 /// warning as `status=発表` — could not be reached from a test at all. A
 /// factory that cannot be given a frozen feed cannot be asked what HER screen
 /// shows when the feed freezes.
+/// ⚑ The clock parameter is named `clock` on the 0.3.x line and `now` on 0.5.x.
+/// The rename is not in either CHANGELOG. This factory is the one place that has
+/// to know, which is the argument for the factory existing at all.
 AdvisoryProvider buildJmaAdvisoryProvider({
   required String userAgent,
   http.Client? client,
-  DateTime Function()? now,
+  DateTime Function()? clock,
 }) {
-  return JmaAdvisoryProvider(userAgent: userAgent, client: client, now: now);
+  return JmaAdvisoryProvider(
+    userAgent: userAgent,
+    client: client,
+    clock: clock,
+  );
 }

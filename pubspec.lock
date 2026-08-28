@@ -93,10 +93,10 @@ packages:
     dependency: "direct main"
     description:
       name: condition_aggregator
-      sha256: e18212c577d833bebfbb31ab4a1ff25fdb45a45d6ec975c1dfecedd93c703918
+      sha256: e888baaf7fee4e803ae87270cb4121b9800b4bfa8a30b1fa59d387272e38e600
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.8"
+    version: "0.0.10"
   condition_aggregator_digitraffic:
     dependency: transitive
     description:
@@ -109,10 +109,10 @@ packages:
     dependency: "direct main"
     description:
       name: condition_aggregator_jma
-      sha256: "216cc99ad14db5c52e47f0ebb2e524ffb7900c06cbec3f630cc43bcb424473ef"
+      sha256: bf8599cf7a97c4cdff9d618b90bc8e43c6accbb25ca3efaa4e29ce959a7c0fae
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.0"
+    version: "0.3.2"
   cross_file:
     dependency: transitive
     description:

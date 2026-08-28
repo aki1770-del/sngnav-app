@@ -67,6 +67,7 @@
 /// APPROPRIATELY, and those are different claims.
 library;
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:condition_aggregator/condition_aggregator.dart';
@@ -74,6 +75,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/services/jma_advisory_provider_factory.dart';
 import 'package:sngnav_app/widgets/advisory_cards.dart';
 
@@ -106,22 +109,45 @@ MockClient _serving(String body) => MockClient((request) async {
       return http.Response('not found', 404);
     });
 
-Future<List<Advisory>> _fetchAt(DateTime now) async {
+Future<List<Advisory>> _fetchAt(DateTime now) async =>
+    (await _aggregateAt(now)).advisories;
+
+/// The AGGREGATE, not just the list. `staleSources` lives here and nowhere
+/// else — a hand-built `AdvisoryAggregateResult` cannot carry it, so a widget
+/// test that constructs one by hand silently tests a feed with no health
+/// signal. That is how the banner assertion first failed against a correct
+/// banner, and it is why this goes through the real aggregator.
+Future<AdvisoryAggregateResult> _aggregateAt(DateTime now) async {
   final provider = buildJmaAdvisoryProvider(
     userAgent: 'sngnav-app test',
     client: _serving(_frozenDocument()),
-    now: () => now,
+    clock: () => now,
   );
-  await provider.init();
-  return provider.fetchActiveAdvisoriesAtPoint(
+  final aggregator = AdvisoryAggregator(providers: [provider]);
+  await aggregator.init();
+  return aggregator.fetchActiveAdvisoriesAtPoint(
     latitude: kAkitaLat,
     longitude: kAkitaLon,
   );
 }
 
-Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
+/// HER reads Japanese. A banner proven only in English is not proven for her,
+/// and the widget branches on locale — so the wrapper pins `ja` rather than
+/// inheriting whatever the harness defaults to.
+Widget _wrap(Widget child) => MaterialApp(
+      locale: const Locale('ja'),
+      localizationsDelegates: const [
+        AppL10n.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppL10n.supportedLocales,
+      home: Scaffold(body: child),
+    );
 
 void main() {
+  _fabricatedAllClearGroup();
   group('a frozen JMA feed, at HER mother\'s prefecture', () {
     test('the dead warning still arrives, and it does not arrive alone',
         () async {
@@ -139,34 +165,36 @@ void main() {
             '雷注意報 as in force — if this fails the fixture has changed and '
             'the rest of this file is testing nothing',
       );
+      // ⚑ ON THE 0.3.x LINE THE MARKER IS NOT IN THE LIST. 0.3.2 reports
+      // freshness OUT-OF-BAND via `AdvisoryFeedFreshnessReporting`; the
+      // in-band `Advisory` notice is a 0.5.0 capability, and 0.5.0 pays for it
+      // by dropping the interface that feeds `canAssertNoAdvisory`. The app is
+      // pinned to the line that keeps the guard fed, so the marker arrives as
+      // `staleSources` and is rendered by the banner — asserted below.
       expect(
         notice,
-        isNotEmpty,
-        reason: 'THE DEFECT: an 88-day-dead 雷注意報 reached the app with '
-            'nothing marking it as unvouched-for. She would read a warning '
-            'about "the 28th" as current weather.',
-      );
-      expect(
-        notice.single.severity,
-        AdvisorySeverity.minor,
-        reason: 'the notice must stay below isHighImpact — it is a '
-            'feed-health fact, not weather, and must never be able to '
-            'masquerade as a hazard or cry wolf',
+        isEmpty,
+        reason: '0.3.2 emits no in-band notice — if this ever becomes '
+            'non-empty the pin has moved and the banner assertions below are '
+            'no longer the only marker',
       );
     });
 
     testWidgets('and BOTH reach the rendered surface she looks at',
         (tester) async {
       final now = kFrozenReportedAt.add(const Duration(days: 88));
-      final out = await _fetchAt(now);
+      final result = await _aggregateAt(now);
+
+      expect(
+        result.hasStaleSource,
+        isTrue,
+        reason: 'precondition: the aggregate really does carry the health '
+            'signal — otherwise the banner assertion below tests nothing',
+      );
 
       await tester.pumpWidget(_wrap(AdvisoryCards(
         loading: false,
-        result: AdvisoryAggregateResult(
-          advisories: out,
-          providerErrors: const [],
-          sourcesQueried: 1,
-        ),
+        result: result,
         errorMessage: null,
         onRefresh: () {},
       )));
@@ -178,17 +206,18 @@ void main() {
         reason: 'precondition: the dead warning does render',
       );
       expect(
-        find.textContaining(kStaleFeedEventClass),
-        findsWidgets,
-        reason: 'THE DEFECT, one layer down: the notice was in the list and '
-            'was dropped between the list and her eyes. In-band delivery is '
-            'not arrival.',
+        find.byKey(const Key('advisory_stale_feed_banner')),
+        findsOneWidget,
+        reason: 'THE DEFECT, one layer down: the app KNEW the feed was stale '
+            '(staleSources non-empty, which is why canAssertNoAdvisory is '
+            'false) and said nothing to her. Suppressing a false all-clear is '
+            'silent; she is still reading an 88-day-old warning.',
       );
       expect(
-        find.textContaining('更新されていません'),
+        find.textContaining('更新が止まっています'),
         findsWidgets,
-        reason: 'the notice must carry its plain-language body, not just an '
-            'event-class label she has no reason to understand',
+        reason: 'the banner must carry plain language, not a label she has no '
+            'reason to understand',
       );
     });
 
@@ -210,6 +239,134 @@ void main() {
             'file proves nothing: it would fire on every read, including the '
             'healthy ones, and could not distinguish a dead feed from a live '
             'one',
+      );
+    });
+  });
+}
+
+/// ⚑ THE FABRICATED ALL-CLEAR — the failure mode this unit ranks above every
+/// other, tested at the exact seam where it reaches her.
+///
+/// Akita's frozen document still lists 27 warnings `status: 発表`, so its
+/// advisory list is non-empty and the all-clear branch never runs. **Niigata's
+/// does not.** Measured live 2026-08-24: `warning/150000.json`,
+/// `reportDatetime 2026-05-26T15:45+09:00` — NINETY DAYS — and **zero warnings
+/// in force**. The fixture below is that document, byte-for-byte.
+///
+/// That is the shape the package's own author called the worse of the two:
+///
+///   > "or it reports **nothing**, and an empty list is the identical value a
+///   > genuinely clear sky produces… The second is the worse of the two. A false
+///   > alarm is contradicted by the windscreen; a false all-clear removes the
+///   > prompt to look out of it."
+///
+/// The app renders its positive all-clear at `advisory_cards.dart:203`:
+/// `else if (r.advisories.isEmpty && r.canAssertNoAdvisory)`. So the whole
+/// question is what `canAssertNoAdvisory` answers for a document that stopped
+/// being written three months ago.
+///
+/// `condition_aggregator` **0.0.8** — which `origin/main` locked until this
+/// change — computes it as `providerErrors.isEmpty && sourcesQueried > 0` and
+/// has **no staleness concept at all** (`staleSources` appears in zero files).
+/// A frozen publisher is *reachable*: HTTP 200, valid JSON, empty list. So it
+/// returned **true**, and she was shown a clear road computed from a corpse.
+///
+/// 0.0.10 fixed the predicate — but the fix is fed by exactly one thing, an
+/// adapter implementing `AdvisoryFeedFreshnessReporting`. `condition_aggregator_jma`
+/// **0.3.2 has it; 0.5.0 does not.** Both locks moved to the versions that close
+/// this, and both were already inside ranges `origin/main` had declared all
+/// along. **No publish was required. It was withheld by a lockfile.**
+void _fabricatedAllClearGroup() {
+  group('a frozen feed that lists NOTHING must not become an all-clear', () {
+    test('90-day-dead Niigata document -> canAssertNoAdvisory is FALSE',
+        () async {
+      final frozen = File(
+        'test/fixtures/jma_warning_niigata_150000_frozen_zero_warnings.json',
+      ).readAsStringSync();
+
+      // Precondition, asserted rather than assumed: this really is the
+      // dangerous shape — old, and carrying nothing.
+      final decoded = jsonDecode(frozen) as Map<String, dynamic>;
+      final reported = DateTime.parse(decoded['reportDatetime'] as String);
+      final now = reported.add(const Duration(days: 90));
+
+      final provider = buildJmaAdvisoryProvider(
+        userAgent: 'sngnav-app test',
+        client: MockClient((request) async {
+          if (request.url.path.contains('150000')) {
+            return http.Response(frozen, 200,
+                headers: {'content-type': 'application/json; charset=utf-8'});
+          }
+          return http.Response('not found', 404);
+        }),
+        clock: () => now,
+      );
+
+      final aggregator = AdvisoryAggregator(providers: [provider]);
+      await aggregator.init();
+      final result = await aggregator.fetchActiveAdvisoriesAtPoint(
+        latitude: 37.9026, // Niigata city
+        longitude: 139.0235,
+      );
+
+      expect(
+        result.advisories,
+        isEmpty,
+        reason: 'precondition: the frozen Niigata document lists no warnings — '
+            'this is the empty-list case, not the stale-warning case',
+      );
+      expect(
+        result.providerErrors,
+        isEmpty,
+        reason: 'precondition: a frozen publisher is REACHABLE. Nothing failed. '
+            'That is exactly why the old predicate said yes',
+      );
+      expect(
+        result.canAssertNoAdvisory,
+        isFalse,
+        reason: 'THE DEFECT: the app would render a POSITIVE ALL-CLEAR at '
+            'advisory_cards.dart:203 from a document 90 days dead. A false '
+            'all-clear removes the prompt to look out of the windscreen.',
+      );
+      expect(
+        result.hasStaleSource,
+        isTrue,
+        reason: 'and it must be false FOR THE RIGHT REASON — a measured '
+            'staleness report, not an incidental error',
+      );
+    });
+
+    test('CONTROL — the SAME shape with no staleness report DOES assert an '
+        'all-clear, which is exactly the defect and exactly what shipped',
+        () {
+      // Identical to the case above in every respect the old predicate could
+      // see: empty advisory list, no provider errors, one source asked. The
+      // ONLY difference is that no adapter reported the feed stale — which is
+      // the state `condition_aggregator_jma` 0.3.1 (locked on `origin/main`
+      // until this change) and 0.5.0 both produce, because neither implements
+      // `AdvisoryFeedFreshnessReporting`.
+      //
+      // If this returns false, the fix above is not doing what it claims and
+      // the passing test above proves nothing.
+      const noReport = AdvisoryAggregateResult(
+        advisories: [],
+        providerErrors: [],
+        sourcesQueried: 1,
+      );
+
+      expect(
+        noReport.canAssertNoAdvisory,
+        isTrue,
+        reason: 'THE DEFECT, stated as a passing assertion so it cannot be '
+            'argued with: a reachable publisher serving an empty list yields a '
+            'POSITIVE all-clear. A frozen document is reachable. This is what '
+            'the app did with Niigata for 90 days.',
+      );
+      expect(
+        noReport.hasStaleSource,
+        isFalse,
+        reason: 'and the aggregate carries no health signal at all — there is '
+            'nothing for a renderer to surface even if it wanted to',
       );
     });
   });

@@ -55,7 +55,24 @@ dependencies:
   # build and `--enforce-lockfile` hard-failed. >=0.0.3 <0.1.0 admits all
   # 0.0.x (measured live 2026-07-25: latest 0.0.8). Same for noaa_nws_adapter.
   condition_aggregator: '>=0.0.3 <0.1.0'
-  condition_aggregator_jma: ^0.5.0
+  # ⚑ HELD AT ^0.3.0 DELIBERATELY, and the reason is the opposite of caution.
+  #
+  # 934f44f moved this to ^0.5.0 under the message "the app can now SEE the feed
+  # is dead." Measured 2026-08-24 evening, that move took a capability AWAY.
+  #
+  # 0.3.2 implements `AdvisoryFeedFreshnessReporting`. 0.5.0 does NOT — it has
+  # the symbol in ZERO files, and its CHANGELOG heads that section "API
+  # additions (non-breaking)" without listing the removal. That interface is the
+  # ONLY thing that feeds `AdvisoryAggregateResult.canAssertNoAdvisory`, which
+  # `advisory_cards.dart:203` gates the positive all-clear on.
+  #
+  # Both versions read the same RETIRED path (r8 lands in 0.7.0, unpublished),
+  # so 0.5.0 buys an in-band notice and pays for it with the all-clear guard.
+  # This package's own doctrine ranks that trade: "a false alarm is contradicted
+  # by the windscreen; a false all-clear removes the prompt to look out of it."
+  #
+  # Restore to ^0.5.0 only when a 0.5.x carries the interface again.
+  condition_aggregator_jma: ^0.3.0
   noaa_nws_adapter: '>=0.0.3 <0.1.0'
   flutter_map: ^8.2.2
   flutter_bloc: ^9.0.0
