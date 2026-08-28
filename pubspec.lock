@@ -553,10 +553,10 @@ packages:
     dependency: "direct main"
     description:
       name: navigation_safety_core
-      sha256: "5881505a9d935da652edd9870cd00a4e07a3b043397bce41a0536f5f012e6495"
+      sha256: "42002765b746d83dd3137b262a0f65ce12454fc3aa82ef69c26691bdae73acad"
       url: "https://pub.dev"
     source: hosted
-    version: "0.11.2"
+    version: "0.11.4"
   navigation_safety_enums:
     dependency: "direct main"
     description:

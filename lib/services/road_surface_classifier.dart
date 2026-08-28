@@ -141,8 +141,11 @@ class RoadSurfaceClassifier {
 
     final temp = c.temperatureCelsius;
 
-    // A non-finite temperature is a REJECTED input, never an all-clear.
-    if (!temp.isFinite) return false;
+    // An ABSENT or non-finite temperature is a REJECTED input, never an
+    // all-clear. driving_weather 0.5.0 made this field nullable, which is the
+    // same absence the recall was about arriving through the type system
+    // instead of through a hardcoded +5 C. It abstains for the same reason.
+    if (temp == null || !temp.isFinite) return false;
 
     // At or below freezing, "maximum grip" is not a claim this app makes. Its
     // own invisible-ice watch treats temp <= 0 as frozen UNCONDITIONALLY

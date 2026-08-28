@@ -182,8 +182,6 @@ class NagoyaUnexpectedSnowScenario {
       // These are plausible readings for a clear February morning near Nagoya,
       // and crucially they include humidity — so the radiative-frost check can
       // actually run and the resulting `dry` is EARNED, not defaulted.
-      // The `source` field states WHO is asserting these values: the scenario
-      // is making a legitimate simulated claim, not reporting a measurement.
       return WeatherCondition(
         precipType: PrecipitationType.none,
         intensity: PrecipitationIntensity.none,
@@ -192,8 +190,7 @@ class NagoyaUnexpectedSnowScenario {
         windSpeedKmh: 0.0,
         humidityRH: 45.0,
         iceRisk: false,
-      // The `source` field states WHO is asserting these values: the scenario
-      // is making a legitimate simulated claim, not reporting a measurement.
+        source: ObservationSource.simulated,
         timestamp: ts,
       );
     }

@@ -20,7 +20,20 @@ dependencies:
   # (voice_guidance 0.7.3, navigation_safety 0.9.5, offline_tiles 0.5.4,
   # map_viewport_bloc 0.4.4, driving_conditions 0.5.5, snow_rendering 0.2.8),
   # so navigation_safety_core 0.11.x is now hosted-reachable.
-  navigation_safety_core: '>=0.10.0 <0.12.0'
+  # LOWER BOUND IS A SAFETY BOUND, not a preference. Until 0.11.3,
+  # AlertExplainer(wet, professional) emitted 「濡路、注意」; 濡路 is not an
+  # open_jtalk dictionary word, so the bundled WAV rendered to SILENCE and a
+  # professional-profile driver heard 「チューイ」 with no hazard named. 0.11.3
+  # emits the readable 「濡れた路面、注意」 and the app retired its local
+  # render-override to match (44b615c). At 0.11.2 the catalog value and the
+  # emitter disagree and the wet caution is silent offline.
+  #
+  # 44b615c stated "the change is only correct at >=0.11.3" and then encoded it
+  # only in pubspec.lock. A lock is not a constraint: reconciling this branch
+  # onto main carried a lock resolving 0.11.2, `pub get` honoured it because it
+  # still satisfied `>=0.10.0`, and three voice guards went red. The bound now
+  # lives where the solver has to obey it.
+  navigation_safety_core: '>=0.11.3 <0.12.0'
   navigation_safety: ^0.9.0
   voice_guidance: ^0.7.2
   offline_tiles: ^0.5.0
@@ -134,3 +147,20 @@ flutter:
     # Source of truth: lib/voice/offline_safety_voice.dart
     # Re-render:      bash tool/render_offline_voice.sh
     - assets/audio/ja/
+    # Font attribution rides in the APK beside the font it licenses
+    # (Bitstream Vera license requires the notice to accompany copies).
+    - assets/fonts/LICENSE-SnGNavSymbols.txt
+  fonts:
+    # SnGNavSymbols — a 14-glyph symbols subset (⚠ ❄ → ※ ° … et al.) cut
+    # from DejaVu Sans and renamed per its license's modification clause
+    # (assets/fonts/LICENSE-SnGNavSymbols.txt). Bundled because the ja
+    # system font stack does NOT guarantee these glyphs (measured
+    # 2026-07-30: Noto Sans CJK JP lacks U+2744 ❄; harness fonts lack
+    # U+26A0 ⚠ — the 1b reach-class tofu defect, plan 2026-07-25 §1).
+    # Wired as app-wide ThemeData.fontFamilyFallback in main.dart; glyph
+    # coverage is drift-guarded by test/fonts/symbol_font_coverage_test.dart
+    # (a new symbol in a lib/ string literal fails the suite until the
+    # subset is re-cut — tool/subset_symbols_font.md documents the re-cut).
+    - family: SnGNavSymbols
+      fonts:
+        - asset: assets/fonts/SnGNavSymbols.ttf
