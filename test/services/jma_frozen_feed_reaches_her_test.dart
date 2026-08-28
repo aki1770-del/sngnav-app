@@ -33,6 +33,38 @@
 ///
 /// She is allowed to see the 雷注意報. She is not allowed to see it without
 /// being told the source stopped talking 88 days ago.
+///
+/// ⚑ WHAT THIS FILE DOES NOT COVER — added 2026-08-24 evening, against its own
+/// author, because the coverage claim above reads wider than the tests are.
+///
+/// Every fixture here is the RETIRED path's document shape: a single JSON
+/// OBJECT with one `reportDatetime`. The successor `/r8/` path returns a LIST
+/// of five per-bulletin documents, each with its own timestamp, **not ordered
+/// by time** — measured live 2026-08-24: office `015000`'s first element was
+/// 862 h old while its newest was 3.7 h, both entirely normal. Nothing in this
+/// file exercises that shape, and a reader could reasonably assume it does.
+///
+/// That is not a latent bug here today: the app pins
+/// `condition_aggregator_jma ^0.5.0`, and 0.5.0 reads the RETIRED path. The
+/// notice firing on every read is CORRECT right now, because that feed really
+/// is dead. **The gap opens the moment an r8-carrying version reaches the app.**
+///
+/// And it opens onto the failure this unit ranks as worse than silence.
+/// Measured live 2026-08-24 20:07 JST across all 13 catalogued offices on the
+/// r8 feed, using the newest document per office: **4 of 13 — 31% — exceed the
+/// 6-hour default staleness threshold with nothing wrong**, including `050000`,
+/// HER mother's prefecture, at 12.2 h. JMA rewrites a WARNING document when
+/// something changes; a quiet prefecture is simply not rewritten for days. The
+/// 6-hour default was calibrated against the sibling FORECAST path, which is
+/// schedule-driven. On the r8 feed this notice would tell her
+/// 「安全とは限りません」 about healthy data roughly one office in three.
+///
+/// The threshold is `condition_aggregator_jma`'s to decide (NDI owns that
+/// family) and is open at the time of writing. **What is owed HERE, when an
+/// r8-carrying version reaches this app, is the control this file still lacks:
+/// a fixture proving the notice does NOT fire on a healthy r8 office.** Until
+/// then this file proves the notice APPEARS and does not prove it appears
+/// APPROPRIATELY, and those are different claims.
 library;
 
 import 'dart:io';
