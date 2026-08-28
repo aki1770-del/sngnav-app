@@ -70,7 +70,7 @@
 
 **Personal info / Financial / Health / Messages / Photos & videos / Audio / Files & docs / Calendar / Contacts / Web browsing / Device or other IDs → すべて「いいえ」。**
 
-根拠: アカウント機能なし・ログインなし・個人情報入力欄なし・**広告 SDK / 解析 SDK ゼロ**・独自サーバーなし。要求している権限は INTERNET / ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION / WAKE_LOCK / VIBRATE の 5 つのみで、ストレージ・カメラ・連絡先・**バックグラウンド位置情報**は要求していない（配布マニフェスト `packaged_manifests/release/…/AndroidManifest.xml:15,21,22,27,53` で確認）。
+根拠: アカウント機能なし・ログインなし・個人情報入力欄なし・**広告 SDK / 解析 SDK ゼロ**・独自サーバーなし。要求している権限は INTERNET / ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION / WAKE_LOCK / VIBRATE の 5 つのみで、ストレージ・カメラ・連絡先・**バックグラウンド位置情報**は要求していない（配布マニフェスト `packaged_manifests/release/…/AndroidManifest.xml:15,21,22,27,45`（⚑ 行番号は 2026-08-24 に実ビルド成果物で再測定。旧記載の `:53` は現在 `<queries>` を指しており、主張は真・**引用先が壊れていた**。なお同マニフェストには 6 本目の `uses-permission` として `…DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`（`:75`、自己宣言・`protectionLevel="signature"`）が存在するが、AndroidX が自動生成する署名レベルの内部権限であり、ユーザーに提示されず Data safety の対象外。「5 つ」はユーザー向け `android.permission.*` の数） で確認）。
 
 ---
 
@@ -91,7 +91,7 @@
 
 | 項目 | 状態 | 必要な行為 |
 |---|---|---|
-| プライバシーポリシー URL | 原文あり・**公開 URL は要 push** | `docs/store/privacy_policy_ja.md` は公開リポジトリにあり HTTP 200。ただし公開中なのは **2026-07-10 版**で、VIBRATE 欠落の訂正はまだ push されていない。**訂正を push してから URL を登録すること** |
+| プライバシーポリシー URL | 原文あり・**公開 URL は要 push** | `docs/store/privacy_policy_ja.md` は公開リポジトリにあり HTTP 200。⚑ **2026-08-24 再測定: 公開中の版は `origin/main` とバイト一致**（`raw.githubusercontent.com` GET、sha256 `59f6ebbc…5bde`）で、**VIBRATE 行は公開版に存在する**。訂正は `7339570` で landed 済み。この行は 2026-08-10 時点では正しく、**14 日間 stale のまま「push してから登録せよ」と upload 当日の作業を止めていた**（OPS-002）。登録をブロックする条件は無い |
 | 広告の有無 | **広告なし** | SDK ゼロ（上記） |
 | コンテンツ レーティング アンケート | 未実施 | Chair がフォーム記入（数分） |
 | 対象ユーザー層 | 未設定 | 成人向け（運転者向けアプリ）。子ども向けではない |

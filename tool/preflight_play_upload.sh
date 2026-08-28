@@ -124,6 +124,24 @@ check_so_align() {
   return 0
 }
 
+# $1 = readelf -lW output. Echoes the NUMERIC minimum LOAD alignment.
+#
+# EXTRACTION DEFECT, found + fixed 2026-08-24 (AAE). This was inline in gate 3 as
+#   awk '/LOAD/{print $NF}' | sort -u | head -1
+# which sorts the hex STRINGS lexically. "0x10000" sorts BEFORE "0x2000", so a .so
+# carrying an 8 KB segment beside a 64 KB one reported 0x10000 and PASSED — the gate
+# reported the LARGEST alignment while claiming the smallest. It never fired because
+# every .so in today's bundle has one uniform alignment (measured: 12/12 have exactly
+# 1 distinct LOAD align), so the defect was latent, not live. It is pulled out of the
+# gate and into a function precisely so --self-test can drive the SHIPPED code path
+# rather than a copy of it — the script's own HONEST BOUNDS note that the predicates
+# were proven and the extraction was not. This closes half of that gap.
+min_load_align() {
+  printf '%s\n' "$1" | awk '/LOAD/{print $NF}' \
+    | while read -r a; do case "$a" in 0x*|[0-9]*) printf '%d\n' "$((a))" ;; esac; done \
+    | sort -n | head -1
+}
+
 # $1 = candidate versionCode; $2 = newline-separated already-uploaded codes
 check_version_code() {
   local vc="$1" used="$2"
@@ -228,6 +246,17 @@ if [ "${1:-}" = "--self-test" ]; then
   t "identical sets accepted"           0 check_perm_parity "$PERM5" "$PERM5"
   t "parity accepted out of order"      0 check_perm_parity "$PERM5" "$(printf '%s\n' "$PERM5" | sort -r)"
 
+  # EXTRACTION tests (2026-08-24). The predicates were always proven; the
+  # extraction was not, and that is exactly where the defect lived. Input is real
+  # `readelf -lW` output shape with the alignment column last.
+  RE_MIXED="$(printf '  LOAD           0x000000 0x00000000 0x00000000 0x001000 0x001000 R E 0x10000\n  LOAD           0x002000 0x00002000 0x00002000 0x000100 0x000100 RW  0x2000\n')"
+  RE_UNIFORM="$(printf '  LOAD           0x000000 0x00000000 0x00000000 0x001000 0x001000 R E 0x4000\n  LOAD           0x002000 0x00002000 0x00002000 0x000100 0x000100 RW  0x4000\n')"
+  t "8 KB masked by 64 KB is FOUND"   0 test "$(min_load_align "$RE_MIXED")" = "8192"
+  t "8 KB masked by 64 KB is REJECTED" 1 check_so_align "$(min_load_align "$RE_MIXED")" libmixed.so
+  t "uniform 16 KB extracted"          0 test "$(min_load_align "$RE_UNIFORM")" = "16384"
+  t "uniform 16 KB accepted"           0 check_so_align "$(min_load_align "$RE_UNIFORM")" libuniform.so
+  t "no LOAD lines -> unreadable"      1 check_so_align "$(min_load_align "nothing here")" libempty.so
+
   # ...and ACCEPT the real, correct values measured on 2026-08-10, so a guard
   # that rejects everything (equally useless) is caught too.
   t "expected signer accepted"        0 check_signer "Owner: CN=SNGNav Upload, OU=SNGNav, O=SNGNav, L=Nagoya, ST=Aichi, C=JP"
@@ -300,7 +329,7 @@ if unzip -q -o "$AAB" 'base/lib/*/*.so' -d "$tmp" 2>/dev/null; then
     [ -e "$so" ] || continue
     abi="$(basename "$(dirname "$so")")"
     case "$abi" in armeabi-v7a|x86) continue ;; esac   # 32-bit: requirement does not apply
-    align="$(readelf -lW "$so" 2>/dev/null | awk '/LOAD/{print $NF}' | sort -u | head -1)"
+    align="$(min_load_align "$(readelf -lW "$so" 2>/dev/null)")"
     checked=$((checked+1))
     if check_so_align "$align" "$abi/$(basename "$so")"; then
       note "OK  $abi/$(basename "$so")  align=$align"

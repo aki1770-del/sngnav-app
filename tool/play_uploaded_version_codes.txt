@@ -10,7 +10,7 @@
 # it in the same change. Do not pre-register a number you have not spent — a
 # ledger that runs ahead of reality is worse than no ledger.
 #
-# Read by tool/preflight_play_upload.sh (gate 4/4).
+# Read by tool/preflight_play_upload.sh (gate 4/5).
 #
 # STATE AS OF 2026-08-10: EMPTY. Nothing has ever been uploaded to any Play
 # track — measured, not assumed: BETA_PLAN.md's own checklist still carries
