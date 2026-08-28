@@ -43,5 +43,32 @@ AdvisoryProvider buildJmaAdvisoryProvider({
     userAgent: userAgent,
     client: client,
     clock: clock,
+    // ⚑ 7 DAYS, NOT THE ADAPTER'S 6-HOUR DEFAULT — set by the integrator,
+    // which is the route the adapter's own dartdoc names for an integrator
+    // that has measured its region.
+    //
+    // The 6-hour default assumes "JMA rewrites a prefecture's warning document
+    // many times a day", which is true of the sibling FORECAST path
+    // (schedule-driven) and false of the WARNING path (event-driven). A quiet
+    // prefecture is simply not rewritten for days, and that is healthy.
+    //
+    // Measured live 2026-08-24 across all 58 offices in JMA's own area
+    // catalogue, age taken from the NEWEST document per office: 16/58 = 27.6%
+    // exceeded 6 h, and 13 of those 16 were SIMULTANEOUSLY serving a warning
+    // the same document declared in force — so the notice would fire beside a
+    // live warning and contradict it. An hour earlier the same measurement gave
+    // 20/58 and 17 of 20: the count MOVES, the shape does not.
+    //
+    // This is not a cosmetic knob. `feedStaleness` non-null puts the source in
+    // `staleSources`, and `canAssertNoAdvisory` is false whenever that list is
+    // non-empty — so the threshold is the switch that turns the honest
+    // all-clear OFF. At 6 h it was off about a third of the time, on healthy
+    // data, in HER own prefecture.
+    //
+    // 7 d clears the observed healthy maximum with margin, still catches the
+    // 2026-05-29 path retirement on day 8 instead of day 88, and matches the
+    // value NDI staged for 0.5.1/0.3.3 so the app and the adapter family will
+    // agree when those publish.
+    staleFeedThreshold: const Duration(days: 7),
   );
 }

@@ -221,6 +221,38 @@ void main() {
       );
     });
 
+    test('CRY-WOLF CONTROL — a 12-hour-old document is HEALTHY and must not '
+        'turn the all-clear off', () async {
+      // This is not a hypothetical age. Measured live 2026-08-24 20:07 JST on
+      // the r8 feed, Akita's own newest document was 12.2 h old with nothing
+      // wrong — one of 16 offices in 58 past the adapter's 6-hour default that
+      // same minute, 13 of which were simultaneously serving a warning in
+      // force.
+      //
+      // Under the 6 h default this read would set `staleSources`, which turns
+      // `canAssertNoAdvisory` false and raises a banner saying her data may not
+      // be safe — about healthy data, in her mother's prefecture, roughly a
+      // third of the time. That is the failure this unit ranks as worse than
+      // silence, arriving through the guard meant to prevent the other one.
+      final out = await _aggregateAt(
+        kFrozenReportedAt.add(const Duration(hours: 12)),
+      );
+
+      expect(
+        out.staleSources,
+        isEmpty,
+        reason: 'a 12-hour-old JMA warning document is NORMAL — the path is '
+            'event-driven, and a quiet prefecture is simply not rewritten. If '
+            'this fires, the integrator threshold has slipped back toward the '
+            'adapter default and she is being cried wolf at',
+      );
+      expect(
+        out.hasStaleSource,
+        isFalse,
+        reason: 'and no banner is raised over healthy data',
+      );
+    });
+
     test('CONTROL — a FRESH document produces no notice, so the notice above '
         'was caused by staleness and not by construction', () async {
       // Same fixture, same code path, clock moved to one hour after the
