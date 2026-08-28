@@ -17,10 +17,24 @@ import 'package:condition_aggregator/condition_aggregator.dart'
     show AdvisoryProvider;
 import 'package:condition_aggregator_jma/condition_aggregator_jma.dart'
     show JmaAdvisoryProvider;
+import 'package:http/http.dart' as http;
 
 /// Builds a `JmaAdvisoryProvider` configured for sngnav-app. Returned
 /// as the interface type so callers compose it into the aggregator
 /// without coupling to the concrete adapter.
-AdvisoryProvider buildJmaAdvisoryProvider({required String userAgent}) {
-  return JmaAdvisoryProvider(userAgent: userAgent);
+///
+/// [client] and [now] are injection seams and default to the real ones, so
+/// production construction is unchanged. They exist because the docstring
+/// above promised this factory was "testable, fakeable in widget tests" and
+/// it was not: with no seam, the one condition that most needed a test —
+/// a JMA document that has stopped being rewritten, which serves a months-old
+/// warning as `status=発表` — could not be reached from a test at all. A
+/// factory that cannot be given a frozen feed cannot be asked what HER screen
+/// shows when the feed freezes.
+AdvisoryProvider buildJmaAdvisoryProvider({
+  required String userAgent,
+  http.Client? client,
+  DateTime Function()? now,
+}) {
+  return JmaAdvisoryProvider(userAgent: userAgent, client: client, now: now);
 }
