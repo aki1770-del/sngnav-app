@@ -128,10 +128,59 @@ AdvisoryAxis readAdvisoryAxis(AdvisoryAggregateResult? result) {
 /// inflating this level.
 AdvisoryLevel? _topLevelOf(AdvisoryAggregateResult result) {
   if (result.advisories.isEmpty) return null;
+  // A source that reported its OWN document stale does not set the rung.
+  //
+  // `condition_aggregator` already closed the SILENCE direction: an empty read
+  // from a dead document is not an all-clear — "the same gap wearing the shape
+  // of an answer" (advisory_aggregator.dart:113). This is the MIRROR, and it
+  // was open: a WARNING from that same dead source is not a live warning — it
+  // is a corpse wearing the shape of an alarm.
+  //
+  // Measured live 2026-08-24 against the real feed, Akita (39.72, 140.10):
+  // JMA's warning document had not been rewritten for 88 days, and the read
+  // SUCCEEDED — `providerErrors: []`, `sourcesQueried: 1` — carrying one
+  // advisory, 雷注意報, `severity: moderate`, `expires: null`, whose own
+  // headline names a validity window that closed on 2026-05-28
+  // (「２８日昼過ぎから２８日夜のはじめ頃まで」). Fed to the drive brain on a
+  // clear, trusted-position drive that advisory alone moves the advisor from
+  // `continueDriving` to `heightenedCaution`, and a RISING rung fires
+  // `_announcer.announce` — audio AND haptic (main.dart:1070-1071).
+  //
+  // So the eyes-off channels were being driven by a three-month-old document.
+  // That is the cry-wolf the Chair ruled against on 2026-07-23, arriving
+  // through the one door this file had left open: the doctrine above says "an
+  // outage is an UNKNOWN, not a hazard", and a stale read IS an outage — it
+  // just arrives dressed as a successful answer instead of an error.
+  //
+  // WHY DROPPING THE LEVEL IS NOT A FABRICATED ALL-CLEAR, which is the worse
+  // error and the one this app must never commit: `staleSources` non-empty
+  // already forces `canAssertNoAdvisory` false
+  // (advisory_aggregator.dart:137), so `completenessProven` is false on this
+  // exact path and `_appUnknowns` still renders
+  // `AppUnknown.advisoryLookupIncomplete` and still WITHHOLDS the reassurance.
+  // The state moves from "fabricated alarm + unknown" to "unknown" — strictly
+  // more honest in both directions, never to "clear".
+  //
+  // Per-SOURCE, deliberately not blanket: a live NWS advisory beside a stale
+  // JMA one still sets the rung. Suppressing the whole axis because one
+  // publisher went quiet would be its own false silence.
+  //
+  // The CARD is untouched (advisory_cards.dart still renders the advisory
+  // beside its stale-source banner). That is the split AAE-7 asks for: the
+  // visual surface can carry provenance in the same glance, so it keeps the
+  // information; the eyes-off surface cannot say "…but this is 88 days old",
+  // so it must not assert the urgency.
+  final staleSources = <AdvisorySource>{
+    for (final s in result.staleSources) s.source,
+  };
+  var sawLive = false;
   var top = AdvisorySeverity.unknown;
   for (final a in result.advisories) {
+    if (staleSources.contains(a.source)) continue;
+    sawLive = true;
     if (a.severity.index > top.index) top = a.severity;
   }
+  if (!sawLive) return null;
   return switch (top) {
     AdvisorySeverity.unknown => AdvisoryLevel.moderate,
     AdvisorySeverity.minor => AdvisoryLevel.minor,
