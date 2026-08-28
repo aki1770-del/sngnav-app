@@ -19,7 +19,7 @@
      「これ以外の権限は要求しません」と書いており、配布物と食い違っていた。
      本表の出典は、この日ビルドした release APK の
      build/app/intermediates/packaged_manifests/release/
-       processReleaseManifestForPackage/AndroidManifest.xml:15,21,22,27,53,59
+       processReleaseManifestForPackage/AndroidManifest.xml:15,21,22,27,45
      （aapt2 dump badging でも同一を確認）。
      権限を足したのではない — 前から入っていたものを、初めて正直に書いた。
      以後この表を更新するときは、必ずマージ後のマニフェストを読むこと。 -->
@@ -47,7 +47,7 @@
 
 <!-- 出典＝配布されるマニフェスト（マージ後）:
      build/app/intermediates/packaged_manifests/release/
-       processReleaseManifestForPackage/AndroidManifest.xml:15,21,22,27,53
+       processReleaseManifestForPackage/AndroidManifest.xml:15,21,22,27,45
      VIBRATE の実使用: lib/actuators/mobile_alert_actuators.dart:191-192
      （Vibration.hasVibrator / Vibration.vibrate）。宣言のみの権限ではない。 -->
 

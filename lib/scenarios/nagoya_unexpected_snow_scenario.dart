@@ -42,7 +42,12 @@ import 'package:adaptive_reroute/adaptive_reroute.dart'
 import 'package:driving_conditions/driving_conditions.dart'
     show RoadSurfaceState;
 import 'package:driving_weather/driving_weather.dart'
-    show PrecipitationIntensity, PrecipitationType, WeatherCondition;
+    show
+        ObservationSource,
+        PrecipitationIntensity,
+        PrecipitationType,
+        SafetyVerdict,
+        WeatherCondition;
 import 'package:latlong2/latlong.dart';
 import 'package:route_condition_forecast/route_condition_forecast.dart'
     show RouteForecast;
@@ -89,6 +94,8 @@ class ScenarioFrame {
   /// determination. It is never `dry`, and it is not an alarm. See the
   /// snow_rendering 0.3.0 recall note on [RoadSurfaceClassifier.classify]: a
   /// surface a driver is told is fine must be one the model actually judged.
+  /// (driving_conditions 0.6.0 is what stopped resolving an unmeasured
+  /// condition into `dry`.)
   final RoadSurfaceState? surfaceState;
 
   /// Per-segment route forecast at this frame.
@@ -101,7 +108,14 @@ class ScenarioFrame {
   bool get rerouteRecommended => rerouteDecision.shouldReroute;
 
   /// True when ANY segment of the forecast is hazardous.
-  bool get anyHazard => forecast.hasAnyHazard;
+  ///
+  /// route_condition_forecast 0.2.0 made this verdict TRI-STATE. `false` here
+  /// therefore means "not hazardous OR not assessed" and must NOT be read as
+  /// "clear" — read [hazardVerdict] when the distinction matters.
+  bool get anyHazard => forecast.hazard == SafetyVerdict.hazardous;
+
+  /// The honest tri-state verdict, which [anyHazard] necessarily flattens.
+  SafetyVerdict get hazardVerdict => forecast.hazard;
 }
 
 /// Driver-replayable demo scenario: Nagoya departure → mountain-pass
@@ -176,6 +190,7 @@ class NagoyaUnexpectedSnowScenario {
         windSpeedKmh: 0.0,
         humidityRH: 45.0,
         iceRisk: false,
+        source: ObservationSource.simulated,
         timestamp: ts,
       );
     }
@@ -186,6 +201,7 @@ class NagoyaUnexpectedSnowScenario {
         temperatureCelsius: 1.0,
         visibilityMeters: 5000.0,
         windSpeedKmh: 10.0,
+        source: ObservationSource.simulated,
         timestamp: ts,
       );
     }
@@ -196,6 +212,7 @@ class NagoyaUnexpectedSnowScenario {
       visibilityMeters: 400.0,
       windSpeedKmh: 25.0,
       iceRisk: true,
+      source: ObservationSource.simulated,
       timestamp: ts,
     );
   }
@@ -219,7 +236,10 @@ class NagoyaUnexpectedSnowScenario {
   }) async {
     final dep = departedAt ?? DateTime.utc(2026, 2, 1, 21, 0); // 06:00 JST
     final weather = weatherAt(elapsed, dep);
-    final surface = _classifier.classify(weather);
+    // driving_conditions 0.6.0: an unclassifiable condition returns null
+    // rather than a surface nobody determined. Kept null here - the frame
+    // reports "not determined", it does not invent `dry`.
+    final RoadSurfaceState? surface = _classifier.classify(weather);
     final route = _osrmRoute(dep);
     final forecast = await _forecastService.project(
       route: route,

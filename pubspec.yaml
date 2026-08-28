@@ -20,86 +20,58 @@ dependencies:
   # (voice_guidance 0.7.3, navigation_safety 0.9.5, offline_tiles 0.5.4,
   # map_viewport_bloc 0.4.4, driving_conditions 0.5.5, snow_rendering 0.2.8),
   # so navigation_safety_core 0.11.x is now hosted-reachable.
-  navigation_safety_core: '>=0.10.0 <0.12.0'
+  # LOWER BOUND IS A SAFETY BOUND, not a preference. Until 0.11.3,
+  # AlertExplainer(wet, professional) emitted 「濡路、注意」; 濡路 is not an
+  # open_jtalk dictionary word, so the bundled WAV rendered to SILENCE and a
+  # professional-profile driver heard 「チューイ」 with no hazard named. 0.11.3
+  # emits the readable 「濡れた路面、注意」 and the app retired its local
+  # render-override to match (44b615c). At 0.11.2 the catalog value and the
+  # emitter disagree and the wet caution is silent offline.
+  #
+  # 44b615c stated "the change is only correct at >=0.11.3" and then encoded it
+  # only in pubspec.lock. A lock is not a constraint: reconciling this branch
+  # onto main carried a lock resolving 0.11.2, `pub get` honoured it because it
+  # still satisfied `>=0.10.0`, and three voice guards went red. The bound now
+  # lives where the solver has to obey it.
+  navigation_safety_core: '>=0.11.3 <0.12.0'
   navigation_safety: ^0.9.0
   voice_guidance: ^0.7.2
   offline_tiles: ^0.5.0
   map_viewport_bloc: ^0.4.0
-  driving_conditions: ^0.5.0
-  driving_weather: ^0.4.0
-  adaptive_reroute: ^0.1.5
-  route_condition_forecast: ^0.1.0
+  driving_conditions: ^0.6.0
+  driving_weather: ^0.5.0
+  adaptive_reroute: ^0.2.0
+  route_condition_forecast: ^0.2.0
   # CAP RELEASED (2026-07-05): route_condition_forecast 0.1.5 widened its
   # routing_engine range, unblocking 0.5.0 — the language-honoring
   # turn-by-turn line (Japanese by default; the instruction the voice lane
   # speaks verbatim). On-device OPS-066 verification still owed before any
   # "reaches HER" claim (docs/on_device_verify_checklist.md).
-  routing_engine: ^0.5.0
-  fleet_hazard: ^0.5.0
-  # ⚠ PINNED BELOW ITS OWN SAFETY RECALL — BLOCKED CATALOG-SIDE, NOT BY CHOICE.
-  #
-  # snow_rendering 0.3.0 (published 2026-07-26) is a SAFETY RECALL. Verbatim
-  # from its CHANGELOG: "Up to and including 0.2.7, this package told drivers
-  # 'Conditions normal' about roads it had no data for." The chain was
-  #   no data -> RoadSurfaceState.dry -> gripFactor 1.0 (MAXIMUM GRIP)
-  #           -> RecommendedResponse.proceed -> "Conditions normal".
-  # 0.3.0 fixes it in the type system: fromCondition returns RoadSurfaceState?,
-  # and null means "cannot classify" — never dry.
-  #
-  # ^0.2.0 (= >=0.2.0 <0.3.0) cannot receive it. We TRIED to move; the resolver
-  # refused. Measured 2026-08-06 against the live pub.dev API, with the real
-  # `flutter pub get` output:
-  #
-  #   1. snow_rendering >=0.3.0 depends on driving_weather ^0.5.0.
-  #      "Because snow_rendering >=0.3.0 depends on driving_weather ^0.5.0 and
-  #       sngnav_app depends on driving_weather ^0.4.0, snow_rendering >=0.3.0
-  #       is forbidden."
-  #   2. Widening driving_weather to ^0.5.0 then fails on a SIBLING:
-  #      "Because adaptive_reroute >=0.1.1 depends on driving_weather ^0.4.0
-  #       and sngnav_app depends on driving_weather ^0.5.0, adaptive_reroute
-  #       >=0.1.1 is forbidden."
-  #
-  # The complete set of caps, at each package's LATEST PUBLISHED version:
-  #   driving_conditions       0.5.5 -> snow_rendering ^0.2.1  AND dw ^0.4.0
-  #   adaptive_reroute         0.1.6 -> driving_weather  ^0.4.0
-  #   route_condition_forecast 0.1.5 -> driving_weather  ^0.4.0
-  # NO published version of ANY sibling admits snow_rendering ^0.3.0.
-  #
-  # So this is a CATALOG-side blocker, not an app-side one: it clears only when
-  # those three are republished admitting driving_weather ^0.5.0 (and
-  # driving_conditions admitting snow_rendering ^0.3.0). AAE-3 forbids forcing
-  # a constraint past the resolver, and this workspace is fully hosted — no
-  # path deps, no dependency_overrides — so no override is used here.
-  #
-  # Note for whoever does the catalog work: local snow_rendering carries a
-  # FURTHER abstention fix (an abstained frost check returning null instead of
-  # dry) that is NOT in published 0.3.0, while still labelled `version: 0.3.0`.
-  # pub.dev versions are immutable, so that must publish as 0.3.1+.
-  #
-  # MEANWHILE, the guarantee is enforced at OUR CALL SITE — which is what
-  # snow_rendering 0.2.9's own dartdoc instructs: "Never call this with fields
-  # you did not measure; gate absence at your call site and tell your user
-  # 'unknown'." See lib/services/road_surface_classifier.dart and the pinning
-  # test test/services/road_surface_absence_exposure_test.dart.
-  snow_rendering: ^0.2.0
+  routing_engine: ^0.6.0
+  fleet_hazard: ^0.6.0
+  snow_rendering: ^0.3.0
   # WIDENED 2026-07-25: ^0.0.3 (= >=0.0.3 <0.0.4) excluded the locked+live
   # 0.0.8, so a clean `pub get` silently DOWNGRADED the aggregator in HER
   # build and `--enforce-lockfile` hard-failed. >=0.0.3 <0.1.0 admits all
   # 0.0.x (measured live 2026-07-25: latest 0.0.8). Same for noaa_nws_adapter.
-  # The radiative-frost COVERAGE BOUNDARY — called, never re-derived.
-  # humidity_dependent_temperature.dart:123-129 forbids a second copy of this
-  # threshold logic by name ("Two independently-maintained copies of this
-  # threshold logic ARE that disagreement waiting to happen"), so
-  # `radiativeFrostJudgementDeclined` imports the real
-  # `computeEffectiveTemperatureCelsius` and the real ceiling constants rather
-  # than restating them.
-  #
-  # A REGULAR dependency, not dev: lib/services/invisible_ice_watch.dart imports
-  # it at runtime. It was already resolved TRANSITIVELY at 0.1.3 (via
-  # driving_conditions / snow_rendering) and is pinned to that exact version, so
-  # promoting it moves no other entry in HER lockfile.
-  navigation_safety_calibration: 0.1.3
   condition_aggregator: '>=0.0.3 <0.1.0'
+  # ⚑ HELD AT ^0.3.0 DELIBERATELY, and the reason is the opposite of caution.
+  #
+  # 934f44f moved this to ^0.5.0 under the message "the app can now SEE the feed
+  # is dead." Measured 2026-08-24 evening, that move took a capability AWAY.
+  #
+  # 0.3.2 implements `AdvisoryFeedFreshnessReporting`. 0.5.0 does NOT — it has
+  # the symbol in ZERO files, and its CHANGELOG heads that section "API
+  # additions (non-breaking)" without listing the removal. That interface is the
+  # ONLY thing that feeds `AdvisoryAggregateResult.canAssertNoAdvisory`, which
+  # `advisory_cards.dart:203` gates the positive all-clear on.
+  #
+  # Both versions read the same RETIRED path (r8 lands in 0.7.0, unpublished),
+  # so 0.5.0 buys an in-band notice and pays for it with the all-clear guard.
+  # This package's own doctrine ranks that trade: "a false alarm is contradicted
+  # by the windscreen; a false all-clear removes the prompt to look out of it."
+  #
+  # Restore to ^0.5.0 only when a 0.5.x carries the interface again.
   condition_aggregator_jma: ^0.3.0
   noaa_nws_adapter: '>=0.0.3 <0.1.0'
   flutter_map: ^8.2.2
@@ -129,6 +101,23 @@ dependencies:
   vibration: ^3.2.0
   wakelock_plus: ^1.6.1
   navigation_safety_enums: ^0.1.4
+  # Ring-2 運転日記 vocabulary source (2026-08-10). Already resolved
+  # transitively at 0.2.3 via snow_rendering; declared DIRECT because
+  # lib/services/drive_diary.dart now imports it to ground the diary's
+  # road-condition chips in the catalog's canonical JP terms instead of
+  # app-local translations-from-English. The package exists precisely to
+  # stop "the silent erasure of finer-grained JA vocabulary by
+  # English-language collapse" — which is what a hand-authored chip list
+  # in an app is. A drift guard pins our labels to its terms
+  # (test/services/drive_diary_vocabulary_test.dart).
+  japanese_snow_vocabulary: ^0.2.3
+  # Already resolved transitively at 0.1.3; declared DIRECT because
+  # lib/services/radiative_frost_decline.dart and
+  # test/services/ice_watch_scope_envelope_test.dart import it by package
+  # name. Depending on it transitively means a version bump in whatever
+  # pulls it could remove a package our own source imports, and the app
+  # would stop compiling for a reason no line here explains.
+  navigation_safety_calibration: ^0.1.3
   flutter_localizations:
     sdk: flutter
   compound_failure_advisor: ^0.1.1
