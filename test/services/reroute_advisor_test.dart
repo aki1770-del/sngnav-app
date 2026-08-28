@@ -1,6 +1,6 @@
 import 'package:adaptive_reroute/adaptive_reroute.dart' show AdaptiveRerouteConfig;
 import 'package:driving_weather/driving_weather.dart'
-    show PrecipitationIntensity, PrecipitationType, WeatherCondition;
+    show ObservationSource, PrecipitationIntensity, PrecipitationType, WeatherCondition;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:route_condition_forecast/route_condition_forecast.dart'
@@ -49,6 +49,7 @@ void main() {
       visibilityMeters: hazardous ? 400.0 : 10000.0,
       windSpeedKmh: hazardous ? 25.0 : 0.0,
       iceRisk: hazardous,
+      source: ObservationSource.measured,
       timestamp: ts,
     );
     return RouteForecast(
@@ -78,7 +79,49 @@ void main() {
         currentPosition: origin,
       );
       expect(decision.shouldReroute, isFalse);
-      expect(decision.reason, contains('clear'));
+      // adaptive_reroute 0.2.0 REMOVED `RerouteDecision.clear()`. A MEASURED
+      // forecast that found no hazard now reports `noHazardFound`, and the word
+      // "clear" is deliberately gone: "Route is clear" was what this package
+      // said when it had not looked at anything. Asserting the old wording
+      // would be asserting the defect the release exists to remove.
+      expect(decision.reason, contains('No hazard found'));
+      expect(decision.reason, isNot(contains('clear')));
+      // Measured input → the verdict is assessable, so a confidence exists.
+      expect(decision.confidence, isNotNull);
+    });
+
+    test('UNMEASURED forecast → not assessable, and never reported as clear',
+        () {
+      final advisor = RerouteAdvisor();
+      final decision = advisor.advise(
+        forecast: RouteForecast(
+          route: buildRoute(),
+          segments: [
+            SegmentConditionForecast(
+              segment: RouteSegment(
+                index: 0,
+                start: origin,
+                end: dest,
+                distanceKm: 30.0,
+              ),
+              condition: WeatherCondition.unknown(timestamp: ts),
+              hazardZones: const [],
+              etaSeconds: 600.0,
+              confidence: 0.9,
+            ),
+          ],
+          generatedAt: ts,
+        ),
+        currentPosition: origin,
+      );
+      // The defect in 0.1.5: this exact input produced
+      // `RerouteDecision.clear()` with `confidence: 1.0` — the highest-
+      // confidence claim the package can make, on the basis of nothing.
+      expect(decision.shouldReroute, isFalse);
+      expect(decision.reason, isNot(contains('clear')));
+      expect(decision.confidence, isNull,
+          reason: 'null means NOT ASSESSABLE — never zero confidence, and '
+              'never "no hazard"');
     });
 
     test('hazardous + high confidence + within window → recommends reroute',

@@ -49,7 +49,8 @@ void main() {
         position: const LatLng(39.6, 140.1),
       );
       final n = toNavigationManeuver(m);
-      expect(n.index, m.index);
+      expect(n, isNotNull, reason: 'a located maneuver must adapt');
+      expect(n!.index, m.index);
       expect(n.instruction, m.instruction);
       expect(n.type, m.type);
       expect(n.lengthKm, m.lengthKm);

@@ -25,80 +25,22 @@ dependencies:
   voice_guidance: ^0.7.2
   offline_tiles: ^0.5.0
   map_viewport_bloc: ^0.4.0
-  driving_conditions: ^0.5.0
-  driving_weather: ^0.4.0
-  adaptive_reroute: ^0.1.5
-  route_condition_forecast: ^0.1.0
+  driving_conditions: ^0.6.0
+  driving_weather: ^0.5.0
+  adaptive_reroute: ^0.2.0
+  route_condition_forecast: ^0.2.0
   # CAP RELEASED (2026-07-05): route_condition_forecast 0.1.5 widened its
   # routing_engine range, unblocking 0.5.0 — the language-honoring
   # turn-by-turn line (Japanese by default; the instruction the voice lane
   # speaks verbatim). On-device OPS-066 verification still owed before any
   # "reaches HER" claim (docs/on_device_verify_checklist.md).
-  routing_engine: ^0.5.0
-  fleet_hazard: ^0.5.0
-  # ⚠ PINNED BELOW ITS OWN SAFETY RECALL — BLOCKED CATALOG-SIDE, NOT BY CHOICE.
-  #
-  # snow_rendering 0.3.0 (published 2026-07-26) is a SAFETY RECALL. Verbatim
-  # from its CHANGELOG: "Up to and including 0.2.7, this package told drivers
-  # 'Conditions normal' about roads it had no data for." The chain was
-  #   no data -> RoadSurfaceState.dry -> gripFactor 1.0 (MAXIMUM GRIP)
-  #           -> RecommendedResponse.proceed -> "Conditions normal".
-  # 0.3.0 fixes it in the type system: fromCondition returns RoadSurfaceState?,
-  # and null means "cannot classify" — never dry.
-  #
-  # ^0.2.0 (= >=0.2.0 <0.3.0) cannot receive it. We TRIED to move; the resolver
-  # refused. Measured 2026-08-06 against the live pub.dev API, with the real
-  # `flutter pub get` output:
-  #
-  #   1. snow_rendering >=0.3.0 depends on driving_weather ^0.5.0.
-  #      "Because snow_rendering >=0.3.0 depends on driving_weather ^0.5.0 and
-  #       sngnav_app depends on driving_weather ^0.4.0, snow_rendering >=0.3.0
-  #       is forbidden."
-  #   2. Widening driving_weather to ^0.5.0 then fails on a SIBLING:
-  #      "Because adaptive_reroute >=0.1.1 depends on driving_weather ^0.4.0
-  #       and sngnav_app depends on driving_weather ^0.5.0, adaptive_reroute
-  #       >=0.1.1 is forbidden."
-  #
-  # The complete set of caps, at each package's LATEST PUBLISHED version:
-  #   driving_conditions       0.5.5 -> snow_rendering ^0.2.1  AND dw ^0.4.0
-  #   adaptive_reroute         0.1.6 -> driving_weather  ^0.4.0
-  #   route_condition_forecast 0.1.5 -> driving_weather  ^0.4.0
-  # NO published version of ANY sibling admits snow_rendering ^0.3.0.
-  #
-  # So this is a CATALOG-side blocker, not an app-side one: it clears only when
-  # those three are republished admitting driving_weather ^0.5.0 (and
-  # driving_conditions admitting snow_rendering ^0.3.0). AAE-3 forbids forcing
-  # a constraint past the resolver, and this workspace is fully hosted — no
-  # path deps, no dependency_overrides — so no override is used here.
-  #
-  # Note for whoever does the catalog work: local snow_rendering carries a
-  # FURTHER abstention fix (an abstained frost check returning null instead of
-  # dry) that is NOT in published 0.3.0, while still labelled `version: 0.3.0`.
-  # pub.dev versions are immutable, so that must publish as 0.3.1+.
-  #
-  # MEANWHILE, the guarantee is enforced at OUR CALL SITE — which is what
-  # snow_rendering 0.2.9's own dartdoc instructs: "Never call this with fields
-  # you did not measure; gate absence at your call site and tell your user
-  # 'unknown'." See lib/services/road_surface_classifier.dart and the pinning
-  # test test/services/road_surface_absence_exposure_test.dart.
-  snow_rendering: ^0.2.0
+  routing_engine: ^0.6.0
+  fleet_hazard: ^0.6.0
+  snow_rendering: ^0.3.0
   # WIDENED 2026-07-25: ^0.0.3 (= >=0.0.3 <0.0.4) excluded the locked+live
   # 0.0.8, so a clean `pub get` silently DOWNGRADED the aggregator in HER
   # build and `--enforce-lockfile` hard-failed. >=0.0.3 <0.1.0 admits all
   # 0.0.x (measured live 2026-07-25: latest 0.0.8). Same for noaa_nws_adapter.
-  # The radiative-frost COVERAGE BOUNDARY — called, never re-derived.
-  # humidity_dependent_temperature.dart:123-129 forbids a second copy of this
-  # threshold logic by name ("Two independently-maintained copies of this
-  # threshold logic ARE that disagreement waiting to happen"), so
-  # `radiativeFrostJudgementDeclined` imports the real
-  # `computeEffectiveTemperatureCelsius` and the real ceiling constants rather
-  # than restating them.
-  #
-  # A REGULAR dependency, not dev: lib/services/invisible_ice_watch.dart imports
-  # it at runtime. It was already resolved TRANSITIVELY at 0.1.3 (via
-  # driving_conditions / snow_rendering) and is pinned to that exact version, so
-  # promoting it moves no other entry in HER lockfile.
-  navigation_safety_calibration: 0.1.3
   condition_aggregator: '>=0.0.3 <0.1.0'
   condition_aggregator_jma: ^0.3.0
   noaa_nws_adapter: '>=0.0.3 <0.1.0'
@@ -129,6 +71,16 @@ dependencies:
   vibration: ^3.2.0
   wakelock_plus: ^1.6.1
   navigation_safety_enums: ^0.1.4
+  # Ring-2 運転日記 vocabulary source (2026-08-10). Already resolved
+  # transitively at 0.2.3 via snow_rendering; declared DIRECT because
+  # lib/services/drive_diary.dart now imports it to ground the diary's
+  # road-condition chips in the catalog's canonical JP terms instead of
+  # app-local translations-from-English. The package exists precisely to
+  # stop "the silent erasure of finer-grained JA vocabulary by
+  # English-language collapse" — which is what a hand-authored chip list
+  # in an app is. A drift guard pins our labels to its terms
+  # (test/services/drive_diary_vocabulary_test.dart).
+  japanese_snow_vocabulary: ^0.2.3
   flutter_localizations:
     sdk: flutter
   compound_failure_advisor: ^0.1.1
@@ -182,20 +134,3 @@ flutter:
     # Source of truth: lib/voice/offline_safety_voice.dart
     # Re-render:      bash tool/render_offline_voice.sh
     - assets/audio/ja/
-    # Font attribution rides in the APK beside the font it licenses
-    # (Bitstream Vera license requires the notice to accompany copies).
-    - assets/fonts/LICENSE-SnGNavSymbols.txt
-  fonts:
-    # SnGNavSymbols — a 14-glyph symbols subset (⚠ ❄ → ※ ° … et al.) cut
-    # from DejaVu Sans and renamed per its license's modification clause
-    # (assets/fonts/LICENSE-SnGNavSymbols.txt). Bundled because the ja
-    # system font stack does NOT guarantee these glyphs (measured
-    # 2026-07-30: Noto Sans CJK JP lacks U+2744 ❄; harness fonts lack
-    # U+26A0 ⚠ — the 1b reach-class tofu defect, plan 2026-07-25 §1).
-    # Wired as app-wide ThemeData.fontFamilyFallback in main.dart; glyph
-    # coverage is drift-guarded by test/fonts/symbol_font_coverage_test.dart
-    # (a new symbol in a lib/ string literal fails the suite until the
-    # subset is re-cut — tool/subset_symbols_font.md documents the re-cut).
-    - family: SnGNavSymbols
-      fonts:
-        - asset: assets/fonts/SnGNavSymbols.ttf

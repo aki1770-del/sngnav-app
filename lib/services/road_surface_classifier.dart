@@ -108,13 +108,10 @@ class RoadSurfaceClassifier {
   /// abstentions can neither debounce toward a fabricated state nor displace a
   /// hazard already determined.
   RoadSurfaceState? classify(WeatherCondition condition) {
-    // Typed nullable DELIBERATELY so this line compiles unchanged against BOTH
-    // the 0.2.x non-nullable return and the 0.3.x nullable one. The analyzer is
-    // right that the annotation is redundant *today* — it is redundant only
-    // because we are still pinned below the recall, and it is what stops this
-    // becoming a rewrite on the day the catalog cap lifts. The `raw == null`
-    // branch below is likewise dead under 0.2.x and live under 0.3.x.
-    // ignore: unnecessary_nullable_for_final_variable_declarations
+    // THE CAP HAS LIFTED. The app is now pinned to snow_rendering ^0.3.0, so
+    // `fromCondition` genuinely returns a nullable and this annotation is no
+    // longer redundant. It was written to compile unchanged across the move,
+    // and it did: the `raw == null` branch — dead under 0.2.x — is now LIVE.
     final RoadSurfaceState? raw = RoadSurfaceState.fromCondition(condition);
 
     if (raw == null || !_isTrustworthy(raw, condition)) {

@@ -1,5 +1,5 @@
 import 'package:driving_weather/driving_weather.dart'
-    show PrecipitationIntensity, PrecipitationType, WeatherCondition;
+    show ObservationSource, PrecipitationIntensity, PrecipitationType, WeatherCondition;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:snow_rendering/snow_rendering.dart' show PrecipitationConfig;
@@ -12,10 +12,20 @@ void main() {
     testWidgets('renders without throwing for clear conditions', (
       tester,
     ) async {
-      final config = PrecipitationConfig.fromCondition(
-        WeatherCondition.clear(timestamp: ts),
-      );
-      expect(config.particleCount, 0);
+      // A MEASURED clear road, stated explicitly. `WeatherCondition.clear()`
+      // was removed in driving_weather 0.5.0 because an empty feed returned it.
+      final config = PrecipitationConfig.fromCondition(WeatherCondition(
+          precipType: PrecipitationType.none,
+          intensity: PrecipitationIntensity.none,
+          temperatureCelsius: 5.0,
+          visibilityMeters: 10000.0,
+          windSpeedKmh: 0.0,
+          iceRisk: false,
+          source: ObservationSource.measured,
+          timestamp: ts,
+        ));
+      expect(config, isNotNull, reason: 'a measured condition yields a config');
+      expect(config!.particleCount, 0);
       await tester.pumpWidget(SizedBox(
         width: 200,
         height: 200,
@@ -34,11 +44,13 @@ void main() {
         temperatureCelsius: -5.0,
         visibilityMeters: 400.0,
         windSpeedKmh: 20.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       );
       final config = PrecipitationConfig.fromCondition(heavySnow);
       // Heavy snow → particleCount = 500 (1.0 * 500).
-      expect(config.particleCount, 500);
+      expect(config, isNotNull);
+      expect(config!.particleCount, 500);
       await tester.pumpWidget(SizedBox(
         width: 300,
         height: 300,
@@ -55,6 +67,7 @@ void main() {
         temperatureCelsius: 0.0,
         visibilityMeters: 5000.0,
         windSpeedKmh: 5.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       ));
       final heavy = PrecipitationConfig.fromCondition(WeatherCondition(
@@ -63,8 +76,13 @@ void main() {
         temperatureCelsius: -5.0,
         visibilityMeters: 400.0,
         windSpeedKmh: 20.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       ));
+      expect(light, isNotNull);
+      expect(heavy, isNotNull);
+      light!;
+      heavy!;
       await tester.pumpWidget(SizedBox(
         width: 200,
         height: 200,
