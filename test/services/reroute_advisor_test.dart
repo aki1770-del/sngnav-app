@@ -1,6 +1,6 @@
 import 'package:adaptive_reroute/adaptive_reroute.dart' show AdaptiveRerouteConfig;
 import 'package:driving_weather/driving_weather.dart'
-    show PrecipitationIntensity, PrecipitationType, WeatherCondition;
+    show ObservationSource, PrecipitationIntensity, PrecipitationType, WeatherCondition;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:route_condition_forecast/route_condition_forecast.dart'
@@ -41,6 +41,7 @@ void main() {
       distanceKm: 30.0,
     );
     final cond = WeatherCondition(
+      source: ObservationSource.simulated,
       precipType: hazardous ? PrecipitationType.snow : PrecipitationType.none,
       intensity: hazardous
           ? PrecipitationIntensity.heavy
@@ -78,7 +79,10 @@ void main() {
         currentPosition: origin,
       );
       expect(decision.shouldReroute, isFalse);
-      expect(decision.reason, contains('clear'));
+      // adaptive_reroute 0.2.0 stopped saying "Route is clear" — an unqualified
+      // claim it could make about a route nobody had looked at. It now scopes
+      // the claim to what was actually assessed.
+      expect(decision.reason, contains('No hazard found'));
     });
 
     test('hazardous + high confidence + within window → recommends reroute',

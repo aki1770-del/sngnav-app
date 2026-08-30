@@ -88,7 +88,7 @@ class ManeuverNarration {
     required AlertSeverity severity,
     required bool icyCoupled,
     required RouteManeuver routeManeuver,
-    required NavigationManeuver navigationManeuver,
+    required NavigationManeuver? navigationManeuver,
   }) {
     assert(confidence != NarrationConfidence.suppressed);
     return ManeuverNarration._(
@@ -110,7 +110,7 @@ class ManeuverNarration {
   factory ManeuverNarration._suppressed({
     required LocalizationMode mode,
     required RouteManeuver routeManeuver,
-    required NavigationManeuver navigationManeuver,
+    required NavigationManeuver? navigationManeuver,
   }) {
     return ManeuverNarration._(
       shouldAnnounce: false,
@@ -149,22 +149,32 @@ class ManeuverNarration {
 
   /// The same maneuver adapted to the catalog's `navigation_safety` type (the
   /// seam), carried for any consumer that wants it.
-  final NavigationManeuver navigationManeuver;
+  final NavigationManeuver? navigationManeuver;
 }
 
 /// Adapt a `routing_engine` [RouteManeuver] to the catalog's
 /// `navigation_safety_core` [NavigationManeuver].
 ///
-/// The two are field-identical (index / instruction / type / lengthKm /
-/// timeSeconds / position), so this is a single lossless copy — the whole seam.
-NavigationManeuver toNavigationManeuver(RouteManeuver m) => NavigationManeuver(
-      index: m.index,
-      instruction: m.instruction,
-      type: m.type,
-      lengthKm: m.lengthKm,
-      timeSeconds: m.timeSeconds,
-      position: m.position,
-    );
+/// Returns `null` when the maneuver has no position.
+///
+/// This was a lossless copy until `routing_engine` 0.6.1, which made
+/// `RouteManeuver.position` nullable rather than substituting (0, 0) for a
+/// maneuver the server located nowhere. `NavigationManeuver.position` is
+/// non-nullable, so an unlocated maneuver cannot be adapted — and must not be
+/// narrated. `null` here is what keeps an unlocated turn SILENT instead of
+/// giving her a direction derived from Null Island.
+NavigationManeuver? toNavigationManeuver(RouteManeuver m) {
+  final position = m.position;
+  if (position == null) return null;
+  return NavigationManeuver(
+    index: m.index,
+    instruction: m.instruction,
+    type: m.type,
+    lengthKm: m.lengthKm,
+    timeSeconds: m.timeSeconds,
+    position: position,
+  );
+}
 
 /// Pick the next maneuver worth narrating from a parsed route.
 ///

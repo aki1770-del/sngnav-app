@@ -142,10 +142,14 @@ class RoadSurfaceClassifier {
   static bool _isTrustworthy(RoadSurfaceState raw, WeatherCondition c) {
     if (raw != RoadSurfaceState.dry) return true;
 
-    final temp = c.temperatureCelsius;
+    final double? temp = c.temperatureCelsius;
 
-    // A non-finite temperature is a REJECTED input, never an all-clear.
-    if (!temp.isFinite) return false;
+    // An ABSENT or non-finite temperature is a REJECTED input, never an
+    // all-clear. Until `driving_weather` 0.5.0 absence could not be represented
+    // in the type at all: it arrived here as a fabricated +5.0 °C and passed
+    // this guard as an ordinary finite reading. `null` is now the honest shape
+    // and it takes the same branch.
+    if (temp == null || !temp.isFinite) return false;
 
     // At or below freezing, "maximum grip" is not a claim this app makes. Its
     // own invisible-ice watch treats temp <= 0 as frozen UNCONDITIONALLY

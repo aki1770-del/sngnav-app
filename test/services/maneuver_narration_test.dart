@@ -48,7 +48,9 @@ void main() {
         timeSeconds: 88,
         position: const LatLng(39.6, 140.1),
       );
-      final n = toNavigationManeuver(m);
+      // nullable since routing_engine 0.6.1: an unlocated maneuver adapts to
+      // null rather than to a fabricated position. This one HAS a position.
+      final n = toNavigationManeuver(m)!;
       expect(n.index, m.index);
       expect(n.instruction, m.instruction);
       expect(n.type, m.type);

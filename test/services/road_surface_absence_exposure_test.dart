@@ -33,7 +33,7 @@
 import 'package:driving_conditions/driving_conditions.dart'
     show HysteresisFilter, RoadSurfaceState;
 import 'package:driving_weather/driving_weather.dart'
-    show PrecipitationIntensity, PrecipitationType, WeatherCondition;
+    show ObservationSource, PrecipitationIntensity, PrecipitationType, WeatherCondition;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/scenarios/nagoya_unexpected_snow_scenario.dart';
 import 'package:sngnav_app/services/road_surface_classifier.dart';
@@ -48,6 +48,7 @@ final _ts = DateTime.utc(2026, 2, 1, 6);
 /// which is the only hazard discriminator on this branch above -3 C, cannot
 /// run. Whatever comes back is not a determination.
 WeatherCondition noHumidity(double tempC) => WeatherCondition(
+      source: ObservationSource.simulated,
       precipType: PrecipitationType.none,
       intensity: PrecipitationIntensity.none,
       temperatureCelsius: tempC,
@@ -69,12 +70,24 @@ void main() {
         // measurement. driving_weather 0.5.0 REMOVED this constructor for
         // exactly that reason.
         final classifier = RoadSurfaceClassifier();
-        final fabricated = WeatherCondition.clear(timestamp: _ts);
+        // `.clear()` itself is GONE in driving_weather 0.5.0. Its exact shape is
+          // reconstructed here so the assertion still runs against the vector
+          // the recall names, rather than disappearing with the constructor.
+          final fabricated = WeatherCondition(
+            source: ObservationSource.simulated,
+            precipType: PrecipitationType.none,
+            intensity: PrecipitationIntensity.none,
+            temperatureCelsius: 5.0,
+            visibilityMeters: 10000,
+            windSpeedKmh: 0,
+            iceRisk: false,
+            timestamp: _ts,
+          );
 
         expect(
           fabricated.humidityRH,
           isNull,
-          reason: 'precondition: .clear() reports no humidity',
+          reason: 'precondition: the fabrication vector reports no humidity',
         );
         expect(
           classifier.classify(fabricated),
@@ -141,6 +154,7 @@ void main() {
       // reading after a blackIce determination must not read as "recovered".
       final classifier = RoadSurfaceClassifier();
       final icy = WeatherCondition(
+        source: ObservationSource.simulated,
         precipType: PrecipitationType.none,
         intensity: PrecipitationIntensity.none,
         temperatureCelsius: -8.0,
@@ -166,6 +180,7 @@ void main() {
       // Explicit ice risk — positive evidence, fires whatever else is absent.
       expect(
         classifier.classify(WeatherCondition(
+          source: ObservationSource.simulated,
           precipType: PrecipitationType.none,
           intensity: PrecipitationIntensity.none,
           temperatureCelsius: 2.0,
@@ -181,6 +196,7 @@ void main() {
       final snow = RoadSurfaceClassifier();
       expect(
         snow.classify(WeatherCondition(
+          source: ObservationSource.simulated,
           precipType: PrecipitationType.snow,
           intensity: PrecipitationIntensity.heavy,
           temperatureCelsius: -5.0,
@@ -199,6 +215,7 @@ void main() {
       final classifier = RoadSurfaceClassifier();
       expect(
         classifier.classify(WeatherCondition(
+          source: ObservationSource.simulated,
           precipType: PrecipitationType.none,
           intensity: PrecipitationIntensity.none,
           temperatureCelsius: 18.0,
