@@ -163,6 +163,12 @@ flutter:
     # no-data tint. Pipeline + runbook: tool/README_TILES.md (cut pinned
     # tohoku-260709). Data (c) OpenStreetMap contributors, ODbL.
     - assets/tiles/akita_offline.mbtiles
+    # The Kan-Etsu / Minakami approach — Ring 1's Kanto corridor, cut by the
+    # same pipeline as Akita. Bundled because Phase C puts KANTO HANDS ON
+    # OCT 20, before Akita is in hand: they reach snow on this road first.
+    # Tracked since 5915647 but undeclared until now, so it shipped in the
+    # repo and in NO bundle — 11 MB nobody could load.
+    - assets/tiles/gunma_offline.mbtiles
     # The offline MOUTH — the finite ja safety vocabulary, pre-rendered to WAV
     # (open_jtalk / nitech-jp, 16 kHz mono). The system TTS is silent and then
     # hangs with no network on the target device, so every warning the app had

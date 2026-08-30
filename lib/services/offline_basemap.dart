@@ -42,7 +42,11 @@ import 'package:path_provider/path_provider.dart';
 /// The bundled real-cartography archive (declared in pubspec `flutter/assets`).
 const String akitaOfflineMbtilesAsset = 'assets/tiles/akita_offline.mbtiles';
 
-const String _tempMbtilesFilename = 'akita_offline.mbtiles';
+/// The Kan-Etsu / Minakami approach — Ring 1's Kanto corridor.
+///
+/// Phase C puts Kanto hands on Oct 20, ahead of Akita on Oct 31: they meet
+/// snow on this road before HER prefecture is in anyone's hand.
+const String gunmaOfflineMbtilesAsset = 'assets/tiles/gunma_offline.mbtiles';
 
 /// Build an [OfflineTileProvider] from raw MBTiles [bytes].
 ///
@@ -57,9 +61,15 @@ const String _tempMbtilesFilename = 'akita_offline.mbtiles';
 Future<OfflineTileProvider> buildOfflineTileProviderFromBytes(
   Uint8List bytes, {
   required Directory tempDir,
+  required String archiveFilename,
   bool allowOnlineFallback = true,
 }) async {
-  final file = File('${tempDir.path}/$_tempMbtilesFilename');
+  // REQUIRED, never defaulted. Two archives written through one constant
+  // filename overwrite each other in tempDir, and the second caller then
+  // renders the FIRST archive's cartography — Gunma's roads painted as
+  // Akita's, or the reverse. Tiles still appear, so nothing looks broken.
+  // A default would let that back in the moment a caller forgot it.
+  final file = File('${tempDir.path}/$archiveFilename');
   await file.writeAsBytes(bytes, flush: true);
 
   // Read-only open; format is 'png' so mbtiles disables gzip decode.
@@ -80,13 +90,27 @@ Future<OfflineTileProvider> buildOfflineTileProviderFromBytes(
 /// Returns `null` on any failure so the caller falls back to the plain
 /// network basemap — honest degradation, never a hard crash. A null result
 /// means "no offline basemap this run", exactly as before this PoC.
-Future<OfflineTileProvider?> loadAkitaOfflineTileProvider() async {
+Future<OfflineTileProvider?> loadAkitaOfflineTileProvider() =>
+    loadOfflineTileProvider(asset: akitaOfflineMbtilesAsset);
+
+/// Production entry for any bundled archive: load [asset], copy it to a temp
+/// file named after the asset itself, and return an offline-first provider.
+///
+/// Returns `null` on any failure so the caller falls back to the plain network
+/// basemap — honest degradation, never a hard crash.
+Future<OfflineTileProvider?> loadOfflineTileProvider({
+  required String asset,
+}) async {
   try {
-    final data = await rootBundle.load(akitaOfflineMbtilesAsset);
+    final data = await rootBundle.load(asset);
     final bytes =
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
     final tempDir = await getTemporaryDirectory();
-    return buildOfflineTileProviderFromBytes(bytes, tempDir: tempDir);
+    return buildOfflineTileProviderFromBytes(
+      bytes,
+      tempDir: tempDir,
+      archiveFilename: asset.split('/').last,
+    );
   } catch (e) {
     // Degradation must be honest, never silent: a swallowed error here left
     // the map blank in airplane mode on-device while host tests painted it

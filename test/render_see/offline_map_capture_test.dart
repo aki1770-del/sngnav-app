@@ -64,6 +64,7 @@ void main() {
     provider = await buildOfflineTileProviderFromBytes(
       Uint8List.fromList(assetBytes),
       tempDir: tmp,
+      archiveFilename: 'akita_offline.mbtiles',
       allowOnlineFallback: false,
     );
   });
