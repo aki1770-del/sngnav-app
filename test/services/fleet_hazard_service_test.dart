@@ -23,18 +23,21 @@ void main() {
           position: const LatLng(35.300, 136.850),
           timestamp: now.subtract(const Duration(minutes: 2)),
           condition: RoadCondition.icy,
+          confidence: 1.0,
         ),
         FleetReport(
           vehicleId: 'V-2',
           position: const LatLng(35.301, 136.851),
           timestamp: now.subtract(const Duration(minutes: 3)),
           condition: RoadCondition.icy,
+          confidence: 1.0,
         ),
         FleetReport(
           vehicleId: 'V-3',
           position: const LatLng(35.302, 136.849),
           timestamp: now.subtract(const Duration(minutes: 1)),
           condition: RoadCondition.icy,
+          confidence: 1.0,
         ),
       ]);
       final zones = svc.currentZones(now: now);
@@ -52,12 +55,14 @@ void main() {
         position: const LatLng(35.300, 136.850),
         timestamp: now.subtract(const Duration(minutes: 30)),
         condition: RoadCondition.icy,
+        confidence: 1.0,
       ));
       svc.ingest(FleetReport(
         vehicleId: 'V-new',
         position: const LatLng(35.300, 136.850),
         timestamp: now.subtract(const Duration(minutes: 1)),
         condition: RoadCondition.icy,
+        confidence: 1.0,
       ));
       final zones = svc.currentZones(now: now);
       expect(zones, hasLength(1));
@@ -81,6 +86,7 @@ void main() {
         position: const LatLng(35.300, 136.850),
         timestamp: now,
         condition: RoadCondition.dry,
+        confidence: 1.0,
       ));
       expect(svc.currentZones(now: now), isEmpty);
     });

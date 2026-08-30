@@ -8,19 +8,24 @@
 //        no data -> RoadSurfaceState.dry -> gripFactor 1.0 (MAXIMUM GRIP)
 //                -> RecommendedResponse.proceed -> "Conditions normal"
 //
-// This app is pinned `snow_rendering: ^0.2.0` (= >=0.2.0 <0.3.0) and resolves
-// 0.2.9 — BELOW its own safety package's recall — and cannot take the recall
-// today: three PUBLISHED siblings cap it (measured 2026-08-06 against the live
-// pub.dev API; see pubspec.yaml for the exact caps). So the fix cannot come
-// from the type system. It has to be enforced HERE, at our call site — which
-// is what snow_rendering 0.2.9's own dartdoc instructs, verbatim:
+// THE RECALL HAS NOW BEEN TAKEN. Until 2026-08-23 this app was pinned
+// `snow_rendering: ^0.2.0` and resolved 0.2.9 — below its own safety package's
+// recall — because three PUBLISHED siblings capped it. Those caps lifted and
+// the app moved to `^0.3.0`; `fromCondition` now returns a nullable and the
+// type system carries part of the guard.
+//
+// This file did NOT become redundant when that happened, and the assertions
+// below are unchanged. The type system stops `fromCondition` from INVENTING a
+// state; it does not stop `dry` being returned for a road nobody measured.
+// That remains a call-site duty, exactly as snow_rendering 0.2.9's own dartdoc
+// instructed, verbatim:
 //
 //   "Never call this with fields you did not measure; gate absence at your
 //    call site and tell your user 'unknown'."
 //
-// That is the contract this file pins. Every assertion is written to compile
-// against BOTH the 0.2.x non-nullable return and the 0.3.x nullable one, so it
-// keeps its teeth across the migration instead of being rewritten by it.
+// That is the contract this file pins. Every assertion was written to compile
+// against BOTH the 0.2.x non-nullable return and the 0.3.x nullable one, and it
+// did: it crossed the migration without losing a tooth.
 //
 // The invariant under test is NOT "always warn". A fabricated alarm is worse
 // than none — it teaches HER to ignore the app. The invariant is narrower and
@@ -33,7 +38,11 @@
 import 'package:driving_conditions/driving_conditions.dart'
     show HysteresisFilter, RoadSurfaceState;
 import 'package:driving_weather/driving_weather.dart'
-    show ObservationSource, PrecipitationIntensity, PrecipitationType, WeatherCondition;
+    show
+        ObservationSource,
+        PrecipitationIntensity,
+        PrecipitationType,
+        WeatherCondition;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/scenarios/nagoya_unexpected_snow_scenario.dart';
 import 'package:sngnav_app/services/road_surface_classifier.dart';
@@ -48,46 +57,53 @@ final _ts = DateTime.utc(2026, 2, 1, 6);
 /// which is the only hazard discriminator on this branch above -3 C, cannot
 /// run. Whatever comes back is not a determination.
 WeatherCondition noHumidity(double tempC) => WeatherCondition(
-      source: ObservationSource.simulated,
       precipType: PrecipitationType.none,
       intensity: PrecipitationIntensity.none,
       temperatureCelsius: tempC,
       visibilityMeters: 10000.0,
       windSpeedKmh: 0.0,
+      source: ObservationSource.measured,
       timestamp: _ts,
-      // humidityRH deliberately omitted -> null.
+      // humidityRH deliberately omitted -> null. `measured` is the point: a
+      // real feed that simply did not supply humidity is the ordinary case,
+      // and it must still not resolve to a benign road.
     );
 
 void main() {
   group('absence is never a benign surface (snow_rendering 0.3.0 recall)', () {
     test(
-      'WeatherCondition.clear() — the recall\'s NAMED fabrication vector — '
+      'the recall\'s NAMED fabrication vector — the shape .clear() produced — '
       'must not classify as dry',
       () {
-        // driving_weather 0.4.5 weather_condition.dart:90-97 hardcodes
+        // driving_weather 0.4.5 weather_condition.dart:90-97 hardcoded
         // temperatureCelsius = 5.0, visibilityMeters = 10000, windSpeedKmh = 0,
-        // iceRisk = false, humidityRH = null. Not one of those is a
-        // measurement. driving_weather 0.5.0 REMOVED this constructor for
-        // exactly that reason.
+        // iceRisk = false, humidityRH = null. Not one of those was a
+        // measurement. 0.5.0 REMOVED the constructor for exactly that reason,
+        // so this test can no longer CALL it.
+        //
+        // The vector is reconstructed field-for-field instead of deleted with
+        // it. A constructor going away does not prove the shape is harmless —
+        // any feed can still hand us these five values — and deleting the test
+        // with the constructor would retire the guard on the strength of a
+        // rename. `source: measured` is deliberate: presenting hardcoded
+        // constants AS an observation is precisely what the recall was about.
         final classifier = RoadSurfaceClassifier();
-        // `.clear()` itself is GONE in driving_weather 0.5.0. Its exact shape is
-          // reconstructed here so the assertion still runs against the vector
-          // the recall names, rather than disappearing with the constructor.
-          final fabricated = WeatherCondition(
-            source: ObservationSource.simulated,
-            precipType: PrecipitationType.none,
-            intensity: PrecipitationIntensity.none,
-            temperatureCelsius: 5.0,
-            visibilityMeters: 10000,
-            windSpeedKmh: 0,
-            iceRisk: false,
-            timestamp: _ts,
-          );
+        final fabricated = WeatherCondition(
+          precipType: PrecipitationType.none,
+          intensity: PrecipitationIntensity.none,
+          temperatureCelsius: 5.0,
+          visibilityMeters: 10000.0,
+          windSpeedKmh: 0.0,
+          iceRisk: false,
+          source: ObservationSource.measured,
+          timestamp: _ts,
+          // humidityRH omitted -> null, as .clear() hardcoded it.
+        );
 
         expect(
           fabricated.humidityRH,
           isNull,
-          reason: 'precondition: the fabrication vector reports no humidity',
+          reason: 'precondition: the .clear() shape reports no humidity',
         );
         expect(
           classifier.classify(fabricated),
@@ -154,12 +170,12 @@ void main() {
       // reading after a blackIce determination must not read as "recovered".
       final classifier = RoadSurfaceClassifier();
       final icy = WeatherCondition(
-        source: ObservationSource.simulated,
         precipType: PrecipitationType.none,
         intensity: PrecipitationIntensity.none,
         temperatureCelsius: -8.0,
         visibilityMeters: 10000.0,
         windSpeedKmh: 0.0,
+        source: ObservationSource.measured,
         timestamp: _ts,
       );
 
@@ -180,13 +196,13 @@ void main() {
       // Explicit ice risk — positive evidence, fires whatever else is absent.
       expect(
         classifier.classify(WeatherCondition(
-          source: ObservationSource.simulated,
           precipType: PrecipitationType.none,
           intensity: PrecipitationIntensity.none,
           temperatureCelsius: 2.0,
           visibilityMeters: 10000.0,
           windSpeedKmh: 0.0,
           iceRisk: true,
+          source: ObservationSource.measured,
           timestamp: _ts,
         )),
         RoadSurfaceState.blackIce,
@@ -196,12 +212,12 @@ void main() {
       final snow = RoadSurfaceClassifier();
       expect(
         snow.classify(WeatherCondition(
-          source: ObservationSource.simulated,
           precipType: PrecipitationType.snow,
           intensity: PrecipitationIntensity.heavy,
           temperatureCelsius: -5.0,
           visibilityMeters: 800.0,
           windSpeedKmh: 20.0,
+          source: ObservationSource.measured,
           timestamp: _ts,
         )),
         RoadSurfaceState.compactedSnow,
@@ -215,13 +231,13 @@ void main() {
       final classifier = RoadSurfaceClassifier();
       expect(
         classifier.classify(WeatherCondition(
-          source: ObservationSource.simulated,
           precipType: PrecipitationType.none,
           intensity: PrecipitationIntensity.none,
           temperatureCelsius: 18.0,
           visibilityMeters: 10000.0,
           windSpeedKmh: 3.0,
           humidityRH: 40.0,
+          source: ObservationSource.measured,
           timestamp: _ts,
         )),
         RoadSurfaceState.dry,

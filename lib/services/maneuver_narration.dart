@@ -149,30 +149,33 @@ class ManeuverNarration {
 
   /// The same maneuver adapted to the catalog's `navigation_safety` type (the
   /// seam), carried for any consumer that wants it.
+  /// `null` when the maneuver carried no position - see
+  /// [toNavigationManeuver]. Never a substituted coordinate.
   final NavigationManeuver? navigationManeuver;
 }
 
 /// Adapt a `routing_engine` [RouteManeuver] to the catalog's
 /// `navigation_safety_core` [NavigationManeuver].
 ///
-/// Returns `null` when the maneuver has no position.
+/// The two are field-identical (index / instruction / type / lengthKm /
+/// timeSeconds / position), so this is a single lossless copy — the whole seam.
+/// Returns `null` when the maneuver carries NO position.
 ///
-/// This was a lossless copy until `routing_engine` 0.6.1, which made
-/// `RouteManeuver.position` nullable rather than substituting (0, 0) for a
-/// maneuver the server located nowhere. `NavigationManeuver.position` is
-/// non-nullable, so an unlocated maneuver cannot be adapted — and must not be
-/// narrated. `null` here is what keeps an unlocated turn SILENT instead of
-/// giving her a direction derived from Null Island.
+/// routing_engine 0.6.0 made `RouteManeuver.position` nullable rather than
+/// substituting Null Island; `NavigationManeuver.position` is non-nullable, so
+/// an unlocatable maneuver genuinely cannot be adapted. It is refused here
+/// rather than given a coordinate nobody measured. The instruction itself is
+/// still narrated - only the seam type is withheld.
 NavigationManeuver? toNavigationManeuver(RouteManeuver m) {
-  final position = m.position;
-  if (position == null) return null;
+  final pos = m.position;
+  if (pos == null) return null;
   return NavigationManeuver(
     index: m.index,
     instruction: m.instruction,
     type: m.type,
     lengthKm: m.lengthKm,
     timeSeconds: m.timeSeconds,
-    position: position,
+    position: pos,
   );
 }
 

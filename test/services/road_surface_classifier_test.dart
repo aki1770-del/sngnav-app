@@ -30,6 +30,7 @@ void main() {
         visibilityMeters: 10000.0,
         windSpeedKmh: 0.0,
         humidityRH: 40.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       );
       expect(classifier.current, isNull);
@@ -53,6 +54,7 @@ void main() {
         visibilityMeters: 10000.0,
         windSpeedKmh: 0.0,
         humidityRH: 40.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       );
       final wet = WeatherCondition(
@@ -63,6 +65,7 @@ void main() {
         visibilityMeters: 5000.0,
         windSpeedKmh: 5.0,
         humidityRH: 80.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       );
 
@@ -84,6 +87,7 @@ void main() {
         temperatureCelsius: -5.0,
         visibilityMeters: 800.0,
         windSpeedKmh: 20.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       );
       expect(classifier.classify(snow), RoadSurfaceState.compactedSnow);
@@ -99,6 +103,7 @@ void main() {
         visibilityMeters: 10000.0,
         windSpeedKmh: 0.0,
         humidityRH: 40.0,
+        source: ObservationSource.measured,
         timestamp: ts,
       );
       classifier.classify(dry);

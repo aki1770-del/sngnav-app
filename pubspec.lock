@@ -245,10 +245,10 @@ packages:
     dependency: "direct main"
     description:
       name: fleet_hazard
-      sha256: "702613b3985d9d5c9741c9e809201c2dbc8ebfd1ef1b0cc6aed6cbbe09bbc856"
+      sha256: "65d17f4d789dcef5d0909c2efa67fe81fa9e65cd37f050abcb7fb85209a4808e"
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.1"
+    version: "0.6.0"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -390,7 +390,7 @@ packages:
     source: hosted
     version: "0.20.2"
   japanese_snow_vocabulary:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: japanese_snow_vocabulary
       sha256: "74e120ad37932f63965c43174671d4ce246b14e6627bb403c38f17e7e6a651ec"

@@ -94,6 +94,8 @@ class ScenarioFrame {
   /// determination. It is never `dry`, and it is not an alarm. See the
   /// snow_rendering 0.3.0 recall note on [RoadSurfaceClassifier.classify]: a
   /// surface a driver is told is fine must be one the model actually judged.
+  /// (driving_conditions 0.6.0 is what stopped resolving an unmeasured
+  /// condition into `dry`.)
   final RoadSurfaceState? surfaceState;
 
   /// Per-segment route forecast at this frame.
@@ -105,18 +107,15 @@ class ScenarioFrame {
   /// True when the advisor recommends rerouting (severity-class).
   bool get rerouteRecommended => rerouteDecision.shouldReroute;
 
-  /// The route's hazard verdict. **Tri-state — `unknown` is not `notHazardous`.**
+  /// True when ANY segment of the forecast is hazardous.
   ///
-  /// Was `bool get anyHazard => forecast.hasAnyHazard` until
-  /// `route_condition_forecast` 0.2.0. A `bool` cannot say "no segment was
-  /// assessed", so a route nobody had looked at answered `false` — the
-  /// clear-road branch — and that is the recall this bump carries.
-  SafetyVerdict get hazardVerdict => forecast.hazard;
-
-  /// True only for a MEASURED hazard. `false` here means hazardous-or-unknown
-  /// is absent; it does NOT mean the route was assessed and found clear — read
-  /// [hazardVerdict] for that.
+  /// route_condition_forecast 0.2.0 made this verdict TRI-STATE. `false` here
+  /// therefore means "not hazardous OR not assessed" and must NOT be read as
+  /// "clear" — read [hazardVerdict] when the distinction matters.
   bool get anyHazard => forecast.hazard == SafetyVerdict.hazardous;
+
+  /// The honest tri-state verdict, which [anyHazard] necessarily flattens.
+  SafetyVerdict get hazardVerdict => forecast.hazard;
 }
 
 /// Driver-replayable demo scenario: Nagoya departure → mountain-pass
@@ -237,7 +236,10 @@ class NagoyaUnexpectedSnowScenario {
   }) async {
     final dep = departedAt ?? DateTime.utc(2026, 2, 1, 21, 0); // 06:00 JST
     final weather = weatherAt(elapsed, dep);
-    final surface = _classifier.classify(weather);
+    // driving_conditions 0.6.0: an unclassifiable condition returns null
+    // rather than a surface nobody determined. Kept null here - the frame
+    // reports "not determined", it does not invent `dry`.
+    final RoadSurfaceState? surface = _classifier.classify(weather);
     final route = _osrmRoute(dep);
     final forecast = await _forecastService.project(
       route: route,
