@@ -95,3 +95,7 @@ dv2p.yaml
 #      not off the machine). It is the only artifact that survives Geofabrik's
 #      retention window at all.
 tool/*_extract.json
+
+# Editor/agent backup snapshots — git is the backup (B1, 2026-08-30)
+*.pre-snowbump-*
+*.bak-*
