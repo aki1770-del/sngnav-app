@@ -23,7 +23,6 @@ void main() {
     test('first reading sets state immediately', () {
       final classifier = RoadSurfaceClassifier();
       final dryAir = WeatherCondition(
-        source: ObservationSource.simulated,
         precipType: PrecipitationType.none,
         intensity: PrecipitationIntensity.none,
         temperatureCelsius: 5.0,
@@ -47,7 +46,6 @@ void main() {
         ),
       );
       final dry = WeatherCondition(
-        source: ObservationSource.simulated,
         precipType: PrecipitationType.none,
         intensity: PrecipitationIntensity.none,
         temperatureCelsius: 5.0,
@@ -58,7 +56,6 @@ void main() {
         timestamp: ts,
       );
       final wet = WeatherCondition(
-        source: ObservationSource.simulated,
         precipType: PrecipitationType.rain,
         intensity: PrecipitationIntensity.light,
         temperatureCelsius: 5.0,
@@ -81,7 +78,6 @@ void main() {
     test('classifies snow + cold + heavy as compactedSnow', () {
       final classifier = RoadSurfaceClassifier();
       final snow = WeatherCondition(
-        source: ObservationSource.simulated,
         precipType: PrecipitationType.snow,
         intensity: PrecipitationIntensity.heavy,
         temperatureCelsius: -5.0,
@@ -96,7 +92,6 @@ void main() {
     test('reset clears state', () {
       final classifier = RoadSurfaceClassifier();
       final dry = WeatherCondition(
-        source: ObservationSource.simulated,
         precipType: PrecipitationType.none,
         intensity: PrecipitationIntensity.none,
         temperatureCelsius: 5.0,
