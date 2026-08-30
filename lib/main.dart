@@ -1239,14 +1239,53 @@ class _HomePageState extends State<HomePage> {
   /// trigger and forgot this one. One method, one cadence; the anti-drift
   /// test in `test/actuators/haptic_report_wiring_test.dart` fails if either
   /// probe is lifted out.
-  void _probeAlertChannelReadiness() {
+
+  /// The shape every eyes-off readiness probe must have — held in ONE place so
+  /// the next one cannot be written without it.
+  ///
+  /// ⚑ **Why a helper and not a convention.** `haptic_report_wiring_test.dart`
+  /// fails if a probe is *lifted out* of [_probeAlertChannelReadiness], which
+  /// protects the CADENCE. Nothing protected the SHAPE: a fourth channel added
+  /// with a missing [isUnknown] test would render *"could not tell"* as a real
+  /// answer, and the surface would show a verdict nobody measured.
+  ///
+  /// That is the exact cause class measured 2026-08-30 in AGL's shipped
+  /// `ondemandnavi`: `guidance()` discards `system()`'s return and backgrounds
+  /// the call, so a failed announcement is indistinguishable from a delivered
+  /// one. A driver-facing channel has THREE outcomes — ready, not-ready and
+  /// UNKNOWN — and every defect of this family is the third collapsing into
+  /// one of the other two (V16: ambiguity must not route toward pass).
+  ///
+  /// The five invariants, now structural rather than repeated:
+  ///  1. `unawaited` — a probe never blocks a frame.
+  ///  2. `!mounted` — no `setState` after dispose.
+  ///  3. **[isUnknown] — an unmeasured answer changes NOTHING on screen.**
+  ///  4. [unchanged] — no rebuild churn on the 45 s tick.
+  ///  5. `catchError` — a probe that throws degrades the probe, never the app.
+  ///
+  /// Behaviour is identical to the three inlined blocks this replaced; only
+  /// the structure moved.
+  void _applyProbe<T>(
+    Future<T> probe, {
+    required bool Function(T) isUnknown,
+    required bool Function(T) unchanged,
+    required void Function(T) apply,
+  }) {
     unawaited(
-      (widget.voiceLaneReader ?? readVoiceLaneReadiness)()
-          .then((verdict) {
-        if (!mounted || verdict == VoiceLaneVerdict.unknown) return;
-        if (verdict == _voiceLaneVerdict) return;
-        setState(() => _voiceLaneVerdict = verdict);
+      probe.then((value) {
+        if (!mounted || isUnknown(value)) return;
+        if (unchanged(value)) return;
+        setState(() => apply(value));
       }).catchError((Object _) {}),
+    );
+  }
+
+  void _probeAlertChannelReadiness() {
+    _applyProbe<VoiceLaneVerdict>(
+      (widget.voiceLaneReader ?? readVoiceLaneReadiness)(),
+      isUnknown: (v) => v == VoiceLaneVerdict.unknown,
+      unchanged: (v) => v == _voiceLaneVerdict,
+      apply: (v) => _voiceLaneVerdict = v,
     );
     unawaited(
       (widget.audioReadinessProbe ?? const ChannelAudioReadinessProbe())
@@ -1269,14 +1308,11 @@ class _HomePageState extends State<HomePage> {
     );
     // The tactile half — the same shape, the same fail-soft, the same
     // honest-unknown. A null answer changes nothing on screen.
-    unawaited(
-      (widget.hapticReadinessProbe ?? const DriverHapticReadinessProbe())
-          .read()
-          .then((available) {
-        if (!mounted || available == null) return;
-        if (available == _hapticAvailable) return; // no rebuild churn
-        setState(() => _hapticAvailable = available);
-      }).catchError((Object _) {}),
+    _applyProbe<bool?>(
+      (widget.hapticReadinessProbe ?? const DriverHapticReadinessProbe()).read(),
+      isUnknown: (v) => v == null,
+      unchanged: (v) => v == _hapticAvailable,
+      apply: (v) => _hapticAvailable = v,
     );
   }
 
