@@ -4,7 +4,14 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # ⚑ 2026-09-01. Was `[main]` alone, and that is how a pushed head reached the
+    # remote with ZERO check-runs: 47f2fe77 ("a lockfile was withholding them from
+    # her") matched neither `push: [main]` nor `pull_request`, so nothing ran on it
+    # and nothing said so. It took a PR to find out the tree was green.
+    # Measured before widening: this repo is PUBLIC, so standard-runner minutes are
+    # free; only 5 of the last 72 runs were on a non-main branch; median CI is 345s.
+    # The economy argument for `main`-only did not survive being measured.
+    branches: [main, 'fix/**', 'preserve/**', 'reconcile/**', 'backport/**']
   pull_request:
   # Manual trigger for the installable-APK job below. Deliberately NOT on every
   # push: a release-signed artifact is a thing a stranger installs on a phone,
