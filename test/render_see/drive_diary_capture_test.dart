@@ -73,5 +73,28 @@ void main() {
       find.byType(AlertDialog),
       matchesGoldenFile('../../ladder_out/drive_diary/diary_form_ja.png'),
     );
+
+    // The form is taller than the dialog: the two questions she MUST answer
+    // fit above the fold, the optional 地域 / メモ fields sit below it. Capture
+    // the scrolled state too, so a human LOOKS at the part of the form that
+    // the first frame does not show — including the note guidance, which was
+    // invisible-until-focus before 2026-08-10 and is now helper text.
+    // Drag the dialog's OWN scrollable, not the note field: the field is
+    // below the fold, so a drag aimed at it lands off-screen and silently
+    // scrolls nothing (measured 2026-08-10 — the two goldens came out
+    // byte-identical, which is how the no-op was caught).
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('diary-note-field')),
+      120,
+      scrollable: find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(Scrollable),
+      ).first,
+    );
+    await tester.pumpAndSettle();
+    await expectLater(
+      find.byType(AlertDialog),
+      matchesGoldenFile('../../ladder_out/drive_diary/diary_form_ja_notes.png'),
+    );
   });
 }

@@ -71,6 +71,7 @@ import 'her_position.dart';
 import 'jma_fetch.dart';
 import 'route_fetch.dart';
 import 'services/advisory_service.dart';
+import 'services/caution_journal.dart';
 import 'services/drive_hud_controller.dart';
 import 'services/error_log.dart';
 import 'services/log_share.dart';
@@ -1049,6 +1050,16 @@ class _HomePageState extends State<HomePage> {
       // AAA F1: was a hardcoded 'ja' — DriveHudLocalizer ships full ja+en
       // pairs, so the HUD's spoken lane follows the resolved locale.
       localeTag: _spokenLanguageCode,
+      // Record WHAT THE CONTROLLER DECIDED into the SAME LocalErrorLog as
+      // crashes (the established idiom above), so a Ring-2 diary entry reading
+      // 「警告は来なかった」 can be told apart from a deliberate mute and from a dead
+      // code path. Rides the existing ログを共有 exit door — no new file, no new
+      // consent surface, no telemetry. Null log (app-support dir unresolved) =>
+      // no journal, exactly as before.
+      journal: switch (widget.errorLog) {
+        final LocalErrorLog log => CautionJournal(log: log),
+        null => null,
+      },
     );
     _driveHud.addListener(_onDriveHudChanged);
     _telemetry = LoomFitTelemetry();
@@ -4469,6 +4480,25 @@ class _Banner extends StatelessWidget {
 ///
 /// Pops with `true` (persisted), `false` (write failed — honest line), or
 /// null (cancelled; nothing recorded).
+/// Chip label type for the post-drive diary form. Sized for a reader who may
+/// be elderly and is filling this in a dark, parked car — the form is never
+/// shown while driving, so legibility outranks density here.
+const TextStyle _diaryChipLabelStyle = TextStyle(fontSize: 15);
+
+/// Extra HORIZONTAL room around each chip label. Vertical padding is
+/// deliberately 0: `MaterialTapTargetSize.padded` already guarantees the
+/// 48 dp touch target as invisible area around the chip, so adding visible
+/// vertical padding on top of it buys no reachability and costs real height.
+///
+/// It cost more than height, in fact. The first version of this constant used
+/// `vertical: 6`, and the rendered form pushed the 地域 and メモ fields and the
+/// last advisory chip off the bottom of the dialog — render-SEEN 2026-08-10.
+/// A form an elderly driver must scroll, in the dark, to finish answering is
+/// not more accessible than one with small chips; it trades a reachability
+/// problem for a discoverability one. Touch target big, visual height tight.
+const EdgeInsets _diaryChipLabelPadding =
+    EdgeInsets.symmetric(horizontal: 6, vertical: 0);
+
 class _DiaryEntryDialog extends StatefulWidget {
   const _DiaryEntryDialog({required this.diary});
 
@@ -4508,11 +4538,17 @@ class _DiaryEntryDialogState extends State<_DiaryEntryDialog> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(l.diaryRoadQuestion,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 6),
             Wrap(
-              spacing: 6,
-              runSpacing: 4,
+              // COLD-HANDS SPACING (2026-08-10): 6/4 put neighbouring chips
+              // ~6 px apart. She fills this in a parked car, in the dark, with
+              // cold or gloved fingers; a mis-tap writes the WRONG surface
+              // into the season's evidence, and a wrong entry is worse than no
+              // entry because the reader cannot tell that it is wrong.
+              spacing: 10,
+              runSpacing: 8,
               children: [
                 for (final c in DiaryRoadCondition.values)
                   ChoiceChip(
@@ -4520,16 +4556,26 @@ class _DiaryEntryDialogState extends State<_DiaryEntryDialog> {
                     label: Text(ja ? c.ja : c.token),
                     selected: _road == c,
                     onSelected: (_) => setState(() => _road = c),
+                    // Accessibility floor: guarantees the 48 dp minimum tap
+                    // target regardless of the ambient VisualDensity. The
+                    // default (shrinkWrap under a compact density) rendered
+                    // ~32 dp chips — render-SEEN 2026-07-27
+                    // (ladder_out/drive_diary/diary_form_ja.png).
+                    materialTapTargetSize: MaterialTapTargetSize.padded,
+                    visualDensity: VisualDensity.standard,
+                    labelStyle: _diaryChipLabelStyle,
+                    labelPadding: _diaryChipLabelPadding,
                   ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Text(l.diaryAdvisoryQuestion,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 6),
             Wrap(
-              spacing: 6,
-              runSpacing: 4,
+              spacing: 10,
+              runSpacing: 8,
               children: [
                 for (final a in DiaryAdvisoryExperience.values)
                   ChoiceChip(
@@ -4537,6 +4583,10 @@ class _DiaryEntryDialogState extends State<_DiaryEntryDialog> {
                     label: Text(ja ? a.ja : a.token),
                     selected: _advisory == a,
                     onSelected: (_) => setState(() => _advisory = a),
+                    materialTapTargetSize: MaterialTapTargetSize.padded,
+                    visualDensity: VisualDensity.standard,
+                    labelStyle: _diaryChipLabelStyle,
+                    labelPadding: _diaryChipLabelPadding,
                   ),
               ],
             ),
@@ -4555,8 +4605,17 @@ class _DiaryEntryDialogState extends State<_DiaryEntryDialog> {
               controller: _noteController,
               decoration: InputDecoration(
                 labelText: l.diaryNoteLabel,
-                hintText: l.diaryNoteHint,
-                hintMaxLines: 2,
+                // helperText, NOT hintText (2026-08-10). As a hint this line
+                // was invisible until she tapped into the field — render-SEEN
+                // 2026-07-27 (ladder_out/drive_diary/diary_form_ja.png shows
+                // the メモ box empty of it). It carries the too-late /
+                // false-alarm disambiguation that the advisory chips cannot
+                // fit, so a driver who never taps the field never learns she
+                // may say either — and "the warning came, but 10 seconds too
+                // late" is the single most actionable thing she can tell us.
+                // helperText renders unconditionally, below the box.
+                helperText: l.diaryNoteHint,
+                helperMaxLines: 3,
                 border: const OutlineInputBorder(),
               ),
               minLines: 2,
