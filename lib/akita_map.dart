@@ -33,6 +33,9 @@ class AkitaMap extends StatelessWidget {
     this.positionDegraded = false,
     this.positionLost = false,
     this.baseTileProvider,
+    this.mapController,
+    this.onMapEvent,
+    this.onMapReady,
   });
 
   final double height;
@@ -83,6 +86,17 @@ class AkitaMap extends StatelessWidget {
   /// behaviour). See KNOWN_LIMITATION on the TileLayer below.
   final TileProvider? baseTileProvider;
 
+  /// The camera's controller, when the caller moves the camera (the app's
+  /// follow, `her_map_follow.dart`). Null: the map keeps its own and the
+  /// camera moves only by hand.
+  final MapController? mapController;
+
+  /// Every map event, including the hand gestures that pause follow.
+  final void Function(MapEvent event)? onMapEvent;
+
+  /// The map has rendered once and [mapController] can move the camera.
+  final VoidCallback? onMapReady;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -90,12 +104,15 @@ class AkitaMap extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: FlutterMap(
+          mapController: mapController,
           options: MapOptions(
             initialCenter: akitaStation,
             initialZoom: 12,
             minZoom: 5,
             maxZoom: 18,
             onTap: onTap == null ? null : (_, latlng) => onTap!(latlng),
+            onMapEvent: onMapEvent,
+            onMapReady: onMapReady,
           ),
           children: [
             // KNOWN_LIMITATION (WS5 / BOD-17 ruling 2 → offline PoC 2026-07-01):

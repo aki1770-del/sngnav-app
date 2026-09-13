@@ -80,6 +80,10 @@ class AppL10n {
   String get positionOffMapLabel =>
       _ja ? '現在地は地図の外' : 'Position off this map';
 
+  /// The control under the map that brings the camera back to her and
+  /// resumes follow, shown only while a hand has paused it.
+  String get returnToMyPosition => _ja ? '現在地に戻る' : 'Back to my position';
+
   String youAreHere(String accuracyMeters) =>
       _ja ? '現在地 · ±$accuracyMeters m' : 'You are here · ±$accuracyMeters m';
 

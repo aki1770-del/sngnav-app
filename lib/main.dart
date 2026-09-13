@@ -57,6 +57,7 @@ import 'dart:ui' show FrameTiming;
 import 'package:path_provider/path_provider.dart'
     show getApplicationDocumentsDirectory;
 
+import 'package:flutter_map/flutter_map.dart' show MapController, MapEvent;
 import 'package:latlong2/latlong.dart';
 import 'package:localization_fallback/localization_fallback.dart'
     show LocalizationMode;
@@ -65,6 +66,7 @@ import 'actuators/alert_actuators.dart';
 import 'actuators/alert_announcer.dart';
 import 'actuators/mobile_alert_actuators.dart';
 import 'akita_map.dart';
+import 'her_map_follow.dart';
 import 'her_map_inputs.dart';
 import 'services/offline_basemap.dart';
 import 'l10n/app_localizations.dart';
@@ -979,6 +981,23 @@ class _HomePageState extends State<HomePage> {
   /// from the dev mock (2026-09-13).
   bool _herAnchoredThisSession = false;
 
+  /// HER map's camera. Until 2026-09-13 nothing moved it but a hand: 8.2 km
+  /// out along Route 13 the map held no mark of her in any mode. The rules are
+  /// in `her_map_follow.dart`.
+  final MapController _herMapController = MapController();
+
+  /// The map has rendered once, so [_herMapController] can move the camera.
+  bool _herMapReady = false;
+
+  /// Whether the camera follows her. True from the start; a hand on the map
+  /// pauses it, and only her return control resumes it.
+  bool _herMapFollowing = true;
+
+  /// Her last trusted fix in THIS sharing session: where follow last put the
+  /// camera, and where her return control takes it. Reset when sharing starts,
+  /// so a return never goes to a previous session's place.
+  LatLng? _herLastTrustedThisSession;
+
   // Offline basemap (2026-07-01; real tiles 2026-07-10).
   // Loaded once at init from the bundled MBTiles asset, then handed to
   // AkitaMap so Akita renders OFFLINE-FIRST (network only for uncovered
@@ -1389,6 +1408,7 @@ class _HomePageState extends State<HomePage> {
     _dataBudget?.dispose();
     _viewportBloc?.close();
     _nwsClient.close();
+    _herMapController.dispose();
     super.dispose();
   }
 
@@ -1398,6 +1418,7 @@ class _HomePageState extends State<HomePage> {
       _herFix = null;
       _isMockPosition = false;
       _herAnchoredThisSession = false;
+      _herLastTrustedThisSession = null;
     });
     // B32 — drive start: re-probe BOTH eyes-off channels NOW (the initState
     // read may be app-open-hours old; the drive is when a mute matters — and
@@ -1456,7 +1477,53 @@ class _HomePageState extends State<HomePage> {
     )) {
       setState(() => _herAnchoredThisSession = true);
     }
+    // Follow: only a trusted fix is a place to move the camera to.
+    final target = followTargetAfter(
+      fix: fix,
+      estimate: _driveHud.estimate,
+      isMock: _isMockPosition,
+    );
+    if (target != null) {
+      _herLastTrustedThisSession = target;
+      if (_herMapFollowing) _moveHerMapTo(target);
+    }
   }
+
+  /// Move HER map's camera to [target], at a zoom inside the offline archive.
+  /// Called from event and button handlers only, never during build.
+  void _moveHerMapTo(LatLng target) {
+    if (!_herMapReady) return;
+    _herMapController.move(
+      target,
+      followZoom(_herMapController.camera.zoom),
+    );
+  }
+
+  void _onHerMapReady() {
+    _herMapReady = true;
+    final target = _herLastTrustedThisSession;
+    if (_herMapFollowing && target != null) _moveHerMapTo(target);
+  }
+
+  /// A hand on the map pauses follow: the machine yields to the person.
+  void _onHerMapEvent(MapEvent event) {
+    if (_herMapFollowing && isHandMovingMap(event.source)) {
+      setState(() => _herMapFollowing = false);
+    }
+  }
+
+  /// Her return control: follow resumes, and the camera goes back to her last
+  /// trusted fix in this session, where her dot or ring is. With none yet it
+  /// stays, and the next trusted fix moves it.
+  void _returnHerMapToPosition() {
+    setState(() => _herMapFollowing = true);
+    final target = _herLastTrustedThisSession;
+    if (target != null) _moveHerMapTo(target);
+  }
+
+  /// The return control shows while a hand has paused follow and she shares
+  /// her real position. Never in mock: using the mock ends sharing.
+  bool get _showHerMapReturnControl => !_herMapFollowing && _herSub != null;
 
   /// N8 — one watchdog tick: poll the drive brain iff no position event
   /// arrived within the expected cadence (decision table:
@@ -3053,7 +3120,24 @@ class _HomePageState extends State<HomePage> {
                     isHerPositionMock: _isMockPosition,
                     positionDegraded: herMap.degraded,
                     positionLost: herMap.lost,
+                    mapController: _herMapController,
+                    onMapEvent: _onHerMapEvent,
+                    onMapReady: _onHerMapReady,
                   ),
+                  // Under the map, not on it: a control on the map could hide
+                  // her mark while follow is paused.
+                  if (_showHerMapReturnControl) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: OutlinedButton.icon(
+                        key: const Key('her-map-return-to-position'),
+                        onPressed: _returnHerMapToPosition,
+                        icon: const Icon(Icons.my_location),
+                        label: Text(AppL10n.of(context).returnToMyPosition),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   _herStatusLine(),
                   // A1 — pre-drive voice-lane caution, in the consent/status
