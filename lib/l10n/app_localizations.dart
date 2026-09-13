@@ -75,6 +75,38 @@ class AppL10n {
   String youAreHere(String accuracyMeters) =>
       _ja ? '現在地 · ±$accuracyMeters m' : 'You are here · ±$accuracyMeters m';
 
+  /// Status line under the map when HER position is LOST — past the position
+  /// controller's honesty horizon. It says how old the last trusted position
+  /// is, never a radius: in `lost` the controller no longer vouches for one,
+  /// and with no trusted fix ever the radius is infinite. This line used to
+  /// read 「現在地 不明 · 最後の位置 ±Infinitym」.
+  ///
+  /// Same shape as the dead-reckoning line (「GPS 途絶（推測航法） · 最後の位置
+  /// ±135m」), with the age where the radius was. The prefix is
+  /// `DriveHudLocalizer.modeLabel(LocalizationMode.lost)`, verbatim, so the
+  /// map's status line and the drive HUD name the state with one vocabulary.
+  ///
+  /// [secondsSinceTrustedFix] is `LocalizationEstimate.secondsSinceTrustedFix`
+  /// as of the controller's last update. Not finite, or negative, means no
+  /// trusted fix has ever been seen, and no age is claimed. The age is a lower
+  /// bound: whole minutes, rounded down, from an estimate the position
+  /// watchdog refreshes on its own cadence. Past 24 hours it still reads true
+  /// (「25時間0分前」).
+  String positionLostStatus(double secondsSinceTrustedFix) {
+    final prefix = _ja ? '現在地 不明' : 'Position unknown';
+    if (!secondsSinceTrustedFix.isFinite || secondsSinceTrustedFix < 0) {
+      return _ja ? '$prefix · 最後の位置 なし' : '$prefix · no last position';
+    }
+    final minutes = secondsSinceTrustedFix ~/ 60;
+    if (minutes < 1) {
+      return _ja
+          ? '$prefix · 最後の位置 1分以内'
+          : '$prefix · last position within 1 min';
+    }
+    final age = _formatMinutes(minutes);
+    return _ja ? '$prefix · 最後の位置 $age前' : '$prefix · last position $age ago';
+  }
+
   /// GPS-unavailable line. The [reason] is produced by the geolocator layer
   /// (her_position.dart) as English; [_localizeReason] maps the known cases
   /// into HER language and passes anything unrecognized through honestly.

@@ -58,11 +58,14 @@ import 'package:path_provider/path_provider.dart'
     show getApplicationDocumentsDirectory;
 
 import 'package:latlong2/latlong.dart';
+import 'package:localization_fallback/localization_fallback.dart'
+    show LocalizationMode;
 
 import 'actuators/alert_actuators.dart';
 import 'actuators/alert_announcer.dart';
 import 'actuators/mobile_alert_actuators.dart';
 import 'akita_map.dart';
+import 'her_map_inputs.dart';
 import 'services/offline_basemap.dart';
 import 'l10n/app_localizations.dart';
 import 'corridor_row.dart';
@@ -2759,6 +2762,14 @@ class _HomePageState extends State<HomePage> {
       _condition,
       _profile,
     );
+    // What HER map draws about her position: from the position controller's
+    // estimate when it is dead-reckoning or lost, so a GPS stream error never
+    // blanks the map and `lost` says so in words (see her_map_inputs.dart).
+    final herMap = herMapInputs(
+      fix: _herFix,
+      estimate: _driveHud.estimate,
+      isMock: _isMockPosition,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -3018,14 +3029,11 @@ class _HomePageState extends State<HomePage> {
                       _ => const [],
                     },
                     onTap: _handleMapTap,
-                    herPosition: switch (_herFix) {
-                      PositionAvailable(:final latitude, :final longitude) =>
-                        LatLng(latitude, longitude),
-                      _ => null,
-                    },
-                    herAccuracyMeters: _herMapAccuracyMeters(),
+                    herPosition: herMap.position,
+                    herAccuracyMeters: herMap.accuracyMeters,
                     isHerPositionMock: _isMockPosition,
-                    positionDegraded: _herPositionDegraded,
+                    positionDegraded: herMap.degraded,
+                    positionLost: herMap.lost,
                   ),
                   const SizedBox(height: 8),
                   _herStatusLine(),
@@ -3971,20 +3979,6 @@ class _HomePageState extends State<HomePage> {
   bool get _herPositionDegraded =>
       !_isMockPosition && _driveHud.positionUnlocatable;
 
-  /// Map accuracy-circle radius: the honest, monotonically-growing confidence
-  /// radius when the position has degraded, else the raw last-fix accuracy — so
-  /// a stale dot is drawn inside a circle that SHOWS the uncertainty.
-  double? _herMapAccuracyMeters() {
-    final fixAccuracy = switch (_herFix) {
-      PositionAvailable(:final accuracyMeters) => accuracyMeters,
-      _ => null,
-    };
-    if (_herPositionDegraded) {
-      return _driveHud.estimate?.confidenceRadiusMeters ?? fixAccuracy;
-    }
-    return fixAccuracy;
-  }
-
   Widget _herStatusLine() {
     final l = AppL10n.of(context);
     // Initial state: no mode active. Deny-by-default — nothing touches GPS
@@ -4079,14 +4073,20 @@ class _HomePageState extends State<HomePage> {
     final estimate = _driveHud.estimate;
     // On a silent GPS drought the raw fix stream stops emitting, so `_herFix`
     // still holds the last confident point — but the honest estimate has
-    // degraded. Reuse the SAME localized label the HUD text shows
-    // (「GPS 途絶（推測航法）」/「しばらく GPS が途絶しています」) + the last-known radius, so the
-    // status line under the map can never assert 「現在地 ±Xm」 while the position
-    // is untrustworthy. No new l10n string.
+    // degraded. In dead-reckoning, reuse the SAME label the HUD text shows
+    // (「GPS 途絶（推測航法）」) + the last-known radius, so the status line under
+    // the map can never assert 「現在地 ±Xm」 while the position is untrustworthy.
+    //
+    // In `lost` the line says how old the last trusted position is, never a
+    // radius (2026-09-13): the controller no longer vouches for one, and with
+    // no trusted fix ever the radius is infinite — this line used to read
+    // 「現在地 不明 · 最後の位置 ±Infinitym」. Localized through AppL10n.
     final degradedText = estimate == null
         ? null
-        : '${_driveHudText.modeLabel(estimate.mode, 'ja')} · '
-            '最後の位置 ±${estimate.confidenceRadiusMeters.toStringAsFixed(0)}m';
+        : estimate.mode == LocalizationMode.lost
+            ? l.positionLostStatus(estimate.secondsSinceTrustedFix)
+            : '${_driveHudText.modeLabel(estimate.mode, 'ja')} · '
+                '最後の位置 ±${estimate.confidenceRadiusMeters.toStringAsFixed(0)}m';
     final (text, color) = switch (fix) {
       null => (
         l.locatingYou,
@@ -4109,7 +4109,11 @@ class _HomePageState extends State<HomePage> {
     return Row(
       children: [
         Expanded(
-          child: Text(text, style: TextStyle(fontSize: 12, color: color)),
+          child: Text(
+            key: const Key('her-status-line'),
+            text,
+            style: TextStyle(fontSize: 12, color: color),
+          ),
         ),
         TextButton(
           onPressed: _clearPosition,

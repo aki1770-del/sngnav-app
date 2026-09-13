@@ -51,6 +51,8 @@ Future<void> _pumpMap(
   LatLng? her = _her,
   bool mock = false,
   bool degraded = false,
+  bool lost = false,
+  double? accuracy,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -62,8 +64,10 @@ Future<void> _pumpMap(
               height: 340,
               baseTileProvider: _BlankTileProvider(),
               herPosition: her,
+              herAccuracyMeters: accuracy,
               isHerPositionMock: mock,
               positionDegraded: degraded,
+              positionLost: lost,
             ),
           ),
         ),
@@ -72,6 +76,10 @@ Future<void> _pumpMap(
   );
   await tester.pump();
 }
+
+const _unknownLabel = ValueKey('her-position-unknown-label');
+
+final _circleLayer = find.byWidgetPredicate((w) => w is CircleLayer);
 
 BoxDecoration _decoration(WidgetTester tester, Key key) =>
     tester.widget<Container>(find.byKey(key)).decoration! as BoxDecoration;
@@ -149,5 +157,68 @@ void main() {
     expect(find.byKey(_realFix), findsNothing);
     expect(find.byKey(_mock), findsNothing);
     expect(find.byKey(_degraded), findsNothing);
+    expect(find.byKey(_unknownLabel), findsNothing);
+  });
+
+  // ---- lost (2026-09-13): the map SAYS it does not know -----------------
+  //
+  // HIE rendered bd6ebc4 in every mode: lost was the dead-reckoning ring pixel
+  // for pixel, and its circle was the only mark that grew. These pin the
+  // structure the fix depends on; HIE's harness pins the pixels.
+
+  testWidgets(
+      'lost with a last trusted position: the ring, the words, and NO accuracy '
+      'circle however large the radius', (tester) async {
+    await _pumpMap(tester, degraded: true, lost: true, accuracy: 10815);
+
+    expect(find.byKey(_degraded), findsOneWidget);
+    expect(find.byKey(_unknownLabel), findsOneWidget);
+    expect(find.text('現在地不明'), findsOneWidget);
+    expect(_circleLayer, findsNothing,
+        reason: 'past its horizon the controller vouches for no radius');
+    _expectNotSqueezed(tester, _degraded);
+  });
+
+  testWidgets('lost with no trusted position: the words alone, no ring',
+      (tester) async {
+    await _pumpMap(tester,
+        her: null, degraded: true, lost: true, accuracy: double.infinity);
+
+    expect(find.byKey(_unknownLabel), findsOneWidget);
+    expect(find.byKey(_degraded), findsNothing);
+    expect(find.byKey(_realFix), findsNothing);
+    expect(_circleLayer, findsNothing);
+  });
+
+  testWidgets('dead reckoning is not lost: ring and circle, no words',
+      (tester) async {
+    await _pumpMap(tester, degraded: true, accuracy: 135);
+
+    expect(find.byKey(_degraded), findsOneWidget);
+    expect(_circleLayer, findsOneWidget);
+    expect(find.byKey(_unknownLabel), findsNothing);
+  });
+
+  testWidgets(
+      'a non-finite radius is never handed to the painter: no circle, and no '
+      'swallowed paint exception', (tester) async {
+    await _pumpMap(tester, degraded: true, accuracy: double.infinity);
+
+    expect(_circleLayer, findsNothing);
+    expect(find.byKey(_degraded), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'in lost, positionDegraded true or false builds the same state (the app '
+      'passes true; HIE\'s harness passed false)', (tester) async {
+    for (final degraded in [true, false]) {
+      await _pumpMap(tester, degraded: degraded, lost: true, accuracy: 375);
+
+      expect(find.byKey(_degraded), findsOneWidget, reason: '$degraded');
+      expect(find.byKey(_unknownLabel), findsOneWidget, reason: '$degraded');
+      expect(_circleLayer, findsNothing, reason: '$degraded');
+      expect(find.byKey(_realFix), findsNothing, reason: '$degraded');
+    }
   });
 }

@@ -29,6 +29,7 @@ class AkitaMap extends StatelessWidget {
     this.herAccuracyMeters,
     this.isHerPositionMock = false,
     this.positionDegraded = false,
+    this.positionLost = false,
     this.baseTileProvider,
   });
 
@@ -46,16 +47,32 @@ class AkitaMap extends StatelessWidget {
   /// driver's eyes snap to; on a silent GPS blackout the raw fix stream goes
   /// quiet and the last confident point must NOT keep painting a solid blue
   /// "you are here". When degraded the dot becomes a larger HOLLOW ring —
-  /// "somewhere in here", not a point — and the accuracy circle (which the
-  /// caller grows to the honest confidence radius) turns grey, so the map can
-  /// never contradict the degraded HUD text on the same screen. The ring
-  /// differs from the solid dot in fill, size and luminance, not in hue alone.
+  /// "somewhere in here", not a point — and in dead-reckoning the accuracy
+  /// circle (which the caller grows to the honest confidence radius) turns
+  /// grey, so the map can never contradict the degraded HUD text on the same
+  /// screen. The ring differs from the solid dot in fill, size and luminance,
+  /// not in hue alone.
   ///
-  /// Measured 2026-09-13: in `lost` mode the caller's radius is
-  /// `double.infinity`, which flutter_map 8.3.2 does not draw — its circle
-  /// painter fails a null check (`painter.dart:86`) and paints no circle — so
-  /// there the ring is the only uncertainty cue on the map.
+  /// Corrected 2026-09-13. This comment said the caller's radius in `lost` is
+  /// `double.infinity`. That overstated it: the position controller emits an
+  /// infinite radius only while no trusted fix has EVER been seen. After any
+  /// trusted fix the lost radius is finite and keeps growing (375 m at 180 s
+  /// for a 15 m fix at the default 2 m/s drift). In this app an infinite
+  /// radius reached the map only through a live sample with a negative
+  /// accuracy, which the finite-coordinate chokepoint passes and the
+  /// controller refuses. flutter_map 8.3.2's circle painter fails a null check
+  /// on it (`painter.dart:86`) and silently paints no circle, so a non-finite
+  /// radius is never handed to the painter, and in `lost` no accuracy circle
+  /// is drawn at all (see [positionLost]).
   final bool positionDegraded;
+
+  /// True when the honest estimate is `lost` — past the position controller's
+  /// honesty horizon, not merely dead-reckoning. There the controller no
+  /// longer vouches for ANY radius, so the map draws no accuracy circle and
+  /// SAYS, in words, that her current position is unknown. The ring, when
+  /// drawn, marks the last trusted position only; with no trusted position
+  /// ([herPosition] null) the words stand alone.
+  final bool positionLost;
 
   /// Optional offline-first basemap provider (offline_tiles'
   /// OfflineTileProvider). When supplied, the base TileLayer serves tiles from
@@ -108,7 +125,12 @@ class AkitaMap extends StatelessWidget {
               userAgentPackageName: 'dev.aki1770del.sngnav_app',
               maxZoom: 19,
             ),
-            if (herPosition != null && herAccuracyMeters != null)
+            // A non-finite radius is never handed to the painter: drawing
+            // nothing must be a decision, not a swallowed paint exception.
+            if (herPosition != null &&
+                herAccuracyMeters != null &&
+                herAccuracyMeters!.isFinite &&
+                !positionLost)
               CircleLayer(
                 circles: [
                   CircleMarker(
@@ -166,11 +188,30 @@ class AkitaMap extends StatelessWidget {
                     height: _HerDot.extent,
                     child: _HerDot(
                       isMock: isHerPositionMock,
-                      degraded: positionDegraded,
+                      degraded: positionDegraded || positionLost,
+                    ),
+                  ),
+                if (positionLost && herPosition != null)
+                  Marker(
+                    point: herPosition!,
+                    width: 140,
+                    height: 50,
+                    alignment: Alignment.topCenter,
+                    child: const Align(
+                      alignment: Alignment.topCenter,
+                      child: _PositionUnknownLabel(),
                     ),
                   ),
               ],
             ),
+            if (positionLost && herPosition == null)
+              const Align(
+                alignment: Alignment.topCenter,
+                child: Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: _PositionUnknownLabel(),
+                ),
+              ),
             const _AttributionBar(),
           ],
         ),
@@ -324,6 +365,35 @@ class _HerDot extends StatelessWidget {
               spreadRadius: 1,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The words for `lost`. Dark pill, white text — the only dark-ground label on
+/// the map, so it cannot pass for a place name, which the basemap and the
+/// station marker draw dark-on-light.
+class _PositionUnknownLabel extends StatelessWidget {
+  const _PositionUnknownLabel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('her-position-unknown-label'),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade900,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      child: const Text(
+        '現在地不明',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+          height: 1.2,
         ),
       ),
     );
