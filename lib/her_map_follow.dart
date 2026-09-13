@@ -12,15 +12,20 @@
 ///   an anchor from a previous session: it holds. Because it followed her
 ///   until GPS died, the ring stays in view. An unclear position never moves
 ///   the camera toward a place we do not trust.
-/// * A hand on the map pauses follow ([isHandMovingMap]): the machine yields
-///   to the person. Only her return-to-position control resumes it. The words
-///   at the top of the map are what make the pause safe: a mark the edge cuts
-///   says so.
+/// * A hand on the map pauses follow: the moment a finger lands (the app's
+///   pointer-down handler, before any gesture resolves; ruled 2026-09-13), and
+///   on any camera move a hand makes ([isHandMovingMap]), such as a wheel. The
+///   machine yields to the person. Only her return-to-position control resumes
+///   it. The words at the top of the map are what make the pause safe: a mark
+///   the edge cuts says so.
 /// * Zoom stays inside the bundled offline archive ([followZoom]).
+/// * No look-ahead: the camera centres her (ruled 2026-09-13). The fix carries
+///   no heading, and on a north-up map an offset toward a guessed direction
+///   would show more of north and call it ahead.
 ///
-/// Named, not solved here: look-ahead needs a heading the fix does not carry;
-/// a tap to set a route point under a camera that moves has not been measured;
-/// repaint and touch on the in-vehicle display belong to the embedded target.
+/// Named, not solved here: whether a route should be set by touch while
+/// driving; repaint and touch on the in-vehicle display belong to the embedded
+/// target.
 ///
 /// Pure and synchronous, so the rules the app runs are the rules the tests
 /// check (`test/her_map_follow_test.dart`).
@@ -71,11 +76,12 @@ double followZoom(double current) {
   return current;
 }
 
-/// Whether a map event came from a hand: a drag, a fling, a pinch or rotate,
-/// a double tap, a wheel or a keyboard. Those pause follow.
+/// Whether a map event is a camera move a hand made: a drag, a fling, a pinch
+/// or rotate, a double tap, a wheel or a keyboard. Those pause follow.
 ///
-/// A tap is not: it sets a route point and does not move the camera. The
-/// camera's own moves, a size change, option changes and fits are not.
+/// A tap event is not a camera move. A finger that taps has already paused
+/// follow when it landed, through the pointer-down handler. The camera's own
+/// moves, a size change, option changes and fits are not.
 /// Exhaustive on purpose: a new event source in flutter_map must be decided
 /// here before the app compiles.
 bool isHandMovingMap(MapEventSource source) => switch (source) {

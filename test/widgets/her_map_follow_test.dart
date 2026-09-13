@@ -226,6 +226,45 @@ void main() {
     });
 
     testWidgets(
+        'a fix older than her last trusted one looks like a fix and is not '
+        'trusted: the camera holds', (tester) async {
+      await pumpApp(tester);
+      await tapText(tester, '現在地を共有');
+      await fixAt(tester, _r13At8_2km, 20);
+      expectCameraAt(tester, _r13At8_2km, reason: 'control: followed her');
+      // Stamped 10 s before the trusted fix above, at another place.
+      positions.add(PositionAvailable(
+        latitude: _r13At20km.latitude,
+        longitude: _r13At20km.longitude,
+        accuracyMeters: 15,
+        timestamp: start.add(const Duration(seconds: 10)),
+      ));
+      await tester.pump();
+      await tester.pump();
+      expectCameraAt(tester, _r13At8_2km);
+      await positions.close();
+    });
+
+    testWidgets(
+        'a fix with accuracy -1 looks like a fix and is not trusted: the '
+        'camera holds', (tester) async {
+      await pumpApp(tester);
+      await tapText(tester, '現在地を共有');
+      await fixAt(tester, _r13At4km, 10);
+      now = start.add(const Duration(seconds: 20));
+      positions.add(PositionAvailable(
+        latitude: _r13At20km.latitude,
+        longitude: _r13At20km.longitude,
+        accuracyMeters: -1,
+        timestamp: now,
+      ));
+      await tester.pump();
+      await tester.pump();
+      expectCameraAt(tester, _r13At4km);
+      await positions.close();
+    });
+
+    testWidgets(
         'following, then the dev mock: the camera stays at her last fix and '
         'does not go to the station', (tester) async {
       await pumpApp(tester);
@@ -275,6 +314,42 @@ void main() {
   });
 
   group('a hand pauses follow; only her return control resumes it', () {
+    testWidgets(
+        'a touch pauses follow the moment her finger lands: a trusted fix '
+        'arriving under her finger leaves the camera where it was; the tap '
+        'still sets route start A; return then brings her back', (tester) async {
+      await pumpApp(tester);
+      await tapText(tester, '現在地を共有');
+      await fixAt(tester, _r13At0km, 10);
+      expectCameraAt(tester, _r13At0km, reason: 'control: followed her');
+
+      await tester.ensureVisible(find.byType(AkitaMap));
+      await tester.pump();
+      final touch = await tester
+          .startGesture(tester.getCenter(flutterMap) + const Offset(-60, 40));
+      await tester.pump(const Duration(milliseconds: 40));
+      await fixAt(tester, _r13At8_2km, 20);
+      expectCameraAt(tester, _r13At0km,
+          reason: 'nothing moves under her finger');
+      await touch.up();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(
+          find.descendant(
+              of: find.byType(AkitaMap), matching: find.text('A')),
+          findsOneWidget,
+          reason: 'control: the touch resolved as a tap and set route start');
+      expectCameraAt(tester, _r13At0km, reason: 'still paused after the tap');
+      expect(find.byKey(_returnKey), findsOneWidget);
+
+      await fixAt(tester, _r13At20km, 30);
+      expectCameraAt(tester, _r13At0km, reason: 'paused: no fix moves it');
+
+      await tapReturn(tester);
+      expectCameraAt(tester, _r13At20km, reason: 'return brings her back');
+      await positions.close();
+    });
+
     testWidgets(
         'a drag pauses; the next trusted fix leaves the camera where her hand '
         'put it; return brings it to her and follow resumes', (tester) async {

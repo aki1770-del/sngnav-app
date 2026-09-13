@@ -37,6 +37,7 @@ class AkitaMap extends StatelessWidget {
     this.mapController,
     this.onMapEvent,
     this.onMapReady,
+    this.onTouchDown,
   });
 
   final double height;
@@ -102,6 +103,10 @@ class AkitaMap extends StatelessWidget {
   /// The map has rendered once and [mapController] can move the camera.
   final VoidCallback? onMapReady;
 
+  /// A finger (or any pointer) landed on the map, before any gesture resolves.
+  /// The app pauses follow here, so nothing moves under her finger.
+  final VoidCallback? onTouchDown;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
@@ -118,6 +123,8 @@ class AkitaMap extends StatelessWidget {
             onTap: onTap == null ? null : (_, latlng) => onTap!(latlng),
             onMapEvent: onMapEvent,
             onMapReady: onMapReady,
+            onPointerDown:
+                onTouchDown == null ? null : (_, _) => onTouchDown!(),
           ),
           children: [
             // KNOWN_LIMITATION (WS5 / BOD-17 ruling 2 → offline PoC 2026-07-01):

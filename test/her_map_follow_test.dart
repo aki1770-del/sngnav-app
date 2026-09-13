@@ -157,7 +157,9 @@ void main() {
       expect(isHandMovingMap(MapEventSource.nonRotatedSizeChange), isFalse);
     });
 
-    test('a tap sets a route point and does not take the camera', () {
+    test(
+        'a tap EVENT is not a camera move (the finger that taps paused follow '
+        'when it landed; pinned in the widget test)', () {
       expect(isHandMovingMap(MapEventSource.tap), isFalse);
       expect(isHandMovingMap(MapEventSource.longPress), isFalse);
     });

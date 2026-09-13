@@ -1523,6 +1523,14 @@ class _HomePageState extends State<HomePage> {
     if (_herMapFollowing && target != null) _moveHerMapTo(target);
   }
 
+  /// A finger landing on the map pauses follow at that moment, before any
+  /// gesture resolves: a trusted fix arriving under her finger must not move
+  /// the map she is touching (ruled 2026-09-13). A tap still sets its route
+  /// point; only her return control resumes follow.
+  void _onHerMapTouched() {
+    if (_herMapFollowing) setState(() => _herMapFollowing = false);
+  }
+
   /// A hand on the map pauses follow: the machine yields to the person.
   void _onHerMapEvent(MapEvent event) {
     if (_herMapFollowing && isHandMovingMap(event.source)) {
@@ -3146,6 +3154,7 @@ class _HomePageState extends State<HomePage> {
                     mapController: _herMapController,
                     onMapEvent: _onHerMapEvent,
                     onMapReady: _onHerMapReady,
+                    onTouchDown: _onHerMapTouched,
                   ),
                   // Under the map, not on it: a control on the map could hide
                   // her mark while follow is paused.
