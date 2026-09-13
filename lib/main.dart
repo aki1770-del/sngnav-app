@@ -1462,6 +1462,24 @@ class _HomePageState extends State<HomePage> {
   /// path, so all three keep the watchdog fed and reach the same surfaces.
   void _onPositionEvent(PositionFix fix) {
     if (!mounted) return;
+    // Location is off for this app (permission denied, now or for good): her
+    // setting, not a GPS failure. It is NOT fed to the drive brain, which,
+    // with no fix ever, rates "no position at all" its top concern and speaks
+    // it at critical severity: measured 2026-09-13, a denial got the critical
+    // haptic, the line inviting her to stop, and 停車の検討, while a driver
+    // who never shared got none of it. It does not arm the blackout watchdog
+    // either: that exists to degrade a feed that claims to be live, and a
+    // denied feed never will be; polling it would raise the same alarm 30 s
+    // later. The map and the line under it still say so (位置情報オフ). Read
+    // from the typed cause only: a reason's free text can carry exception
+    // text, and acting on it could silence a real failure.
+    if (isLocationRefusal(fix)) {
+      _positionWatchdog?.cancel();
+      _positionWatchdog = null;
+      _lastPositionEventAt = null;
+      setState(() => _herFix = fix);
+      return;
+    }
     // N8 — any event (fix OR honest unavailability) proves the position
     // pipeline is alive and feeding the drive brain itself; the watchdog
     // only covers the SILENT drought where nothing arrives at all.
