@@ -106,6 +106,36 @@ The instruction ("do not worry about mistakes / use loupe") called for a lasting
 
 ---
 
+## TRAP-10 — a tracked example lockfile keeps a sibling version the pubspec no longer means, so the example never compiles against the sibling at HEAD
+
+- **First observed**: `~/work/r3-fdd-sngnav-52c2f30` (a clone of `~/SNGNav`), 2026-09-13, C-20 (a). Widening `packages/navigation_safety/example`'s `routing_engine: ^0.4.0` to `'>=0.4.0 <0.7.0'` turned CI's sibling-constraint step green, and `flutter pub get` plus analyze in the example stayed clean. A would-be archive rebuilt outside the monorepo resolved routing_engine 0.6.3 and failed to compile (`LatLng?` passed where `LatLng` is required). The tracked lock still held 0.4.0, and pub keeps a locked version the new range still admits.
+- **Symptom**: every in-tree check is green; the first developer who resolves fresh gets a compile error. Once the code was fixed, the same stale lock produced two analyzer warnings in-tree, pointing the other way.
+- **Class**: verification-substrate / Verify-First. Same family as TRAP-08 and `a-lock-is-not-a-constraint-2026-08-24`.
+- **Pre-flight check**: after changing a constraint, print what resolved (TRAP-08's one-liner) and do not trust an in-tree result until one of these has run: `flutter pub upgrade <dep>` in the example, or the archive rebuilt from `pub publish --dry-run`'s file list and resolved outside the monorepo. Before writing a range, pin each line floor with a scratch `dependency_overrides` entry and compile it.
+- **Linked feedback memory**: `a-lock-is-not-a-constraint-2026-08-24.md`; TRAP-08
+
+---
+
+## TRAP-11 — `dart format` can introduce a lint the file did not have
+
+- **First observed**: same clone, 2026-09-13, C-20 (e). Formatting `packages/driving_conditions/tool/abi_layout_check.dart` moved the body of a too-long `if (fields.isEmpty) throw ...;` onto its own line, and `curly_braces_in_flow_control_structures` then reported an info. The file at `52c2f30` analyzed with 0 issues; the formatted file had 1.
+- **Symptom**: a commit that only formats changes the analyzer's verdict, and `dart analyze` still exits 0 because infos do not fail it.
+- **Class**: tooling interaction / success-shaped. Same family as TRAP-09.
+- **Pre-flight check**: format, then analyze the package again and compare issue COUNTS, not exit codes. Prove the change is layout-only by comparing both versions with whitespace and commas stripped.
+- **Linked feedback memory**: TRAP-09
+
+---
+
+## TRAP-12 — an error's `toString` can span lines, which breaks a one-line log report
+
+- **First observed**: same clone, 2026-09-13, C-20 (b). `navigation_safety_core`'s default rejection report promises one stdout line. A transform calling `int.parse('three hundred')` throws a `FormatException` whose `toString` prints the source and a caret on following lines, so one report became several lines, and only the first carried the `navigation_safety_core:` prefix.
+- **Symptom**: a log reader that takes one line per entry splits the error and its stack trace away from the prefix that says where they came from. A test using `StateError` passes, because its text is one line.
+- **Class**: output contract.
+- **Pre-flight check**: where a report promises one line, escape line breaks in every interpolated error and stack trace, and test it with a `FormatException`, not a `StateError`.
+- **Linked feedback memory**: none; the regression test is `packages/navigation_safety_core/test/vehicle_threshold_overrides_test.dart` ("the DEFAULT report is exactly ONE stdout line").
+
+---
+
 ---
 
 ## Vision attribution (file-level, 3-slot)
