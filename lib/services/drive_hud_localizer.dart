@@ -201,12 +201,14 @@ class DriveHudLocalizer {
   }
 
   /// Localized sight-stopping-speed hint — "a speed at which you could stop
-  /// within what you can see" (km/h, from the package's m/s).
+  /// within what you can see" (km/h, from the package's m/s). English ruled
+  /// 2026-09-14 (was "Stop-within-sight guide ~N km/h"): the basis, with the
+  /// speed left to her. Japanese unchanged.
   String sightHintLabel(double mps, String localeTag) {
     final kmh = (mps * 3.6).round();
     return _isJa(localeTag)
         ? '見える範囲で止まれる目安 約 $kmh km/h'
-        : 'Stop-within-sight guide ~$kmh km/h';
+        : 'could stop within sight at ~$kmh km/h';
   }
 
   // --- (e) maneuver narration text — localized by engine-agnostic TYPE ---

@@ -46,11 +46,11 @@ const _mapEn = 'No location access';
 const _deniedJa =
     '位置情報オフ — このアプリには位置情報へのアクセスが許可されていません。地図は表示されたままです。ルート欄はタップで引き続き使えます。';
 const _deniedEn =
-    'No location access — this app is not allowed to access location. The map remains; the route panel still works by tap.';
+    'No location access — location permission is off for this app. The map remains; the route panel still works by tap.';
 const _foreverJa =
     '位置情報オフ — このアプリには位置情報へのアクセスが許可されていません。変更する場合は端末の設定から行えます。地図は表示されたままです。ルート欄はタップで引き続き使えます。';
 const _foreverEn =
-    'No location access — this app is not allowed to access location. If you want to change this, you can do so in the device settings. The map remains; the route panel still works by tap.';
+    'No location access — location permission is off for this app. If you want to change this, you can do so in the device settings. The map remains; the route panel still works by tap.';
 
 const _offKey = ValueKey('her-location-off-label');
 const _unknownKey = ValueKey('her-position-unknown-label');

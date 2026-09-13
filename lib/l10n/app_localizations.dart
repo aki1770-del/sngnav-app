@@ -150,7 +150,10 @@ class AppL10n {
   /// [locationOffLabel], the same bytes as the words on the map. Only a denial
   /// for good gets the device-settings hint: the platform no longer shows the
   /// dialog then, and without the hint she has no way back. Ruled 2026-09-13,
-  /// byte-exact.
+  /// byte-exact. The English sentence after the dash re-ruled 2026-09-14: it
+  /// said "this app is not allowed to access location" under a head that
+  /// already said so, and now adds only that it is a permission, and this
+  /// app's. Japanese unchanged.
   String locationOffStatus({required bool permanently}) {
     final head = locationOffLabel;
     if (_ja) {
@@ -162,9 +165,9 @@ class AppL10n {
     }
     return permanently
         ? '$head'
-            ' — this app is not allowed to access location. If you want to change this, you can do so in the device settings. The map remains; the route panel still works by tap.'
+            ' — location permission is off for this app. If you want to change this, you can do so in the device settings. The map remains; the route panel still works by tap.'
         : '$head'
-            ' — this app is not allowed to access location. The map remains; the route panel still works by tap.';
+            ' — location permission is off for this app. The map remains; the route panel still works by tap.';
   }
 
   // ===== Live drive panel: its row labels and the compounding note =====
@@ -186,8 +189,11 @@ class AppL10n {
   /// Row label for the first-class unknowns.
   String get driveHudUnknownsLabel => _ja ? '不明な点' : 'Unknowns';
 
-  /// Row label for the stop-within-sight guide speed.
-  String get driveHudGuideSpeedLabel => _ja ? '目安速度' : 'Guide speed';
+  /// Row label for the sight-stopping speed hint, shown only under a grounded
+  /// low or whiteout visibility reading. English ruled 2026-09-14 (was
+  /// "Guide speed"): a hint, not a speed the app guides her to. Japanese
+  /// unchanged.
+  String get driveHudGuideSpeedLabel => _ja ? '目安速度' : 'Speed hint';
 
   /// The live-drive card's instruction to share, shown only while she is not
   /// sharing. English unchanged; the Japanese names the two buttons above by

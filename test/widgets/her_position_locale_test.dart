@@ -171,7 +171,7 @@ void main() {
       for (final (label, rowName) in [
         ('Why:', 'reasons'),
         ('Unknowns:', 'unknowns'),
-        ('Guide speed:', 'sight hint'),
+        ('Speed hint:', 'sight hint'),
       ]) {
         final f = find.text(label);
         if (f.evaluate().isEmpty) continue;
