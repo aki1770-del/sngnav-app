@@ -140,7 +140,11 @@ List<_Scenario> _hieScenarios() {
 }
 
 HerMapInputs _app(_Scenario s, {bool isMock = false}) =>
-    herMapInputs(fix: s.herFix, estimate: s.hud.estimate, isMock: isMock);
+    herMapInputs(
+        fix: s.herFix,
+        estimate: s.hud.estimate,
+        isMock: isMock,
+        anchoredThisSession: true);
 
 void main() {
   group('herMapInputs equals HIE\'s candidate mapping on HIE\'s scenarios', () {
@@ -228,7 +232,11 @@ void main() {
       expect(h.estimate!.mode, LocalizationMode.lost,
           reason: 'control: the controller really is lost here');
 
-      final app = herMapInputs(fix: null, estimate: h.estimate, isMock: false);
+      final app = herMapInputs(
+          fix: null,
+          estimate: h.estimate,
+          isMock: false,
+          anchoredThisSession: true);
       expect(app.position, isNull);
       expect(app.accuracyMeters, isNull);
       expect(app.degraded, isFalse);
@@ -249,7 +257,11 @@ void main() {
       h.poll(now: _t0.add(const Duration(minutes: 3)));
       expect(h.estimate!.mode, LocalizationMode.lost);
 
-      final app = herMapInputs(fix: mock, estimate: h.estimate, isMock: true);
+      final app = herMapInputs(
+          fix: mock,
+          estimate: h.estimate,
+          isMock: true,
+          anchoredThisSession: false);
       expect(app.position, akitaStation);
       expect(app.accuracyMeters, 35);
       expect(app.degraded, isFalse);
@@ -260,7 +272,11 @@ void main() {
       final h = _hud();
       final fix = _sample(15);
       h.onPositionFix(fix, now: _t0);
-      final app = herMapInputs(fix: fix, estimate: h.estimate, isMock: false);
+      final app = herMapInputs(
+          fix: fix,
+          estimate: h.estimate,
+          isMock: false,
+          anchoredThisSession: true);
       final old = _bd6ebc4Rule(fix, h);
       expect(app.position, old.her);
       expect(app.accuracyMeters, old.accuracy);
@@ -282,7 +298,11 @@ void main() {
           reason: 'the controller refused it and degraded');
 
       final app =
-          herMapInputs(fix: refused, estimate: h.estimate, isMock: false);
+          herMapInputs(
+              fix: refused,
+              estimate: h.estimate,
+              isMock: false,
+              anchoredThisSession: true);
       expect(app.position, _her);
       expect(_bd6ebc4Rule(refused, h).her, const LatLng(39.8000, 140.3000),
           reason: 'control: at bd6ebc4 the ring went to the refused sample');
@@ -322,9 +342,152 @@ void main() {
         ),
         estimate: estimate,
         isMock: false,
+        anchoredThisSession: true,
       );
       expect(app.position, isNull);
       expect(app.lost, isTrue);
+    });
+  });
+
+  // ---- 2026-09-13: an anchor must be this session's ----------------------
+  //
+  // The controller is not reset when she stops sharing. On a re-share with
+  // location services off it degrades from the previous drive's anchor, and
+  // the map drew that ring; the dev mock did the same at the station. The
+  // app-level renders of those states are pinned in
+  // test/widgets/her_position_session_anchor_test.dart.
+
+  group('an anchor not set in this session draws no ring', () {
+    test('lost from a previous session\'s anchor: no position, the words', () {
+      final h = _hud();
+      h.onPositionFix(_sample(15), now: _t0);
+      const u = PositionUnavailable('Location services disabled');
+      h.onPositionFix(u, now: _t0.add(const Duration(hours: 20)));
+      expect(h.estimate!.mode, LocalizationMode.lost, reason: 'control');
+      expect(h.estimate!.hasPosition, isTrue,
+          reason: 'control: the controller still holds the old anchor');
+
+      final app = herMapInputs(
+          fix: u,
+          estimate: h.estimate,
+          isMock: false,
+          anchoredThisSession: false);
+      expect(app.position, isNull);
+      expect(app.lost, isTrue);
+      expect(app.accuracyMeters, isNull,
+          reason: 'no radius from a feed she turned off');
+
+      final same = herMapInputs(
+          fix: u,
+          estimate: h.estimate,
+          isMock: false,
+          anchoredThisSession: true);
+      expect(same.position, _her,
+          reason: 'control: the same estimate in its own session keeps the '
+              'ring');
+    });
+
+    test('dead reckoning from a previous session\'s anchor: still no ring, '
+        'and the words rather than silence', () {
+      final h = _hud();
+      h.onPositionFix(_sample(15), now: _t0);
+      const u = PositionUnavailable('Location services disabled');
+      h.onPositionFix(u, now: _t0.add(const Duration(seconds: 5)));
+      expect(h.estimate!.mode, LocalizationMode.deadReckoning,
+          reason: 'control');
+
+      final app = herMapInputs(
+          fix: u,
+          estimate: h.estimate,
+          isMock: false,
+          anchoredThisSession: false);
+      expect(app.position, isNull);
+      expect(app.lost, isTrue,
+          reason: 'with no ring, dead reckoning would leave the map silent');
+    });
+
+    test('a trusted fix is drawn where it is, whatever the flag says', () {
+      final h = _hud();
+      final fix = _sample(15);
+      h.onPositionFix(fix, now: _t0);
+      final app = herMapInputs(
+          fix: fix,
+          estimate: h.estimate,
+          isMock: false,
+          anchoredThisSession: false);
+      expect(app.position, _her);
+      expect(app.lost, isFalse);
+    });
+  });
+
+  group('anchorsThisSession: which event sets the anchor', () {
+    test('a trusted fix does', () {
+      final h = _hud();
+      final fix = _sample(15);
+      h.onPositionFix(fix, now: _t0);
+      expect(anchorsThisSession(fix: fix, estimate: h.estimate, isMock: false),
+          isTrue);
+    });
+
+    test('a trusted fix too imprecise to be confident is adopted, and does',
+        () {
+      final h = _hud();
+      final fix = _sample(900);
+      h.onPositionFix(fix, now: _t0);
+      expect(h.estimate!.mode, LocalizationMode.lost, reason: 'control');
+      expect(anchorsThisSession(fix: fix, estimate: h.estimate, isMock: false),
+          isTrue);
+    });
+
+    test('a fix no newer than the anchor does not: the old anchor stays', () {
+      final h = _hud();
+      h.onPositionFix(_sample(15), now: _t0);
+      final stale =
+          _sample(15, at: const LatLng(39.7300, 140.1000), t: _t0);
+      h.onPositionFix(stale, now: _t0);
+      expect(h.estimate!.latitude, _her.latitude,
+          reason: 'control: the controller kept the old anchor');
+      expect(
+          anchorsThisSession(fix: stale, estimate: h.estimate, isMock: false),
+          isFalse);
+    });
+
+    test('an unavailability does not', () {
+      final h = _hud();
+      h.onPositionFix(_sample(15), now: _t0);
+      const u = PositionUnavailable('GPS stream error');
+      h.onPositionFix(u, now: _t0.add(const Duration(seconds: 5)));
+      expect(anchorsThisSession(fix: u, estimate: h.estimate, isMock: false),
+          isFalse);
+    });
+
+    test('a sample the controller refuses does not', () {
+      final h = _hud();
+      final bad = _sample(-1);
+      h.onPositionFix(bad, now: _t0);
+      expect(anchorsThisSession(fix: bad, estimate: h.estimate, isMock: false),
+          isFalse);
+    });
+
+    test('the dev mock never does, even though the controller took it', () {
+      final h = _hud();
+      final mock = PositionAvailable(
+        latitude: akitaStation.latitude,
+        longitude: akitaStation.longitude,
+        accuracyMeters: 35,
+        timestamp: _t0,
+      );
+      h.onPositionFix(mock, now: _t0);
+      expect(h.estimate!.basis, EstimateBasis.trustedGpsFix,
+          reason: 'control: the controller did adopt it');
+      expect(anchorsThisSession(fix: mock, estimate: h.estimate, isMock: true),
+          isFalse);
+    });
+
+    test('no estimate: no', () {
+      expect(
+          anchorsThisSession(fix: _sample(15), estimate: null, isMock: false),
+          isFalse);
     });
   });
 }

@@ -51,12 +51,35 @@ class HerMapInputs {
   /// Dead-reckoning or lost: the hollow ring, not the solid dot.
   final bool degraded;
 
-  /// Past the controller's honesty horizon: words on the map, no circle.
+  /// Past the controller's honesty horizon, or degraded from an anchor no
+  /// event of this session set: words on the map, no circle.
   final bool lost;
 }
 
+/// Whether the position [fix] that the drive brain has just taken became the
+/// controller's trusted anchor, in the estimate it emitted for it.
+///
+/// This, and not "a fix arrived", is what makes an anchor this session's. The
+/// controller is not reset when she stops sharing, and it refuses a fix no
+/// newer than its anchor: it degrades from the anchor it already holds, which
+/// may be the previous drive's. Only the trusted path of the controller emits
+/// [EstimateBasis.trustedGpsFix], so that basis on the estimate for this very
+/// event means the anchor is this event. A trusted fix too imprecise to be
+/// confident (`lost` on arrival) is still adopted as the anchor, and counts.
+/// The dev mock never counts: it was never measured.
+bool anchorsThisSession({
+  required PositionFix fix,
+  required LocalizationEstimate? estimate,
+  required bool isMock,
+}) =>
+    !isMock &&
+    fix is PositionAvailable &&
+    estimate != null &&
+    estimate.basis == EstimateBasis.trustedGpsFix;
+
 /// Decide what the map draws from the last position event [fix], the position
-/// controller's current [estimate], and whether the position is the dev mock.
+/// controller's current [estimate], whether the position is the dev mock, and
+/// whether the controller's anchor was set in this sharing session.
 ///
 /// * [fix] `null` → nothing. No event has arrived in this sharing session: she
 ///   has not shared, has stopped, or the first event is still on its way. The
@@ -64,6 +87,12 @@ class HerMapInputs {
 ///   drive's, and a feed she turned off makes no claim about where she is now.
 /// * Mock → the mock point, never degraded or lost. The mock is a static dev
 ///   tool, not a live position claim (same rule as `_herPositionDegraded`).
+/// * Estimate dead-reckoning or `lost`, and [anchoredThisSession] false → no
+///   ring and the words 現在地不明. The controller is degrading from an anchor
+///   no event of this session set (the previous drive, or the dev mock), and
+///   that makes no claim about where she is now. Measured 2026-09-13: on a
+///   re-share with location services off, the map drew the previous drive's
+///   ring, 20 hours old, pixel-identical to a 3-minute loss.
 /// * Estimate dead-reckoning or `lost` → the ESTIMATE's position and radius.
 ///   That keeps a ring on the map after a stream error, and puts it where the
 ///   controller last trusted rather than at a refused or stale sample. With no
@@ -74,6 +103,7 @@ HerMapInputs herMapInputs({
   required PositionFix? fix,
   required LocalizationEstimate? estimate,
   required bool isMock,
+  required bool anchoredThisSession,
 }) {
   if (fix == null) return HerMapInputs.none;
 
@@ -88,6 +118,10 @@ HerMapInputs herMapInputs({
       mode == LocalizationMode.deadReckoning || mode == LocalizationMode.lost;
   if (isMock || estimate == null || !unlocatable) {
     return HerMapInputs(position: fixPosition, accuracyMeters: fixAccuracy);
+  }
+
+  if (!anchoredThisSession) {
+    return const HerMapInputs(degraded: true, lost: true);
   }
 
   // A ring marks a position the controller trusted, never a guess from a

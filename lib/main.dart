@@ -972,6 +972,13 @@ class _HomePageState extends State<HomePage> {
   PositionFix? _herFix;
   StreamSubscription<PositionFix>? _herSub;
 
+  /// Whether an event in THIS sharing session became the position
+  /// controller's trusted anchor ([anchorsThisSession]). False when sharing
+  /// starts; set only in [_onPositionEvent]. The controller is not reset on
+  /// stop, so without this the map drew rings from the previous drive and
+  /// from the dev mock (2026-09-13).
+  bool _herAnchoredThisSession = false;
+
   // Offline basemap (2026-07-01; real tiles 2026-07-10).
   // Loaded once at init from the bundled MBTiles asset, then handed to
   // AkitaMap so Akita renders OFFLINE-FIRST (network only for uncovered
@@ -1390,6 +1397,7 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _herFix = null;
       _isMockPosition = false;
+      _herAnchoredThisSession = false;
     });
     // B32 — drive start: re-probe BOTH eyes-off channels NOW (the initState
     // read may be app-open-hours old; the drive is when a mute matters — and
@@ -1440,6 +1448,14 @@ class _HomePageState extends State<HomePage> {
     setState(() => _herFix = fix);
     _maybeRefreshAdvisoriesForFix(fix);
     _feedDriveHud(fix);
+    // After the drive brain has taken the event: did it become the anchor?
+    if (anchorsThisSession(
+      fix: fix,
+      estimate: _driveHud.estimate,
+      isMock: _isMockPosition,
+    )) {
+      setState(() => _herAnchoredThisSession = true);
+    }
   }
 
   /// N8 — one watchdog tick: poll the drive brain iff no position event
@@ -2769,6 +2785,7 @@ class _HomePageState extends State<HomePage> {
       fix: _herFix,
       estimate: _driveHud.estimate,
       isMock: _isMockPosition,
+      anchoredThisSession: _herAnchoredThisSession,
     );
 
     return Scaffold(
@@ -4081,9 +4098,14 @@ class _HomePageState extends State<HomePage> {
     // radius (2026-09-13): the controller no longer vouches for one, and with
     // no trusted fix ever the radius is infinite — this line used to read
     // 「現在地 不明 · 最後の位置 ±Infinitym」. Localized through AppL10n.
+    //
+    // Degraded from an anchor no event of this session set, the line claims
+    // no last position: the same rule the map follows (her_map_inputs.dart).
     final degradedText = estimate == null
         ? null
-        : estimate.mode == LocalizationMode.lost
+        : !_herAnchoredThisSession
+            ? l.positionLostStatus(double.infinity)
+            : estimate.mode == LocalizationMode.lost
             ? l.positionLostStatus(estimate.secondsSinceTrustedFix)
             : '${_driveHudText.modeLabel(estimate.mode, 'ja')} · '
                 '最後の位置 ±${estimate.confidenceRadiusMeters.toStringAsFixed(0)}m';
