@@ -406,6 +406,22 @@ void main() {
           reason: 'with no ring, dead reckoning would leave the map silent');
     });
 
+    test(
+        'no trusted fix this session and an unavailability that is not a '
+        'refusal: 現在地不明, even with no estimate at all (ruled 2026-09-13)',
+        () {
+      for (final fix in const [
+        PositionUnavailable('GPS stream error: platform failed'),
+        PositionUnavailable('Location services disabled'),
+      ]) {
+        final app = herMapInputs(
+            fix: fix, estimate: null, isMock: false, anchoredThisSession: false);
+        expect(app.lost, isTrue, reason: '${fix.reason}: words, not silence');
+        expect(app.position, isNull);
+        expect(app.refused, isFalse);
+      }
+    });
+
     test('a trusted fix is drawn where it is, whatever the flag says', () {
       final h = _hud();
       final fix = _sample(15);

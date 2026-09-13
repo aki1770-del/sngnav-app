@@ -230,6 +230,27 @@ void main() {
     },
   );
 
+  testWidgets(
+      'dev mock, Clear, then share and a GPS stream error: no ring, and the '
+      'map says 現在地不明 (never silent)', (tester) async {
+    await pumpApp(tester);
+    await tester.ensureVisible(find.byKey(const Key('use-mock-button')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('use-mock-button')));
+    await tester.pump();
+    await tapText(tester, 'クリア');
+
+    await tapText(tester, '現在地を共有');
+    positions.addError(StateError('platform GPS stream failed'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(_ringKey), findsNothing);
+    expect(map(tester).herPosition, isNull);
+    expectWordsOnMap(tester);
+    await positions.close();
+  });
+
   group('controls: what a real anchor in this session still draws', () {
     testWidgets(
       're-share and a fresh fix elsewhere: the dot at the new place',

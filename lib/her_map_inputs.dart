@@ -95,6 +95,8 @@ bool anchorsThisSession({
 ///   drive's, and a feed she turned off makes no claim about where she is now.
 /// * Mock → the mock point, never degraded or lost. The mock is a static dev
 ///   tool, not a live position claim (same rule as `_herPositionDegraded`).
+/// * An unavailability that is not a refusal, with [anchoredThisSession] false
+///   → the words 現在地不明 and no ring, whatever [estimate] is, even null.
 /// * Estimate dead-reckoning or `lost`, and [anchoredThisSession] false → no
 ///   ring and the words 現在地不明. The controller is degrading from an anchor
 ///   no event of this session set (the previous drive, or the dev mock), and
@@ -122,6 +124,16 @@ HerMapInputs herMapInputs({
   };
 
   final refused = isLocationRefusal(fix);
+
+  // With no trusted fix this session, an unavailability that is not a refusal
+  // says 現在地不明, whatever the drive brain holds or does not hold (ruled
+  // 2026-09-13). Before this the words depended on the controller reporting
+  // dead reckoning or lost; an unavailability that did not reach it, or found
+  // it holding nothing, would leave the map with no mark and no words.
+  if (fix is PositionUnavailable && !refused && !anchoredThisSession) {
+    return const HerMapInputs(degraded: true, lost: true);
+  }
+
   final mode = estimate?.mode;
   final unlocatable =
       mode == LocalizationMode.deadReckoning || mode == LocalizationMode.lost;
