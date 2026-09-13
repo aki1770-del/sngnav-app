@@ -100,8 +100,10 @@ Future<void> _tapShare(WidgetTester tester) async {
   await tester.pump();
 }
 
+/// The row's end-sharing control. After a denial it reads 閉じる / "Close"
+/// (ruled 2026-09-13), with the same action as 停止.
 Future<void> _tapStop(WidgetTester tester, String lang) async {
-  final s = find.text(lang == 'ja' ? '停止' : 'Stop');
+  final s = find.text(lang == 'ja' ? '閉じる' : 'Close');
   await tester.ensureVisible(s.first);
   await tester.pump();
   await tester.tap(s.first);
@@ -153,7 +155,8 @@ void main() {
     });
   }
 
-  testWidgets('denied, then 停止: still the never-shared driver\'s',
+  testWidgets('denied, then 閉じる (formerly 停止): still the never-shared '
+      'driver\'s',
       (tester) async {
     final (_, control61s) = await _neverShared(tester, 'ja');
 

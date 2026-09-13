@@ -4271,7 +4271,9 @@ class _HomePageState extends State<HomePage> {
         ),
         TextButton(
           onPressed: _clearPosition,
-          child: Text(l.stop),
+          // After a denial nothing was started, so the same action is
+          // offered as 閉じる / "Close", not 停止 / "Stop".
+          child: Text(isLocationRefusal(fix) ? l.close : l.stop),
         ),
       ],
     );

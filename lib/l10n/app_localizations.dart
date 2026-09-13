@@ -63,6 +63,11 @@ class AppL10n {
 
   String get stop => _ja ? '停止' : 'Stop';
 
+  /// The row's end-sharing control after location is off for this app. Same
+  /// action as [stop]; "Stop" would be offered for a session that never
+  /// started, beside words saying the app has no access (ruled 2026-09-13).
+  String get close => _ja ? '閉じる' : 'Close';
+
   // ===== Live position / mid-drive status =====
 
   String get locatingYou => _ja ? '現在地を取得しています…' : 'Locating you…';
@@ -135,8 +140,11 @@ class AppL10n {
   /// denied, now or for good (`isLocationRefusal`). They describe the setting
   /// and never say that she refused: a denial can happen without her taking
   /// any action. Ruled 2026-09-13; 位置情報 is the word in the dialog she saw.
+  /// English: "No location access", ruled on the render the same day.
+  /// "Location off" shared its first-word shape and the word "off" with
+  /// "Position off this map", and blurred the two differed by 9.0/255.
   String get locationOffLabel =>
-      _ja ? '位置情報オフ' : 'Location off';
+      _ja ? '位置情報オフ' : 'No location access';
 
   /// The line under the map when location is off for this app. Its head is
   /// [locationOffLabel], the same bytes as the words on the map. Only a denial
