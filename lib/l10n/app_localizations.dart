@@ -214,6 +214,17 @@ class AppL10n {
   /// wider refactor + retest of the finite-guard chokepoint this arc.
   String _localizeReason(String reason) {
     if (!_ja) return reason;
+    // The two wrappers first. Their tail is an exception's text, which the app
+    // does not write: matched after the phrases below, a stream error whose
+    // error text said "permission denied" read 「位置情報の許可が拒否されました」
+    // under a map that, from the typed cause, said 現在地不明 (2026-09-14). The
+    // wrapper names the failure; nothing inside it selects the words.
+    if (reason.startsWith('GPS stream error')) {
+      return 'GPSストリームのエラー';
+    }
+    if (reason.startsWith('GPS init error')) {
+      return 'GPS初期化のエラー';
+    }
     if (reason.contains('services disabled')) {
       return '位置情報サービスが無効です';
     }
@@ -237,12 +248,6 @@ class AppL10n {
     }
     if (reason.contains('stream ended by the platform')) {
       return 'GPSの受信が端末側で終了しました';
-    }
-    if (reason.startsWith('GPS stream error')) {
-      return 'GPSストリームのエラー';
-    }
-    if (reason.startsWith('GPS init error')) {
-      return 'GPS初期化のエラー';
     }
     return reason;
   }
