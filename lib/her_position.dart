@@ -47,23 +47,52 @@ class PositionAvailable extends PositionFix {
 
 class PositionUnavailable extends PositionFix {
   final String reason;
-  const PositionUnavailable(this.reason);
+
+  /// Why, for the causes the app acts on. Never derived from [reason].
+  final PositionUnavailableCause cause;
+
+  const PositionUnavailable(
+    this.reason, {
+    this.cause = PositionUnavailableCause.other,
+  });
 }
 
-/// The reasons [herPositionStream] gives when she answers "no" to location.
-/// Emitted from these constants and matched against them by
-/// [isLocationRefusal], so the two cannot drift apart.
+/// Why a position is unavailable, for the causes the app acts on. Everything
+/// else is [other], whatever its free-text reason says: a reason can carry
+/// exception text (`'GPS stream error: $e'`), and acting on words inside it
+/// could silence a real failure. Only [herPositionStream] sets a cause, from
+/// the platform's own permission result.
+enum PositionUnavailableCause {
+  /// Anything the app does not act on by cause.
+  other,
+
+  /// Location permission is denied for this app: the dialog's "no", or a
+  /// denial the platform applied without her taking any action.
+  permissionDenied,
+
+  /// Denied for good: the platform no longer shows the dialog.
+  permissionDeniedForever,
+}
+
+/// The reasons [herPositionStream] gives for a denied permission, kept for
+/// the log and the fallback line. The app acts on [PositionUnavailable.cause],
+/// never on these words.
 const String _permissionDeniedReason = 'Location permission denied';
 const String _permissionPermanentlyDeniedReason =
     'Location permission permanently denied — change in OS settings';
 
-/// Whether [fix] is her refusal of location: she answered "no", now or for
-/// good. Not a timeout, not location services off, not a stream error: those
-/// are the platform failing, and this is her choice.
+/// Whether [fix] says location is off for this app: permission denied, now or
+/// for good. Not a timeout, not location services off, not a stream error:
+/// those are the platform failing. Read from the typed cause only.
 bool isLocationRefusal(PositionFix? fix) =>
     fix is PositionUnavailable &&
-    (fix.reason == _permissionDeniedReason ||
-        fix.reason == _permissionPermanentlyDeniedReason);
+    (fix.cause == PositionUnavailableCause.permissionDenied ||
+        fix.cause == PositionUnavailableCause.permissionDeniedForever);
+
+/// Whether [fix] is a denial for good, where the platform no longer asks.
+bool isPermanentLocationRefusal(PositionFix? fix) =>
+    fix is PositionUnavailable &&
+    fix.cause == PositionUnavailableCause.permissionDeniedForever;
 
 /// Finite-coordinate chokepoint guard.
 ///
@@ -178,14 +207,18 @@ Stream<PositionFix> herPositionStream({
           return;
         }
         if (permission == LocationPermission.denied) {
-          controller.add(const PositionUnavailable(_permissionDeniedReason));
+          controller.add(const PositionUnavailable(
+            _permissionDeniedReason,
+            cause: PositionUnavailableCause.permissionDenied,
+          ));
           return;
         }
       }
       if (permission == LocationPermission.deniedForever) {
-        controller.add(
-          const PositionUnavailable(_permissionPermanentlyDeniedReason),
-        );
+        controller.add(const PositionUnavailable(
+          _permissionPermanentlyDeniedReason,
+          cause: PositionUnavailableCause.permissionDeniedForever,
+        ));
         return;
       }
       sub = (positionStream ??

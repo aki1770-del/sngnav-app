@@ -4217,6 +4217,13 @@ class _HomePageState extends State<HomePage> {
         l.youAreHere(accuracyMeters.toStringAsFixed(0)),
         Colors.blueGrey.shade700,
       ),
+      // Location is off for this app: the ruled line (2026-09-13), headed by
+      // the same words as the map. Read from the typed cause, never from the
+      // reason text.
+      PositionUnavailable() when isLocationRefusal(fix) => (
+        l.locationOffStatus(permanently: isPermanentLocationRefusal(fix)),
+        Colors.grey.shade700,
+      ),
       PositionUnavailable(:final reason) => (
         l.gpsUnavailable(reason),
         Colors.grey.shade700,

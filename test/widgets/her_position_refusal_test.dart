@@ -1,19 +1,18 @@
-/// After she refuses location, the map's words for it are chosen in one place,
-/// and today they are unchanged.
+/// After she refuses location, the map's words for it are chosen in one place.
 ///
-/// WHY, written before the act. What the map should show after her "no" is
-/// under review: today it shows the same black 現在地不明 pill as a GPS that
-/// never found her, and only the line under the map names the refusal. Until
-/// that is decided the behaviour must not move. What can be done now is to
-/// carry the refusal to the map, so the decision, when it comes, changes one
-/// branch and not five files.
+/// WHY. What the map should show after her "no" was under review, so the
+/// refusal was first carried to the map with its behaviour unchanged: the same
+/// black 現在地不明 pill as a GPS that never found her. The ruling of
+/// 2026-09-13 gave it its own words, 位置情報オフ, in that one branch; the
+/// words and the line under the map are pinned in
+/// `her_location_off_words_test.dart`.
 ///
 /// Pinned here:
 /// * `isLocationRefusal` is true exactly for her "no" (now or for good), read
 ///   from the real position stream, and false for the platform failing;
 /// * the refusal reaches the map as `positionRefused`;
-/// * the map shows exactly what it shows for location services off: the same
-///   pill, key and words. This half passes before and after on purpose.
+/// * in the real app the refusal and location services off now say different
+///   things, and only the refusal is flagged.
 library;
 
 import 'dart:async';
@@ -32,6 +31,7 @@ import 'package:sngnav_app/services/drive_hud_controller.dart';
 import '../support/fake_alert_actuators.dart';
 
 const _unknownKey = ValueKey('her-position-unknown-label');
+const _offKey = ValueKey('her-location-off-label');
 
 JmaObservation _clearObs() => JmaObservation(
       stationId: '32402',
@@ -150,21 +150,24 @@ void main() {
     }
 
     ({Key? key, String? words, bool refused}) mapSays(WidgetTester tester) {
-      final pill = find.byKey(_unknownKey);
-      final text = find.descendant(of: pill, matching: find.byType(Text));
+      Key? key;
+      for (final k in const [_unknownKey, _offKey]) {
+        if (find.byKey(k).evaluate().isNotEmpty) key = k;
+      }
+      final text = key == null
+          ? null
+          : find.descendant(of: find.byKey(key), matching: find.byType(Text));
       return (
-        key: pill.evaluate().isEmpty ? null : _unknownKey,
-        words: text.evaluate().isEmpty
-            ? null
-            : tester.widget<Text>(text).data,
+        key: key,
+        words: text == null ? null : tester.widget<Text>(text).data,
         refused:
             tester.widget<AkitaMap>(find.byType(AkitaMap)).positionRefused,
       );
     }
 
     testWidgets(
-        'after her "no" the map says 現在地不明, exactly as with services off; '
-        'only the flag differs', (tester) async {
+        'after her "no" the map says 位置情報オフ; with location services off '
+        'it still says 現在地不明; only the refusal is flagged', (tester) async {
       await share(tester, _refusing);
       final refusal = mapSays(tester);
 
@@ -173,10 +176,8 @@ void main() {
 
       expect(refusal.refused, isTrue);
       expect(off.refused, isFalse);
-      expect(refusal.key, _unknownKey);
-      expect(refusal.words, '現在地不明');
-      expect((refusal.key, refusal.words), (off.key, off.words),
-          reason: 'unchanged until the ruling');
+      expect((refusal.key, refusal.words), (_offKey, '位置情報オフ'));
+      expect((off.key, off.words), (_unknownKey, '現在地不明'));
     });
   });
 }

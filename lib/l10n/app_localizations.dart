@@ -131,6 +131,34 @@ class AppL10n {
           ? '$modeLabel · 最後の位置 ±${radiusMeters}m'
           : '$modeLabel · last position ±$radiusMeters m';
 
+  /// The words on the map when location is off for this app: permission
+  /// denied, now or for good (`isLocationRefusal`). They describe the setting
+  /// and never say that she refused: a denial can happen without her taking
+  /// any action. Ruled 2026-09-13; 位置情報 is the word in the dialog she saw.
+  String get locationOffLabel =>
+      _ja ? '位置情報オフ' : 'Location off';
+
+  /// The line under the map when location is off for this app. Its head is
+  /// [locationOffLabel], the same bytes as the words on the map. Only a denial
+  /// for good gets the device-settings hint: the platform no longer shows the
+  /// dialog then, and without the hint she has no way back. Ruled 2026-09-13,
+  /// byte-exact.
+  String locationOffStatus({required bool permanently}) {
+    final head = locationOffLabel;
+    if (_ja) {
+      return permanently
+          ? '$head'
+              ' — このアプリには位置情報へのアクセスが許可されていません。変更する場合は端末の設定から行えます。地図は表示されたままです。ルート欄はタップで引き続き使えます。'
+          : '$head'
+              ' — このアプリには位置情報へのアクセスが許可されていません。地図は表示されたままです。ルート欄はタップで引き続き使えます。';
+    }
+    return permanently
+        ? '$head'
+            ' — this app is not allowed to access location. If you want to change this, you can do so in the device settings. The map remains; the route panel still works by tap.'
+        : '$head'
+            ' — this app is not allowed to access location. The map remains; the route panel still works by tap.';
+  }
+
   /// GPS-unavailable line. The [reason] is produced by the geolocator layer
   /// (her_position.dart) as English; [_localizeReason] maps the known cases
   /// into HER language and passes anything unrecognized through honestly.

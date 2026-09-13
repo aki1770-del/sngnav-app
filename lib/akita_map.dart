@@ -80,8 +80,8 @@ class AkitaMap extends StatelessWidget {
   /// ([herPosition] null) the words stand alone.
   final bool positionLost;
 
-  /// Her last answer to location was "no" (`isLocationRefusal`). Read in one
-  /// place, `_PositionWords`, and today it changes nothing: see there.
+  /// Location is off for this app: permission denied (`isLocationRefusal`).
+  /// The map then says 位置情報オフ, whether or not [positionLost] is set.
   final bool positionRefused;
 
   /// Optional offline-first basemap provider (offline_tiles'
@@ -415,13 +415,17 @@ class _PositionWords extends StatelessWidget {
     final l = AppL10n.of(context);
     String? words;
     Key? key;
-    if (positionLost && positionRefused) {
-      // Her refusal of location: THE ONE PLACE the map's words for it are
-      // chosen. For now they are the words and the pill of a GPS that never
-      // found her, unchanged: what the map should say after her "no" is under
-      // review (2026-09-13), and a ruling changes this branch alone.
-      words = l.positionUnknownLabel;
-      key = const ValueKey('her-position-unknown-label');
+    var liveRegion = false;
+    if (positionRefused) {
+      // Location is off for this app: its own words, not 現在地不明 (ruled
+      // 2026-09-13). A permission result is the platform's exact answer, and
+      // her decision is shown as a setting, not as a machine fault. Not gated
+      // on positionLost: a refusal does not reach the drive brain, so lost is
+      // never set. No icon, no button; a screen reader hears it once, as a
+      // live region, and never through the alert announcer.
+      words = l.locationOffLabel;
+      key = const ValueKey('her-location-off-label');
+      liveRegion = true;
     } else if (positionLost) {
       words = l.positionUnknownLabel;
       key = const ValueKey('her-position-unknown-label');
@@ -443,11 +447,12 @@ class _PositionWords extends StatelessWidget {
       }
     }
     if (words == null) return const SizedBox.shrink();
+    final pill = _PositionUnknownLabel(labelKey: key!, text: words);
     return Align(
       alignment: Alignment.topCenter,
       child: Padding(
         padding: const EdgeInsets.only(top: 8),
-        child: _PositionUnknownLabel(labelKey: key!, text: words),
+        child: liveRegion ? Semantics(liveRegion: true, child: pill) : pill,
       ),
     );
   }
