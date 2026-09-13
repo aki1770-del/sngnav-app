@@ -159,6 +159,33 @@ class AppL10n {
             ' — this app is not allowed to access location. The map remains; the route panel still works by tap.';
   }
 
+  // ===== Live drive panel: its row labels and the compounding note =====
+  //
+  // The panel's values come from DriveHudLocalizer in the same resolved locale;
+  // these are the words around them. Until 2026-09-13 all of them were
+  // Japanese literals, so an English reader got English values under Japanese
+  // labels, or Japanese throughout where the locale was hardcoded.
+
+  /// Row label for how much to believe the position (the mode).
+  String get driveHudPositionTrustLabel => _ja ? '現在地の信頼度' : 'Position trust';
+
+  /// Row label for the uncertainty radius.
+  String get driveHudUncertaintyLabel => _ja ? '誤差' : 'Uncertainty';
+
+  /// Row label for the reasons the caution was raised.
+  String get driveHudReasonsLabel => _ja ? '理由' : 'Why';
+
+  /// Row label for the first-class unknowns.
+  String get driveHudUnknownsLabel => _ja ? '不明な点' : 'Unknowns';
+
+  /// Row label for the stop-within-sight guide speed.
+  String get driveHudGuideSpeedLabel => _ja ? '目安速度' : 'Guide speed';
+
+  /// Note in the caution banner when hazards compound.
+  String get driveHudCompoundingNote => _ja
+      ? '⚠ 危険が重なっています（現在地不確か＋視界不良）'
+      : '⚠ Hazards are compounding (position uncertain + low visibility)';
+
   /// GPS-unavailable line. The [reason] is produced by the geolocator layer
   /// (her_position.dart) as English; [_localizeReason] maps the known cases
   /// into HER language and passes anything unrecognized through honestly.

@@ -131,6 +131,63 @@ void main() {
     });
   });
 
+  group('English: the whole drive panel (ruled 2026-09-13)', () {
+    // The panel's driver-facing rows and caution banner. Its developer
+    // controls (the demo visibility bands, the blackout button) are not rows
+    // she reads, and are not asserted here.
+    final cjk = RegExp(r'[\u3040-\u30ff\u3400-\u9fff]');
+
+    List<String> textsUnder(WidgetTester tester, Finder root) => [
+          for (final e in find
+              .descendant(of: root, matching: find.byType(Text))
+              .evaluate())
+            (e.widget as Text).data ?? '',
+        ];
+
+    testWidgets(
+        'dead reckoning: row labels, values and the caution banner are all '
+        'English', (tester) async {
+      final positions = await sharedThenSilent(tester,
+          locale: const Locale('en'),
+          shareLabel: 'Share my location',
+          silence: const Duration(seconds: 60));
+
+      for (final k in ['Position trust:', 'Uncertainty:']) {
+        expect(find.text(k), findsOneWidget, reason: k);
+      }
+      for (final k in ['現在地の信頼度:', '誤差:', '理由:', '不明な点:', '目安速度:']) {
+        expect(find.text(k), findsNothing, reason: k);
+      }
+      expect(find.text('within ~135 m'), findsOneWidget);
+
+      final banner = find.byKey(const Key('drive-hud-caution-banner'));
+      expect(banner, findsOneWidget, reason: 'control: the banner is drawn');
+      final bannerTexts = textsUnder(tester, banner);
+      expect(bannerTexts.where((t) => t.isNotEmpty), isNotEmpty);
+      expect(bannerTexts.where(cjk.hasMatch), isEmpty,
+          reason: 'the caution banner an English reader sees: $bannerTexts');
+
+      // Every row this panel labels, English label and English value.
+      for (final (label, rowName) in [
+        ('Why:', 'reasons'),
+        ('Unknowns:', 'unknowns'),
+        ('Guide speed:', 'sight hint'),
+      ]) {
+        final f = find.text(label);
+        if (f.evaluate().isEmpty) continue;
+        final row = find.ancestor(of: f, matching: find.byType(Row)).first;
+        final rowTexts = textsUnder(tester, row);
+        expect(rowTexts.where(cjk.hasMatch), isEmpty,
+            reason: '$rowName row: $rowTexts');
+      }
+      expect(find.text('Why:'), findsOneWidget,
+          reason: 'control: dead reckoning gives reasons');
+      expect(find.text('Unknowns:'), findsOneWidget,
+          reason: 'control: dead reckoning gives unknowns');
+      await positions.close();
+    });
+  });
+
   group('Japanese: unchanged', () {
     testWidgets('dead reckoning: byte-identical line and panel value',
         (tester) async {
@@ -141,6 +198,10 @@ void main() {
 
       expect(statusLine(tester), 'GPS 途絶（推測航法） · 最後の位置 ±135m');
       expect(find.text('GPS 途絶（推測航法）'), findsOneWidget);
+      for (final k in ['現在地の信頼度:', '誤差:', '理由:', '不明な点:']) {
+        expect(find.text(k), findsOneWidget, reason: k);
+      }
+      expect(find.text('誤差 約 135 m'), findsOneWidget);
       await positions.close();
     });
   });

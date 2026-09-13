@@ -1948,15 +1948,17 @@ class _HomePageState extends State<HomePage> {
           Text('(no position fed yet)',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12))
         else ...[
-          // The honest position line.
-          // The mode follows the app's resolved locale (was 'ja'): the same
-          // label the line under the map shows.
-          _kv('現在地の信頼度',
+          // The honest position line. The whole panel follows the app's
+          // resolved locale (2026-09-13; every value was 'ja' and every label
+          // a Japanese literal): the same locale as the line under the map.
+          _kv(l.driveHudPositionTrustLabel,
               _driveHudText.modeLabel(estimate.mode, l.locale.languageCode)),
-          _kv('誤差',
-              _driveHudText.radiusLabel(estimate.confidenceRadiusMeters, 'ja')),
+          _kv(
+              l.driveHudUncertaintyLabel,
+              _driveHudText.radiusLabel(
+                  estimate.confidenceRadiusMeters, l.locale.languageCode)),
           const SizedBox(height: 8),
-          // The caution headline banner (JA), coloured by rung.
+          // The caution headline banner, coloured by rung.
           Container(
             key: const Key('drive-hud-caution-banner'),
             width: double.infinity,
@@ -1971,7 +1973,7 @@ class _HomePageState extends State<HomePage> {
                 Text(
                   _driveHudText.actionHeadline(
                     effective ?? advice.action,
-                    'ja',
+                    l.locale.languageCode,
                     advisoryUnconfirmed: advisoryUnconfirmed,
                     measuredUnconfirmed: measuredUnconfirmed,
                     calmNoteInForce: calmNoteInForce,
@@ -1987,14 +1989,14 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 4),
                   Text(
                     _driveHudText.spokenGuidance(
-                        effective ?? advice.action, 'ja'),
+                        effective ?? advice.action, l.locale.languageCode),
                     style: TextStyle(color: textColor, fontSize: 14),
                   ),
                 ],
                 if (advice.compounding) ...[
                   const SizedBox(height: 6),
                   Text(
-                    '⚠ 危険が重なっています（現在地不確か＋視界不良）',
+                    l.driveHudCompoundingNote,
                     style: TextStyle(
                       color: textColor,
                       fontSize: 12,
@@ -2009,9 +2011,11 @@ class _HomePageState extends State<HomePage> {
           // Why (reasons) + first-class unknowns, localized for HER.
           if (advice.reasons.isNotEmpty)
             _kv(
-              '理由',
-              [for (final r in advice.reasons) _driveHudText.reasonLabel(r, 'ja')]
-                  .join(' · '),
+              l.driveHudReasonsLabel,
+              [
+                for (final r in advice.reasons)
+                  _driveHudText.reasonLabel(r, l.locale.languageCode)
+              ].join(' · '),
             ),
           // The package's own unknowns PLUS the app-owned ones it has no
           // channel for (advisory-lookup completeness, measured-feed
@@ -2019,18 +2023,18 @@ class _HomePageState extends State<HomePage> {
           // left to be inferred from a silent hazard floor.
           if (advice.unknowns.isNotEmpty || appUnknowns.isNotEmpty)
             _kv(
-              '不明な点',
+              l.driveHudUnknownsLabel,
               [
                 for (final u in advice.unknowns)
-                  _driveHudText.unknownLabel(u, 'ja'),
+                  _driveHudText.unknownLabel(u, l.locale.languageCode),
                 for (final u in appUnknowns) appUnknownLabel(u, l),
               ].join(' · '),
             ),
           if (advice.sightStoppingSpeedHintMps != null)
             _kv(
-              '目安速度',
+              l.driveHudGuideSpeedLabel,
               _driveHudText.sightHintLabel(
-                  advice.sightStoppingSpeedHintMps!, 'ja'),
+                  advice.sightStoppingSpeedHintMps!, l.locale.languageCode),
             ),
           const SizedBox(height: 8),
           // Announce status — honest reach bounds, keyed on the EFFECTIVE rung
