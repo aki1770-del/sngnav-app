@@ -352,29 +352,38 @@ DateTime? positionWatchdogPollTime({
   return now;
 }
 
-/// Whether a sharing session that began at [sharingStartedAt] has now gone
-/// past [bound] with no position event at all ([eventArrived] false).
+/// How long after the platform position stream is subscribed, with no
+/// position event of any kind, the words for "locating" stop being said
+/// (ruled 2026-09-14). A GPS receiver with no network assistance waits on the
+/// satellites' navigation message, broadcast at 50 bit/s in 1500-bit frames,
+/// 30 s a frame; 60 s is two frames. Past that, 「現在地を取得しています…」 /
+/// "Locating you…" is a promise the app has no evidence for. The watchdog
+/// ticks every 15 s, so the words change by 75 s at the latest.
+const Duration kFirstPositionWait = Duration(seconds: 60);
+
+/// Whether the position stream subscribed at [subscribedAt] has now gone
+/// [wait] with no position event at all ([eventArrived] false).
 ///
-/// The watchdog above never polls before a first event, because the permission
-/// dialog may still be on screen. That left one state with no words on her
-/// map: she shares, the platform stream subscribes, and nothing ever arrives.
-/// Measured 2026-09-13: ten minutes on, the map was 0.000% different from the
-/// map of a driver who never shared. [bound] defaults to
-/// `kPositionFirstEventBound`, the longest the real position stream can spend
-/// waiting on the platform's answers and on her dialog, every one of which
-/// ends in an event; so past it she is not being asked anything, and the map
-/// may say her position is unknown without speaking over a consent dialog.
+/// The watchdog above never polls before a first event. That left one state
+/// with no words on her map: she shares, the platform stream subscribes, and
+/// nothing ever arrives. Measured 2026-09-13: ten minutes on, the map was
+/// 0.000% different from the map of a driver who never shared.
+///
+/// The clock is the SUBSCRIPTION, never the tap: [subscribedAt] is null until
+/// the platform has answered the permission question and its stream is
+/// subscribed, so the time she spends on the permission dialog is hers and
+/// never counts.
 ///
 /// Top-level + public so the decision is testable off-device.
 bool positionFirstEventOverdue({
   required DateTime now,
-  required DateTime? sharingStartedAt,
+  required DateTime? subscribedAt,
   required bool eventArrived,
-  Duration bound = kPositionFirstEventBound,
+  Duration wait = kFirstPositionWait,
 }) =>
     !eventArrived &&
-    sharingStartedAt != null &&
-    now.difference(sharingStartedAt) >= bound;
+    subscribedAt != null &&
+    now.difference(subscribedAt) >= wait;
 
 /// N15 — the FEED-LOSS decision (JmaFailure / no successful fetch this cycle),
 /// extracted to ONE function so the VOICE path (`_announceWatchTransitions`)
@@ -946,13 +955,22 @@ class _HomePageState extends State<HomePage> {
   DateTime? _lastPositionEventAt;
   static const Duration _watchdogTickEvery = Duration(seconds: 15);
 
-  /// When she tapped share for the current sharing session, by [_now]; null
-  /// when she is not sharing real position.
-  DateTime? _herSharingStartedAt;
+  /// When the position stream of the current sharing session was subscribed,
+  /// by [_now]: for the real stream, once the platform has answered the
+  /// permission question; for an injected [HomePage.positionSource], when the
+  /// app listens to it, since that stream is the source itself. Null before
+  /// then and when she is not sharing.
+  DateTime? _herPositionStreamSubscribedAt;
+
+  /// Which sharing session a subscription callback belongs to. A stream from a
+  /// session she already stopped can still finish its permission wait and
+  /// subscribe; its callback must not start the clock of the next session.
+  int _herShareSession = 0;
 
   /// She is sharing and no position event has arrived within
-  /// `kPositionFirstEventBound` ([positionFirstEventOverdue]). Set by the
-  /// watchdog tick; the map then says 現在地不明 instead of nothing.
+  /// [kFirstPositionWait] of the subscription ([positionFirstEventOverdue]).
+  /// Set by the watchdog tick; the map then says 現在地不明 instead of
+  /// nothing, announced once to a screen reader.
   bool _herFirstEventOverdue = false;
 
   // B32 — the voice-lane + media-volume cautions were probed ONCE in
@@ -1452,15 +1470,25 @@ class _HomePageState extends State<HomePage> {
       _isMockPosition = false;
       _herAnchoredThisSession = false;
       _herLastTrustedThisSession = null;
-      _herSharingStartedAt = _now();
+      _herPositionStreamSubscribedAt = null;
       _herFirstEventOverdue = false;
     });
+    final session = ++_herShareSession;
     // B32 — drive start: re-probe BOTH eyes-off channels NOW (the initState
     // read may be app-open-hours old; the drive is when a mute matters — and
     // equally when a dead vibrator matters, for the driver who has nothing
     // else).
     _probeAlertChannelReadiness();
-    _herSub = (widget.positionSource ?? herPositionStream)().listen(
+    final injected = widget.positionSource;
+    _herSub = (injected ??
+            () => herPositionStream(
+                  onPlatformStreamSubscribed: () {
+                    if (mounted && session == _herShareSession) {
+                      _herPositionStreamSubscribedAt = _now();
+                    }
+                  },
+                ))()
+        .listen(
       _onPositionEvent,
       // D10 — an ERRORED event must land on the same honest surface an
       // honest unavailability does.
@@ -1487,6 +1515,10 @@ class _HomePageState extends State<HomePage> {
       onError: (Object e) =>
           _onPositionEvent(PositionUnavailable('GPS stream error: $e')),
     );
+    // An injected source is the position stream itself: it is subscribed now.
+    // The real stream reports its own subscription, after the permission
+    // answer, through the callback above.
+    if (injected != null) _herPositionStreamSubscribedAt = _now();
     // N8 — start the blackout watchdog for the real position feed.
     _positionWatchdog ??=
         Timer.periodic(_watchdogTickEvery, (_) => _watchdogTick());
@@ -1592,14 +1624,15 @@ class _HomePageState extends State<HomePage> {
   /// dot exactly like the demo button does.
   void _watchdogTick() {
     if (!mounted) return;
-    // Nothing has arrived for longer than the stream can wait on her: the map
-    // stops being silent. The drive brain is not fed anything: no event exists
-    // to feed it, and whether a silent feed should raise a caution is not
-    // decided here.
+    // Nothing has arrived for 60 s since the stream subscribed: the map stops
+    // being silent. The drive brain is not fed anything, so nothing alarms:
+    // no event exists to feed it, and whether a first fix that never comes
+    // should reach the alarm is not decided here (ruled 2026-09-14: landing
+    // these words must not make this state louder than it was).
     if (!_herFirstEventOverdue &&
         positionFirstEventOverdue(
           now: _now(),
-          sharingStartedAt: _herSharingStartedAt,
+          subscribedAt: _herPositionStreamSubscribedAt,
           eventArrived: _herFix != null,
         )) {
       setState(() => _herFirstEventOverdue = true);
@@ -1622,8 +1655,9 @@ class _HomePageState extends State<HomePage> {
     _positionWatchdog?.cancel();
     _positionWatchdog = null;
     _lastPositionEventAt = null;
-    _herSharingStartedAt = null;
+    _herPositionStreamSubscribedAt = null;
     _herFirstEventOverdue = false;
+    _herShareSession++;
     // B32 — the dev drive start re-probes too (symmetry with real start).
     _probeAlertChannelReadiness();
     final mockFix = PositionAvailable(
@@ -2245,10 +2279,11 @@ class _HomePageState extends State<HomePage> {
     _positionWatchdog?.cancel();
     _positionWatchdog = null;
     _lastPositionEventAt = null;
+    _herShareSession++;
     setState(() {
       _herFix = null;
       _isMockPosition = false;
-      _herSharingStartedAt = null;
+      _herPositionStreamSubscribedAt = null;
       _herFirstEventOverdue = false;
     });
   }
@@ -2939,7 +2974,7 @@ class _HomePageState extends State<HomePage> {
       estimate: _driveHud.estimate,
       isMock: _isMockPosition,
       anchoredThisSession: _herAnchoredThisSession,
-      firstEventOverdue: _herFirstEventOverdue,
+      noPositionYet: _herFirstEventOverdue,
     );
 
     return Scaffold(
@@ -2977,6 +3012,7 @@ class _HomePageState extends State<HomePage> {
                     positionDegraded: herMap.degraded,
                     positionLost: herMap.lost,
                     positionRefused: herMap.refused,
+                    positionNoneYet: herMap.noPositionYet,
                     mapController: _herMapController,
                     onMapEvent: _onHerMapEvent,
                     onMapReady: _onHerMapReady,
@@ -4290,10 +4326,10 @@ class _HomePageState extends State<HomePage> {
                 estimate.confidenceRadiusMeters.toStringAsFixed(0),
               );
     final (text, color) = switch (fix) {
-      // Past the time the stream can spend waiting on the platform or on her
-      // dialog, with nothing arrived: "locating" is no longer true. The words
-      // are the app's existing line for a position unknown with no trusted
-      // fix ever, the same state the map now names, and its colour.
+      // 60 s after the position stream subscribed, with nothing arrived:
+      // "locating" is a promise the app has no evidence for (ruled
+      // 2026-09-14). The app's existing line for a position unknown with no
+      // trusted fix ever, the state the map now names, in that line's colour.
       null when _herFirstEventOverdue => (
         l.positionLostStatus(double.infinity),
         Colors.blueGrey.shade700,

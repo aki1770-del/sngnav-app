@@ -37,6 +37,7 @@ class HerMapInputs {
     this.degraded = false,
     this.lost = false,
     this.refused = false,
+    this.noPositionYet = false,
   });
 
   /// Nothing to draw: no position event has arrived in this sharing session.
@@ -66,6 +67,13 @@ class HerMapInputs {
   /// map. That was true when it was written and stopped being true when the
   /// refusal got its own words.
   final bool refused;
+
+  /// She is sharing, the position stream subscribed, and no position event of
+  /// any kind has arrived within `kFirstPositionWait` (60 s) of the
+  /// subscription. Set together with [lost], so the map says 現在地不明 with
+  /// no mark; the map also announces the words once to a screen reader, as a
+  /// live region (ruled 2026-09-14).
+  final bool noPositionYet;
 }
 
 /// Whether the position [fix] that the drive brain has just taken became the
@@ -93,13 +101,11 @@ bool anchorsThisSession({
 /// controller's current [estimate], whether the position is the dev mock, and
 /// whether the controller's anchor was set in this sharing session.
 ///
-/// * [fix] `null` and [firstEventOverdue] → the words 現在地不明 and no ring.
-///   She is sharing, and no event has arrived for longer than the position
-///   stream can spend waiting on the platform or on her permission dialog
-///   (`kPositionFirstEventBound`). A stream that has said nothing that long
-///   has subscribed and not delivered, and a map with no words would read the
-///   same as a driver who never shared (measured 2026-09-13: 10 minutes,
-///   0.000% different).
+/// * [fix] `null` and [noPositionYet] → the words 現在地不明 and no ring. She
+///   is sharing, the position stream subscribed after the permission answer,
+///   and no event has arrived for 60 s since (`kFirstPositionWait`, ruled
+///   2026-09-14). Before this, a map with no words read the same as a driver
+///   who never shared (measured 2026-09-13: 10 minutes, 0.000% different).
 /// * [fix] `null` → nothing. No event has arrived in this sharing session: she
 ///   has not shared, has stopped, or the first event is still on its way. The
 ///   controller is not reset on stop, so its estimate may still be the last
@@ -125,11 +131,11 @@ HerMapInputs herMapInputs({
   required LocalizationEstimate? estimate,
   required bool isMock,
   required bool anchoredThisSession,
-  bool firstEventOverdue = false,
+  bool noPositionYet = false,
 }) {
   if (fix == null) {
-    return firstEventOverdue
-        ? const HerMapInputs(degraded: true, lost: true)
+    return noPositionYet
+        ? const HerMapInputs(degraded: true, lost: true, noPositionYet: true)
         : HerMapInputs.none;
   }
 

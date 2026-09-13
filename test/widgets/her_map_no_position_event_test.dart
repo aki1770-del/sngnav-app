@@ -1,33 +1,36 @@
-/// She shares, and no position event ever arrives. The map must not stay
-/// silent.
+/// She shares, the platform stream subscribes, and no position event ever
+/// arrives. The map must not stay silent, and must not alarm.
 ///
 /// Why this test exists. Rendered 2026-09-13 from the real app: ten minutes
 /// after sharing with no event, the map had no words and was 0.000% different
 /// from the map of a driver who never shared, under a line still reading
 /// 「現在地を取得しています…」. A platform stream that subscribes and never
-/// delivers (no sky, a head unit with no receiver, a source that stalls) looks
-/// exactly like that. An empty map can be read as nothing to worry about.
+/// delivers looks exactly like that, and an empty map can be read as nothing
+/// to worry about.
 ///
-/// Two causes. The blackout watchdog never polls before a first event, on
-/// purpose: before one, the permission dialog may still be on screen. And the
-/// stream has no first-fix timeout.
+/// The rule tested here is the one ruled 2026-09-14, with existing strings
+/// only:
 ///
-/// The rule tested here. While the position stream can still be waiting on
-/// the platform's answers or on her permission dialog, the map and the line
-/// stay as they are. The real stream bounds that wait by its own timeouts:
-/// two platform reads of 10 s each and a permission request of 2 minutes,
-/// 140 s in all. Past that, a stream that has said nothing is not waiting on
-/// her, and the map says 現在地不明 with the line under it saying her position
-/// is unknown and there is no last position. No new sentence: both are the
-/// app's existing words for a position that is unknown with no trusted fix.
-///
-/// The watchdog ticks every 15 s and reads the app's clock, so the words
-/// arrive on the first tick at or past 140 s: 150 s here.
+/// * Phase 1, from the subscription until 60 s with no event: the line says
+///   現在地を取得しています… / "Locating you…", the map has no mark and no
+///   words, the row offers 停止 / Stop.
+/// * Phase 2, no event 60 s after the subscription: the map says 現在地不明 /
+///   "Position unknown", the line says 現在地 不明 · 最後の位置 なし /
+///   "Position unknown · no last position", the row offers 停止 / Stop. The
+///   words change by 75 s at the latest (one 15 s watchdog tick).
+/// * The clock starts when the platform stream is subscribed, after the
+///   permission answer, never at the tap: time on the dialog is hers.
+/// * Cleared by any position event, by 停止, and by a new share.
+/// * A screen reader hears phase 2 once, as a live region.
+/// * Nothing alarms: no voice, no haptic, no caution rung, exactly as for a
+///   driver who never shared.
 library;
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SemanticsNode;
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart' show LocationPermission;
 import 'package:sngnav_app/her_position.dart';
@@ -60,25 +63,25 @@ Future<void> _advance(WidgetTester tester, Duration d) async {
   await tester.pump();
 }
 
-Future<StreamController<PositionFix>> _bootAndShare(
+Future<FakeAlertActuators> _boot(
   WidgetTester tester, {
+  Stream<PositionFix> Function()? source,
   String lang = 'ja',
 }) async {
   _clockNow = DateTime.utc(2026, 1, 14, 21);
-  final positions = StreamController<PositionFix>.broadcast();
+  final a = FakeAlertActuators();
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
   await tester.pumpWidget(SngnavApp(
-    actuators: FakeAlertActuators(),
+    actuators: a,
     locale: Locale(lang),
     clock: () => _clockNow,
     jmaFetch: () async => const JmaFailure('no network in this test'),
-    positionSource: () => positions.stream,
+    positionSource: source,
   ));
   await tester.pump();
   await tester.pump();
-  await _tapShare(tester);
-  return positions;
+  return a;
 }
 
 Future<void> _tapShare(WidgetTester tester) async {
@@ -97,59 +100,128 @@ String? _status(WidgetTester tester) {
 
 bool _anyMark() => _marks.any((k) => find.byKey(k).evaluate().isNotEmpty);
 
-void main() {
-  group('shared, and no position event arrives', () {
-    testWidgets(
-        'ten minutes on, the map says 現在地不明 and the line no longer says '
-        'it is locating', (tester) async {
-      final positions = await _bootAndShare(tester);
-      await _advance(tester, const Duration(minutes: 10));
+bool _rowOffers(String label) =>
+    find.widgetWithText(TextButton, label).evaluate().isNotEmpty;
 
-      expect(find.byKey(_unknownWords), findsOneWidget,
-          reason: 'the map is silent: ${_status(tester)}');
-      expect(_status(tester), '現在地 不明 · 最後の位置 なし');
-      expect(_anyMark(), isFalse, reason: 'no position exists to mark');
+void _expectPhase1(WidgetTester tester, String when) {
+  expect(_status(tester), '現在地を取得しています…', reason: when);
+  expect(find.byKey(_unknownWords), findsNothing, reason: when);
+  expect(_anyMark(), isFalse, reason: when);
+  expect(_rowOffers('停止'), isTrue, reason: when);
+}
+
+void _expectPhase2(WidgetTester tester, String when) {
+  expect(find.byKey(_unknownWords), findsOneWidget,
+      reason: '$when: the map is silent, line 「${_status(tester)}」');
+  expect(find.text('現在地不明'), findsOneWidget, reason: when);
+  expect(_status(tester), '現在地 不明 · 最後の位置 なし', reason: when);
+  expect(_anyMark(), isFalse, reason: '$when: no position exists to mark');
+  expect(_rowOffers('停止'), isTrue, reason: when);
+  expect(find.textContaining('取得しています'), findsNothing,
+      reason: '$when: no promise after 60 s');
+  expect(find.textContaining('GPS を取得できません'), findsNothing,
+      reason: '$when: no cause the app has not measured');
+  expect(find.byKey(_locationOffWords), findsNothing,
+      reason: '$when: permission was granted');
+}
+
+/// What she is given: every spoken line, every haptic, and every caution
+/// headline the card can show.
+String _given(WidgetTester tester, FakeAlertActuators a) {
+  final rungs = [
+    for (final t in const [
+      '停車の検討',
+      '注意して走行',
+      '特段の注意なし',
+      'Consider stopping',
+      'Heightened caution',
+      'No elevated caution',
+    ])
+      if (find.textContaining(t).evaluate().isNotEmpty) t,
+  ];
+  return 'spoken [${a.spoken.join(' | ')}] haptics [${a.haptics.join(' | ')}] '
+      'rungs [${rungs.join(' | ')}]';
+}
+
+/// Semantics nodes, anywhere in the tree, that are live regions and whose
+/// label carries [text]. The same measure as the refusal's live-region test.
+int _liveRegionsSaying(WidgetTester tester, String text) {
+  var node = tester.getSemantics(find.byType(Scaffold));
+  while (node.parent != null) {
+    node = node.parent!;
+  }
+  var n = 0;
+  void visit(SemanticsNode node) {
+    final data = node.getSemanticsData();
+    if (data.flagsCollection.isLiveRegion && data.label.contains(text)) n++;
+    node.visitChildren((child) {
+      visit(child);
+      return true;
+    });
+  }
+
+  visit(node);
+  return n;
+}
+
+void main() {
+  group('an injected stream that never emits (subscribed when the app listens)',
+      () {
+    testWidgets('phase 1 at 45 s; phase 2 by 75 s; still phase 2 at 10 min',
+        (tester) async {
+      final positions = StreamController<PositionFix>.broadcast();
+      await _boot(tester, source: () => positions.stream);
+      await _tapShare(tester);
+
+      await _advance(tester, const Duration(seconds: 45));
+      _expectPhase1(tester, 'at 45 s');
+
+      await _advance(tester, const Duration(seconds: 30));
+      _expectPhase2(tester, 'at 75 s');
+
+      await _advance(tester, const Duration(minutes: 9));
+      _expectPhase2(tester, 'at 10 min');
       await positions.close();
     });
 
     testWidgets('in English: "Position unknown", and the matching line',
         (tester) async {
-      final positions = await _bootAndShare(tester, lang: 'en');
-      await _advance(tester, const Duration(minutes: 10));
+      final positions = StreamController<PositionFix>.broadcast();
+      await _boot(tester, source: () => positions.stream, lang: 'en');
+      await _tapShare(tester);
+      await _advance(tester, const Duration(seconds: 75));
 
-      expect(find.byKey(_unknownWords), findsOneWidget);
       expect(find.text('Position unknown'), findsOneWidget);
       expect(_status(tester), 'Position unknown · no last position');
+      expect(_rowOffers('Stop'), isTrue);
       await positions.close();
     });
 
-    testWidgets(
-        'at 150 s, the first watchdog tick past the 140 s the real stream can '
-        'spend waiting on the platform and on her dialog, the words are there',
+    testWidgets('a screen reader hears phase 2 once, as a live region',
         (tester) async {
-      final positions = await _bootAndShare(tester);
-      await _advance(tester, const Duration(seconds: 150));
-      expect(find.byKey(_unknownWords), findsOneWidget);
-      await positions.close();
-    });
+      final semantics = tester.ensureSemantics();
+      final positions = StreamController<PositionFix>.broadcast();
+      await _boot(tester, source: () => positions.stream);
+      await _tapShare(tester);
+      await _advance(tester, const Duration(seconds: 45));
+      expect(_liveRegionsSaying(tester, '現在地不明'), 0, reason: 'phase 1');
 
-    testWidgets(
-        'CONTROL: at 135 s the permission dialog may still be on screen, so '
-        'the map has no words and the line still says it is locating',
-        (tester) async {
-      final positions = await _bootAndShare(tester);
-      await _advance(tester, const Duration(seconds: 135));
-      expect(find.byKey(_unknownWords), findsNothing);
-      expect(_status(tester), '現在地を取得しています…');
+      await _advance(tester, const Duration(seconds: 30));
+      expect(find.byKey(_unknownWords), findsOneWidget,
+          reason: 'precondition: phase 2');
+      expect(_liveRegionsSaying(tester, '現在地不明'), 1,
+          reason: 'exactly one live region carries the words');
       await positions.close();
+      semantics.dispose();
     });
 
     testWidgets('a first fix after the words: her dot is drawn and the words go',
         (tester) async {
-      final positions = await _bootAndShare(tester);
-      await _advance(tester, const Duration(minutes: 10));
-      expect(find.byKey(_unknownWords), findsOneWidget,
-          reason: 'precondition: the words were shown');
+      final positions = StreamController<PositionFix>.broadcast();
+      await _boot(tester, source: () => positions.stream);
+      await _tapShare(tester);
+      await _advance(tester, const Duration(seconds: 75));
+      _expectPhase2(tester, 'precondition');
 
       positions.add(PositionAvailable(
         latitude: 39.7167,
@@ -166,11 +238,13 @@ void main() {
       await positions.close();
     });
 
-    testWidgets('Stop, then share again: the wait starts over', (tester) async {
-      final positions = await _bootAndShare(tester);
-      await _advance(tester, const Duration(minutes: 10));
-      expect(find.byKey(_unknownWords), findsOneWidget,
-          reason: 'precondition: the words were shown');
+    testWidgets('停止, then share again: the clock restarts at the new '
+        'subscription', (tester) async {
+      final positions = StreamController<PositionFix>.broadcast();
+      await _boot(tester, source: () => positions.stream);
+      await _tapShare(tester);
+      await _advance(tester, const Duration(seconds: 75));
+      _expectPhase2(tester, 'precondition');
 
       final stop = find.widgetWithText(TextButton, '停止');
       await tester.ensureVisible(stop);
@@ -181,16 +255,35 @@ void main() {
           reason: 'not sharing: nothing to say about her position');
 
       await _tapShare(tester);
-      await _advance(tester, const Duration(seconds: 30));
-      expect(find.byKey(_unknownWords), findsNothing);
-      expect(_status(tester), '現在地を取得しています…');
+      await _advance(tester, const Duration(seconds: 45));
+      _expectPhase1(tester, '45 s after the new share');
+      await positions.close();
+    });
+
+    testWidgets(
+        'nothing alarms: at 10 min she is given exactly what a driver who '
+        'never shared is given', (tester) async {
+      var a = await _boot(tester);
+      await _advance(tester, const Duration(minutes: 10));
+      final neverShared = _given(tester, a);
+
+      final positions = StreamController<PositionFix>.broadcast();
+      a = await _boot(tester, source: () => positions.stream);
+      await _tapShare(tester);
+      await _advance(tester, const Duration(minutes: 10));
+      expect(find.byKey(_statusKey), findsOneWidget,
+          reason: 'precondition: she is sharing');
+
+      expect(_given(tester, a), neverShared);
       await positions.close();
     });
 
     testWidgets(
         'CONTROL: a location refusal still says 位置情報オフ, not 現在地不明, '
         'however long it stands', (tester) async {
-      final positions = await _bootAndShare(tester);
+      final positions = StreamController<PositionFix>.broadcast();
+      await _boot(tester, source: () => positions.stream);
+      await _tapShare(tester);
       final refusal = await tester.runAsync(() => herPositionStream(
             isServiceEnabled: () async => true,
             checkPermission: () async => LocationPermission.denied,
@@ -204,6 +297,62 @@ void main() {
       expect(find.byKey(_locationOffWords), findsOneWidget);
       expect(find.byKey(_unknownWords), findsNothing);
       await positions.close();
+    });
+  });
+
+  group('the app\'s own position stream, through the platform channels', () {
+    const method = MethodChannel('flutter.baseflow.com/geolocator');
+    const updates = EventChannel('flutter.baseflow.com/geolocator_updates');
+    TestDefaultBinaryMessenger messenger() =>
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+
+    tearDown(() {
+      messenger().setMockMethodCallHandler(method, null);
+      messenger().setMockStreamHandler(updates, null);
+    });
+
+    testWidgets(
+        'the clock starts at the subscription, never at the tap: 50 s on the '
+        'permission dialog do not count', (tester) async {
+      var listened = false;
+      messenger().setMockMethodCallHandler(method, (call) async {
+        switch (call.method) {
+          case 'isLocationServiceEnabled':
+            return true;
+          case 'checkPermission':
+            return 0; // denied: the app asks
+          case 'requestPermission':
+            // She reads the dialog for 50 s, then allows while in use.
+            await Future<void>.delayed(const Duration(seconds: 50));
+            return 2;
+        }
+        return null;
+      });
+      messenger().setMockStreamHandler(
+        updates,
+        MockStreamHandler.inline(onListen: (_, _) => listened = true),
+      );
+
+      await _boot(tester); // no injected source: the app's own stream
+      await _tapShare(tester);
+
+      await _advance(tester, const Duration(seconds: 45));
+      expect(listened, isFalse, reason: 'still on the dialog at 45 s');
+      _expectPhase1(tester, '45 s after the tap, on the dialog');
+
+      await _advance(tester, const Duration(seconds: 30));
+      expect(listened, isTrue,
+          reason: 'precondition: the platform stream is subscribed');
+      _expectPhase1(tester,
+          '75 s after the tap, under 60 s since the subscription: a clock '
+          'started at the tap would already have changed the words');
+
+      await _advance(tester, const Duration(seconds: 30));
+      _expectPhase1(tester, '105 s after the tap, under 60 s since the subscription');
+
+      await _advance(tester, const Duration(seconds: 30));
+      _expectPhase2(
+          tester, '135 s after the tap, within 75 s of the subscription');
     });
   });
 }

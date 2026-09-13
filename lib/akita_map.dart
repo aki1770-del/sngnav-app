@@ -33,6 +33,7 @@ class AkitaMap extends StatelessWidget {
     this.positionDegraded = false,
     this.positionLost = false,
     this.positionRefused = false,
+    this.positionNoneYet = false,
     this.baseTileProvider,
     this.mapController,
     this.onMapEvent,
@@ -84,6 +85,12 @@ class AkitaMap extends StatelessWidget {
   /// Location is off for this app: permission denied (`isLocationRefusal`).
   /// The map then says 位置情報オフ, whether or not [positionLost] is set.
   final bool positionRefused;
+
+  /// She is sharing and no position event has arrived within 60 s of the
+  /// position stream's subscription (with [positionLost] set). The words are
+  /// the lost words, 現在地不明, and a screen reader hears their arrival once,
+  /// as a live region, never through the alert announcer (ruled 2026-09-14).
+  final bool positionNoneYet;
 
   /// Optional offline-first basemap provider (offline_tiles'
   /// OfflineTileProvider). When supplied, the base TileLayer serves tiles from
@@ -231,6 +238,7 @@ class AkitaMap extends StatelessWidget {
               herPosition: herPosition,
               positionLost: positionLost,
               positionRefused: positionRefused,
+              positionNoneYet: positionNoneYet,
               // Half the drawn mark: ring 34 px, mock square 20 px, dot 22 px.
               markHalfExtent: (positionDegraded || positionLost)
                   ? 17
@@ -424,12 +432,14 @@ class _PositionWords extends StatelessWidget {
     required this.herPosition,
     required this.positionLost,
     required this.positionRefused,
+    this.positionNoneYet = false,
     required this.markHalfExtent,
   });
 
   final LatLng? herPosition;
   final bool positionLost;
   final bool positionRefused;
+  final bool positionNoneYet;
   final double markHalfExtent;
 
   @override
@@ -451,6 +461,9 @@ class _PositionWords extends StatelessWidget {
     } else if (positionLost) {
       words = l.positionUnknownLabel;
       key = const ValueKey('her-position-unknown-label');
+      // A share where no position arrived within 60 s of the subscription:
+      // the same words, heard once by a screen reader as they appear.
+      liveRegion = positionNoneYet;
     } else if (herPosition != null) {
       final camera = MapCamera.of(context);
       final p = camera.latLngToScreenOffset(herPosition!);
