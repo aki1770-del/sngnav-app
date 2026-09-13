@@ -44,7 +44,12 @@ import 'package:navigation_safety/navigation_safety.dart'
 import 'package:navigation_safety_core/navigation_safety_core.dart';
 import 'package:noaa_nws_adapter/noaa_nws_adapter.dart' show NoaaNwsClient;
 import 'package:routing_engine/routing_engine.dart'
-    show OsrmRoutingEngine, RouteManeuver, RouteRequest, RoutingException;
+    show
+        OsrmRoutingEngine,
+        RouteManeuver,
+        RouteRequest,
+        RoutingEngine,
+        RoutingException;
 import 'package:offline_tiles/offline_tiles.dart' as offline_tiles;
 import 'package:snow_rendering/snow_rendering.dart' as snow_rendering;
 import 'package:voice_guidance/voice_guidance.dart'
@@ -73,6 +78,7 @@ import 'l10n/app_localizations.dart';
 import 'corridor_row.dart';
 import 'her_position.dart';
 import 'jma_fetch.dart';
+import 'route_act.dart';
 import 'route_fetch.dart';
 import 'services/advisory_axis.dart';
 import 'services/advisory_service.dart';
@@ -586,6 +592,7 @@ class SngnavApp extends StatelessWidget {
     this.hapticReadinessProbe,
     this.clock,
     this.positionSource,
+    this.routingEngineFactory,
   });
 
   final AlertActuators? actuators;
@@ -620,6 +627,11 @@ class SngnavApp extends StatelessWidget {
   /// idiom as [jmaFetch]: lets tests drive the share-location → watchdog →
   /// stop lifecycle with a controlled stream, no geolocator plugin.
   final Stream<PositionFix> Function()? positionSource;
+
+  /// Injectable routing engine, built once per route request (null -> the
+  /// OSRM public demo engine). Lets tests render a fetched route: the test
+  /// binding answers every HTTP request with 400.
+  final RoutingEngine Function()? routingEngineFactory;
 
   @override
   Widget build(BuildContext context) {
@@ -671,6 +683,7 @@ class SngnavApp extends StatelessWidget {
         hapticReadinessProbe: hapticReadinessProbe,
         clock: clock,
         positionSource: positionSource,
+        routingEngineFactory: routingEngineFactory,
       ),
     );
   }
@@ -694,6 +707,7 @@ class HomePage extends StatefulWidget {
     this.hapticReadinessProbe,
     this.clock,
     this.positionSource,
+    this.routingEngineFactory,
   });
 
   /// Injectable actuator layer (null -> [defaultAlertActuators]).
@@ -752,6 +766,9 @@ class HomePage extends StatefulWidget {
 
   /// Injectable position source (null -> the real [herPositionStream]).
   final Stream<PositionFix> Function()? positionSource;
+
+  /// Injectable routing engine (null -> the OSRM public demo engine).
+  final RoutingEngine Function()? routingEngineFactory;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -991,7 +1008,8 @@ class _HomePageState extends State<HomePage> {
   List<JmaResult>? _corridorResults;
   bool _corridorLoading = false;
 
-  // Routing state — Slice 2b. Tap A → tap B → fetch → polyline.
+  // Routing state — Slice 2b: A and B → fetch → polyline. Chosen in the route
+  // act, never by a touch on her map (ruled 2026-09-14).
   LatLng? _origin;
   LatLng? _destination;
   RouteResult? _routeResult;
@@ -1592,8 +1610,9 @@ class _HomePageState extends State<HomePage> {
 
   /// A finger landing on the map pauses follow at that moment, before any
   /// gesture resolves: a trusted fix arriving under her finger must not move
-  /// the map she is touching (ruled 2026-09-13). A tap still sets its route
-  /// point; only her return control resumes follow.
+  /// the map she is touching (ruled 2026-09-13). A touch does nothing else: it
+  /// sets no route point and clears none (ruled 2026-09-14). Only her return
+  /// control resumes follow.
   void _onHerMapTouched() {
     if (_herMapFollowing) setState(() => _herMapFollowing = false);
   }
@@ -2660,25 +2679,35 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  void _handleMapTap(LatLng point) {
-    if (_origin == null) {
-      setState(() {
-        _origin = point;
-        _destination = null;
-        _routeResult = null;
-        _clearManeuverState();
-      });
-      return;
-    }
-    if (_destination == null) {
-      setState(() => _destination = point);
-      _fetchRoute();
-      return;
-    }
-    // Both set — start over with this tap as new origin.
+  /// Whether a route may be set here, and then only through the route act
+  /// (ruled 2026-09-14). Read at build, from the platform this build runs on.
+  bool get _routeSettingOpen => routeSettingOpen(routeSettingHost());
+
+  /// Opens the route act. Points she chooses there reach the page as she
+  /// chooses them, so closing the act keeps them; the route is asked for only
+  /// when the act returns from its get-route control.
+  Future<void> _openRouteAct() async {
+    if (!_routeSettingOpen) return;
+    final getRoute = await showDialog<bool>(
+      context: context,
+      builder: (_) => RouteActDialog(
+        origin: _origin,
+        destination: _destination,
+        baseTileProvider: _offlineBaseProvider,
+        onPointsChanged: _onRouteActPointsChanged,
+      ),
+    );
+    if (!mounted || getRoute != true) return;
+    _fetchRoute();
+  }
+
+  /// A point chosen or cleared in the route act. A route is for its own two
+  /// points, so any change ends the one shown.
+  void _onRouteActPointsChanged(LatLng? origin, LatLng? destination) {
+    if (!mounted) return;
     setState(() {
-      _origin = point;
-      _destination = null;
+      _origin = origin;
+      _destination = destination;
       _routeResult = null;
       _clearManeuverState();
     });
@@ -2816,7 +2845,8 @@ class _HomePageState extends State<HomePage> {
     // shape so the existing map + forecast wiring is untouched. No new feature
     // is added to routing_engine — it stays in maintenance-mode; this is pure
     // app-layer wiring to its existing surface.
-    final engine = OsrmRoutingEngine(baseUrl: _osrmDemoBaseUrl);
+    final engine = widget.routingEngineFactory?.call() ??
+        OsrmRoutingEngine(baseUrl: _osrmDemoBaseUrl);
     RouteResult result;
     var maneuvers = const <RouteManeuver>[];
     try {
@@ -3005,7 +3035,10 @@ class _HomePageState extends State<HomePage> {
                       RouteSuccess(:final points) => points,
                       _ => const [],
                     },
-                    onTap: _handleMapTap,
+                    // No onTap: a touch on her map sets no route point and
+                    // clears none (ruled 2026-09-14). One more tap used to
+                    // throw a set route away, and a tap is also the gesture
+                    // that pauses follow.
                     herPosition: herMap.position,
                     herAccuracyMeters: herMap.accuracyMeters,
                     isHerPositionMock: _isMockPosition,
@@ -3317,7 +3350,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Route — tap A then B (driving, no snow-aware yet)',
+              title: AppL10n.of(context).routeSectionTitle,
               child: _routePanel(),
             ),
             const SizedBox(height: 16),
@@ -4354,11 +4387,14 @@ class _HomePageState extends State<HomePage> {
       // the same words as the map. Read from the typed cause, never from the
       // reason text.
       PositionUnavailable() when isLocationRefusal(fix) => (
-        l.locationOffStatus(permanently: isPermanentLocationRefusal(fix)),
+        l.locationOffStatus(
+          permanently: isPermanentLocationRefusal(fix),
+          routeSettingOpen: _routeSettingOpen,
+        ),
         Colors.grey.shade700,
       ),
       PositionUnavailable(:final reason) => (
-        l.gpsUnavailable(reason),
+        l.gpsUnavailable(reason, routeSettingOpen: _routeSettingOpen),
         Colors.grey.shade700,
       ),
     };
@@ -4381,16 +4417,38 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// The route section. A route is set only through the route act, opened
+  /// from the control here, beside the ruled words; where route setting is
+  /// closed the words stand alone (ruled 2026-09-14). Nothing on her map
+  /// reaches this panel's state.
   Widget _routePanel() {
-    final hint = switch ((_origin, _destination)) {
-      (null, _) => 'Tap the map to set point A (origin).',
-      (_, null) => 'Tap again to set point B (destination).',
-      _ => 'A and B set. Tap anywhere to start over.',
-    };
+    final l = AppL10n.of(context);
+    final whenStopped = Text(
+      l.routeSettingWhenStopped,
+      key: const Key('route-setting-when-stopped'),
+      style: TextStyle(color: Colors.grey.shade800, fontSize: 12),
+    );
+    if (!_routeSettingOpen) {
+      return Column(
+        key: const Key('route-panel'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [whenStopped],
+      );
+    }
     return Column(
+      key: const Key('route-panel'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(hint, style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
+        whenStopped,
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: OutlinedButton.icon(
+            key: const Key('route-act-open'),
+            onPressed: _openRouteAct,
+            icon: const Icon(Icons.alt_route),
+            label: Text(l.routeActOpen),
+          ),
+        ),
         const SizedBox(height: 8),
         if (_routeLoading)
           const Padding(
@@ -4401,6 +4459,7 @@ class _HomePageState extends State<HomePage> {
           switch (_routeResult) {
             null => const SizedBox.shrink(),
             RouteSuccess(:final distanceMeters, :final durationSeconds) => Column(
+                key: const Key('route-summary'),
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _kv('Distance', '${(distanceMeters / 1000).toStringAsFixed(1)} km'),
@@ -4414,6 +4473,7 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             RouteFailure(:final reason) => Container(
+                key: const Key('route-fetch-failed'),
                 padding: const EdgeInsets.all(8),
                 color: Colors.red.shade50,
                 child: Text(
@@ -4485,10 +4545,11 @@ class _HomePageState extends State<HomePage> {
     final next = _nextManeuver;
     if (next == null) {
       return Text(
+        key: const Key('maneuver-placeholder'),
         _routeResult is RouteSuccess
             ? 'No turn-by-turn maneuvers in this route.'
-            : 'Tap A then B above to fetch a route; the next maneuver appears '
-                'here, narrated only when the position is trustworthy.',
+            : AppL10n.of(context)
+                .maneuverNoRouteYet(routeSettingOpen: _routeSettingOpen),
         style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
       );
     }
@@ -5310,7 +5371,7 @@ class _Footer extends StatelessWidget {
         'map_viewport_bloc — resolved versions in pubspec.lock). '
         'Akita station chosen because HER\'s mother lives there (V21). '
         'GPS shows position with honest accuracy; mock dot is amber (dev). '
-        'Routing via OSRM public demo (NOT snow-aware yet). '
+        'Routing via OSRM public demo (NOT snow-aware). '
         'Corridor weather = 5-station JMA verbatim (op-(e) aggregation only).',
         style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
         textAlign: TextAlign.center,

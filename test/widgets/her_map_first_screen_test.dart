@@ -83,7 +83,9 @@ void main() {
       'Map — Akita-shi (station 32402)',
       'Driver profile',
       'Live drive — compound-failure caution (WS6, auto)',
-      'Route — tap A then B (driving, no snow-aware yet)',
+      // Ruled 2026-09-14; was 'Route — tap A then B (driving, no
+      // snow-aware yet)' in both locales.
+      'ルート（雪を考慮しません）',
     ]) {
       expect(find.text(title), findsOneWidget, reason: title);
     }

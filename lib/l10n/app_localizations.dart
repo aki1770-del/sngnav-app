@@ -154,20 +154,93 @@ class AppL10n {
   /// said "this app is not allowed to access location" under a head that
   /// already said so, and now adds only that it is a permission, and this
   /// app's. Japanese unchanged.
-  String locationOffStatus({required bool permanently}) {
+  ///
+  /// [routeSettingOpen]: where route setting is closed (the IVI with no
+  /// vehicle signal, ruled 2026-09-14), the line must not say the route panel
+  /// works, so its last sentence is left out. It has no default: a line that
+  /// forgot to ask would say it.
+  String locationOffStatus({
+    required bool permanently,
+    required bool routeSettingOpen,
+  }) {
     final head = locationOffLabel;
     if (_ja) {
+      final route = routeSettingOpen ? _routePanelWorksJa : '';
       return permanently
           ? '$head'
-              ' — このアプリには位置情報へのアクセスが許可されていません。変更する場合は端末の設定から行えます。地図は表示されたままです。ルート欄はタップで引き続き使えます。'
+              ' — このアプリには位置情報へのアクセスが許可されていません。変更する場合は端末の設定から行えます。地図は表示されたままです。$route'
           : '$head'
-              ' — このアプリには位置情報へのアクセスが許可されていません。地図は表示されたままです。ルート欄はタップで引き続き使えます。';
+              ' — このアプリには位置情報へのアクセスが許可されていません。地図は表示されたままです。$route';
     }
+    final remains = routeSettingOpen
+        ? 'The map remains; the route panel still works by tap.'
+        : 'The map remains.';
     return permanently
         ? '$head'
-            ' — location permission is off for this app. If you want to change this, you can do so in the device settings. The map remains; the route panel still works by tap.'
+            ' — location permission is off for this app. If you want to change this, you can do so in the device settings. $remains'
         : '$head'
-            ' — location permission is off for this app. The map remains; the route panel still works by tap.';
+            ' — location permission is off for this app. $remains';
+  }
+
+  static const String _routePanelWorksJa = 'ルート欄はタップで引き続き使えます。';
+
+  // ===== Setting a route (ruled 2026-09-14) =====
+  //
+  // A touch on her map sets no route point and clears none. On a phone with
+  // no motion signal a route is set only through the route act, started from
+  // a control; on the IVI with no vehicle signal route setting is closed.
+
+  /// Shown where route setting is closed, and beside the route act. Ruled
+  /// 2026-09-14, byte-exact. It states the condition; it does not tell her to
+  /// stop the car.
+  String get routeSettingWhenStopped =>
+      _ja ? 'ルートは停車中に設定できます。' : 'Routes can be set when the car is stopped.';
+
+  /// The route section's title. Ruled 2026-09-14, byte-exact: no driving, no
+  /// gesture, no promise, and the snow condition once. Was 'Route — tap A then
+  /// B (driving, no snow-aware yet)' in both locales.
+  String get routeSectionTitle =>
+      _ja ? 'ルート（雪を考慮しません）' : 'Route (does not consider snow)';
+
+  /// The control that opens the route act, and the act's own title. Added
+  /// 2026-09-14, not yet reviewed on a render.
+  String get routeActOpen => _ja ? 'ルートを設定' : 'Set a route';
+
+  /// The route act's line before start A is chosen. Added 2026-09-14, not yet
+  /// reviewed on a render. "The map" is the act's own map, not hers.
+  String get routeActChooseStart => _ja
+      ? '地図をタップして出発地 A を選んでください。'
+      : 'Tap the map to choose start A.';
+
+  /// The route act's line before destination B is chosen. Added 2026-09-14,
+  /// not yet reviewed on a render.
+  String get routeActChooseDestination => _ja
+      ? '地図をタップして目的地 B を選んでください。'
+      : 'Tap the map to choose destination B.';
+
+  /// The route act's line with both points chosen. Added 2026-09-14, not yet
+  /// reviewed on a render.
+  String get routeActBothChosen =>
+      _ja ? 'A と B を選びました。' : 'A and B are chosen.';
+
+  /// The route act's control that clears both points. Added 2026-09-14, not
+  /// yet reviewed on a render.
+  String get routeActChooseAgain => _ja ? '選び直す' : 'Choose again';
+
+  /// The route act's control that asks for the route. Added 2026-09-14, not yet
+  /// reviewed on a render.
+  String get routeActGetRoute => _ja ? 'ルートを取得' : 'Get route';
+
+  /// The maneuver panel's line before any route. Its English said "Tap A then
+  /// B above to fetch a route", a gesture that sets nothing since 2026-09-14.
+  /// Where route setting is closed it offers nothing. Added 2026-09-14, not yet
+  /// reviewed on a render.
+  String maneuverNoRouteYet({required bool routeSettingOpen}) {
+    if (!routeSettingOpen) return _ja ? 'ルートはありません。' : 'No route.';
+    return _ja
+        ? '上の「ルートを設定」でルートを取得すると、次の案内がここに表示されます。読み上げは現在地が信頼できるときだけです。'
+        : 'Set a route above; the next maneuver appears here, narrated only '
+            'when the position is trustworthy.';
   }
 
   // ===== Live drive panel: its row labels and the compounding note =====
@@ -223,11 +296,18 @@ class AppL10n {
   /// GPS-unavailable line. The [reason] is produced by the geolocator layer
   /// (her_position.dart) as English; [_localizeReason] maps the known cases
   /// into HER language and passes anything unrecognized through honestly.
-  String gpsUnavailable(String reason) {
+  ///
+  /// [routeSettingOpen]: as for [locationOffStatus], the route panel's sentence
+  /// is left out where route setting is closed.
+  String gpsUnavailable(String reason, {required bool routeSettingOpen}) {
     final r = _localizeReason(reason);
-    return _ja
-        ? 'GPS を取得できません — $r。地図は表示されたままです。ルート欄はタップで引き続き使えます。'
-        : 'GPS unavailable — $r. The map remains; the route panel still works by tap.';
+    if (_ja) {
+      return 'GPS を取得できません — $r。地図は表示されたままです。'
+          '${routeSettingOpen ? _routePanelWorksJa : ''}';
+    }
+    return routeSettingOpen
+        ? 'GPS unavailable — $r. The map remains; the route panel still works by tap.'
+        : 'GPS unavailable — $r. The map remains.';
   }
 
   /// Maps the known [PositionUnavailable] reasons (defined verbatim in

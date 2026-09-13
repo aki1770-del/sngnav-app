@@ -314,10 +314,14 @@ void main() {
   });
 
   group('a hand pauses follow; only her return control resumes it', () {
+    // Amended 2026-09-14: a touch on her map sets no route point (ruled that
+    // day). Until then this test's control was that the same gesture set
+    // route start A, which it did at 7e9cd29: so this gesture resolves as a
+    // tap, and a map that set a point on a tap would fail the check below.
     testWidgets(
         'a touch pauses follow the moment her finger lands: a trusted fix '
         'arriving under her finger leaves the camera where it was; the tap '
-        'still sets route start A; return then brings her back', (tester) async {
+        'sets no route point; return then brings her back', (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
       await fixAt(tester, _r13At0km, 10);
@@ -337,8 +341,8 @@ void main() {
       expect(
           find.descendant(
               of: find.byType(AkitaMap), matching: find.text('A')),
-          findsOneWidget,
-          reason: 'control: the touch resolved as a tap and set route start');
+          findsNothing,
+          reason: 'a touch on her map sets no route point');
       expectCameraAt(tester, _r13At0km, reason: 'still paused after the tap');
       expect(find.byKey(_returnKey), findsOneWidget);
 

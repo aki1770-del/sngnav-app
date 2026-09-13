@@ -123,11 +123,11 @@ void main() {
       expect(const AppL10n(Locale('fr')).shareMyLocation, 'Share my location');
       // gpsUnavailable localizes the known geolocator reason for HER.
       expect(
-        ja.gpsUnavailable('Location permission denied'),
+        ja.gpsUnavailable('Location permission denied', routeSettingOpen: true),
         contains('位置情報の許可が拒否されました'),
       );
       // Unknown reason passes through honestly (no fabricated translation).
-      expect(ja.gpsUnavailable('weird novel reason'),
+      expect(ja.gpsUnavailable('weird novel reason', routeSettingOpen: true),
           contains('weird novel reason'));
     });
 
@@ -152,7 +152,7 @@ void main() {
         'GPS init error: boom',
       ];
       for (final reason in reasons) {
-        final line = ja.gpsUnavailable(reason);
+        final line = ja.gpsUnavailable(reason, routeSettingOpen: true);
         expect(
           // No ASCII letter runs from the original reason may survive into
           // HER line (the wrapper text itself is pure ja + punctuation).

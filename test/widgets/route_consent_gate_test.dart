@@ -1,9 +1,10 @@
 // B27 — the pre-send consent gate at the OSRM coordinate egress.
 //
-// Proves, in the REAL app widget tree (SngnavApp → HomePage → AkitaMap tap
-// path → _fetchRoute):
-//   1. Setting A then B raises the ja-primary consent dialog BEFORE any
-//      request — no loading spinner, no route result, until she answers.
+// Proves, in the REAL app widget tree (SngnavApp → HomePage → route act →
+// _fetchRoute):
+//   1. Choosing A then B and asking for the route raises the ja-primary
+//      consent dialog BEFORE any request — no loading spinner, no route
+//      result, until she answers.
 //   2. Decline → NO fetch: the honest neutral declined state renders (never
 //      the red error container), and a change-choice path back exists.
 //   3. Change-choice re-asks; accept → the fetch actually fires (in the
@@ -12,6 +13,11 @@
 //      container — which is exactly the proof the wire was tried only
 //      after consent).
 //   4. en locale renders the English dialog body naming the real host.
+//
+// Amended 2026-09-14: a touch on her map no longer sets route points,
+// so A and B are chosen in the route act, on the act's own map, and the route
+// is asked for with 「ルートを取得」. The consent gate itself is unchanged. The
+// failure container is found by its key, because its words follow the locale.
 //
 // HONESTY (OPS-066): this verifies the widget-tree gate in the test binding.
 // No device; no real OSRM traffic is possible here (HTTP is stubbed to 400
@@ -27,8 +33,9 @@ import 'package:sngnav_app/main.dart';
 
 const jaL10n = AppL10n(Locale('ja'));
 
-/// Taps the map twice (A then B) at two distinct on-screen points, then
-/// pumps far enough for the consent dialog to be up (if it is going to be).
+/// Opens the route act, chooses A then B on the act's map where not yet
+/// chosen, and asks for the route; then pumps far enough for the consent
+/// dialog to be up (if it is going to be).
 ///
 /// Timing is load-bearing (measured with a probe, not guessed):
 /// - flutter_map holds each tap ~300 ms for double-tap-zoom disambiguation,
@@ -38,15 +45,29 @@ const jaL10n = AppL10n(Locale('ja'));
 ///   (getApplicationDocumentsDirectory never completes in the test zone),
 ///   and the dialog route needs its own build + animation frames.
 Future<void> setAThenB(WidgetTester tester) async {
-  // The map section can sit below the 800x600 test viewport; a tapAt on an
-  // off-screen rect would hit nothing and the gate would never be exercised.
-  await tester.ensureVisible(find.byType(AkitaMap));
+  final open = find.byKey(const Key('route-act-open'));
+  await tester.ensureVisible(open);
   await tester.pump();
-  final rect = tester.getRect(find.byType(AkitaMap));
-  await tester.tapAt(rect.center - const Offset(100, 40));
-  await tester.pump(const Duration(milliseconds: 350));
-  await tester.tapAt(rect.center + const Offset(100, 40));
-  await tester.pump(const Duration(milliseconds: 350));
+  await tester.tap(open);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+  final actMap = find.descendant(
+      of: find.byType(Dialog), matching: find.byType(AkitaMap));
+  final rect = tester.getRect(actMap);
+  for (final (letter, offset) in const [
+    ('A', Offset(-100, -40)),
+    ('B', Offset(100, 40)),
+  ]) {
+    if (find.descendant(of: actMap, matching: find.text(letter))
+        .evaluate()
+        .isEmpty) {
+      await tester.tapAt(rect.center + offset);
+      await tester.pump(const Duration(milliseconds: 350));
+    }
+  }
+  await tester.tap(find.byKey(const Key('route-act-get-route')));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
   // Store-construction timeout (2 s) + dialog build + animation.
   await tester.pump(const Duration(seconds: 3));
   await tester.pump(const Duration(milliseconds: 300));
@@ -70,7 +91,7 @@ void main() {
     // NOTHING was sent or attempted while the question is open: no spinner,
     // no result of any kind.
     expect(find.byType(CircularProgressIndicator), findsNothing);
-    expect(find.textContaining('Route fetch failed'), findsNothing);
+    expect(find.byKey(const Key('route-fetch-failed')), findsNothing);
     expect(find.byKey(const Key('route-consent-declined')), findsNothing);
 
     // Decline.
@@ -82,7 +103,7 @@ void main() {
     // the red error container (the router did not fail; it was never asked).
     expect(find.byKey(const Key('route-consent-declined')), findsOneWidget);
     expect(find.text(jaL10n.routeConsentDeclinedMessage), findsOneWidget);
-    expect(find.textContaining('Route fetch failed'), findsNothing);
+    expect(find.byKey(const Key('route-fetch-failed')), findsNothing);
     // The path back from a remembered "no".
     expect(find.byKey(const Key('route-consent-change')), findsOneWidget);
 
@@ -120,7 +141,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.byKey(const Key('route-consent-declined')), findsNothing);
-    expect(find.textContaining('Route fetch failed'), findsOneWidget);
+    expect(find.byKey(const Key('route-fetch-failed')), findsOneWidget);
 
     // Drain the fire-and-forget persist timers (decline + accept each start
     // a 2 s store-construction timeout) so teardown sees no pending timers.
@@ -140,9 +161,9 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byKey(const Key('route-consent-body')), findsNothing);
-    expect(find.textContaining('Route fetch failed'), findsNothing);
+    expect(find.byKey(const Key('route-fetch-failed')), findsNothing);
 
-    // Start over: tap sets a new A, then B — the question comes back.
+    // Ask again: A and B are kept, and the question comes back.
     await setAThenB(tester);
     expect(find.byKey(const Key('route-consent-body')), findsOneWidget);
   });

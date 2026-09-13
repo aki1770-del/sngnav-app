@@ -46,7 +46,7 @@ void main() {
   group('a wrapped exception text is the failure the wrapper names', () {
     for (final inner in _contentReasons) {
       test('GPS stream error: "$inner"', () {
-        final line = ja.gpsUnavailable('GPS stream error: $inner');
+        final line = ja.gpsUnavailable('GPS stream error: $inner', routeSettingOpen: true);
         expect(line, contains('GPSストリームのエラー'),
             reason: 'the wrapper says stream error: $line');
         expect(line, isNot(contains('拒否')), reason: line);
@@ -54,7 +54,7 @@ void main() {
         expect(line, isNot(contains('時間がかかりすぎ')), reason: line);
       });
       test('GPS init error: "$inner"', () {
-        final line = ja.gpsUnavailable('GPS init error: $inner');
+        final line = ja.gpsUnavailable('GPS init error: $inner', routeSettingOpen: true);
         expect(line, contains('GPS初期化のエラー'),
             reason: 'the wrapper says init error: $line');
         expect(line, isNot(contains('拒否')), reason: line);
@@ -63,11 +63,11 @@ void main() {
     }
 
     test('CONTROL: an unwrapped reason keeps its own translation', () {
-      expect(ja.gpsUnavailable('Location services disabled'),
+      expect(ja.gpsUnavailable('Location services disabled', routeSettingOpen: true),
           contains('位置情報サービスが無効です'));
-      expect(ja.gpsUnavailable('GPS stream ended by the platform'),
+      expect(ja.gpsUnavailable('GPS stream ended by the platform', routeSettingOpen: true),
           contains('GPSの受信が端末側で終了しました'));
-      expect(ja.gpsUnavailable('GPS stream error: boom'),
+      expect(ja.gpsUnavailable('GPS stream error: boom', routeSettingOpen: true),
           contains('GPSストリームのエラー'));
     });
   });

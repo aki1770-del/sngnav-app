@@ -31,14 +31,14 @@ void main() {
   group('the refusal line', () {
     test('English, denied', () {
       expect(
-        en.locationOffStatus(permanently: false),
+        en.locationOffStatus(permanently: false, routeSettingOpen: true),
         'No location access — location permission is off for this app. '
         'The map remains; the route panel still works by tap.',
       );
     });
     test('English, denied for good', () {
       expect(
-        en.locationOffStatus(permanently: true),
+        en.locationOffStatus(permanently: true, routeSettingOpen: true),
         'No location access — location permission is off for this app. '
         'If you want to change this, you can do so in the device settings. '
         'The map remains; the route panel still works by tap.',
@@ -46,18 +46,18 @@ void main() {
     });
     test('the English line still starts with the words on the map', () {
       for (final permanently in const [false, true]) {
-        expect(en.locationOffStatus(permanently: permanently),
+        expect(en.locationOffStatus(permanently: permanently, routeSettingOpen: true),
             startsWith('${en.locationOffLabel} — '));
       }
     });
     test('Japanese unchanged', () {
       expect(
-        ja.locationOffStatus(permanently: false),
+        ja.locationOffStatus(permanently: false, routeSettingOpen: true),
         '位置情報オフ — このアプリには位置情報へのアクセスが許可されていません。'
         '地図は表示されたままです。ルート欄はタップで引き続き使えます。',
       );
       expect(
-        ja.locationOffStatus(permanently: true),
+        ja.locationOffStatus(permanently: true, routeSettingOpen: true),
         '位置情報オフ — このアプリには位置情報へのアクセスが許可されていません。'
         '変更する場合は端末の設定から行えます。'
         '地図は表示されたままです。ルート欄はタップで引き続き使えます。',
