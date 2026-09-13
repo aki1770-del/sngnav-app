@@ -104,7 +104,10 @@ class DriveHudController extends ChangeNotifier {
   /// Pre-selected single most-severe in-area advisory, or `null` = none.
   AdvisoryLevel? advisorySeverity;
 
-  /// Current ground speed in m/s, or `null` = unknown.
+  /// Ground speed in m/s given to the caution advisor, or `null` = unknown.
+  ///
+  /// The advisor's alone since 2026-09-14: her ring's growth rate comes from
+  /// each fix ([PositionAvailable.speedFloorMps]), never from this field.
   double? speedMetersPerSecond;
 
   /// The measured local-weather hazard floor from the app's own JMA watches
@@ -193,10 +196,19 @@ class DriveHudController extends ChangeNotifier {
     _estimate = _localizer.onPositionFix(
       fix,
       t,
-      speedMps: speedMetersPerSecond,
+      // Her ring grows at least as fast as the platform measured her moving
+      // at this fix (ruled 2026-09-14), read from the fix itself. At a default
+      // 2.0 m/s, 30 s into a blackout at 25 m/s, the map was told 70 m while
+      // she could be 775 m away. [speedMetersPerSecond] stays the advisor's
+      // alone, and the app gives it none.
+      speedMps: fix is PositionAvailable ? fix.speedFloorMps : null,
     );
     _recompute();
   }
+
+  /// Whether [fix] would be taken as a trusted fix if fed now
+  /// ([DriveLocalizer.wouldTrust]). Asking feeds nothing.
+  bool wouldTrust(PositionFix fix) => _localizer.wouldTrust(fix);
 
   /// Advance the honest position during a blackout (no fix this tick) so the
   /// radius grows and the mode can reach `lost`.
@@ -333,8 +345,9 @@ class DriveHudController extends ChangeNotifier {
   ManeuverNarration narrateNextManeuver(
     RouteManeuver maneuver, {
     required bool icyTurn,
+    bool positionIsThisShares = true,
   }) {
-    final mode = _estimate?.mode ?? LocalizationMode.lost;
+    final mode = _modeForNarration(positionIsThisShares);
     final decision = _narrator.decide(
       maneuver: maneuver,
       mode: mode,
@@ -358,8 +371,9 @@ class DriveHudController extends ChangeNotifier {
   ManeuverNarration previewNextManeuver(
     RouteManeuver maneuver, {
     required bool icyTurn,
+    bool positionIsThisShares = true,
   }) {
-    final mode = _estimate?.mode ?? LocalizationMode.lost;
+    final mode = _modeForNarration(positionIsThisShares);
     return _narrator.decide(
       maneuver: maneuver,
       mode: mode,
@@ -367,6 +381,15 @@ class DriveHudController extends ChangeNotifier {
       localeTag: localeTag,
     );
   }
+
+  /// The position mode a maneuver is narrated against. When the caller says
+  /// the estimate held is not this share's ([positionIsThisShares] false), it
+  /// is narrated as `lost`: the controller is not reset between shares, and an
+  /// earlier drive's trusted estimate says nothing about where she is now.
+  LocalizationMode _modeForNarration(bool positionIsThisShares) =>
+      positionIsThisShares
+          ? _estimate?.mode ?? LocalizationMode.lost
+          : LocalizationMode.lost;
 
   /// Map the advisory-only caution rung to the actuator severity gate.
   ///

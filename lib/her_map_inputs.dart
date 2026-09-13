@@ -114,6 +114,10 @@ bool anchorsThisSession({
 ///   tool, not a live position claim (same rule as `_herPositionDegraded`).
 /// * An unavailability that is not a refusal, with [anchoredThisSession] false
 ///   → the words 現在地不明 and no ring, whatever [estimate] is, even null.
+/// * [notGivenToDriveBrain], with [anchoredThisSession] false → the words
+///   現在地不明 and no mark, whatever [estimate] is: a position the drive brain
+///   was not given, because it would not have been a trusted fix (a sample
+///   the controller would refuse, or one no newer than its anchor).
 /// * Estimate dead-reckoning or `lost`, and [anchoredThisSession] false → no
 ///   ring and the words 現在地不明. The controller is degrading from an anchor
 ///   no event of this session set (the previous drive, or the dev mock), and
@@ -132,6 +136,7 @@ HerMapInputs herMapInputs({
   required bool isMock,
   required bool anchoredThisSession,
   bool noPositionYet = false,
+  bool notGivenToDriveBrain = false,
 }) {
   if (fix == null) {
     return noPositionYet
@@ -156,10 +161,27 @@ HerMapInputs herMapInputs({
     return const HerMapInputs(degraded: true, lost: true);
   }
 
+  // An event the drive brain was not given (ruled 2026-09-14): before this
+  // session's first trusted fix, one that would not become that fix is held
+  // back from the drive brain. It is not a position the loom vouches for, so
+  // the map draws no mark of it and says 現在地不明, whatever [estimate] still
+  // holds from an earlier session. Fed, the same event reads here as
+  // dead reckoning or lost from no anchor of this session: the same words.
+  if (notGivenToDriveBrain && !isMock && !refused && !anchoredThisSession) {
+    return const HerMapInputs(degraded: true, lost: true);
+  }
+
   final mode = estimate?.mode;
   final unlocatable =
       mode == LocalizationMode.deadReckoning || mode == LocalizationMode.lost;
   if (isMock || estimate == null || !unlocatable) {
+    // A sample with no measured accuracy is never drawn from its own
+    // coordinates, whatever the drive brain holds (ruled 2026-09-14): not a
+    // mark, not a ring. Given to the brain, it degrades from the anchor, and
+    // the branch below draws that anchor's ring, not confident.
+    if (!isMock && fix is PositionAvailable && fix.accuracyMeters == null) {
+      return HerMapInputs(degraded: true, lost: true, refused: refused);
+    }
     return HerMapInputs(
       position: fixPosition,
       accuracyMeters: fixAccuracy,

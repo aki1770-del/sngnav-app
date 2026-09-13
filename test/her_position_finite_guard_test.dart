@@ -37,9 +37,13 @@ void main() {
       expect(p.timestamp, ts);
     });
 
-    test('zero accuracy is finite — left to flow (not over-guarded)', () {
-      // Zero accuracy is suspicious but isFinite; the accuracy circle tells
-      // that truth. Matching the sibling pattern, only non-finite is guarded.
+    test('a flagged zero accuracy is a measurement — it flows (not over-guarded)',
+        () {
+      // A zero the platform flags as measured is believed, and only non-finite
+      // is turned into an unavailability here. Corrected 2026-09-14: this test
+      // was named "zero accuracy is finite — left to flow" and said the circle
+      // tells that truth. An UNFLAGGED zero is a placeholder and never arrives
+      // here as a number: the stream passes null for it.
       final fix = fixFromSample(
         latitude: 35.0,
         longitude: 136.0,

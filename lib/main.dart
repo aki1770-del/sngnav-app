@@ -84,6 +84,7 @@ import 'services/advisory_axis.dart';
 import 'services/advisory_service.dart';
 import 'services/app_unknowns.dart';
 import 'services/drive_hud_controller.dart';
+import 'services/drive_safety_fusion.dart' show measuredConditionRaisesCaution;
 import 'services/error_log.dart';
 import 'services/log_share.dart';
 import 'services/drive_diary.dart';
@@ -348,7 +349,7 @@ DateTime? positionWatchdogPollTime({
   required DateTime now,
   required DateTime? lastPositionEventAt,
   required DateTime? demoClock,
-  Duration cadence = const Duration(seconds: 30),
+  Duration cadence = kPositionDrought,
 }) {
   // Nothing ever fed: polling would fabricate a degradation for a drive that
   // has not started (e.g. the permission dialog is still up).
@@ -1050,6 +1051,38 @@ class _HomePageState extends State<HomePage> {
   /// from the dev mock (2026-09-13).
   bool _herAnchoredThisSession = false;
 
+  /// The last event of THIS sharing session that the drive brain was not
+  /// given, or `null`. Before the session's first trusted fix, an event that
+  /// would not be that fix is held back unless a measured condition raises
+  /// caution (ruled 2026-09-14): a failure that has not measured the road does
+  /// not reach the caution rung by itself. Held, not dropped: a measured
+  /// condition that arrives later still gives it to the drive brain.
+  PositionFix? _herHeldEvent;
+
+  /// Whether the drive brain has been given any event of THIS sharing session.
+  /// The brain is not reset between sessions (a replayed fix must keep meeting
+  /// the anchor it is no newer than), so until this is true what it holds is
+  /// an earlier session's, and no surface shows it as this one's.
+  bool _herFedThisShare = false;
+
+  /// While she shares, whether the drive brain holds anything of this session.
+  /// When not sharing, its state is whatever the last feed left, as before.
+  bool get _driveHudIsThisShares => _herSub == null || _herFedThisShare;
+
+  /// What THIS sharing session has measured about motion, for route setting
+  /// (ruled 2026-09-14). A new session starts with none, and so does her "no"
+  /// to location: with no session there is no motion evidence, and a driver
+  /// who needs to plan in a GPS drought can end sharing to do it.
+  ShareMotion _shareMotion = ShareMotion.none;
+
+  /// How many moving readings have arrived. An open route act closes itself
+  /// when this changes: only measured motion closes an act she is in.
+  final ValueNotifier<int> _movingReadings = ValueNotifier<int>(0);
+
+  /// [_routeSettingOpen] as the route panel was last built, so the watchdog's
+  /// tick rebuilds only when a stop has aged out.
+  bool? _routeSettingOpenBuilt;
+
   /// HER map's camera. Until 2026-09-13 nothing moved it but a hand: 8.2 km
   /// out along Route 13 the map held no mark of her in any mode. The rules are
   /// in `her_map_follow.dart`.
@@ -1478,6 +1511,7 @@ class _HomePageState extends State<HomePage> {
     _viewportBloc?.close();
     _nwsClient.close();
     _herMapController.dispose();
+    _movingReadings.dispose();
     super.dispose();
   }
 
@@ -1490,6 +1524,9 @@ class _HomePageState extends State<HomePage> {
       _herLastTrustedThisSession = null;
       _herPositionStreamSubscribedAt = null;
       _herFirstEventOverdue = false;
+      _herHeldEvent = null;
+      _herFedThisShare = false;
+      _shareMotion = ShareMotion.none;
     });
     final session = ++_herShareSession;
     // B32 — drive start: re-probe BOTH eyes-off channels NOW (the initState
@@ -1565,9 +1602,38 @@ class _HomePageState extends State<HomePage> {
       _positionWatchdog?.cancel();
       _positionWatchdog = null;
       _lastPositionEventAt = null;
-      setState(() => _herFix = fix);
+      _herHeldEvent = null;
+      setState(() {
+        _herFix = fix;
+        _shareMotion = ShareMotion.none;
+      });
       return;
     }
+    // Before this session's first trusted fix, an event that would not be
+    // that fix is not given to the drive brain, unless a measured condition
+    // raises caution (ruled 2026-09-14). With no trusted fix ever, the brain
+    // rates "no position at all" its top concern and always speaks it: a
+    // failed start or location services off got the critical haptic, the line
+    // inviting her to stop and 停車の検討, identically in a measured clear
+    // 1,500 m and a measured 80 m whiteout, while a driver who never shared
+    // got none of it. The map still says 現在地不明.
+    //
+    // Keyed on the session having no trusted fix, never on the event's type:
+    // a sample the brain would refuse (an iOS accuracy of -1) or a fix no
+    // newer than an earlier session's anchor is no position either, and a
+    // gate that asked only "is it an unavailability?" would still give both
+    // to the drive brain, which refuses them. The watchdog stays armed; its
+    // clock is started only by an event the brain is given.
+    if (!_herAnchoredThisSession &&
+        !_driveHud.wouldTrust(fix) &&
+        !_measuredConditionRaisesCaution()) {
+      _herHeldEvent = fix;
+      setState(() => _herFix = fix);
+      _maybeRefreshAdvisoriesForFix(fix);
+      _readMotion(fix, onTrustedFix: false);
+      return;
+    }
+    _herHeldEvent = null;
     // N8 — any event (fix OR honest unavailability) proves the position
     // pipeline is alive and feeding the drive brain itself; the watchdog
     // only covers the SILENT drought where nothing arrives at all.
@@ -1575,14 +1641,17 @@ class _HomePageState extends State<HomePage> {
     setState(() => _herFix = fix);
     _maybeRefreshAdvisoriesForFix(fix);
     _feedDriveHud(fix);
+    _herFedThisShare = true;
     // After the drive brain has taken the event: did it become the anchor?
-    if (anchorsThisSession(
+    final trusted = anchorsThisSession(
       fix: fix,
       estimate: _driveHud.estimate,
       isMock: _isMockPosition,
-    )) {
+    );
+    if (trusted) {
       setState(() => _herAnchoredThisSession = true);
     }
+    _readMotion(fix, onTrustedFix: trusted);
     // Follow: only a trusted fix is a place to move the camera to.
     final target = followTargetAfter(
       fix: fix,
@@ -1666,6 +1735,13 @@ class _HomePageState extends State<HomePage> {
           ?.add(Duration(seconds: _blackoutSeconds)),
     );
     if (pollAt != null) _driveHud.poll(now: pollAt);
+    // A stop is current for no longer than the drought cadence (ruled
+    // 2026-09-14), checked here on the same tick, so route setting closes
+    // when a stop ages out even if no event arrives to rebuild the page.
+    if (_routeSettingOpenBuilt != null &&
+        _routeSettingOpenBuilt != _routeSettingOpen) {
+      setState(() {});
+    }
   }
 
   void _useMockPosition() {
@@ -1679,6 +1755,7 @@ class _HomePageState extends State<HomePage> {
     _lastPositionEventAt = null;
     _herPositionStreamSubscribedAt = null;
     _herFirstEventOverdue = false;
+    _herHeldEvent = null;
     _herShareSession++;
     // B32 — the dev drive start re-probes too (symmetry with real start).
     _probeAlertChannelReadiness();
@@ -1743,11 +1820,16 @@ class _HomePageState extends State<HomePage> {
     _driveHud.visibilityMeters = _effectiveVisibilityMeters;
     _driveHud.visibilityAgeSeconds = _effectiveVisibilityAgeSeconds();
     _driveHud.advisorySeverity = readAdvisoryAxis(_advisoryResult).level;
+    // Never her speed (ruled 2026-09-14): with no visibility reading the
+    // advisor counts the missing reading as a degraded condition, and a known
+    // speed above 13.4 m/s spoke a caution with a haptic on an ordinary drive.
+    // Her ring takes the speed from the fix itself.
     _driveHud.speedMetersPerSecond = null;
     _driveHud.measuredHazard = _currentMeasuredHazard();
     // A fresh trusted fix resets the blackout clock; a PositionUnavailable
-    // (denied / revoked / error / non-finite) degrades honestly toward lost.
-    if (fix is PositionAvailable) {
+    // (denied / revoked / error / non-finite) degrades honestly toward lost,
+    // and so does a sample with no measured accuracy (ruled 2026-09-14).
+    if (fix is PositionAvailable && fix.accuracyMeters != null) {
       _driveHudBaseTime = fix.timestamp;
       _blackoutSeconds = 0;
     }
@@ -1785,6 +1867,52 @@ class _HomePageState extends State<HomePage> {
       speedMetersPerSecond: null,
       measuredHazard: _currentMeasuredHazard(),
     );
+    _giveHeldEventIfMeasured();
+  }
+
+  /// Whether a measured condition, as the app holds it now, raises caution on
+  /// its own ([measuredConditionRaisesCaution]).
+  bool _measuredConditionRaisesCaution() => measuredConditionRaisesCaution(
+        visibilityMeters: _effectiveVisibilityMeters,
+        visibilityAgeSeconds: _effectiveVisibilityAgeSeconds(),
+        advisorySeverity: readAdvisoryAxis(_advisoryResult).level,
+        measuredHazard: _currentMeasuredHazard(),
+      );
+
+  /// A held event reaches the drive brain the moment a measured condition
+  /// raises caution, not only when the next event arrives: a failure never
+  /// takes away a caution a measured condition raises (ruled 2026-09-14), and
+  /// a failed share may send no further event at all. Called wherever the
+  /// app's measured environment changes: the weather refresh, the visibility
+  /// band, and an advisory result.
+  void _giveHeldEventIfMeasured() {
+    final held = _herHeldEvent;
+    if (!mounted || held == null || _herSub == null) return;
+    if (_herAnchoredThisSession || !_measuredConditionRaisesCaution()) return;
+    _herHeldEvent = null;
+    // From here the brain holds this session's event, so the watchdog may
+    // degrade it on a drought, as it does after any event it is given.
+    _lastPositionEventAt = _now();
+    _feedDriveHud(held);
+    setState(() => _herFedThisShare = true);
+  }
+
+  /// Route setting reads what [fix] measured about motion (ruled 2026-09-14):
+  /// a moving reading from any sample closes it, and only a current stop
+  /// measured on a fix the drive brain took as trusted ([onTrustedFix]) opens
+  /// it again ([ShareMotion]). An open route act closes itself on a moving
+  /// reading, keeping its points.
+  void _readMotion(PositionFix fix, {required bool onTrustedFix}) {
+    if (fix is! PositionAvailable || _isMockPosition) return;
+    final next = _shareMotion.after(
+      reading: fix.motion,
+      onTrustedFix: onTrustedFix,
+      fixAt: fix.timestamp,
+      receivedAt: _now(),
+    );
+    if (fix.motion == GroundMotion.moving) _movingReadings.value++;
+    if (next == _shareMotion) return;
+    setState(() => _shareMotion = next);
   }
 
   /// Recompute the caution when the mocked visibility band changes (no new
@@ -1799,6 +1927,7 @@ class _HomePageState extends State<HomePage> {
       advisorySeverity: readAdvisoryAxis(_advisoryResult).level,
       speedMetersPerSecond: null,
     );
+    _giveHeldEventIfMeasured();
   }
 
   /// Simulate +60 s of GPS blackout: advance the honest position with [poll] so
@@ -1828,8 +1957,16 @@ class _HomePageState extends State<HomePage> {
       );
 
   Widget _driveHudPanel() {
-    final estimate = _driveHud.estimate;
-    final advice = _driveHud.advice;
+    // A share is judged by itself (ruled 2026-09-14): while this session has
+    // given the drive brain nothing, the panel shows nothing the brain still
+    // holds from an earlier session or the dev mock. A failed re-share's event
+    // is held back from the brain, so without this the panel would go on
+    // reading the previous drive's GPS 良好 while the map says 現在地不明.
+    // The brain is scoped here, never reset: reset, a replayed fix from
+    // another place became a trusted position.
+    final brainIsThisShares = _driveHudIsThisShares;
+    final estimate = brainIsThisShares ? _driveHud.estimate : null;
+    final advice = brainIsThisShares ? _driveHud.advice : null;
     final l = AppL10n.of(context);
     final appUnknowns = _appUnknowns();
     // Scoping inputs for the lowest-rung reassurance. None of these raises the
@@ -1850,7 +1987,9 @@ class _HomePageState extends State<HomePage> {
     // black-ice / turmoil watch is firing on-screen (a full-screen driver HUD is
     // BETA_PLAN; this is the alpha app's live-drive caution section). Falls back
     // to the advisor's action before the first recompute.
-    final effective = _driveHud.effectiveAction ?? advice?.action;
+    final effective = brainIsThisShares
+        ? _driveHud.effectiveAction ?? advice?.action
+        : null;
     final hasBaseline = _herFix is PositionAvailable;
 
     final (Color bannerColor, Color textColor) = switch (effective) {
@@ -2226,6 +2365,7 @@ class _HomePageState extends State<HomePage> {
         _applyAdvisoryResult(result, now);
         _advisoryLoading = false;
       });
+      _giveHeldEventIfMeasured();
     } catch (e) {
       if (!mounted) return;
       // The THROWN path (init failure, unexpected error) must take the SAME
@@ -2244,6 +2384,7 @@ class _HomePageState extends State<HomePage> {
         _advisoryErrorMessage = null;
         _advisoryLoading = false;
       });
+      _giveHeldEventIfMeasured();
     }
   }
 
@@ -2295,6 +2436,7 @@ class _HomePageState extends State<HomePage> {
     _positionWatchdog?.cancel();
     _positionWatchdog = null;
     _lastPositionEventAt = null;
+    _herHeldEvent = null;
     _herShareSession++;
     setState(() {
       _herFix = null;
@@ -2677,8 +2819,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// Whether a route may be set here, and then only through the route act
-  /// (ruled 2026-09-14). Read at build, from the platform this build runs on.
-  bool get _routeSettingOpen => routeSettingOpen(routeSettingHost());
+  /// (ruled 2026-09-14). Read at build, from the platform this build runs on
+  /// and the motion this phone has measured.
+  bool get _routeSettingOpen => routeSettingOpen(
+        routeSettingHost(),
+        motion: _herSub == null ? null : _shareMotion,
+        now: _now(),
+      );
 
   /// Opens the route act. Points she chooses there reach the page as she
   /// chooses them, so closing the act keeps them; the route is asked for only
@@ -2692,6 +2839,8 @@ class _HomePageState extends State<HomePage> {
         destination: _destination,
         baseTileProvider: _offlineBaseProvider,
         onPointsChanged: _onRouteActPointsChanged,
+        movingReadings: _movingReadings,
+        movingReadingsAtOpen: _movingReadings.value,
       ),
     );
     if (!mounted || getRoute != true) return;
@@ -2907,6 +3056,7 @@ class _HomePageState extends State<HomePage> {
     final decision = _driveHud.narrateNextManeuver(
       next,
       icyTurn: _maneuverCoincidesWithHazard(),
+      positionIsThisShares: _driveHudIsThisShares,
     );
     setState(() => _lastManeuverNarration = decision);
   }
@@ -3002,6 +3152,7 @@ class _HomePageState extends State<HomePage> {
       isMock: _isMockPosition,
       anchoredThisSession: _herAnchoredThisSession,
       noPositionYet: _herFirstEventOverdue,
+      notGivenToDriveBrain: _herFixNotGivenToDriveBrain,
     );
 
     return Scaffold(
@@ -4246,6 +4397,11 @@ class _HomePageState extends State<HomePage> {
   bool get _herPositionDegraded =>
       !_isMockPosition && _driveHud.positionUnlocatable;
 
+  /// The last event on her map is one the drive brain was not given
+  /// ([_herHeldEvent]): no surface draws or states a position from it.
+  bool get _herFixNotGivenToDriveBrain =>
+      _herHeldEvent != null && identical(_herFix, _herHeldEvent);
+
   Widget _herStatusLine() {
     final l = AppL10n.of(context);
     // Initial state: no mode active. Deny-by-default — nothing touches GPS
@@ -4315,7 +4471,7 @@ class _HomePageState extends State<HomePage> {
     // Mock-mode active.
     if (_isMockPosition) {
       final acc = switch (_herFix) {
-        PositionAvailable(:final accuracyMeters) =>
+        PositionAvailable(accuracyMeters: final double accuracyMeters) =>
           accuracyMeters.toStringAsFixed(0),
         _ => '35',
       };
@@ -4379,6 +4535,13 @@ class _HomePageState extends State<HomePage> {
         l.locatingYou,
         Colors.grey.shade600,
       ),
+      // A position the drive brain was not given (ruled 2026-09-14): it would
+      // not have been a trusted fix, so the line claims no position and no
+      // radius, the words the same event gets when the brain refuses it.
+      PositionAvailable() when _herFixNotGivenToDriveBrain => (
+        l.positionLostStatus(double.infinity),
+        Colors.blueGrey.shade700,
+      ),
       // shade700, not shade400 (2026-09-13): in dead reckoning and lost this
       // line was the palest text on the surface, 3.03:1, while it is the only
       // place the age of her last position appears. Rendered at 6.55:1.
@@ -4387,8 +4550,13 @@ class _HomePageState extends State<HomePage> {
         degradedText,
         Colors.blueGrey.shade700,
       ),
-      PositionAvailable(:final accuracyMeters) => (
+      PositionAvailable(accuracyMeters: final double accuracyMeters) => (
         l.youAreHere(accuracyMeters.toStringAsFixed(0)),
+        Colors.blueGrey.shade700,
+      ),
+      // No measured accuracy (ruled 2026-09-14): the line states no radius.
+      PositionAvailable() => (
+        l.positionLostStatus(double.infinity),
         Colors.blueGrey.shade700,
       ),
       // Location is off for this app: the ruled line (2026-09-13), headed by
@@ -4443,28 +4611,31 @@ class _HomePageState extends State<HomePage> {
       key: const Key('route-setting-when-stopped'),
       style: TextStyle(color: Colors.grey.shade800, fontSize: 12),
     );
-    if (!_routeSettingOpen) {
-      return Column(
-        key: const Key('route-panel'),
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [whenStopped],
-      );
-    }
+    // Closed (the IVI with no vehicle signal, or a phone measured moving): the
+    // words, and a route she already set shown as it is, with no control that
+    // sets, re-asks or clears one. Until 2026-09-14 closed meant the IVI only,
+    // where no route can exist, and this branch drew the words alone; on a
+    // phone that would hide a set route's distance, time and its "not
+    // snow-aware" line the moment she moves, while its line stays on her map.
+    final open = _routeSettingOpen;
+    _routeSettingOpenBuilt = open;
     return Column(
       key: const Key('route-panel'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         whenStopped,
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: OutlinedButton.icon(
-            key: const Key('route-act-open'),
-            onPressed: _openRouteAct,
-            icon: const Icon(Icons.alt_route),
-            label: Text(l.routeActOpen),
+        if (open)
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: OutlinedButton.icon(
+              key: const Key('route-act-open'),
+              onPressed: _openRouteAct,
+              icon: const Icon(Icons.alt_route),
+              label: Text(l.routeActOpen),
+            ),
           ),
-        ),
-        const SizedBox(height: 8),
+        if (open || _routeLoading || _routeResult != null)
+          const SizedBox(height: 8),
         if (_routeLoading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
@@ -4513,32 +4684,34 @@ class _HomePageState extends State<HomePage> {
                         fontSize: 12,
                       ),
                     ),
-                    Align(
-                      alignment: AlignmentDirectional.centerEnd,
-                      child: TextButton(
-                        key: const Key('route-consent-change'),
-                        onPressed: () {
-                          // Re-open the question; the new answer (if any)
-                          // is persisted over the old one.
-                          _osrmConsent = null;
-                          _fetchRoute();
-                        },
-                        child: Text(
-                          AppL10n.of(context).routeConsentChangeChoice,
+                    if (open)
+                      Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: TextButton(
+                          key: const Key('route-consent-change'),
+                          onPressed: () {
+                            // Re-open the question; the new answer (if any)
+                            // is persisted over the old one.
+                            _osrmConsent = null;
+                            _fetchRoute();
+                          },
+                          child: Text(
+                            AppL10n.of(context).routeConsentChangeChoice,
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
           },
-        Align(
-          alignment: Alignment.centerRight,
-          child: TextButton(
-            onPressed: _origin == null ? null : _resetRoute,
-            child: Text(l.routeReset),
+        if (open)
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _origin == null ? null : _resetRoute,
+              child: Text(l.routeReset),
+            ),
           ),
-        ),
       ],
     );
   }
@@ -4561,9 +4734,12 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    final mode = _driveHud.estimate?.mode;
+    // Scoped like the caution panel: an earlier session's estimate says
+    // nothing about where she is in this one.
+    final mode = _driveHudIsThisShares ? _driveHud.estimate?.mode : null;
     final icy = _maneuverCoincidesWithHazard();
-    final preview = _driveHud.previewNextManeuver(next, icyTurn: icy);
+    final preview = _driveHud.previewNextManeuver(next,
+        icyTurn: icy, positionIsThisShares: _driveHudIsThisShares);
 
     final (Color bg, Color fg, String tier) = switch (preview.confidence) {
       NarrationConfidence.speak => (

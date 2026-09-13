@@ -36,15 +36,103 @@ sealed class PositionFix {
 class PositionAvailable extends PositionFix {
   final double latitude;
   final double longitude;
-  final double accuracyMeters;
+
+  /// The platform's measured horizontal accuracy, in metres, or `null` when it
+  /// measured none (ruled 2026-09-14). geolocator writes 0.0 where the platform
+  /// has no accuracy and says so only in `Position.hasAccuracy`; read as a
+  /// number, that placeholder was a 0 m ring, "exactly here", which nothing
+  /// measured. A sample with `null` here is not a fix: the drive brain polls
+  /// at its timestamp, it never anchors, and the map never draws it.
+  final double? accuracyMeters;
   final DateTime timestamp;
+
+  /// The least rate, in m/s, her ring may grow at after this fix, read by
+  /// [groundSpeedFloorMps] from what the platform reported with it: `null`
+  /// when it reported no usable speed.
+  ///
+  /// Her ring only (ruled 2026-09-14). The caution advisor is never given it:
+  /// with no visibility reading it counts the missing reading as a degraded
+  /// condition, so a known speed above 13.4 m/s would speak a caution on an
+  /// ordinary drive.
+  final double? speedFloorMps;
+
+  /// What this fix measured about motion ([groundMotionOf]). It describes this
+  /// fix only; whether a stop is still current is not decided here.
+  final GroundMotion motion;
+
   const PositionAvailable({
     required this.latitude,
     required this.longitude,
     required this.accuracyMeters,
     required this.timestamp,
+    this.speedFloorMps,
+    this.motion = GroundMotion.unknown,
   });
 }
+
+/// What one position says about motion (ruled 2026-09-14).
+enum GroundMotion {
+  /// A usable speed whose lower bound, less its usable accuracy, is above
+  /// [kStoppedAtMostMps].
+  moving,
+
+  /// A usable speed AND a usable speed accuracy whose sum is at most
+  /// [kStoppedAtMostMps]. Never concluded without a reported accuracy.
+  stopped,
+
+  /// Everything else, including a reading whose bounds straddle the limit.
+  unknown,
+}
+
+/// The stop limit, in m/s. PROVISIONAL and UNVERIFIED: no reading of platform
+/// speed and speed accuracy at a real stop on a real phone exists. Until one
+/// does it may be lowered, never raised: raising it opens route setting while
+/// she creeps, lowering it keeps route setting closed while she is parked.
+const double kStoppedAtMostMps = 0.5;
+
+/// A platform value the app may read: reported by its flag, finite and not
+/// negative; otherwise `null`, whatever the field holds. geolocator writes 0.0
+/// where the platform measured nothing, and only the flag tells the two apart
+/// (Android omits the key; iOS writes speed and speed accuracy only when both
+/// are non-negative; geolocator_linux 0.2.5 sets no flag).
+double? _reported(bool flagged, double value) =>
+    flagged && value.isFinite && value >= 0 ? value : null;
+
+/// The least rate her ring may grow at after [p]: the reported speed plus the
+/// reported speed accuracy when that accuracy is usable, the speed alone when
+/// it is not, and `null` when no usable speed was reported. A 0.0 without the
+/// flag is a placeholder, never a stop.
+double? groundSpeedFloorMps(Position p) {
+  final speed = _reported(p.hasSpeed, p.speed);
+  if (speed == null) return null;
+  return speed + (_reported(p.hasSpeedAccuracy, p.speedAccuracy) ?? 0);
+}
+
+/// What [p] measured about motion: see [GroundMotion]. Fail-closed by
+/// construction: "stopped" needs both values reported and usable, on a
+/// position whose horizontal accuracy was measured ([usableAccuracyMeters]),
+/// and every ambiguous reading is [GroundMotion.unknown]. "Moving" needs no
+/// measured horizontal accuracy: it only closes, and closing needs less
+/// evidence than opening.
+GroundMotion groundMotionOf(Position p) {
+  final speed = _reported(p.hasSpeed, p.speed);
+  if (speed == null) return GroundMotion.unknown;
+  final accuracy = _reported(p.hasSpeedAccuracy, p.speedAccuracy);
+  if (speed - (accuracy ?? 0) > kStoppedAtMostMps) return GroundMotion.moving;
+  if (accuracy != null &&
+      speed + accuracy <= kStoppedAtMostMps &&
+      usableAccuracyMeters(p) != null) {
+    return GroundMotion.stopped;
+  }
+  return GroundMotion.unknown;
+}
+
+/// [p]'s horizontal accuracy, only when the platform flags it as measured and
+/// it is finite and not negative; otherwise `null`, whatever the field holds
+/// (ruled 2026-09-14). A flagged 0.0 is believed. iOS writes its accuracy on
+/// every fix, an invalid -1 included, so the flag alone is not enough.
+double? usableAccuracyMeters(Position p) =>
+    _reported(p.hasAccuracy, p.accuracy);
 
 class PositionUnavailable extends PositionFix {
   final String reason;
@@ -127,16 +215,28 @@ bool isPermanentLocationRefusal(PositionFix? fix) =>
 /// This is the same #161 NaN-GPS class the sibling SNGNav repo guards at its
 /// LocationBloc chokepoint (fixed 2026-06-27). It drops NO valid coordinate
 /// and masks nothing: a real bad fix surfaces as honestly-unavailable, never
-/// as a wrong dot. Zero accuracy is suspicious but `isFinite`, so it is left
-/// to flow (the accuracy circle tells that truth) — only non-finite is
-/// guarded, matching the sibling pattern.
+/// as a wrong dot.
+///
+/// [accuracyMeters] is `null` when the platform did not flag an accuracy as
+/// measured; that sample keeps its coordinates and carries no accuracy. A
+/// negative accuracy is no measurement either, and becomes `null` here. A
+/// flagged 0.0 flows: the platform says it measured it.
+///
+/// Corrected 2026-09-14. This comment said zero accuracy "is suspicious but
+/// `isFinite`, so it is left to flow (the accuracy circle tells that truth)".
+/// That reasoning let the unflagged placeholder through as a 0 m ring. The
+/// circle tells the truth only about a value somebody measured.
 PositionFix fixFromSample({
   required double latitude,
   required double longitude,
-  required double accuracyMeters,
+  required double? accuracyMeters,
   required DateTime timestamp,
+  double? speedFloorMps,
+  GroundMotion motion = GroundMotion.unknown,
 }) {
-  if (!(latitude.isFinite && longitude.isFinite && accuracyMeters.isFinite)) {
+  if (!(latitude.isFinite &&
+      longitude.isFinite &&
+      (accuracyMeters?.isFinite ?? true))) {
     return PositionUnavailable(
       'Degraded GPS fix — non-finite coordinate '
       '(lat=$latitude, lon=$longitude, acc=$accuracyMeters)',
@@ -145,8 +245,11 @@ PositionFix fixFromSample({
   return PositionAvailable(
     latitude: latitude,
     longitude: longitude,
-    accuracyMeters: accuracyMeters,
+    accuracyMeters:
+        accuracyMeters != null && accuracyMeters >= 0 ? accuracyMeters : null,
     timestamp: timestamp,
+    speedFloorMps: speedFloorMps,
+    motion: motion,
   );
 }
 
@@ -262,11 +365,15 @@ Stream<PositionFix> herPositionStream({
         // Finite-coordinate chokepoint: a degraded/NaN/Inf fix becomes an
         // honest PositionUnavailable, never a confidently-wrong dot that
         // would also crash flutter_map 8.3.0's checkLatLng. See fixFromSample.
+        // Accuracy and speed are read here, where the platform's flags are
+        // still in hand: a value the platform did not flag is never read.
         (p) => controller.add(fixFromSample(
           latitude: p.latitude,
           longitude: p.longitude,
-          accuracyMeters: p.accuracy,
+          accuracyMeters: p.hasAccuracy ? p.accuracy : null,
           timestamp: p.timestamp,
+          speedFloorMps: groundSpeedFloorMps(p),
+          motion: groundMotionOf(p),
         )),
         // By the error's type, never its text. geolocator_android 4.6.2 checks
         // the permission again when the stream is listened to and, when it is

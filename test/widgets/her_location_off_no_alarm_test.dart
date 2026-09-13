@@ -20,10 +20,13 @@
 /// elapsed time and can never poll, so the 60 s check would prove nothing (a
 /// mutation that armed the watchdog passed under a fixed clock).
 ///
-/// And what must NOT change: a real GPS failure at drive start still reaches
-/// the drive brain, and so does an unavailability whose reason merely says
-/// "Location permission denied": the class is read from the typed cause, never
-/// from free text. Location services off is not a denial and is unchanged.
+/// And what must NOT change: a real failure is never silenced, an
+/// unavailability whose reason merely says "Location permission denied" is not
+/// a refusal (the class is read from the typed cause, never from free text),
+/// and location services off is not a denial. Until 2026-09-14 this paragraph
+/// said a failure at drive start "still reaches the drive brain". Ruled that
+/// day: before a share's first trusted fix it does not, by itself. The pins at
+/// the foot of this file say what is kept, and where.
 library;
 
 import 'dart:async';
@@ -77,6 +80,7 @@ Future<FakeAlertActuators> _boot(
   WidgetTester tester, {
   Stream<PositionFix> Function()? source,
   String lang = 'ja',
+  JmaResult? weather,
 }) async {
   final a = FakeAlertActuators();
   _clockNow = DateTime.utc(2026, 1, 14, 21);
@@ -86,7 +90,7 @@ Future<FakeAlertActuators> _boot(
     actuators: a,
     locale: Locale(lang),
     clock: () => _clockNow,
-    jmaFetch: () async => const JmaFailure('probe'),
+    jmaFetch: () async => weather ?? const JmaFailure('probe'),
     positionSource: source,
   ));
   await tester.pump();
@@ -172,41 +176,116 @@ void main() {
     expect(_given(tester, a), control61s);
   });
 
+  // Re-expressed 2026-09-14. These three pins said a failure at drive start
+  // "still reaches the drive brain", read as "the panel has a rung". Ruled the
+  // same day: before a share's first trusted fix, a position failure does not
+  // reach the caution rung by itself, so all three went red on the ruled
+  // landing, as the ruling's author and its auditor both predicted. What they
+  // protected is kept here in the ruling's terms: a real failure is never
+  // silenced (her map says so at once, and a measured condition still reaches
+  // the drive brain with it); free text is never read, pinned where the words
+  // could still decide something, after a trusted fix in the same share; and
+  // location services off is still not a denial.
   group('not silenced', () {
-    Future<_Given> firstEvent(WidgetTester tester, PositionFix event) async {
+    Position trustedFix(DateTime t) => Position(
+          latitude: 39.7186,
+          longitude: 140.1024,
+          timestamp: t,
+          accuracy: 10,
+          hasAccuracy: true,
+          altitude: 0,
+          altitudeAccuracy: 0,
+          heading: 0,
+          headingAccuracy: 0,
+          speed: 0,
+          speedAccuracy: 0,
+        );
+
+    Future<FakeAlertActuators> firstEvent(WidgetTester tester, PositionFix event,
+        {JmaResult? weather}) async {
       final positions = StreamController<PositionFix>.broadcast();
-      final a = await _boot(tester, source: () => positions.stream);
+      final a = await _boot(tester,
+          source: () => positions.stream, weather: weather);
       await _tapShare(tester);
       positions.add(event);
       await tester.pump();
       await _advance(tester, const Duration(seconds: 1));
-      final given = _given(tester, a);
       await positions.close();
-      return given;
+      return a;
     }
 
-    testWidgets('a real GPS failure at drive start still reaches the drive '
-        'brain', (tester) async {
-      final given =
-          await firstEvent(tester, const PositionUnavailable('GPS init error: x'));
-      expect(given.panel, isNot('no rung (no position fed yet)'));
+    testWidgets(
+        'a real GPS failure at drive start is not silenced: her map says '
+        '現在地不明 at once, and under a measured 80 m whiteout it still '
+        'reaches the drive brain', (tester) async {
+      await firstEvent(tester, const PositionUnavailable('GPS init error: x'));
+      expect(find.byKey(const ValueKey('her-position-unknown-label')),
+          findsOneWidget,
+          reason: 'the map says it does not know where she is');
+
+      final a = await firstEvent(
+          tester, const PositionUnavailable('GPS init error: x'),
+          weather: _observed(80));
+      expect(_given(tester, a).panel, 'considerStopping',
+          reason: 'a measured whiteout keeps its caution for a failed start');
+      expect(a.haptics.map((h) => '$h'), contains('HapticCuePattern.critical'));
     });
 
     testWidgets(
-        'an unavailability whose reason merely SAYS "Location permission '
-        'denied" still reaches the drive brain: free text is never read',
+        'after a trusted fix in the same share, an unavailability whose reason '
+        'merely SAYS "Location permission denied" still degrades the drive '
+        'brain and is not shown as location off: free text is never read',
         (tester) async {
-      final given = await firstEvent(
-          tester, const PositionUnavailable('Location permission denied'));
-      expect(given.panel, isNot('no rung (no position fed yet)'));
+      final platform = StreamController<Position>();
+      final a = await _boot(tester,
+          source: () => herPositionStream(
+                isServiceEnabled: () async => true,
+                checkPermission: () async => LocationPermission.whileInUse,
+                positionStream: () => platform.stream,
+              ));
+      await _tapShare(tester);
+      platform.add(trustedFix(_clockNow));
+      await tester.pump();
+      await tester.pump();
+      expect(find.textContaining('GPS 良好'), findsWidgets,
+          reason: 'control: the fix reached the drive brain as trusted');
+      expect(_given(tester, a).panel, isNot('no rung (no position fed yet)'));
+
+      platform.addError(StateError('Location permission denied'));
+      await tester.pump();
+      await _advance(tester, const Duration(seconds: 1));
+      expect(find.textContaining('GPS 良好'), findsNothing,
+          reason: 'the event reached the drive brain and degraded it');
+      expect(find.byKey(const ValueKey('her-location-off-label')), findsNothing,
+          reason: 'words in an error are not her setting');
+      await platform.close();
     });
 
     testWidgets(
-        'location services off is not a denial: unchanged here (measured and '
-        'handed on, not ruled)', (tester) async {
-      final given = await firstEvent(
+        'location services off is not a denial: her map says 現在地不明, not '
+        '位置情報オフ, and the row still offers 停止', (tester) async {
+      await firstEvent(
           tester, const PositionUnavailable('Location services disabled'));
-      expect(given.panel, isNot('no rung (no position fed yet)'));
+      expect(find.byKey(const ValueKey('her-position-unknown-label')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('her-location-off-label')), findsNothing);
+      expect(find.text('停止'), findsWidgets);
+      expect(find.text('閉じる'), findsNothing);
     });
   });
 }
+
+/// A JMA observation read at boot. Warm and calm, so no measured-weather watch
+/// fires: only visibility differs.
+JmaResult _observed(int visibilityMeters) => JmaSuccess(JmaObservation(
+      stationId: '32402',
+      stationName: '秋田',
+      temperatureCelsius: 5,
+      humidityPercent: 50,
+      windMetersPerSecond: 2,
+      snowDepthCm: null,
+      precipitation10mMm: 0,
+      visibilityMeters: visibilityMeters,
+      observedAtJstKey: '20260115060000',
+      fetchedAt: _clockNow,
+    ));

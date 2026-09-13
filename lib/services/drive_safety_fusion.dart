@@ -27,6 +27,7 @@ import 'package:compound_failure_advisor/compound_failure_advisor.dart';
 import 'package:localization_fallback/localization_fallback.dart';
 
 import '../her_position.dart';
+import 'measured_hazard_floor.dart';
 
 /// Map `localization_fallback`'s honest [LocalizationMode] to the compound
 /// advisor's mirror [PositionTrust] with one explicit switch at the seam.
@@ -63,6 +64,47 @@ class DriveLocalizer {
   /// The most recently emitted estimate, or `null` before any input.
   LocalizationEstimate? get current => controller.current;
 
+  /// When [controller] last took a fix as trusted, or `null` if it never has.
+  ///
+  /// Recorded from what the controller emitted, never assumed: only its
+  /// trusted path emits [EstimateBasis.trustedGpsFix], and that path takes the
+  /// fix's own timestamp as its clock (localization_fallback 0.1.4,
+  /// `localization_controller.dart:101-143`). A controller injected with a
+  /// fix already taken reads `null` here until it takes one through this
+  /// localizer.
+  DateTime? _lastTrustedFixAt;
+
+  /// Whether [fix] would be taken as a trusted fix if it were fed now, without
+  /// feeding it: a position with finite geometry and a non-negative accuracy
+  /// ([RawFix.hasFiniteGeometry], the controller's own guard), newer than the
+  /// last fix the controller trusted. A fix no newer than that is refused as
+  /// replayed (`localization_controller.dart:108-110`), and an unavailability
+  /// is never a fix.
+  ///
+  /// Asked BEFORE feeding, so the app can decline to give the drive brain an
+  /// event that would not anchor it (ruled 2026-09-14). The same answer as
+  /// feeding it and reading the basis back, pinned against the real controller
+  /// in `test/services/drive_localizer_would_trust_test.dart`.
+  bool wouldTrust(PositionFix fix) => switch (fix) {
+        PositionAvailable(
+          :final latitude,
+          :final longitude,
+          accuracyMeters: final double accuracy,
+          :final timestamp,
+        ) =>
+          RawFix(
+                latitude: latitude,
+                longitude: longitude,
+                accuracyMeters: accuracy,
+                timestamp: timestamp,
+              ).hasFiniteGeometry &&
+              (_lastTrustedFixAt == null ||
+                  timestamp.isAfter(_lastTrustedFixAt!)),
+        // A sample with no measured accuracy is not a fix (ruled 2026-09-14).
+        PositionAvailable() => false,
+        PositionUnavailable() => false,
+      };
+
   /// Feed one [PositionFix].
   ///
   /// - [PositionAvailable]: a trusted raw fix — `her_position.dart` already ran
@@ -79,16 +121,31 @@ class DriveLocalizer {
     double? speedMps,
   }) {
     switch (fix) {
-      case PositionAvailable a:
-        return controller.onFix(
+      case PositionAvailable(
+          :final latitude,
+          :final longitude,
+          accuracyMeters: final double accuracy,
+          :final timestamp,
+        ):
+        final estimate = controller.onFix(
           RawFix(
-            latitude: a.latitude,
-            longitude: a.longitude,
-            accuracyMeters: a.accuracyMeters,
-            timestamp: a.timestamp,
+            latitude: latitude,
+            longitude: longitude,
+            accuracyMeters: accuracy,
+            timestamp: timestamp,
             speedMps: speedMps,
           ),
         );
+        if (estimate.basis == EstimateBasis.trustedGpsFix) {
+          _lastTrustedFixAt = timestamp;
+        }
+        return estimate;
+      // No measured accuracy: not a fix (ruled 2026-09-14). Treated as an event
+      // that carries no position, polled at the sample's own timestamp, so the
+      // brain degrades from the anchor it holds. Its coordinates and its speed
+      // are never taken: no radius is invented for it.
+      case PositionAvailable(:final timestamp):
+        return controller.poll(timestamp);
       case PositionUnavailable _:
         return controller.poll(now);
     }
@@ -97,6 +154,38 @@ class DriveLocalizer {
   /// Advance during a blackout (no fix arrived this tick) so the radius keeps
   /// growing and the mode can reach `lost`.
   LocalizationEstimate poll(DateTime now) => controller.poll(now);
+}
+
+/// Whether a MEASURED condition raises caution on its own: the advisor's
+/// reasons for this environment on a trusted, fresh, exact position, other
+/// than a visibility it could not read, or a firing measured-weather watch.
+///
+/// Why (ruled 2026-09-14): before a share's first trusted fix a position
+/// failure does not reach the caution rung by itself, and it never takes away
+/// a caution that a measured condition raises. A missing or stale visibility
+/// reading is not a measurement, so it is excluded by name. Every other reason
+/// counts, including one a future advisor adds: an unknown reason routes
+/// toward caution, not away from it.
+bool measuredConditionRaisesCaution({
+  required double? visibilityMeters,
+  required double? visibilityAgeSeconds,
+  required AdvisoryLevel? advisorySeverity,
+  required MeasuredWeatherHazard measuredHazard,
+}) {
+  if (measuredHazard != MeasuredWeatherHazard.none) return true;
+  final advice = adviseInDrive(DriveSituation(
+    positionTrust: PositionTrust.trusted,
+    confidenceRadiusMeters: 0,
+    secondsSinceTrustedFix: 0,
+    hasPosition: true,
+    visibilityMeters: visibilityMeters,
+    visibilityAgeSeconds: visibilityAgeSeconds,
+    advisorySeverity: advisorySeverity,
+    speedMetersPerSecond: null,
+  ));
+  return advice.reasons.any((r) =>
+      r != CautionReason.unknownVisibility &&
+      r != CautionReason.staleVisibility);
 }
 
 /// Build the in-drive [DriveSituation] from an honest localization [estimate]
