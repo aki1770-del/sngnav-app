@@ -82,6 +82,30 @@ The instruction ("do not worry about mistakes / use loupe") called for a lasting
 - **Pre-flight check**: For ANY new station / endpoint / external-ID lookup — query the canonical source first. JMA AMeDAS station table: fetch live `amedastable.json` from JMA (or a research note made from it). Do NOT guess from memory. Verify external data with a separate lookup; guessing from memory is forbidden. The 3-of-5 wrong-rate at slice-3-initial is the founding evidence that memory-guess on external IDs has a high error rate even for "well-known" Japanese station tables.
 - **Linked notes**: kept outside this repository (verify external data before use; the 2026-04-29 station research; the 2026-04-29 morning session log)
 
+## TRAP-08 — a Dart probe compiled inside package A links package B FROM THE PUB CACHE, so it measures the PUBLISHED package, not the tree you just edited
+
+- **First observed**: `~/SNGNav`, 2026-09-13, converting assert-only release guards. A probe compiled inside `packages/snow_rendering/` to prove guards fire with asserts OFF reported `FAIL -- NOTHING THREW` for two subjects in `navigation_safety_core`. The code was correct; the probe was reading `~/.pub-cache/hosted/pub.dev/navigation_safety_core-0.10.3` while the edited tree was `0.11.5`.
+- **Symptom**: A verification passes or fails for reasons that have nothing to do with your diff, and the failure is indistinguishable from a real defect. `dart analyze` and `dart test` in the EDITED package are green throughout, because they resolve locally — only the cross-package probe is lying.
+- **Class**: verification-substrate / Verify-First. Same family as `ran-what-you-claim-dart.py` (a Dart result is about the package that RESOLVED, never about the tree you edited) and `a-lock-is-not-a-constraint-2026-08-24`.
+- **Pre-flight check**: Before trusting ANY cross-package Dart probe, print what actually resolved:
+  ```
+  python3 -c "import json;[print(p['name'],'->',p['rootUri']) for p in json.load(open('.dart_tool/package_config.json'))['packages']]"
+  ```
+  A sibling showing `file:///home/.../.pub-cache/...` is NOT your tree. Compile the probe INSIDE the package you edited (whose own entry reads `rootUri: ../`), or add a `dependency_overrides` path entry. **The consolation prize is real**: a pub-cache-resolved probe is an accurate measurement of what an edge developer actually installs — just say which question you answered.
+- **Linked feedback memory**: `ran-what-you-claim-dart.py` header (masterplan `scripts/`), `a-lock-is-not-a-constraint-2026-08-24.md`
+
+---
+
+## TRAP-09 — `dart format --set-exit-if-changed | tail` reports success while the check fails
+
+- **First observed**: `~/SNGNav`, 2026-09-13. A format gate printed `format exit=0` for four packages that were all actually exit 1. `$?` after a pipeline is the exit of the LAST command — `tail` — which succeeds no matter what `dart format` did.
+- **Symptom**: A gate reports green in the same breath as printing the evidence that it is red (`Changed <file>` lines were visible directly above `exit=0`).
+- **Class**: measurement-instrument / success-shaped-failure. Same family as the three cases recorded against the pen in CLAUDE.md v4.5 — "its own verification steps returned success-shaped while the operation failed".
+- **Pre-flight check**: Never read `$?` through a pipe. Capture first, then inspect: `out=$(dart format --output=none --set-exit-if-changed .); rc=$?`. Applies to every `cmd | tail` / `| grep` / `| head` in a gate. Also: `--output=none` still prints `Changed <file>`; those are files that WOULD change, so grep that list against the files you actually touched before reformatting someone else's in-flight work.
+- **Linked feedback memory**: CLAUDE.md v4.5 version note (the three success-shaped verification failures); `gate-block-is-not-length-2026-09-04.md`
+
+---
+
 ---
 
 ## Vision attribution (file-level, 3-slot)
