@@ -147,4 +147,81 @@ void main() {
     await _boot(tester);
     expect(find.textContaining('snow-aware yet'), findsNothing);
   });
+
+  // The route panel's words follow the app's locale. Found at bb02b98 in the
+  // real widget tree: they were English literals in Japanese mode. English
+  // keeps its bytes; the Japanese is new and unruled.
+  group('the route panel follows the locale', () {
+    Finder inRouteCard(Finder f) =>
+        find.descendant(of: find.byKey(const Key('route-panel')), matching: f);
+
+    testWidgets('Japanese: no English left in the route card', (tester) async {
+      await _boot(tester);
+      await _fetchThroughAct(tester);
+      expect(find.byKey(const Key('route-summary')), findsOneWidget,
+          reason: 'precondition: a route is shown');
+      for (final english in const [
+        'Distance',
+        'Duration',
+        'min',
+        'Source: OSRM',
+        'NOT snow-aware',
+        'NOT for production',
+        'Reset',
+      ]) {
+        expect(inRouteCard(find.textContaining(english)), findsNothing,
+            reason: english);
+      }
+      expect(inRouteCard(find.text('距離:')), findsOneWidget);
+      expect(inRouteCard(find.text('12.3 km')), findsOneWidget);
+      expect(inRouteCard(find.text('所要時間:')), findsOneWidget);
+      expect(inRouteCard(find.text('25分')), findsOneWidget);
+      expect(
+          tester.widget<Text>(find.byKey(const Key('maneuver-placeholder'))).data,
+          isNot(contains('No turn-by-turn')));
+      await _drain(tester);
+    });
+
+    testWidgets('English keeps its bytes', (tester) async {
+      await _boot(tester, lang: 'en');
+      await _fetchThroughAct(tester);
+      expect(inRouteCard(find.text('Distance:')), findsOneWidget);
+      expect(inRouteCard(find.text('12.3 km')), findsOneWidget);
+      expect(inRouteCard(find.text('Duration:')), findsOneWidget);
+      expect(inRouteCard(find.text('25 min')), findsOneWidget);
+      expect(
+          inRouteCard(find.text('Source: OSRM public demo '
+              '(router.project-osrm.org). NOT snow-aware. NOT for production '
+              'navigation.')),
+          findsOneWidget);
+      expect(inRouteCard(find.text('Reset')), findsOneWidget);
+      expect(
+          tester.widget<Text>(find.byKey(const Key('maneuver-placeholder'))).data,
+          'No turn-by-turn maneuvers in this route.');
+      await _drain(tester);
+    });
+
+    testWidgets('Japanese: a failed fetch is said in Japanese', (tester) async {
+      await _boot(tester, fail: true);
+      await _fetchThroughAct(tester);
+      final failed = find.byKey(const Key('route-fetch-failed'));
+      expect(failed, findsOneWidget, reason: 'precondition: the fetch failed');
+      expect(
+          find.descendant(
+              of: failed, matching: find.textContaining('Route fetch failed')),
+          findsNothing);
+      await _drain(tester);
+    });
+
+    testWidgets('English: a failed fetch keeps its bytes', (tester) async {
+      await _boot(tester, lang: 'en', fail: true);
+      await _fetchThroughAct(tester);
+      expect(
+          find.descendant(
+              of: find.byKey(const Key('route-fetch-failed')),
+              matching: find.text('Route fetch failed: HTTP 503')),
+          findsOneWidget);
+      await _drain(tester);
+    });
+  });
 }

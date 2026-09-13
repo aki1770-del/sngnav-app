@@ -231,6 +231,41 @@ class AppL10n {
   /// reviewed on a render.
   String get routeActGetRoute => _ja ? 'ルートを取得' : 'Get route';
 
+  // The route panel's other words. Found at bb02b98: English literals in
+  // Japanese mode. English keeps its bytes; the Japanese was added 2026-09-14
+  // and is not yet reviewed on a render.
+
+  /// Row label for a fetched route's length.
+  String get routeDistanceLabel => _ja ? '距離' : 'Distance';
+
+  /// Row label for a fetched route's time.
+  String get routeDurationLabel => _ja ? '所要時間' : 'Duration';
+
+  /// A route's time, rounded to whole minutes: 「25分」 / "25 min",
+  /// 「1時間5分」 / "1h 5m".
+  String routeDuration(double seconds) =>
+      _formatMinutes((seconds / 60).round());
+
+  /// Where a fetched route came from, and what it is not.
+  String get routeSourceOsrmDemo => _ja
+      ? '出典: OSRM 公開デモ（router.project-osrm.org）。雪を考慮しません。本番のナビゲーション用ではありません。'
+      : 'Source: OSRM public demo (router.project-osrm.org). NOT snow-aware. '
+          'NOT for production navigation.';
+
+  /// A route request that failed. [reason] is the router's own text, shown as
+  /// it was before.
+  String routeFetchFailed(String reason) => _ja
+      ? 'ルートを取得できませんでした: $reason'
+      : 'Route fetch failed: $reason';
+
+  /// The control that clears A, B and the route.
+  String get routeReset => _ja ? 'リセット' : 'Reset';
+
+  /// A fetched route with no turn to announce.
+  String get routeNoManeuvers => _ja
+      ? 'このルートには曲がり角の案内がありません。'
+      : 'No turn-by-turn maneuvers in this route.';
+
   /// The maneuver panel's line before any route. Its English said "Tap A then
   /// B above to fetch a route", a gesture that sets nothing since 2026-09-14.
   /// Where route setting is closed it offers nothing. Added 2026-09-14, not yet

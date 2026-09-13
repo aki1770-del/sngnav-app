@@ -4483,12 +4483,12 @@ class _HomePageState extends State<HomePage> {
                 key: const Key('route-summary'),
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _kv('Distance', '${(distanceMeters / 1000).toStringAsFixed(1)} km'),
-                  _kv('Duration', _formatDuration(durationSeconds)),
+                  _kv(l.routeDistanceLabel,
+                      '${(distanceMeters / 1000).toStringAsFixed(1)} km'),
+                  _kv(l.routeDurationLabel, l.routeDuration(durationSeconds)),
                   const SizedBox(height: 4),
                   Text(
-                    'Source: OSRM public demo (router.project-osrm.org). '
-                    'NOT snow-aware. NOT for production navigation.',
+                    l.routeSourceOsrmDemo,
                     style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
                   ),
                 ],
@@ -4498,7 +4498,7 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.all(8),
                 color: Colors.red.shade50,
                 child: Text(
-                  'Route fetch failed: $reason',
+                  l.routeFetchFailed(reason),
                   style: TextStyle(color: Colors.red.shade900),
                 ),
               ),
@@ -4542,19 +4542,11 @@ class _HomePageState extends State<HomePage> {
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: _origin == null ? null : _resetRoute,
-            child: const Text('Reset'),
+            child: Text(l.routeReset),
           ),
         ),
       ],
     );
-  }
-
-  String _formatDuration(double seconds) {
-    final mins = (seconds / 60).round();
-    if (mins < 60) return '$mins min';
-    final h = mins ~/ 60;
-    final m = mins % 60;
-    return '${h}h ${m}m';
   }
 
   /// (e) The next maneuver, narrated ONLY when the honest position allows it.
@@ -4568,7 +4560,7 @@ class _HomePageState extends State<HomePage> {
       return Text(
         key: const Key('maneuver-placeholder'),
         _routeResult is RouteSuccess
-            ? 'No turn-by-turn maneuvers in this route.'
+            ? AppL10n.of(context).routeNoManeuvers
             : AppL10n.of(context)
                 .maneuverNoRouteYet(routeSettingOpen: _routeSettingOpen),
         style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
