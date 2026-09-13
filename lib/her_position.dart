@@ -50,6 +50,21 @@ class PositionUnavailable extends PositionFix {
   const PositionUnavailable(this.reason);
 }
 
+/// The reasons [herPositionStream] gives when she answers "no" to location.
+/// Emitted from these constants and matched against them by
+/// [isLocationRefusal], so the two cannot drift apart.
+const String _permissionDeniedReason = 'Location permission denied';
+const String _permissionPermanentlyDeniedReason =
+    'Location permission permanently denied — change in OS settings';
+
+/// Whether [fix] is her refusal of location: she answered "no", now or for
+/// good. Not a timeout, not location services off, not a stream error: those
+/// are the platform failing, and this is her choice.
+bool isLocationRefusal(PositionFix? fix) =>
+    fix is PositionUnavailable &&
+    (fix.reason == _permissionDeniedReason ||
+        fix.reason == _permissionPermanentlyDeniedReason);
+
 /// Finite-coordinate chokepoint guard.
 ///
 /// HER-trace: a degraded / NaN / Inf GPS fix must NEVER become a
@@ -163,14 +178,14 @@ Stream<PositionFix> herPositionStream({
           return;
         }
         if (permission == LocationPermission.denied) {
-          controller.add(const PositionUnavailable('Location permission denied'));
+          controller.add(const PositionUnavailable(_permissionDeniedReason));
           return;
         }
       }
       if (permission == LocationPermission.deniedForever) {
-        controller.add(const PositionUnavailable(
-          'Location permission permanently denied — change in OS settings',
-        ));
+        controller.add(
+          const PositionUnavailable(_permissionPermanentlyDeniedReason),
+        );
         return;
       }
       sub = (positionStream ??

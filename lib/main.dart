@@ -3120,6 +3120,7 @@ class _HomePageState extends State<HomePage> {
                     isHerPositionMock: _isMockPosition,
                     positionDegraded: herMap.degraded,
                     positionLost: herMap.lost,
+                    positionRefused: herMap.refused,
                     mapController: _herMapController,
                     onMapEvent: _onHerMapEvent,
                     onMapReady: _onHerMapReady,

@@ -32,6 +32,7 @@ class AkitaMap extends StatelessWidget {
     this.isHerPositionMock = false,
     this.positionDegraded = false,
     this.positionLost = false,
+    this.positionRefused = false,
     this.baseTileProvider,
     this.mapController,
     this.onMapEvent,
@@ -78,6 +79,10 @@ class AkitaMap extends StatelessWidget {
   /// drawn, marks the last trusted position only; with no trusted position
   /// ([herPosition] null) the words stand alone.
   final bool positionLost;
+
+  /// Her last answer to location was "no" (`isLocationRefusal`). Read in one
+  /// place, `_PositionWords`, and today it changes nothing: see there.
+  final bool positionRefused;
 
   /// Optional offline-first basemap provider (offline_tiles'
   /// OfflineTileProvider). When supplied, the base TileLayer serves tiles from
@@ -218,6 +223,7 @@ class AkitaMap extends StatelessWidget {
             _PositionWords(
               herPosition: herPosition,
               positionLost: positionLost,
+              positionRefused: positionRefused,
               // Half the drawn mark: ring 34 px, mock square 20 px, dot 22 px.
               markHalfExtent: (positionDegraded || positionLost)
                   ? 17
@@ -395,11 +401,13 @@ class _PositionWords extends StatelessWidget {
   const _PositionWords({
     required this.herPosition,
     required this.positionLost,
+    required this.positionRefused,
     required this.markHalfExtent,
   });
 
   final LatLng? herPosition;
   final bool positionLost;
+  final bool positionRefused;
   final double markHalfExtent;
 
   @override
@@ -407,7 +415,14 @@ class _PositionWords extends StatelessWidget {
     final l = AppL10n.of(context);
     String? words;
     Key? key;
-    if (positionLost) {
+    if (positionLost && positionRefused) {
+      // Her refusal of location: THE ONE PLACE the map's words for it are
+      // chosen. For now they are the words and the pill of a GPS that never
+      // found her, unchanged: what the map should say after her "no" is under
+      // review (2026-09-13), and a ruling changes this branch alone.
+      words = l.positionUnknownLabel;
+      key = const ValueKey('her-position-unknown-label');
+    } else if (positionLost) {
       words = l.positionUnknownLabel;
       key = const ValueKey('her-position-unknown-label');
     } else if (herPosition != null) {

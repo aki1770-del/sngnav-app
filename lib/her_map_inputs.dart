@@ -36,6 +36,7 @@ class HerMapInputs {
     this.accuracyMeters,
     this.degraded = false,
     this.lost = false,
+    this.refused = false,
   });
 
   /// Nothing to draw: no position event has arrived in this sharing session.
@@ -54,6 +55,13 @@ class HerMapInputs {
   /// Past the controller's honesty horizon, or degraded from an anchor no
   /// event of this session set: words on the map, no circle.
   final bool lost;
+
+  /// The last event was her refusal of location ([isLocationRefusal]). Carried
+  /// to the map's words and, today, changes nothing there: after her "no" the
+  /// map says what it says for a GPS that never found her. What it should say
+  /// is under review, and `_PositionWords` in akita_map.dart is the one place
+  /// that decides it.
+  final bool refused;
 }
 
 /// Whether the position [fix] that the drive brain has just taken became the
@@ -113,15 +121,20 @@ HerMapInputs herMapInputs({
     PositionUnavailable() => (null, null),
   };
 
+  final refused = isLocationRefusal(fix);
   final mode = estimate?.mode;
   final unlocatable =
       mode == LocalizationMode.deadReckoning || mode == LocalizationMode.lost;
   if (isMock || estimate == null || !unlocatable) {
-    return HerMapInputs(position: fixPosition, accuracyMeters: fixAccuracy);
+    return HerMapInputs(
+      position: fixPosition,
+      accuracyMeters: fixAccuracy,
+      refused: refused,
+    );
   }
 
   if (!anchoredThisSession) {
-    return const HerMapInputs(degraded: true, lost: true);
+    return HerMapInputs(degraded: true, lost: true, refused: refused);
   }
 
   // A ring marks a position the controller trusted, never a guess from a
@@ -133,5 +146,6 @@ HerMapInputs herMapInputs({
     accuracyMeters: estimate.confidenceRadiusMeters,
     degraded: true,
     lost: mode == LocalizationMode.lost,
+    refused: refused,
   );
 }
