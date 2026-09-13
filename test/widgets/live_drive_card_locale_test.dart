@@ -1,0 +1,112 @@
+/// The live-drive card's description, demo controls and announce line follow
+/// the app's locale.
+///
+/// Why this test exists. Measured 2026-09-14: the card's description, its
+/// blackout button and counter, and its announce line were English literals in
+/// Japanese mode, and its visibility demo label and bands were Japanese
+/// literals in English mode. English keeps its bytes, and the Japanese label
+/// and bands keep theirs. The new sentences are unruled candidates for a look
+/// on a render.
+///
+/// Not changed, and not asserted: the card's title and its footer. The
+/// instrument that looks at her map finds this card by its English title, and
+/// compares what the card says about stopping across a Japanese and an English
+/// run, which the footer's "consider stopping" would break in Japanese. Both
+/// stay until that instrument no longer keys on them.
+library;
+
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:sngnav_app/jma_fetch.dart';
+import 'package:sngnav_app/main.dart' show SngnavApp;
+
+import '../support/fake_alert_actuators.dart';
+
+final _cjk = RegExp(r'[぀-ヿ㐀-鿿＀-￯]');
+
+Future<void> _boot(WidgetTester tester, String lang) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump();
+  await tester.pumpWidget(SngnavApp(
+    actuators: FakeAlertActuators(),
+    locale: Locale(lang),
+    clock: () => DateTime.utc(2026, 1, 14, 21),
+    jmaFetch: () async => const JmaFailure('no network in this test'),
+  ));
+  await tester.pump();
+  await tester.pump();
+}
+
+Future<void> _useMock(WidgetTester tester) async {
+  final b = find.byKey(const Key('use-mock-button'));
+  await tester.ensureVisible(b);
+  await tester.pump();
+  await tester.tap(b);
+  await tester.pump();
+  await tester.pump();
+}
+
+Future<void> _blackout(WidgetTester tester) async {
+  final b = find.byKey(const Key('drive-hud-blackout-button'));
+  await tester.ensureVisible(b);
+  await tester.pump();
+  await tester.tap(b);
+  await tester.pump();
+  await tester.pump();
+}
+
+String _textOf(WidgetTester tester, Key key) =>
+    tester.widget<Text>(find.byKey(key)).data ?? '';
+
+const _englishLiterals = [
+  'Fuses HER honest position',
+  'Simulate GPS blackout',
+  'blackout: ',
+  'Auto-fires audio + haptic',
+  'Raised to caution (shown + coloured)',
+  'Continue — nothing announced',
+];
+
+void main() {
+  testWidgets('Japanese: no English literal left in these parts of the card',
+      (tester) async {
+    await _boot(tester, 'ja');
+    await _useMock(tester);
+    await _blackout(tester);
+    for (final english in _englishLiterals) {
+      expect(find.textContaining(english), findsNothing, reason: english);
+    }
+    for (final key in const [
+      Key('drive-hud-description'),
+      Key('drive-hud-announce-status'),
+      Key('drive-hud-blackout-seconds'),
+    ]) {
+      expect(find.byKey(key), findsOneWidget, reason: '$key');
+      expect(_cjk.hasMatch(_textOf(tester, key)), isTrue,
+          reason: '$key: 「${_textOf(tester, key)}」');
+    }
+    final button = find.byKey(const Key('drive-hud-blackout-button'));
+    expect(
+        find.descendant(of: button, matching: find.textContaining(_cjk)),
+        findsOneWidget,
+        reason: 'the blackout button reads Japanese');
+  });
+
+  testWidgets('English: no Japanese in the demo label and bands, and the '
+      'English parts keep their bytes', (tester) async {
+    await _boot(tester, 'en');
+    await _useMock(tester);
+    await _blackout(tester);
+    expect(find.textContaining('視程デモ上書き'), findsNothing);
+    expect(find.textContaining('上書きなし'), findsNothing);
+    final label = _textOf(tester, const Key('drive-hud-visibility-label'));
+    expect(_cjk.hasMatch(label), isFalse, reason: label);
+    expect(find.textContaining('Fuses HER honest position'), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byKey(const Key('drive-hud-blackout-button')),
+            matching: find.text('Simulate GPS blackout (+60 s)')),
+        findsOneWidget);
+    expect(find.text('blackout: 60s'), findsOneWidget);
+  });
+}

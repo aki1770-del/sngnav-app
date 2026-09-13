@@ -1814,14 +1814,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   // Visibility bands for the mocked in-drive control. metres, or null =
-  // "no reading" (a first-class unknown).
-  static const List<(String, double?)> _visibilityBands = [
-    ('— 上書きなし：ライブ／未計測（既定）—', null),
-    ('クリア ~1.5 km', 1500),
-    ('視界低下 ~700 m', 700),
-    ('視界不良 ~300 m', 300),
-    ('ホワイトアウト ~80 m', 80),
-  ];
+  // "no reading" (a first-class unknown). Labels follow the app's locale
+  // (AppL10n.driveHudVisibilityBand); they were Japanese on every device.
+  static const List<double?> _visibilityBands = [null, 1500, 700, 300, 80];
 
   /// The unknowns the app owns because the drive brain has no channel for
   /// them — an unprovable advisory lookup, and an unread/failed weather feed.
@@ -2003,27 +1998,29 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 8),
         ],
         Text(
-          'Fuses HER honest position (localization_fallback: GPS → dead '
-          'reckoning → lost, never a confident wrong dot) with visibility + the '
-          'real area advisory (compound_failure_advisor). The MOMENT the caution '
-          'rung RISES it auto-announces on the SAME audio + haptic channel as '
-          'WS5 — no manual button. Share a location above, then lower the '
-          'visibility band and/or simulate a GPS blackout to see it rise.',
+          key: const Key('drive-hud-description'),
+          l.driveHudDescription,
           style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
         ),
         const SizedBox(height: 10),
         // Demo OVERRIDE for the visibility band. Default (null) = live/unknown;
         // the road has no visibility sensor, so absence reads as 未計測, never clear.
-        const Text('視程デモ上書き（既定：ライブ／未計測 — 合成クリアなし）',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+        Text(
+          key: const Key('drive-hud-visibility-label'),
+          l.driveHudVisibilityOverrideLabel,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
         DropdownButton<double?>(
           key: const Key('drive-hud-visibility'),
           value: _mockVisibilityMeters,
           isExpanded: true,
           onChanged: _onVisibilityChanged,
           items: [
-            for (final (label, meters) in _visibilityBands)
-              DropdownMenuItem<double?>(value: meters, child: Text(label)),
+            for (final meters in _visibilityBands)
+              DropdownMenuItem<double?>(
+                value: meters,
+                child: Text(l.driveHudVisibilityBand(meters)),
+              ),
           ],
         ),
         const SizedBox(height: 8),
@@ -2039,10 +2036,12 @@ class _HomePageState extends State<HomePage> {
               key: const Key('drive-hud-blackout-button'),
               onPressed: hasBaseline ? _simulateGpsBlackout : null,
               icon: const Icon(Icons.gps_off),
-              label: const Text('Simulate GPS blackout (+60 s)'),
+              label: Text(l.driveHudSimulateBlackout),
             ),
             if (_blackoutSeconds > 0)
-              Text('blackout: ${_blackoutSeconds}s',
+              Text(
+                  key: const Key('drive-hud-blackout-seconds'),
+                  l.driveHudBlackoutSeconds(_blackoutSeconds),
                   style: TextStyle(
                       fontSize: 12, color: Colors.orange.shade900)),
           ],
@@ -2159,19 +2158,14 @@ class _HomePageState extends State<HomePage> {
           // but NOT spoken by this lane — the watch lane speaks the specific
           // hazard — so it must not falsely claim it auto-fired (OPS-068).
           Text(
+            key: const Key('drive-hud-announce-status'),
             switch (effective ?? advice.action) {
-              DriveAction.considerStopping =>
-                'Auto-fires audio + haptic (critical) on rung rise. '
-                    'On-device HEAR/FEEL not verified in this env.',
+              DriveAction.considerStopping => l.driveHudAnnounceCritical,
               DriveAction.heightenedCaution =>
                 _driveHud.effectiveRungIsSpokenByRung
-                    ? 'Auto-fires audio + haptic (warning) on rung rise. '
-                        'On-device HEAR/FEEL not verified in this env.'
-                    : 'Raised to caution (shown + coloured). The specific '
-                        'hazard line is spoken on its own measured-watch lane; '
-                        'this rung does not double-speak it.',
-              DriveAction.continueDriving =>
-                'Continue — nothing announced (parity with the voice gate).',
+                    ? l.driveHudAnnounceWarning
+                    : l.driveHudAnnounceRaisedNotSpoken,
+              DriveAction.continueDriving => l.driveHudAnnounceContinue,
             },
             style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
           ),

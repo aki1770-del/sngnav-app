@@ -109,7 +109,9 @@ void main() {
       await tester.pump();
       await tester.tap(band);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('ホワイトアウト ~80 m').last);
+      // English band label since 2026-09-14; the bands were Japanese on
+      // every device until then.
+      await tester.tap(find.text('Whiteout ~80 m').last);
       await tester.pumpAndSettle();
 
       final label = find.text('Speed hint:');

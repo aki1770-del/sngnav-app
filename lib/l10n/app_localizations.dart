@@ -323,6 +323,74 @@ class AppL10n {
       ? 'この曲がり角の案内は保留しています（現在地が信頼できません）。'
       : 'Guidance for this turn is on hold (your position is not trusted).';
 
+  // The live-drive card's description, demo controls and announce line. Until
+  // 2026-09-14 the description, the blackout button and counter, and the
+  // announce line were English in Japanese mode, and the visibility demo label
+  // and bands Japanese in English mode. Each side keeps its bytes; the other
+  // side is new and not yet reviewed on a render. The card's title and footer
+  // are not here: they stay as they are while the instrument that looks at her
+  // map finds the card by its title and reads the footer.
+
+  /// What the card does, above its demo controls.
+  String get driveHudDescription => _ja
+      ? '正直な現在地（localization_fallback：GPS → 推測航法 → 現在地 不明。自信のある誤った点は出しません）を、視界と実際の地域の警報・注意報（compound_failure_advisor）と組み合わせます。注意の段階が上がった瞬間に、WS5 と同じ音声＋振動で自動的に知らせます（手動のボタンは不要です）。上で位置を共有し、視界の段階を下げるか GPS 途絶を再現すると、段階が上がるのを確かめられます。'
+      : 'Fuses HER honest position (localization_fallback: GPS → dead '
+          'reckoning → lost, never a confident wrong dot) with visibility + the '
+          'real area advisory (compound_failure_advisor). The MOMENT the caution '
+          'rung RISES it auto-announces on the SAME audio + haptic channel as '
+          'WS5 — no manual button. Share a location above, then lower the '
+          'visibility band and/or simulate a GPS blackout to see it rise.';
+
+  /// The label over the visibility demo override.
+  String get driveHudVisibilityOverrideLabel => _ja
+      ? '視程デモ上書き（既定：ライブ／未計測 — 合成クリアなし）'
+      : 'Visibility demo override (default: live / not measured — no synthetic clear)';
+
+  /// One band of the visibility demo override, by its metres; null is no
+  /// override.
+  String driveHudVisibilityBand(double? meters) => switch (meters) {
+        null => _ja
+            ? '— 上書きなし：ライブ／未計測（既定）—'
+            : '— No override: live / not measured (default) —',
+        1500.0 => _ja ? 'クリア ~1.5 km' : 'Clear ~1.5 km',
+        700.0 => _ja ? '視界低下 ~700 m' : 'Reduced visibility ~700 m',
+        300.0 => _ja ? '視界不良 ~300 m' : 'Poor visibility ~300 m',
+        80.0 => _ja ? 'ホワイトアウト ~80 m' : 'Whiteout ~80 m',
+        final double m => '~${m.toStringAsFixed(0)} m',
+      };
+
+  /// The demo button that advances a GPS blackout by 60 s.
+  String get driveHudSimulateBlackout =>
+      _ja ? 'GPS 途絶を再現（+60 秒）' : 'Simulate GPS blackout (+60 s)';
+
+  /// How far the demo blackout has been advanced.
+  String driveHudBlackoutSeconds(int seconds) =>
+      _ja ? 'GPS 途絶: $seconds 秒' : 'blackout: ${seconds}s';
+
+  /// Announce line: the top rung auto-fires.
+  String get driveHudAnnounceCritical => _ja
+      ? '段階が上がると音声＋振動で自動発報します（重要度: critical）。端末での聴取・体感は本環境では未検証です。'
+      : 'Auto-fires audio + haptic (critical) on rung rise. '
+          'On-device HEAR/FEEL not verified in this env.';
+
+  /// Announce line: the middle rung auto-fires on this lane.
+  String get driveHudAnnounceWarning => _ja
+      ? '段階が上がると音声＋振動で自動発報します（重要度: warning）。端末での聴取・体感は本環境では未検証です。'
+      : 'Auto-fires audio + haptic (warning) on rung rise. '
+          'On-device HEAR/FEEL not verified in this env.';
+
+  /// Announce line: raised and shown, spoken on its own measured-watch lane.
+  String get driveHudAnnounceRaisedNotSpoken => _ja
+      ? '注意に上げました（表示と色のみ）。個別の危険の文言は実測ウォッチの経路で読み上げ、この段階では重ねて読み上げません。'
+      : 'Raised to caution (shown + coloured). The specific '
+          'hazard line is spoken on its own measured-watch lane; '
+          'this rung does not double-speak it.';
+
+  /// Announce line: nothing is announced.
+  String get driveHudAnnounceContinue => _ja
+      ? '継続 — 何も発報しません（音声ゲートと同じ扱い）。'
+      : 'Continue — nothing announced (parity with the voice gate).';
+
   /// Note in the caution banner when hazards compound.
   String get driveHudCompoundingNote => _ja
       ? '⚠ 危険が重なっています（現在地不確か＋視界不良）'
