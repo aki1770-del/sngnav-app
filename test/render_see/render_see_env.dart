@@ -59,6 +59,27 @@ Future<bool> loadCjkFamily(String family, List<String> paths) async {
 Future<bool> loadBundledSymbolsFont() =>
     loadCjkFamily('SnGNavSymbols', ['assets/fonts/SnGNavSymbols.ttf']);
 
+/// Load the Flutter SDK's own MaterialIcons font, found beside the
+/// `flutter_tester` binary (`<sdk>/bin/cache/artifacts/engine/<host>/`).
+/// `flutter test` does not load it by itself, so an `Icons.*` glyph renders
+/// as a hollow box — and on a map, a hollow box next to a marker reads as a
+/// shape of its own. Returns `false` when the font is not where a standard
+/// SDK keeps it. Opt-in per capture suite, like [loadBundledSymbolsFont].
+Future<bool> loadMaterialIconsFont() async {
+  final artifacts = File(Platform.resolvedExecutable).parent.parent.parent;
+  final font =
+      File('${artifacts.path}/material_fonts/MaterialIcons-Regular.otf');
+  if (!font.existsSync()) {
+    // ignore: avoid_print
+    print('render_see: MaterialIcons not found at ${font.path} — Icons.* '
+        'glyphs render as boxes in this environment');
+    return false;
+  }
+  final loader = FontLoader('MaterialIcons')..addFont(_fontBytes(font.path));
+  await loader.load();
+  return true;
+}
+
 /// Replace the golden comparator with one that SKIPS (pass + honest
 /// note) every comparison. Call ONLY when [loadCjkFamily] returned
 /// false — on the font-bearing dev host the real comparator stays.

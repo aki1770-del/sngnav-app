@@ -6,11 +6,17 @@
 ///
 ///   render_out/14_her_dot_confident.png  — trusted GPS: solid BLUE dot, tight
 ///                                           blue accuracy circle (honest here).
-///   render_out/15_her_dot_degraded.png   — dead-reckoning/lost: GREY stale
-///                                           dot, GREY circle grown to the
-///                                           honest confidence radius. The map
-///                                           can no longer assert a confident
-///                                           position it does not have.
+///   render_out/15_her_dot_degraded.png   — dead-reckoning/lost: a larger
+///                                           HOLLOW dark ring, GREY circle
+///                                           grown to the honest confidence
+///                                           radius. The map can no longer
+///                                           assert a confident position it
+///                                           does not have.
+///
+/// Until 2026-09-13 frame 15 showed a GREY dot the same size and shape as the
+/// blue one; desaturated the two were one disc. The degraded state is now a
+/// hollow ring (see `_HerDot` in lib/akita_map.dart, and the pixel
+/// measurements in her_dot_glance_capture_test.dart).
 ///
 ///   flutter test --update-goldens test/render_see/her_dot_degraded_capture_test.dart
 library;
@@ -33,6 +39,10 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
     if (!cjkLoaded) installNoopGoldenComparator();
+    // The station pin is an Icons.* glyph. Unloaded, it draws as a red hollow
+    // box — and inside frame 15's hollow ring that box reads as part of the
+    // degraded state.
+    await loadMaterialIconsFont();
     // flutter_map's built-in cache calls path_provider — give it a temp dir.
     final tmp = await Directory.systemTemp.createTemp('her_dot_render_see');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -86,7 +96,7 @@ void main() {
     );
   });
 
-  testWidgets('15 — silent drought (dead-reckoning/lost): GREY stale dot + '
+  testWidgets('15 — silent drought (dead-reckoning/lost): HOLLOW ring + '
       'circle grown to the honest confidence radius', (tester) async {
     tester.view.devicePixelRatio = 2.0;
     tester.view.physicalSize = const Size(600 * 2, 360 * 2);

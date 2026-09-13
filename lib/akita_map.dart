@@ -45,10 +45,16 @@ class AkitaMap extends StatelessWidget {
   /// [DriveHudController.positionUnlocatable]). The map is the surface a
   /// driver's eyes snap to; on a silent GPS blackout the raw fix stream goes
   /// quiet and the last confident point must NOT keep painting a solid blue
-  /// "you are here". When degraded the dot greys out to a distinct "last
-  /// known — stale" pin and the accuracy circle (which the caller grows to the
-  /// honest confidence radius) turns grey — so the map can never contradict the
-  /// degraded HUD text on the same screen.
+  /// "you are here". When degraded the dot becomes a larger HOLLOW ring —
+  /// "somewhere in here", not a point — and the accuracy circle (which the
+  /// caller grows to the honest confidence radius) turns grey, so the map can
+  /// never contradict the degraded HUD text on the same screen. The ring
+  /// differs from the solid dot in fill, size and luminance, not in hue alone.
+  ///
+  /// Measured 2026-09-13: in `lost` mode the caller's radius is
+  /// `double.infinity`, which flutter_map 8.3.2 does not draw — its circle
+  /// painter fails a null check (`painter.dart:86`) and paints no circle — so
+  /// there the ring is the only uncertainty cue on the map.
   final bool positionDegraded;
 
   /// Optional offline-first basemap provider (offline_tiles'
@@ -156,8 +162,8 @@ class AkitaMap extends StatelessWidget {
                 if (herPosition != null)
                   Marker(
                     point: herPosition!,
-                    width: 22,
-                    height: 22,
+                    width: _HerDot.extent,
+                    height: _HerDot.extent,
                     child: _HerDot(
                       isMock: isHerPositionMock,
                       degraded: positionDegraded,
@@ -237,31 +243,88 @@ class _EndpointMarker extends StatelessWidget {
   }
 }
 
+/// HER position dot. Its three states must stay distinct when colour is gone:
+/// colour is the first channel glare, peripheral vision and colour-vision
+/// deficiency take away.
+///
+/// Until 2026-09-13 the states were one 22px circle in three fills. The
+/// weakest pair, real fix `#1E88E5` against degraded `#78909C`, measured
+/// 1.098:1 in luminance, and rendered desaturated all three were one grey
+/// disc. The state now rides FILL, SHAPE and SIZE first, and colour last:
+///
+/// * real fix: SOLID round dot, white rim, 22px. The only solid state, so the
+///   only one that reads as a confident "you are here". Unchanged.
+/// * mock: SQUARE, 20px, pale fill, dark outline. A simulated position is
+///   never round, so it cannot pass for a measured one, even in monochrome.
+/// * degraded (dead-reckoning or lost): HOLLOW ring, 34px. The map shows
+///   through the middle because no single point inside it is known.
+///
+/// Luminance contrast of the state colours, from the Material shades in the
+/// SDK: real fix against degraded 4.377:1, real fix against mock 3.463:1,
+/// degraded against mock 15.156:1 (WCAG non-text floor 3.0:1).
+///
+/// Where both flags are set, degraded wins: the dot resolves toward "we do
+/// not know", never toward a simulated or a confident point.
 class _HerDot extends StatelessWidget {
   const _HerDot({required this.isMock, this.degraded = false});
+
+  /// Side of the square Marker box that hosts the dot: the degraded ring's
+  /// diameter. flutter_map lays a marker child out under TIGHT constraints,
+  /// so a box smaller than the largest state would squeeze every state to
+  /// one size on the map while each still looks right on its own.
+  static const double extent = 34;
 
   final bool isMock;
   final bool degraded;
 
   @override
   Widget build(BuildContext context) {
-    // Degraded (dead-reckoning / lost) beats mock for colour: a stale last-
-    // known point must read as GREY, never as a confident blue "you are here".
-    final color = degraded
-        ? Colors.blueGrey.shade400
-        : (isMock ? Colors.amber.shade700 : Colors.blue.shade600);
-    return Container(
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 3),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.4),
-            blurRadius: 6,
-            spreadRadius: 1,
+    if (degraded) {
+      // No fill and no shadow: a shadow would paint the hole in.
+      return Center(
+        child: Container(
+          key: const ValueKey('her-dot-degraded'),
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.grey.shade900, width: 4),
           ),
-        ],
+        ),
+      );
+    }
+    if (isMock) {
+      return Center(
+        child: Container(
+          key: const ValueKey('her-dot-mock'),
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: Colors.amber.shade50,
+            shape: BoxShape.rectangle,
+            border: Border.all(color: Colors.grey.shade900, width: 3),
+          ),
+        ),
+      );
+    }
+    final fill = Colors.blue.shade600;
+    return Center(
+      child: Container(
+        key: const ValueKey('her-dot-real-fix'),
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          color: fill,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 3),
+          boxShadow: [
+            BoxShadow(
+              color: fill.withValues(alpha: 0.4),
+              blurRadius: 6,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
       ),
     );
   }
