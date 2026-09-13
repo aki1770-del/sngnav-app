@@ -115,6 +115,18 @@ class AppL10n {
     return _ja ? '$prefix · 最後の位置 $age前' : '$prefix · last position $age ago';
   }
 
+  /// Status line under the map in DEAD RECKONING: the mode, and the radius
+  /// around her last trusted position. [modeLabel] is
+  /// `DriveHudLocalizer.modeLabel` for the same locale, so the line and the
+  /// drive panel name the state with one vocabulary; [radiusMeters] is already
+  /// formatted. The Japanese is byte-identical to the line it replaces, which
+  /// joined a Japanese literal to a mode label hardcoded to `'ja'`, so an
+  /// English device read 「GPS 途絶（推測航法） · 最後の位置 ±135m」 (2026-09-13).
+  String positionDeadReckoningStatus(String modeLabel, String radiusMeters) =>
+      _ja
+          ? '$modeLabel · 最後の位置 ±${radiusMeters}m'
+          : '$modeLabel · last position ±$radiusMeters m';
+
   /// GPS-unavailable line. The [reason] is produced by the geolocator layer
   /// (her_position.dart) as English; [_localizeReason] maps the known cases
   /// into HER language and passes anything unrecognized through honestly.

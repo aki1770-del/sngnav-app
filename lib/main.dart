@@ -1864,8 +1864,10 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12))
         else ...[
           // The honest position line.
+          // The mode follows the app's resolved locale (was 'ja'): the same
+          // label the line under the map shows.
           _kv('現在地の信頼度',
-              _driveHudText.modeLabel(estimate.mode, 'ja')),
+              _driveHudText.modeLabel(estimate.mode, l.locale.languageCode)),
           _kv('誤差',
               _driveHudText.radiusLabel(estimate.confidenceRadiusMeters, 'ja')),
           const SizedBox(height: 8),
@@ -4107,8 +4109,12 @@ class _HomePageState extends State<HomePage> {
             ? l.positionLostStatus(double.infinity)
             : estimate.mode == LocalizationMode.lost
             ? l.positionLostStatus(estimate.secondsSinceTrustedFix)
-            : '${_driveHudText.modeLabel(estimate.mode, 'ja')} · '
-                '最後の位置 ±${estimate.confidenceRadiusMeters.toStringAsFixed(0)}m';
+            // Dead reckoning, in the app's resolved locale (was 'ja' and a
+            // Japanese literal): an English device read Japanese here.
+            : l.positionDeadReckoningStatus(
+                _driveHudText.modeLabel(estimate.mode, l.locale.languageCode),
+                estimate.confidenceRadiusMeters.toStringAsFixed(0),
+              );
     final (text, color) = switch (fix) {
       null => (
         l.locatingYou,
