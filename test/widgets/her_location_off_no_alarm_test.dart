@@ -33,6 +33,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
+import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
@@ -49,7 +50,10 @@ String _panel(WidgetTester tester) {
   if (has(['停車の検討', 'Consider stopping'])) return 'considerStopping';
   if (has(['注意して走行', 'Heightened caution'])) return 'heightenedCaution';
   if (has(['特段の注意なし', 'No elevated caution'])) return 'continueDriving';
-  if (find.text('(no position fed yet)').evaluate().isNotEmpty) {
+  // The card's no-position line follows the app's locale (2026-09-14); both
+  // locales' words come from the app, so neither is hardcoded here.
+  if (find.text(const AppL10n(Locale('ja')).driveHudNoPositionFed).evaluate().isNotEmpty ||
+      find.text(const AppL10n(Locale('en')).driveHudNoPositionFed).evaluate().isNotEmpty) {
     return 'no rung (no position fed yet)';
   }
   return 'UNREADABLE';

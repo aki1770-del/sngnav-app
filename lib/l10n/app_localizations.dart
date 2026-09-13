@@ -189,6 +189,26 @@ class AppL10n {
   /// Row label for the stop-within-sight guide speed.
   String get driveHudGuideSpeedLabel => _ja ? '目安速度' : 'Guide speed';
 
+  /// The live-drive card's instruction to share, shown only while she is not
+  /// sharing. English unchanged; the Japanese names the two buttons above by
+  /// their own labels ([shareMyLocation], [useAkitaMock]). Added 2026-09-14,
+  /// not yet reviewed on a render.
+  String get driveHudShareHint => _ja
+      ? '上の「現在地を共有」または「秋田のモック位置（開発用）」で位置を共有すると、走行中の注意判断が始まります。'
+      : 'Share a location (Akita mock or GPS) above to start the drive brain.';
+
+  /// The live-drive card's line while the drive brain has no position. English
+  /// unchanged. Added 2026-09-14, not yet reviewed on a render.
+  String get driveHudNoPositionFed =>
+      _ja ? '（まだ現在地が届いていません）' : '(no position fed yet)';
+
+  /// The maneuver panel's line when turn guidance is withheld because her
+  /// position is not trusted. Japanese byte-identical to the literal it
+  /// replaces; English added 2026-09-14, not yet reviewed on a render.
+  String get maneuverGuidancePaused => _ja
+      ? 'この曲がり角の案内は保留しています（現在地が信頼できません）。'
+      : 'Guidance for this turn is on hold (your position is not trusted).';
+
   /// Note in the caution banner when hazards compound.
   String get driveHudCompoundingNote => _ja
       ? '⚠ 危険が重なっています（現在地不確か＋視界不良）'

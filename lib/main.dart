@@ -1991,18 +1991,21 @@ class _HomePageState extends State<HomePage> {
                       fontSize: 12, color: Colors.orange.shade900)),
           ],
         ),
-        if (!hasBaseline)
+        // An instruction to share, so shown only while she is not sharing.
+        // Until 2026-09-14 it was keyed on "no fix" alone, and after a GPS
+        // stream error, while she was sharing, it told her to share.
+        if (!hasBaseline && _herSub == null)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
-              'Share a location (Akita mock or GPS) above to start the drive '
-              'brain.',
+              key: const Key('drive-hud-share-hint'),
+              l.driveHudShareHint,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
             ),
           ),
         const SizedBox(height: 12),
         if (estimate == null || advice == null)
-          Text('(no position fed yet)',
+          Text(l.driveHudNoPositionFed,
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12))
         else ...[
           // The honest position line. The whole panel follows the app's
@@ -4479,8 +4482,11 @@ class _HomePageState extends State<HomePage> {
     // When suppressed there is NO maneuver phrase to show (the decision carries
     // empty text by construction) — show the honest "guidance paused" line, not
     // a turn.
+    // In the app's resolved locale (2026-09-14; was a Japanese literal on every
+    // device), like the narration text it stands in for.
+    final l = AppL10n.of(context);
     final herLine = preview.confidence == NarrationConfidence.suppressed
-        ? 'この曲がり角の案内は保留しています（現在地が信頼できません）。'
+        ? l.maneuverGuidancePaused
         : preview.text;
 
     return Column(
@@ -4496,7 +4502,8 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 8),
         if (mode != null)
-          _kv('現在地の信頼度', _driveHudText.modeLabel(mode, 'ja')),
+          _kv(l.driveHudPositionTrustLabel,
+              _driveHudText.modeLabel(mode, l.locale.languageCode)),
         _kv('Maneuvers parsed', '${_routeManeuvers.length} '
             '(next: ${next.index + 1})'),
         // NOTE: the raw ENGLISH engine instruction is deliberately NOT rendered
