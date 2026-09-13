@@ -131,6 +131,29 @@ PositionFix fixFromSample({
   );
 }
 
+const int _platformCallTimeoutSeconds = 10;
+const int _permissionRequestTimeoutSeconds = 120;
+
+/// How long [herPositionStream] waits, by default, on each programmatic
+/// platform read (location service enabled, permission check).
+const Duration kPositionPlatformCallTimeout =
+    Duration(seconds: _platformCallTimeoutSeconds);
+
+/// How long [herPositionStream] waits, by default, on the permission request,
+/// where a person is reading a system dialog.
+const Duration kPositionPermissionRequestTimeout =
+    Duration(seconds: _permissionRequestTimeoutSeconds);
+
+/// The longest [herPositionStream], at its default timeouts, can say nothing
+/// while it is still waiting on the platform's answers or on her permission
+/// dialog: both platform reads and the permission request, each to its own
+/// timeout (140 s). Each of those waits ends in an event. So a stream that
+/// has said nothing for longer is not waiting on her: it has subscribed to a
+/// platform that has not delivered a position. Derived from the two timeouts
+/// above, so lengthening either lengthens this.
+const Duration kPositionFirstEventBound = Duration(
+    seconds: 2 * _platformCallTimeoutSeconds + _permissionRequestTimeoutSeconds);
+
 /// Streams HER position with accuracy. Emits [PositionUnavailable] on
 /// permission denial, service-disabled, stream error, platform-call
 /// timeout, or platform stream termination — never silently stalls on a
@@ -161,8 +184,8 @@ Stream<PositionFix> herPositionStream({
   Future<LocationPermission> Function()? checkPermission,
   Future<LocationPermission> Function()? requestPermission,
   Stream<Position> Function()? positionStream,
-  Duration platformCallTimeout = const Duration(seconds: 10),
-  Duration permissionRequestTimeout = const Duration(minutes: 2),
+  Duration platformCallTimeout = kPositionPlatformCallTimeout,
+  Duration permissionRequestTimeout = kPositionPermissionRequestTimeout,
 }) {
   final controller = StreamController<PositionFix>();
   StreamSubscription<Position>? sub;

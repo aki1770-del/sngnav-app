@@ -352,6 +352,30 @@ DateTime? positionWatchdogPollTime({
   return now;
 }
 
+/// Whether a sharing session that began at [sharingStartedAt] has now gone
+/// past [bound] with no position event at all ([eventArrived] false).
+///
+/// The watchdog above never polls before a first event, because the permission
+/// dialog may still be on screen. That left one state with no words on her
+/// map: she shares, the platform stream subscribes, and nothing ever arrives.
+/// Measured 2026-09-13: ten minutes on, the map was 0.000% different from the
+/// map of a driver who never shared. [bound] defaults to
+/// `kPositionFirstEventBound`, the longest the real position stream can spend
+/// waiting on the platform's answers and on her dialog, every one of which
+/// ends in an event; so past it she is not being asked anything, and the map
+/// may say her position is unknown without speaking over a consent dialog.
+///
+/// Top-level + public so the decision is testable off-device.
+bool positionFirstEventOverdue({
+  required DateTime now,
+  required DateTime? sharingStartedAt,
+  required bool eventArrived,
+  Duration bound = kPositionFirstEventBound,
+}) =>
+    !eventArrived &&
+    sharingStartedAt != null &&
+    now.difference(sharingStartedAt) >= bound;
+
 /// N15 — the FEED-LOSS decision (JmaFailure / no successful fetch this cycle),
 /// extracted to ONE function so the VOICE path (`_announceWatchTransitions`)
 /// and the VISIBLE panel (`_jmaPanel`) compute the SAME verdict from the same
@@ -922,6 +946,15 @@ class _HomePageState extends State<HomePage> {
   DateTime? _lastPositionEventAt;
   static const Duration _watchdogTickEvery = Duration(seconds: 15);
 
+  /// When she tapped share for the current sharing session, by [_now]; null
+  /// when she is not sharing real position.
+  DateTime? _herSharingStartedAt;
+
+  /// She is sharing and no position event has arrived within
+  /// `kPositionFirstEventBound` ([positionFirstEventOverdue]). Set by the
+  /// watchdog tick; the map then says 現在地不明 instead of nothing.
+  bool _herFirstEventOverdue = false;
+
   // B32 — the voice-lane + media-volume cautions were probed ONCE in
   // initState: a mid-drive mute (or a mid-drive voice-pack removal) was
   // invisible for the whole drive. This ticker re-probes both (~45 s, and on
@@ -1419,6 +1452,8 @@ class _HomePageState extends State<HomePage> {
       _isMockPosition = false;
       _herAnchoredThisSession = false;
       _herLastTrustedThisSession = null;
+      _herSharingStartedAt = _now();
+      _herFirstEventOverdue = false;
     });
     // B32 — drive start: re-probe BOTH eyes-off channels NOW (the initState
     // read may be app-open-hours old; the drive is when a mute matters — and
@@ -1557,6 +1592,18 @@ class _HomePageState extends State<HomePage> {
   /// dot exactly like the demo button does.
   void _watchdogTick() {
     if (!mounted) return;
+    // Nothing has arrived for longer than the stream can wait on her: the map
+    // stops being silent. The drive brain is not fed anything: no event exists
+    // to feed it, and whether a silent feed should raise a caution is not
+    // decided here.
+    if (!_herFirstEventOverdue &&
+        positionFirstEventOverdue(
+          now: _now(),
+          sharingStartedAt: _herSharingStartedAt,
+          eventArrived: _herFix != null,
+        )) {
+      setState(() => _herFirstEventOverdue = true);
+    }
     final pollAt = positionWatchdogPollTime(
       now: _now(),
       lastPositionEventAt: _lastPositionEventAt,
@@ -1575,6 +1622,8 @@ class _HomePageState extends State<HomePage> {
     _positionWatchdog?.cancel();
     _positionWatchdog = null;
     _lastPositionEventAt = null;
+    _herSharingStartedAt = null;
+    _herFirstEventOverdue = false;
     // B32 — the dev drive start re-probes too (symmetry with real start).
     _probeAlertChannelReadiness();
     final mockFix = PositionAvailable(
@@ -2196,6 +2245,8 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _herFix = null;
       _isMockPosition = false;
+      _herSharingStartedAt = null;
+      _herFirstEventOverdue = false;
     });
   }
 
@@ -2885,6 +2936,7 @@ class _HomePageState extends State<HomePage> {
       estimate: _driveHud.estimate,
       isMock: _isMockPosition,
       anchoredThisSession: _herAnchoredThisSession,
+      firstEventOverdue: _herFirstEventOverdue,
     );
 
     return Scaffold(
@@ -4235,6 +4287,14 @@ class _HomePageState extends State<HomePage> {
                 estimate.confidenceRadiusMeters.toStringAsFixed(0),
               );
     final (text, color) = switch (fix) {
+      // Past the time the stream can spend waiting on the platform or on her
+      // dialog, with nothing arrived: "locating" is no longer true. The words
+      // are the app's existing line for a position unknown with no trusted
+      // fix ever, the same state the map now names, and its colour.
+      null when _herFirstEventOverdue => (
+        l.positionLostStatus(double.infinity),
+        Colors.blueGrey.shade700,
+      ),
       null => (
         l.locatingYou,
         Colors.grey.shade600,

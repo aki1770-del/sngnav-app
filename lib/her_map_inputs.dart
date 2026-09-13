@@ -56,11 +56,15 @@ class HerMapInputs {
   /// event of this session set: words on the map, no circle.
   final bool lost;
 
-  /// The last event was her refusal of location ([isLocationRefusal]). Carried
-  /// to the map's words and, today, changes nothing there: after her "no" the
-  /// map says what it says for a GPS that never found her. What it should say
-  /// is under review, and `_PositionWords` in akita_map.dart is the one place
-  /// that decides it.
+  /// The last event says location is off for this app: permission denied,
+  /// now or for good ([isLocationRefusal], read from the typed cause only).
+  /// The map then says 位置情報オフ / "No location access", not 現在地不明, and
+  /// draws no mark of her, whatever [lost] is (ruled 2026-09-13). `_PositionWords`
+  /// in akita_map.dart is the one place that decides the words.
+  ///
+  /// Corrected 2026-09-14: this comment said the flag "changes nothing" on the
+  /// map. That was true when it was written and stopped being true when the
+  /// refusal got its own words.
   final bool refused;
 }
 
@@ -89,6 +93,13 @@ bool anchorsThisSession({
 /// controller's current [estimate], whether the position is the dev mock, and
 /// whether the controller's anchor was set in this sharing session.
 ///
+/// * [fix] `null` and [firstEventOverdue] → the words 現在地不明 and no ring.
+///   She is sharing, and no event has arrived for longer than the position
+///   stream can spend waiting on the platform or on her permission dialog
+///   (`kPositionFirstEventBound`). A stream that has said nothing that long
+///   has subscribed and not delivered, and a map with no words would read the
+///   same as a driver who never shared (measured 2026-09-13: 10 minutes,
+///   0.000% different).
 /// * [fix] `null` → nothing. No event has arrived in this sharing session: she
 ///   has not shared, has stopped, or the first event is still on its way. The
 ///   controller is not reset on stop, so its estimate may still be the last
@@ -114,8 +125,13 @@ HerMapInputs herMapInputs({
   required LocalizationEstimate? estimate,
   required bool isMock,
   required bool anchoredThisSession,
+  bool firstEventOverdue = false,
 }) {
-  if (fix == null) return HerMapInputs.none;
+  if (fix == null) {
+    return firstEventOverdue
+        ? const HerMapInputs(degraded: true, lost: true)
+        : HerMapInputs.none;
+  }
 
   final (LatLng? fixPosition, double? fixAccuracy) = switch (fix) {
     PositionAvailable(:final latitude, :final longitude, :final accuracyMeters) =>
