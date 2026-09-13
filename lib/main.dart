@@ -1523,9 +1523,12 @@ class _HomePageState extends State<HomePage> {
       // abstention must reach her pixel at the instant the loom knows it,
       // not a cadence after (AAE-6/AAE-7).
       //
-      // The reason string matches her_position.dart's own wording verbatim so
-      // AppL10n._localizeReason already renders it in HER language
-      // ('GPSストリームのエラー') — no new string, one vocabulary.
+      // The reason string matches her_position.dart's own wrapper verbatim, so
+      // AppL10n.gpsUnavailable renders it in her language
+      // ('GPSストリームのエラー'), and the exception text after the wrapper
+      // never reaches her line (ruled 2026-09-14). An error here has no typed
+      // cause: this source is swappable, and only herPositionStream types
+      // what the platform said.
       //
       // Deliberately NOT cancelOnError: an error is one bad event, not the end
       // of the drive. Dart leaves the subscription live by default, so a feed
@@ -4391,6 +4394,13 @@ class _HomePageState extends State<HomePage> {
           permanently: isPermanentLocationRefusal(fix),
           routeSettingOpen: _routeSettingOpen,
         ),
+        Colors.grey.shade700,
+      ),
+      // This app has no location on this device, known from the exception's
+      // type (ruled 2026-09-14). Only the words change: the event still
+      // reaches the drive brain as before.
+      PositionUnavailable() when isNoLocationOnThisDevice(fix) => (
+        l.noLocationOnThisDeviceStatus,
         Colors.grey.shade700,
       ),
       PositionUnavailable(:final reason) => (

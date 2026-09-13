@@ -26,6 +26,7 @@
 library;
 
 import 'dart:async';
+import 'package:flutter/services.dart' show MissingPluginException;
 import 'package:geolocator/geolocator.dart';
 
 sealed class PositionFix {
@@ -61,33 +62,51 @@ class PositionUnavailable extends PositionFix {
 /// else is [other], whatever its free-text reason says: a reason can carry
 /// exception text (`'GPS stream error: $e'`), and acting on words inside it
 /// could silence a real failure. Only [herPositionStream] sets a cause, from
-/// the platform's own permission result.
+/// the platform's own permission result or the type of what the platform
+/// threw, never from text.
 enum PositionUnavailableCause {
   /// Anything the app does not act on by cause.
   other,
 
-  /// Location permission is denied for this app: the dialog's "no", or a
-  /// denial the platform applied without her taking any action.
+  /// Location permission is denied for this app: the dialog's "no", a denial
+  /// the platform applied without her taking any action, or the platform's
+  /// typed denial when the position stream subscribes.
   permissionDenied,
 
   /// Denied for good: the platform no longer shows the dialog.
   permissionDeniedForever,
+
+  /// This app has no location implementation on this platform: one of the
+  /// stream's platform calls has none (`MissingPluginException`, wherever it
+  /// arrives, including as a stream error). Known from the exception's type.
+  /// Not a refusal, and it changes nothing the drive brain is given: only the
+  /// words (ruled 2026-09-14).
+  noLocationOnThisDevice,
 }
 
 /// The reasons [herPositionStream] gives for a denied permission, kept for
-/// the log and the fallback line. The app acts on [PositionUnavailable.cause],
-/// never on these words.
+/// the log. The app acts on [PositionUnavailable.cause], never on these words,
+/// and a reason with no cause never reads as a refusal (ruled 2026-09-14).
 const String _permissionDeniedReason = 'Location permission denied';
 const String _permissionPermanentlyDeniedReason =
     'Location permission permanently denied — change in OS settings';
+const String _permissionDeniedAtSubscribeReason =
+    'Location permission denied when the position stream subscribed';
 
 /// Whether [fix] says location is off for this app: permission denied, now or
-/// for good. Not a timeout, not location services off, not a stream error:
-/// those are the platform failing. Read from the typed cause only.
+/// for good. Not a timeout, not location services off, not a stream error
+/// other than the platform's typed permission denial: those are the platform
+/// failing. Read from the typed cause only.
 bool isLocationRefusal(PositionFix? fix) =>
     fix is PositionUnavailable &&
     (fix.cause == PositionUnavailableCause.permissionDenied ||
         fix.cause == PositionUnavailableCause.permissionDeniedForever);
+
+/// Whether [fix] says this app has no location on this device, from the type
+/// of what the platform threw.
+bool isNoLocationOnThisDevice(PositionFix? fix) =>
+    fix is PositionUnavailable &&
+    fix.cause == PositionUnavailableCause.noLocationOnThisDevice;
 
 /// Whether [fix] is a denial for good, where the platform no longer asks.
 bool isPermanentLocationRefusal(PositionFix? fix) =>
@@ -249,8 +268,23 @@ Stream<PositionFix> herPositionStream({
           accuracyMeters: p.accuracy,
           timestamp: p.timestamp,
         )),
-        onError: (Object e) =>
-            controller.add(PositionUnavailable('GPS stream error: $e')),
+        // By the error's type, never its text. geolocator_android 4.6.2 checks
+        // the permission again when the stream is listened to and, when it is
+        // not held, sends PERMISSION_DENIED (`StreamHandlerImpl.java:93-98`),
+        // which the plugin types as PermissionDeniedException: her "no", not a
+        // failure. It was shown as a stream error, and a failure after her
+        // "no" reached the critical caution rung (measured 2026-09-14).
+        onError: (Object e) => controller.add(switch (e) {
+          PermissionDeniedException() => const PositionUnavailable(
+              _permissionDeniedAtSubscribeReason,
+              cause: PositionUnavailableCause.permissionDenied,
+            ),
+          MissingPluginException() => PositionUnavailable(
+              'GPS stream error: $e',
+              cause: PositionUnavailableCause.noLocationOnThisDevice,
+            ),
+          _ => PositionUnavailable('GPS stream error: $e'),
+        }),
         // Platform stream termination is a REAL end-state (provider torn
         // down, service killed) — surfaced as honest unavailability, never
         // as silence with the last dot frozen on screen.
@@ -263,7 +297,14 @@ Stream<PositionFix> herPositionStream({
       // time she spends on a dialog.
       onPlatformStreamSubscribed?.call();
     } catch (e) {
-      controller.add(PositionUnavailable('GPS init error: $e'));
+      // A platform call with no implementation is this device's absence of
+      // location, known by type. Anything else keeps no cause.
+      controller.add(PositionUnavailable(
+        'GPS init error: $e',
+        cause: e is MissingPluginException
+            ? PositionUnavailableCause.noLocationOnThisDevice
+            : PositionUnavailableCause.other,
+      ));
     }
   }
 

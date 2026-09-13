@@ -15,6 +15,13 @@
 /// every platform call the stream makes, with the exception the platform
 /// actually threw: whichever call has no implementation, the stream says so
 /// with an event, and never goes quiet.
+///
+/// Amended 2026-09-14, as ruled that day. The line named a GPS fault and,
+/// in English, carried the exception's text. Where the app knows from the
+/// exception's type that it has no location implementation, the line is
+/// 現在地不明 — この端末では、このアプリは位置を取得できません。地図は表示された
+/// ままです。 This file used to identify the absence by the reason's text; the
+/// type is checked in test/l10n/position_line_words_test.dart.
 library;
 
 import 'dart:async';
@@ -72,15 +79,13 @@ void main() {
         expect(e, isA<PositionUnavailable>());
         expect(isLocationRefusal(e), isFalse,
             reason: 'no implementation is not her setting');
-        expect((e as PositionUnavailable).reason,
-            contains('MissingPluginException'));
       });
     }
   });
 
   testWidgets(
-      'in the app: the map says 現在地不明 and the line names the failure, '
-      'as measured on the Linux build', (tester) async {
+      'in the app: the map says 現在地不明 and the line says this app gets no '
+      'position on this device, with no exception text', (tester) async {
     await tester.pumpWidget(SngnavApp(
       actuators: FakeAlertActuators(),
       locale: const Locale('ja'),
@@ -103,7 +108,8 @@ void main() {
     final line = tester
         .widget<Text>(find.byKey(const Key('her-status-line')))
         .data;
+    // Ruled bytes, 2026-09-14.
     expect(line,
-        'GPS を取得できません — GPS初期化のエラー。地図は表示されたままです。ルート欄はタップで引き続き使えます。');
+        '現在地不明 — この端末では、このアプリは位置を取得できません。地図は表示されたままです。');
   });
 }

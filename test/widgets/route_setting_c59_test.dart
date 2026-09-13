@@ -46,11 +46,11 @@ const _oldTitle = 'Route — tap A then B (driving, no snow-aware yet)';
 const _routeClauseJa = 'ルート欄はタップで引き続き使えます。';
 const _routeClauseEn = 'the route panel still works by tap';
 
-/// The reason a Linux build without a location implementation gives, as its
-/// release build rendered it on 2026-09-13.
-const _linuxInitError = 'GPS init error: MissingPluginException(No implementation '
-    'found for method isLocationServiceEnabled on channel '
-    'flutter.baseflow.com/geolocator)';
+/// A reason the app writes on a path it measured, whose line keeps its words
+/// and so carries the route-panel sentence where route setting is open. (An
+/// exception while starting no longer does: with no typed cause its line
+/// names no cause and has no route sentence, ruled 2026-09-14.)
+const _servicesOff = 'Location services disabled';
 
 const _openAct = Key('route-act-open');
 const _panelWords = Key('route-setting-when-stopped');
@@ -296,7 +296,7 @@ void main() {
       final positions = StreamController<PositionFix>.broadcast();
       await _boot(tester, source: () => positions.stream);
       await _shareAndSend(
-          tester, positions, const PositionUnavailable(_linuxInitError));
+          tester, positions, const PositionUnavailable(_servicesOff));
       expect(_line(tester), contains(_routeClauseJa));
 
       final refusalPositions = StreamController<PositionFix>.broadcast();
@@ -337,7 +337,7 @@ void main() {
       final positions = StreamController<PositionFix>.broadcast();
       await _boot(tester, source: () => positions.stream);
       await _shareAndSend(
-          tester, positions, const PositionUnavailable(_linuxInitError));
+          tester, positions, const PositionUnavailable(_servicesOff));
       final unavailable = _line(tester);
       expect(unavailable, contains('地図は表示されたままです。'),
           reason: 'precondition: the unavailable line');

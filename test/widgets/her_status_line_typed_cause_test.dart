@@ -46,26 +46,32 @@ void main() {
   group('a wrapped exception text is the failure the wrapper names', () {
     for (final inner in _contentReasons) {
       test('GPS stream error: "$inner"', () {
-        final line = ja.gpsUnavailable('GPS stream error: $inner', routeSettingOpen: true);
+        final line =
+            ja.gpsUnavailable('GPS stream error: $inner', routeSettingOpen: true);
         expect(line, contains('GPSストリームのエラー'),
             reason: 'the wrapper says stream error: $line');
         expect(line, isNot(contains('拒否')), reason: line);
         expect(line, isNot(contains('無効')), reason: line);
         expect(line, isNot(contains('時間がかかりすぎ')), reason: line);
       });
+      // Ruled 2026-09-14: an exception while starting, of a type the app
+      // does not act on, names no GPS and no error. It gets the no-position line.
+      // This pinned 「GPS初期化のエラー」 until then.
       test('GPS init error: "$inner"', () {
-        final line = ja.gpsUnavailable('GPS init error: $inner', routeSettingOpen: true);
-        expect(line, contains('GPS初期化のエラー'),
-            reason: 'the wrapper says init error: $line');
-        expect(line, isNot(contains('拒否')), reason: line);
-        expect(line, isNot(contains('無効')), reason: line);
+        final line =
+            ja.gpsUnavailable('GPS init error: $inner', routeSettingOpen: true);
+        expect(line, '現在地不明 — 位置を取得できませんでした。地図は表示されたままです。',
+            reason: 'nothing inside the wrapper selects the words');
       });
     }
 
     test('CONTROL: an unwrapped reason keeps its own translation', () {
-      expect(ja.gpsUnavailable('Location services disabled', routeSettingOpen: true),
+      expect(
+          ja.gpsUnavailable('Location services disabled', routeSettingOpen: true),
           contains('位置情報サービスが無効です'));
-      expect(ja.gpsUnavailable('GPS stream ended by the platform', routeSettingOpen: true),
+      expect(
+          ja.gpsUnavailable('GPS stream ended by the platform',
+              routeSettingOpen: true),
           contains('GPSの受信が端末側で終了しました'));
       expect(ja.gpsUnavailable('GPS stream error: boom', routeSettingOpen: true),
           contains('GPSストリームのエラー'));

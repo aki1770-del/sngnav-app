@@ -121,14 +121,15 @@ void main() {
       expect(en.shareMyLocation, 'Share my location');
       // Unknown locale falls back to English (honest default).
       expect(const AppL10n(Locale('fr')).shareMyLocation, 'Share my location');
-      // gpsUnavailable localizes the known geolocator reason for HER.
-      expect(
-        ja.gpsUnavailable('Location permission denied', routeSettingOpen: true),
-        contains('位置情報の許可が拒否されました'),
-      );
-      // Unknown reason passes through honestly (no fabricated translation).
+      // Ruled 2026-09-14: no refusal is read from a reason's text, and
+      // text the app did not write never reaches her line. These two pinned
+      // the opposite: a refusal read from text, and a pass-through. The rules
+      // are in position_line_words_test.dart.
+      const noPosition = '現在地不明 — 位置を取得できませんでした。地図は表示されたままです。';
+      expect(ja.gpsUnavailable('Location permission denied',
+          routeSettingOpen: true), noPosition);
       expect(ja.gpsUnavailable('weird novel reason', routeSettingOpen: true),
-          contains('weird novel reason'));
+          noPosition);
     });
 
     test(
@@ -136,16 +137,16 @@ void main() {
         'passthrough on a safety-relevant GPS-degraded line (the B20 timeout '
         '/ stream-end reasons were added without extending the map)', () {
       const ja = AppL10n(Locale('ja'));
-      // The exact reason strings her_position.dart emits (kept verbatim —
-      // the l10n matches on substrings of these).
+      // The exact reason strings her_position.dart emits with no typed cause.
+      // The two refusal reasons are not here: the stream writes them only with
+      // the refusal cause, and a typed refusal never reaches this line
+      // (ruled 2026-09-14).
       const reasons = [
         'Location services disabled',
         'Location service check timed out — platform did not answer',
         'Location permission check timed out — platform did not answer',
         'Location permission request timed out — no answer from the '
             'platform dialog',
-        'Location permission denied',
-        'Location permission permanently denied — change in OS settings',
         'Degraded GPS fix — non-finite coordinate (lat=NaN, lon=1.0, acc=5.0)',
         'GPS stream error: boom',
         'GPS stream ended by the platform',

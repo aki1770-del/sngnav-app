@@ -294,13 +294,19 @@ class AppL10n {
       : '⚠ Hazards are compounding (position uncertain + low visibility)';
 
   /// GPS-unavailable line. The [reason] is produced by the geolocator layer
-  /// (her_position.dart) as English; [_localizeReason] maps the known cases
-  /// into HER language and passes anything unrecognized through honestly.
+  /// (her_position.dart) as English.
   ///
   /// [routeSettingOpen]: as for [locationOffStatus], the route panel's sentence
   /// is left out where route setting is closed.
+  ///
+  /// Ruled 2026-09-14: no refusal is read from a reason's text, and text the
+  /// app did not write never reaches this line, in either locale. A reason
+  /// the app writes on a path it measured keeps its words
+  /// ([_measuredReasonWords]); for any other reason, including a refusal's
+  /// words with no typed cause, the line is [positionNotObtainedStatus].
   String gpsUnavailable(String reason, {required bool routeSettingOpen}) {
-    final r = _localizeReason(reason);
+    final r = _measuredReasonWords(reason);
+    if (r == null) return positionNotObtainedStatus;
     if (_ja) {
       return 'GPS を取得できません — $r。地図は表示されたままです。'
           '${routeSettingOpen ? _routePanelWorksJa : ''}';
@@ -310,52 +316,54 @@ class AppL10n {
         : 'GPS unavailable — $r. The map remains.';
   }
 
-  /// Maps the known [PositionUnavailable] reasons (defined verbatim in
-  /// her_position.dart, same repo) to HER language. Unknown reasons pass
-  /// through unchanged — an honest degrade, never a fabricated translation.
+  /// The line under the map when no position was obtained and the app holds
+  /// no typed cause, or the reason is not one the app wrote on a measured
+  /// path. Ruled 2026-09-14, byte-exact. It starts with the map's own words
+  /// and names no cause. It has no route-panel sentence: a line about position
+  /// cannot know whether route setting is open.
+  String get positionNotObtainedStatus => _ja
+      ? '現在地不明 — 位置を取得できませんでした。地図は表示されたままです。'
+      : 'Position unknown — this app could not get a position. The map remains.';
+
+  /// The line under the map when the app knows from the exception's type that
+  /// it has no location implementation on this device
+  /// (`isNoLocationOnThisDevice`). Ruled 2026-09-14, byte-exact: no GPS, no
+  /// error, no plugin, and no route-panel sentence.
+  String get noLocationOnThisDeviceStatus => _ja
+      ? '現在地不明 — この端末では、このアプリは位置を取得できません。地図は表示されたままです。'
+      : 'Position unknown — this app cannot get a position on this device. The map remains.';
+
+  /// The words for a reason her_position.dart writes on a path it measured,
+  /// in this locale; null for anything else.
   ///
-  /// NOTE (coupling flagged for AAA/follow-up): this matches on English
-  /// substrings that live in her_position.dart. A cleaner design would have
-  /// that layer emit a typed reason; kept string-matched here to avoid a
-  /// wider refactor + retest of the finite-guard chokepoint this arc.
-  String _localizeReason(String reason) {
-    if (!_ja) return reason;
-    // The two wrappers first. Their tail is an exception's text, which the app
-    // does not write: matched after the phrases below, a stream error whose
-    // error text said "permission denied" read 「位置情報の許可が拒否されました」
-    // under a map that, from the typed cause, said 現在地不明 (2026-09-14). The
-    // wrapper names the failure; nothing inside it selects the words.
+  /// Matched whole, except where the app's own reason carries values
+  /// (the non-finite fix) or wraps a platform's text (a stream error). For a
+  /// stream error only the app's wrapper is said: the exception text after it
+  /// is the platform's, and never reaches her line. An exception while
+  /// starting ('GPS init error: …') is not here: without a typed cause it
+  /// measured only that no position was obtained. Nothing here looks for a
+  /// refusal: a refusal is shown only from its typed cause.
+  String? _measuredReasonWords(String reason) {
     if (reason.startsWith('GPS stream error')) {
-      return 'GPSストリームのエラー';
+      return _ja ? 'GPSストリームのエラー' : 'GPS stream error';
     }
-    if (reason.startsWith('GPS init error')) {
-      return 'GPS初期化のエラー';
+    if (reason.startsWith('Degraded GPS fix — non-finite coordinate')) {
+      return _ja ? 'GPS信号が乱れています（座標が不正です）' : reason;
     }
-    if (reason.contains('services disabled')) {
-      return '位置情報サービスが無効です';
-    }
-    if (reason.contains('service check timed out')) {
-      return '位置情報サービスの確認に時間がかかりすぎました（端末が応答しません）';
-    }
-    if (reason.contains('permission check timed out')) {
-      return '位置情報の許可状態の確認に時間がかかりすぎました（端末が応答しません）';
-    }
-    if (reason.contains('permission request timed out')) {
-      return '位置情報の許可の応答がありませんでした（確認画面が閉じられていません）';
-    }
-    if (reason.contains('permanently denied')) {
-      return '位置情報の許可が恒久的に拒否されています（OSの設定で変更してください）';
-    }
-    if (reason.contains('permission denied')) {
-      return '位置情報の許可が拒否されました';
-    }
-    if (reason.contains('non-finite')) {
-      return 'GPS信号が乱れています（座標が不正です）';
-    }
-    if (reason.contains('stream ended by the platform')) {
-      return 'GPSの受信が端末側で終了しました';
-    }
-    return reason;
+    return switch (reason) {
+      'Location services disabled' => _ja ? '位置情報サービスが無効です' : reason,
+      'Location service check timed out — platform did not answer' => _ja
+          ? '位置情報サービスの確認に時間がかかりすぎました（端末が応答しません）'
+          : reason,
+      'Location permission check timed out — platform did not answer' => _ja
+          ? '位置情報の許可状態の確認に時間がかかりすぎました（端末が応答しません）'
+          : reason,
+      'Location permission request timed out — no answer from the platform dialog' =>
+        _ja ? '位置情報の許可の応答がありませんでした（確認画面が閉じられていません）' : reason,
+      'GPS stream ended by the platform' =>
+        _ja ? 'GPSの受信が端末側で終了しました' : reason,
+      _ => null,
+    };
   }
 
   // ===== Data-flow disclosure (task 3, corrected B28) — WIRE-ACCURATE =====
