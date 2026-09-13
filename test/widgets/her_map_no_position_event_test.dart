@@ -189,8 +189,11 @@ void main() {
       final positions = StreamController<PositionFix>.broadcast();
       await _boot(tester, source: () => positions.stream, lang: 'en');
       await _tapShare(tester);
-      await _advance(tester, const Duration(seconds: 75));
+      await _advance(tester, const Duration(seconds: 45));
+      expect(_status(tester), 'Locating you…', reason: 'phase 1, English');
+      expect(find.text('Position unknown'), findsNothing);
 
+      await _advance(tester, const Duration(seconds: 30));
       expect(find.text('Position unknown'), findsOneWidget);
       expect(_status(tester), 'Position unknown · no last position');
       expect(_rowOffers('Stop'), isTrue);
