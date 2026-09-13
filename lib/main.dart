@@ -2898,6 +2898,100 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const _Banner(),
+            // HER map first, directly under the banner (2026-09-13): below the
+            // developer panels it sat at 4314 px of an 852 px phone screen,
+            // and she would have scrolled past fourteen cards to find herself.
+            const SizedBox(height: 16),
+            _section(
+              title: 'Map — Akita-shi (station 32402)',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  AkitaMap(
+                    baseTileProvider: _offlineBaseProvider,
+                    origin: _origin,
+                    destination: _destination,
+                    routePoints: switch (_routeResult) {
+                      RouteSuccess(:final points) => points,
+                      _ => const [],
+                    },
+                    onTap: _handleMapTap,
+                    herPosition: herMap.position,
+                    herAccuracyMeters: herMap.accuracyMeters,
+                    isHerPositionMock: _isMockPosition,
+                    positionDegraded: herMap.degraded,
+                    positionLost: herMap.lost,
+                    positionRefused: herMap.refused,
+                    mapController: _herMapController,
+                    onMapEvent: _onHerMapEvent,
+                    onMapReady: _onHerMapReady,
+                    onTouchDown: _onHerMapTouched,
+                  ),
+                  // Under the map, not on it: a control on the map could hide
+                  // her mark while follow is paused.
+                  if (_showHerMapReturnControl) ...[
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: OutlinedButton.icon(
+                        key: const Key('her-map-return-to-position'),
+                        onPressed: _returnHerMapToPosition,
+                        icon: const Icon(Icons.my_location),
+                        label: Text(AppL10n.of(context).returnToMyPosition),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  _herStatusLine(),
+                  // A1 — pre-drive voice-lane caution, in the consent/status
+                  // region she reads BEFORE driving. Rendered ONLY on a
+                  // proven-degraded verdict (jaNetworkOnly / noJaVoice);
+                  // unknown and offlineJaReady show nothing.
+                  if (_voiceLaneVerdict == VoiceLaneVerdict.jaNetworkOnly ||
+                      _voiceLaneVerdict == VoiceLaneVerdict.noJaVoice) ...[
+                    const SizedBox(height: 8),
+                    _voiceLaneCautionRow(),
+                  ],
+                  // G-3 (AAA 2026-08-22) — pre-drive TACTILE caution, in the
+                  // same region she reads BEFORE driving, on a `false` answer
+                  // only. `null` (unreadable / off-mobile / test) renders
+                  // NOTHING: a caution about a device that may vibrate
+                  // perfectly well is a false alarm on the channel that can
+                  // least afford one.
+                  if (_hapticAvailable == false) ...[
+                    const SizedBox(height: 8),
+                    _hapticUnavailableCautionRow(),
+                  ],
+                  // Tier-2 — media-volume-zero caution, same pre-drive
+                  // voice-lane region. Rendered ONLY on a proven-muted probe
+                  // reading (null probe = NOTHING). Acknowledgment collapses
+                  // it to a compact line; it never blocks the drive and we
+                  // never touch her volume.
+                  if (_audioReadiness?.mediaMuted ?? false) ...[
+                    const SizedBox(height: 8),
+                    if (_mediaMutedAcked)
+                      _mediaMutedAckedLine()
+                    else
+                      _mediaMutedCautionRow(),
+                    // ⚑ The muted caution names vibration as attempted, and
+                    // she taps a button to continue without spoken alerts. If
+                    // the tactile channel is not landing either, say so in the
+                    // same glance — and after her tap too, since the state
+                    // outlives the row she accepted it in.
+                    //
+                    // SUPPRESSED when the pre-drive caution already told her
+                    // this device has NO vibrator: "could not be verified" is
+                    // strictly weaker than "has none", and saying both on one
+                    // glance surface is noise, not honesty. A device that HAS
+                    // a vibrator and lost the cue still gets this line.
+                    if (_hapticUnverified.value && _hapticAvailable != false) ...[
+                      const SizedBox(height: 6),
+                      _hapticUnverifiedInMutedNote(),
+                    ],
+                  ],
+                ],
+              ),
+            ),
             const SizedBox(height: 16),
             _section(
               title: 'Driver profile',
@@ -3129,97 +3223,6 @@ class _HomePageState extends State<HomePage> {
               title: 'Render budget viewport '
                   '(offline_tiles / snow_rendering / map_viewport_bloc)',
               child: _renderBudgetPanel(),
-            ),
-            const SizedBox(height: 16),
-            _section(
-              title: 'Map — Akita-shi (station 32402)',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  AkitaMap(
-                    baseTileProvider: _offlineBaseProvider,
-                    origin: _origin,
-                    destination: _destination,
-                    routePoints: switch (_routeResult) {
-                      RouteSuccess(:final points) => points,
-                      _ => const [],
-                    },
-                    onTap: _handleMapTap,
-                    herPosition: herMap.position,
-                    herAccuracyMeters: herMap.accuracyMeters,
-                    isHerPositionMock: _isMockPosition,
-                    positionDegraded: herMap.degraded,
-                    positionLost: herMap.lost,
-                    positionRefused: herMap.refused,
-                    mapController: _herMapController,
-                    onMapEvent: _onHerMapEvent,
-                    onMapReady: _onHerMapReady,
-                    onTouchDown: _onHerMapTouched,
-                  ),
-                  // Under the map, not on it: a control on the map could hide
-                  // her mark while follow is paused.
-                  if (_showHerMapReturnControl) ...[
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: AlignmentDirectional.centerStart,
-                      child: OutlinedButton.icon(
-                        key: const Key('her-map-return-to-position'),
-                        onPressed: _returnHerMapToPosition,
-                        icon: const Icon(Icons.my_location),
-                        label: Text(AppL10n.of(context).returnToMyPosition),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  _herStatusLine(),
-                  // A1 — pre-drive voice-lane caution, in the consent/status
-                  // region she reads BEFORE driving. Rendered ONLY on a
-                  // proven-degraded verdict (jaNetworkOnly / noJaVoice);
-                  // unknown and offlineJaReady show nothing.
-                  if (_voiceLaneVerdict == VoiceLaneVerdict.jaNetworkOnly ||
-                      _voiceLaneVerdict == VoiceLaneVerdict.noJaVoice) ...[
-                    const SizedBox(height: 8),
-                    _voiceLaneCautionRow(),
-                  ],
-                  // G-3 (AAA 2026-08-22) — pre-drive TACTILE caution, in the
-                  // same region she reads BEFORE driving, on a `false` answer
-                  // only. `null` (unreadable / off-mobile / test) renders
-                  // NOTHING: a caution about a device that may vibrate
-                  // perfectly well is a false alarm on the channel that can
-                  // least afford one.
-                  if (_hapticAvailable == false) ...[
-                    const SizedBox(height: 8),
-                    _hapticUnavailableCautionRow(),
-                  ],
-                  // Tier-2 — media-volume-zero caution, same pre-drive
-                  // voice-lane region. Rendered ONLY on a proven-muted probe
-                  // reading (null probe = NOTHING). Acknowledgment collapses
-                  // it to a compact line; it never blocks the drive and we
-                  // never touch her volume.
-                  if (_audioReadiness?.mediaMuted ?? false) ...[
-                    const SizedBox(height: 8),
-                    if (_mediaMutedAcked)
-                      _mediaMutedAckedLine()
-                    else
-                      _mediaMutedCautionRow(),
-                    // ⚑ The muted caution names vibration as attempted, and
-                    // she taps a button to continue without spoken alerts. If
-                    // the tactile channel is not landing either, say so in the
-                    // same glance — and after her tap too, since the state
-                    // outlives the row she accepted it in.
-                    //
-                    // SUPPRESSED when the pre-drive caution already told her
-                    // this device has NO vibrator: "could not be verified" is
-                    // strictly weaker than "has none", and saying both on one
-                    // glance surface is noise, not honesty. A device that HAS
-                    // a vibrator and lost the cue still gets this line.
-                    if (_hapticUnverified.value && _hapticAvailable != false) ...[
-                      const SizedBox(height: 6),
-                      _hapticUnverifiedInMutedNote(),
-                    ],
-                  ],
-                ],
-              ),
             ),
             const SizedBox(height: 16),
             _section(
