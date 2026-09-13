@@ -3440,8 +3440,11 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // liveRegion: assistive tech announces the log-state line when it
-        // changes (OPS-059 floor — parity with the consent card).
+        // changes (OPS-059 floor — parity with the consent card). A node of
+        // its own, or the flag merges into the card and the whole card is
+        // announced (measured 2026-09-14).
         Semantics(
+          container: true,
           liveRegion: true,
           child: Text(
             status,
@@ -3519,8 +3522,10 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // liveRegion: assistive tech announces the diary-state line when it
-        // changes (OPS-059 floor — parity with the log-share card).
+        // changes (OPS-059 floor — parity with the log-share card). A node of
+        // its own, as for the log-share line.
         Semantics(
+          container: true,
           liveRegion: true,
           child: Text(
             status,
@@ -4037,7 +4042,10 @@ class _HomePageState extends State<HomePage> {
         color: Colors.amber.shade50,
         borderRadius: BorderRadius.circular(6),
       ),
+      // A node of its own: without `container` the flag merged into the
+      // weather card, and the whole card was announced (measured 2026-09-14).
       child: Semantics(
+        container: true,
         liveRegion: true,
         child: Text(
           _spokenJa
@@ -4258,10 +4266,13 @@ class _HomePageState extends State<HomePage> {
       // Wrap-ping instead of squeezing when the screen is narrow.
       // liveRegion: assistive tech announces the consent-state line when it
       // changes (OPS-059 floor — the state change must reach eyes-off users).
+      // A node of its own, labelled only this line (ruled 2026-09-14): it
+      // merged into the map card, whose announced label was 736 characters.
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Semantics(
+            container: true,
             liveRegion: true,
             child: Text(
               l.locationNotShared,

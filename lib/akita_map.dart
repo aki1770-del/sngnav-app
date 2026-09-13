@@ -487,7 +487,12 @@ class _PositionWords extends StatelessWidget {
       alignment: Alignment.topCenter,
       child: Padding(
         padding: const EdgeInsets.only(top: 8),
-        child: liveRegion ? Semantics(liveRegion: true, child: pill) : pill,
+        // A node of its own (ruled 2026-09-14): without `container`, the flag
+        // merged into the map card's node, and a screen reader was read the
+        // whole card instead of these words.
+        child: liveRegion
+            ? Semantics(container: true, liveRegion: true, child: pill)
+            : pill,
       ),
     );
   }
