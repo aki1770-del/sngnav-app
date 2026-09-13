@@ -19,10 +19,12 @@ library;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sngnav_app/akita_map.dart';
+import 'package:sngnav_app/l10n/app_localizations.dart';
 
 /// A 1x1 transparent PNG, so the basemap never reaches for the network.
 final _blankTile = Uint8List.fromList(const <int>[
@@ -56,6 +58,16 @@ Future<void> _pumpMap(
 }) async {
   await tester.pumpWidget(
     MaterialApp(
+      // The map's words go through AppL10n, as in the app. Without the
+      // delegate AppL10n.of falls back to English and 現在地不明 is not built.
+      locale: const Locale('ja'),
+      localizationsDelegates: const [
+        AppL10n.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: AppL10n.supportedLocales,
       home: Scaffold(
         body: Center(
           child: SizedBox(

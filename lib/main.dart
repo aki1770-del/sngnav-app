@@ -4092,10 +4092,13 @@ class _HomePageState extends State<HomePage> {
         l.locatingYou,
         Colors.grey.shade600,
       ),
+      // shade700, not shade400 (2026-09-13): in dead reckoning and lost this
+      // line was the palest text on the surface, 3.03:1, while it is the only
+      // place the age of her last position appears. Rendered at 6.55:1.
       PositionAvailable()
           when _herPositionDegraded && degradedText != null => (
         degradedText,
-        Colors.blueGrey.shade400,
+        Colors.blueGrey.shade700,
       ),
       PositionAvailable(:final accuracyMeters) => (
         l.youAreHere(accuracyMeters.toStringAsFixed(0)),

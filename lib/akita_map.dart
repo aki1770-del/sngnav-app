@@ -15,6 +15,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import 'l10n/app_localizations.dart';
+
 const LatLng akitaStation = LatLng(39.7167, 140.0983);
 
 class AkitaMap extends StatelessWidget {
@@ -191,27 +193,19 @@ class AkitaMap extends StatelessWidget {
                       degraded: positionDegraded || positionLost,
                     ),
                   ),
-                if (positionLost && herPosition != null)
-                  Marker(
-                    point: herPosition!,
-                    width: 140,
-                    height: 50,
-                    alignment: Alignment.topCenter,
-                    child: const Align(
-                      alignment: Alignment.topCenter,
-                      child: _PositionUnknownLabel(),
-                    ),
-                  ),
               ],
             ),
-            if (positionLost && herPosition == null)
-              const Align(
-                alignment: Alignment.topCenter,
-                child: Padding(
-                  padding: EdgeInsets.only(top: 8),
-                  child: _PositionUnknownLabel(),
-                ),
-              ),
+            // The words are anchored to the map, not to her last position, so
+            // the camera can never cull them (2026-09-13: they were a marker at
+            // her last position, and left the screen with her).
+            _PositionWords(
+              herPosition: herPosition,
+              positionLost: positionLost,
+              // Half the drawn mark: ring 34 px, mock square 20 px, dot 22 px.
+              markHalfExtent: (positionDegraded || positionLost)
+                  ? 17
+                  : (isHerPositionMock ? 10 : 11),
+            ),
             const _AttributionBar(),
           ],
         ),
@@ -371,25 +365,84 @@ class _HerDot extends StatelessWidget {
   }
 }
 
-/// The words for `lost`. Dark pill, white text — the only dark-ground label on
-/// the map, so it cannot pass for a place name, which the basemap and the
-/// station marker draw dark-on-light.
+/// What the map says about her position, in words, at the top of the map.
+/// Lost → 現在地不明, whatever the camera shows. A position mark that exists
+/// but that the map edge cuts, in part or whole → 現在地は地図の外. Nothing
+/// otherwise. At the edge an unclear case resolves toward the words: a mark
+/// counts as shown only when the edge cuts none of it.
+///
+/// No position claim may be silent on the map. Measured 2026-09-13: 8.2 km
+/// out along Route 13 the map held no mark of her in any mode, under a status
+/// line that still gave her position.
+class _PositionWords extends StatelessWidget {
+  const _PositionWords({
+    required this.herPosition,
+    required this.positionLost,
+    required this.markHalfExtent,
+  });
+
+  final LatLng? herPosition;
+  final bool positionLost;
+  final double markHalfExtent;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
+    String? words;
+    Key? key;
+    if (positionLost) {
+      words = l.positionUnknownLabel;
+      key = const ValueKey('her-position-unknown-label');
+    } else if (herPosition != null) {
+      final camera = MapCamera.of(context);
+      final p = camera.latLngToScreenOffset(herPosition!);
+      final s = camera.nonRotatedSize;
+      // The mark counts as shown only when the map edge cuts none of it.
+      // The attribution bar is translucent and does not hide a mark (rendered:
+      // a dot under it stays readable), so it is not treated as an edge.
+      final h = markHalfExtent;
+      final inView = p.dx >= h &&
+          p.dy >= h &&
+          p.dx <= s.width - h &&
+          p.dy <= s.height - h;
+      if (!inView) {
+        words = l.positionOffMapLabel;
+        key = const ValueKey('her-position-off-map-label');
+      }
+    }
+    if (words == null) return const SizedBox.shrink();
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: _PositionUnknownLabel(labelKey: key!, text: words),
+      ),
+    );
+  }
+}
+
+/// The pill that carries the words. Dark pill, white text — the only
+/// dark-ground label on the map, so it cannot pass for a place name, which the
+/// basemap and the station marker draw dark-on-light.
 class _PositionUnknownLabel extends StatelessWidget {
-  const _PositionUnknownLabel();
+  const _PositionUnknownLabel({required this.labelKey, required this.text});
+
+  final Key labelKey;
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      key: const ValueKey('her-position-unknown-label'),
+      key: labelKey,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: Colors.grey.shade900,
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: Colors.white, width: 1.5),
       ),
-      child: const Text(
-        '現在地不明',
-        style: TextStyle(
+      child: Text(
+        text,
+        style: const TextStyle(
           color: Colors.white,
           fontSize: 13,
           fontWeight: FontWeight.bold,

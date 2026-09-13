@@ -72,6 +72,14 @@ class AppL10n {
       ? 'モック位置 · 秋田地点 ±$accuracyMeters m（開発用 — 実際のGPSではありません）'
       : 'Mock position · Akita station ±$accuracyMeters m (DEV — not real GPS)';
 
+  /// The words on the map when her position is lost.
+  String get positionUnknownLabel => _ja ? '現在地不明' : 'Position unknown';
+
+  /// The words on the map when her position is known but the map edge cuts
+  /// its mark, in part or whole.
+  String get positionOffMapLabel =>
+      _ja ? '現在地は地図の外' : 'Position off this map';
+
   String youAreHere(String accuracyMeters) =>
       _ja ? '現在地 · ±$accuracyMeters m' : 'You are here · ±$accuracyMeters m';
 
