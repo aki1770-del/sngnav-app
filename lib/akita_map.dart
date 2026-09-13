@@ -249,6 +249,21 @@ class _StationMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // flutter_map lays a marker child out under TIGHT constraints (the 60 px
+    // box). At system text scale 2.0 the label and the pin needed 65 px, and
+    // the column overflowed by 5 px (rendered 2026-09-14). The column now
+    // takes its own height, top-aligned where it always sat, so large text
+    // is drawn at full size and nothing overflows. At default scale it fits
+    // the box and lays out exactly as before.
+    return OverflowBox(
+      alignment: Alignment.topCenter,
+      minHeight: 0,
+      maxHeight: double.infinity,
+      child: _stationColumn(),
+    );
+  }
+
+  Widget _stationColumn() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

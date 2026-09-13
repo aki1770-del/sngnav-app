@@ -131,9 +131,11 @@ class AdvisoryCards extends StatelessWidget {
     }
     final r = result;
     if (r == null) {
+      // The words take the width the button leaves and wrap there. As a
+      // natural-width text beside a Spacer, the row overflowed by 82 px at
+      // system text scale 2.0 (rendered 2026-09-14).
       return Row(children: [
-        Text(l.advisoryNoFetchYet),
-        const Spacer(),
+        Expanded(child: Text(l.advisoryNoFetchYet)),
         TextButton(onPressed: onRefresh, child: Text(l.advisoryFetch)),
       ]);
     }
