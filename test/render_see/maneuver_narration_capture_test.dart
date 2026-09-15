@@ -49,6 +49,7 @@ import 'package:localization_fallback/localization_fallback.dart'
     show LocalizationMode;
 import 'package:routing_engine/routing_engine.dart' show RouteManeuver;
 import 'package:sngnav_app/her_position.dart';
+import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/services/drive_hud_controller.dart';
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 import 'package:sngnav_app/services/maneuver_narration.dart';
@@ -73,34 +74,39 @@ const _rightTurn = RouteManeuver(
 
 /// Faithful reproduction of `_maneuverNarrationPanel` (lib/main.dart) around the
 /// banner: the (bg, fg, tier) switch, the suppressed→保留 herLine substitution,
-/// the mode-honesty `_kv` line, and the icy-coupled row gate — all verbatim. The
-/// raw English `maneuver.instruction` is deliberately NOT rendered.
+/// the mode-honesty `_kv` line, and the icy-coupled row gate. The raw English
+/// `maneuver.instruction` is deliberately NOT rendered.
+///
+/// Re-copied 2026-09-15, when the panel stopped drawing English in every
+/// language: the banner's state and the icy mark now come from the app's own
+/// strings, and the paragraph and the parsed-maneuver count are no longer
+/// drawn. Until then this copy still drew them, so its three frames showed a
+/// panel the app no longer had.
 Widget _panel({
   required ManeuverNarration preview,
   required LocalizationMode mode,
-  required int maneuverCount,
-  required int nextIndex,
 }) {
+  const l = AppL10n(Locale('ja'));
   final (Color bg, Color fg, String tier) = switch (preview.confidence) {
     NarrationConfidence.speak => (
         Colors.green.shade100,
         Colors.green.shade900,
-        'SPEAK — GPS trusted',
+        l.maneuverTierSpeak,
       ),
     NarrationConfidence.hedge => (
         Colors.amber.shade100,
         Colors.amber.shade900,
-        'HEDGE — GPS suspect',
+        l.maneuverTierHedge,
       ),
     NarrationConfidence.suppressed => (
         Colors.blueGrey.shade100,
         Colors.blueGrey.shade900,
-        'SUPPRESSED — position not trusted',
+        l.maneuverTierSuppressed,
       ),
   };
 
   final herLine = preview.confidence == NarrationConfidence.suppressed
-      ? 'この曲がり角の案内は保留しています（現在地が信頼できません）。'
+      ? l.maneuverGuidancePaused
       : preview.text;
 
   Widget kv(String k, String v) => Padding(
@@ -120,17 +126,7 @@ Widget _panel({
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Text(
-        'The NEXT maneuver (parsed by OsrmRoutingEngine, steps=true), narrated '
-        'ONLY when the honest position allows it. A turn is never spoken '
-        'against a drifting or lost dot — the confidently-wrong instruction '
-        'this gate refuses. Simulate a GPS blackout in the drive panel above '
-        'to watch SPEAK → SUPPRESS.',
-        style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-      ),
-      const SizedBox(height: 8),
-      kv('現在地の信頼度', _text.modeLabel(mode, 'ja')),
-      kv('Maneuvers parsed', '$maneuverCount (next: $nextIndex)'),
+      kv(l.driveHudPositionTrustLabel, _text.modeLabel(mode, 'ja')),
       const SizedBox(height: 8),
       Container(
         key: const Key('maneuver-narration-banner'),
@@ -144,6 +140,7 @@ Widget _panel({
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
+              key: const Key('maneuver-narration-tier'),
               tier,
               style: TextStyle(
                 color: fg,
@@ -157,7 +154,7 @@ Widget _panel({
                 preview.confidence != NarrationConfidence.suppressed) ...[
               const SizedBox(height: 4),
               Text(
-                '❄ icy-turn advisory coupled',
+                l.maneuverIcyMark,
                 style: TextStyle(
                   color: fg,
                   fontSize: 12,
@@ -246,8 +243,6 @@ void main() {
       panel: _panel(
         preview: preview,
         mode: c.estimate!.mode,
-        maneuverCount: 1,
-        nextIndex: _rightTurn.index + 1,
       ),
       out: '../../render_out/07_maneuver_speak_trusted.png',
     );
@@ -277,8 +272,6 @@ void main() {
       panel: _panel(
         preview: preview,
         mode: mode,
-        maneuverCount: 1,
-        nextIndex: _rightTurn.index + 1,
       ),
       out: '../../render_out/08_maneuver_suppress_lost.png',
     );
@@ -309,8 +302,6 @@ void main() {
       panel: _panel(
         preview: preview,
         mode: LocalizationMode.gpsSuspect,
-        maneuverCount: 1,
-        nextIndex: _rightTurn.index + 1,
       ),
       out: '../../render_out/09_maneuver_hedge_suspect.png',
     );
