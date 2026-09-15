@@ -41,6 +41,24 @@ import 'drive_safety_fusion.dart';
 import 'maneuver_narration.dart';
 import 'measured_hazard_floor.dart';
 
+/// Where the caution rung comes from before a share's first trusted fix
+/// (ruled 2026-09-15).
+enum StartRung {
+  /// The brain's own estimate sets the rung: a trusted fix came in this share,
+  /// or no share is being judged by these rules.
+  none,
+
+  /// The platform stream is subscribed and no position event has come, inside
+  /// 60 s of the subscription: a normal start. The rung is the road's own, what
+  /// a driver with a trusted position is given in the same environment.
+  road,
+
+  /// A failure before this share's first trusted fix, or no event 60 s after
+  /// the subscription: an unlocated position that compounds as one, never a
+  /// concern standing alone at the ceiling.
+  unlocated,
+}
+
 /// Live in-drive controller. Observe [estimate] + [advice] via [ChangeNotifier].
 class DriveHudController extends ChangeNotifier {
   /// The controller NEVER resolves its own actuator layer: the app owns ONE
@@ -119,6 +137,61 @@ class DriveHudController extends ChangeNotifier {
   LocalizationEstimate? _estimate;
   DriveAdvice? _advice;
   DriveAction? _effectiveAction;
+
+  /// Where the rung comes from before this share's first trusted fix (ruled
+  /// 2026-09-15). Set by the app, which alone knows where a share begins and
+  /// whether an event has come.
+  StartRung _startRung = StartRung.none;
+
+  /// The highest rung given from [_startRung] in this share. Once given, it
+  /// does not fall within the share: a reading that goes stale and comes back
+  /// fresh at the same band is not a rise, and is not told again.
+  DriveAction? _startRungHeld;
+
+  /// See [StartRung]. Setting [StartRung.none] drops the held rung: from a
+  /// trusted fix on, the brain's own estimate sets the rung.
+  StartRung get startRung => _startRung;
+  set startRung(StartRung value) {
+    if (value == StartRung.none) _startRungHeld = null;
+    _startRung = value;
+  }
+
+  /// A share she starts herself begins with nothing told and no rung held
+  /// (ruled 2026-09-15). The estimate is kept: reset, a replayed fix from
+  /// another place became a trusted position.
+  void startShare() {
+    _lastSpokenRung = null;
+    _startRungHeld = null;
+    _startRung = StartRung.none;
+  }
+
+  /// The highest rung told in this share, or `null`.
+  DriveAction? get spokenRung => _lastSpokenRung;
+
+  /// What a driver with a trusted, fresh, exact position is given in the
+  /// environment this brain holds now: the road's own caution.
+  DriveAdvice roadAdvice() => adviseInDrive(DriveSituation(
+        positionTrust: PositionTrust.trusted,
+        confidenceRadiusMeters: 0,
+        secondsSinceTrustedFix: 0,
+        hasPosition: true,
+        visibilityMeters: visibilityMeters,
+        visibilityAgeSeconds: visibilityAgeSeconds,
+        advisorySeverity: advisorySeverity,
+        speedMetersPerSecond: speedMetersPerSecond,
+      ));
+
+  /// Tell [rung] to a driver with no share running, through the one announcer:
+  /// its own line once and its haptic once. Touches nothing a share has told.
+  void tellWithNoShare(DriveAction rung) {
+    final line = _text.spokenGuidance(rung, localeTag);
+    if (line.isEmpty) return;
+    unawaited(_announcer.announce(
+      severity: _severityFor(rung),
+      text: line,
+      localeTag: localeTag,
+    ));
+  }
 
   /// The highest rung the controller has actually SPOKEN, for rise-gating the
   /// announce. Tracked SEPARATELY from the effective rung on purpose: a rung
@@ -236,13 +309,56 @@ class DriveHudController extends ChangeNotifier {
     // OPS-068). See measured_hazard_floor.dart.
     final positionUnlocatable = estimate.mode == LocalizationMode.deadReckoning ||
         estimate.mode == LocalizationMode.lost;
-    _effectiveAction = fuseMeasuredWeather(
-      advisorAction: advice.action,
-      hazard: measuredHazard,
-      positionUnlocatable: positionUnlocatable,
-    );
-    _maybeAnnounce(advice);
+    switch (_startRung) {
+      case StartRung.none:
+        _effectiveAction = fuseMeasuredWeather(
+          advisorAction: advice.action,
+          hazard: measuredHazard,
+          positionUnlocatable: positionUnlocatable,
+        );
+        _maybeAnnounce(advice);
+      case StartRung.road:
+        // Ruled 2026-09-15 (the first fix never arrives, inside 60 s): the
+        // road's own caution, what a driver with a trusted position is given
+        // here, spoken or not as it is for her.
+        final road = roadAdvice();
+        _advice = road;
+        _effectiveAction = _held(fuseMeasuredWeather(
+          advisorAction: road.action,
+          hazard: measuredHazard,
+          positionUnlocatable: false,
+        ));
+        _maybeAnnounce(road);
+      case StartRung.unlocated:
+        // Ruled 2026-09-15: a failure before the share's first trusted fix
+        // takes the rung the advisor gives a position that is uncertain but
+        // not lost, in this same environment, fused as an unlocatable
+        // position. The reasons and unknowns stay the real ones.
+        _effectiveAction = _held(fuseMeasuredWeather(
+          advisorAction: adviseInDrive(DriveSituation(
+            positionTrust: PositionTrust.degraded,
+            confidenceRadiusMeters: 0,
+            secondsSinceTrustedFix: 0,
+            hasPosition: true,
+            visibilityMeters: visibilityMeters,
+            visibilityAgeSeconds: visibilityAgeSeconds,
+            advisorySeverity: advisorySeverity,
+            speedMetersPerSecond: speedMetersPerSecond,
+          )).action,
+          hazard: measuredHazard,
+          positionUnlocatable: true,
+        ));
+        _maybeAnnounce(advice);
+    }
     notifyListeners();
+  }
+
+  DriveAction _held(DriveAction rung) {
+    final held = _startRungHeld;
+    final effective =
+        held != null && held.index > rung.index ? held : rung;
+    _startRungHeld = effective;
+    return effective;
   }
 
   /// Fire the WS5 actuators when the EFFECTIVE caution rung RISES to a new high

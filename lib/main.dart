@@ -13,7 +13,14 @@
 library;
 
 import 'package:compound_failure_advisor/compound_failure_advisor.dart'
-    show DriveAction;
+    show
+        DriveAction,
+        DriveAdvice,
+        DriveSituation,
+        PositionTrust,
+        adviseInDrive,
+        kVisLowM,
+        kVisStaleSeconds;
 import 'package:condition_aggregator/condition_aggregator.dart'
     show
         Advisory,
@@ -1042,6 +1049,11 @@ class _HomePageState extends State<HomePage> {
   DateTime? _lastPositionEventAt;
   static const Duration _watchdogTickEvery = Duration(seconds: 15);
 
+  /// The reason carried by the absence held for the brain when no position
+  /// event has come. Never shown.
+  static const String _noPositionEventYet =
+      'No position event since the position stream subscribed';
+
   /// When the position stream of the current sharing session was subscribed,
   /// by [_now]: for the real stream, once the platform has answered the
   /// permission question; for an injected [HomePage.positionSource], when the
@@ -1137,6 +1149,34 @@ class _HomePageState extends State<HomePage> {
   /// While she shares, whether the drive brain holds anything of this session.
   /// When not sharing, its state is whatever the last feed left, as before.
   bool get _driveHudIsThisShares => _herSub == null || _herFedThisShare;
+
+  // Ruled 2026-09-15: the driver with no
+  // position in a measured whiteout.
+
+  /// Whether the caution rung the drive brain holds is this drive's: the dev
+  /// mock, or a share she is running that has given the brain an event and
+  /// that she has not refused. An ended share's estimate is not, and nothing
+  /// is told or shown from it.
+  bool get _driveHudRungIsThisDrives =>
+      _isMockPosition ||
+      (_herSub != null && _herFedThisShare && !isLocationRefusal(_herFix));
+
+  /// No share is running: she never shared, ended it with 停止, or refused.
+  bool get _noShareRunning =>
+      (_herSub == null && !_isMockPosition) || isLocationRefusal(_herFix);
+
+  /// This share's platform stream is subscribed and no position event has come
+  /// by the first watchdog tick after the subscription. Cleared by any event.
+  bool _herNoEventYet = false;
+
+  /// A measured whiteout is open: a fresh reading under 200 m came, and no
+  /// fresh reading at or above 200 m has come since. A failed or stale reading
+  /// neither opens nor closes it.
+  bool _whiteoutOpen = false;
+
+  /// This opening of the whiteout has been told to her, by a share or with no
+  /// share running. Only a new opening clears it.
+  bool _whiteoutTold = false;
 
   /// What THIS sharing session has measured about motion, for route setting
   /// (ruled 2026-09-14). A new session starts with none, and so does her "no"
@@ -1598,6 +1638,10 @@ class _HomePageState extends State<HomePage> {
       _herFedThisShare = false;
       _shareMotion = ShareMotion.none;
     });
+    // Ruled 2026-09-15: a share she starts
+    // herself begins with nothing told and no rung held.
+    _herNoEventYet = false;
+    _driveHud.startShare();
     final session = ++_herShareSession;
     // B32 — drive start: re-probe BOTH eyes-off channels NOW (the initState
     // read may be app-open-hours old; the drive is when a mute matters — and
@@ -1657,6 +1701,8 @@ class _HomePageState extends State<HomePage> {
   /// path, so all three keep the watchdog fed and reach the same surfaces.
   void _onPositionEvent(PositionFix fix) {
     if (!mounted) return;
+    // Ruled 2026-09-15: an event came.
+    _herNoEventYet = false;
     // Location is off for this app (permission denied, now or for good): her
     // setting, not a GPS failure. It is NOT fed to the drive brain, which,
     // with no fix ever, rates "no position at all" its top concern and speaks
@@ -1669,6 +1715,9 @@ class _HomePageState extends State<HomePage> {
     // from the typed cause only: a reason's free text can carry exception
     // text, and acting on it could silence a real failure.
     if (isLocationRefusal(fix)) {
+      // Ruled 2026-09-15: what this share
+      // told stays told. Nothing is told here: nothing answers her no.
+      _noteShareToldWhiteout();
       _positionWatchdog?.cancel();
       _positionWatchdog = null;
       _lastPositionEventAt = null;
@@ -1710,6 +1759,11 @@ class _HomePageState extends State<HomePage> {
     _lastPositionEventAt = _now();
     setState(() => _herFix = fix);
     _maybeRefreshAdvisoriesForFix(fix);
+    // Ruled 2026-09-15: asked before feeding.
+    _driveHud.startRung =
+        !_herAnchoredThisSession && !_driveHud.wouldTrust(fix)
+            ? StartRung.unlocated
+            : StartRung.none;
     _feedDriveHud(fix);
     _herFedThisShare = true;
     // After the drive brain has taken the event: did it become the anchor?
@@ -1790,6 +1844,7 @@ class _HomePageState extends State<HomePage> {
     // no event exists to feed it, and whether a first fix that never comes
     // should reach the alarm is not decided here (ruled 2026-09-14: landing
     // these words must not make this state louder than it was).
+    var overdueNow = false;
     if (!_herFirstEventOverdue &&
         positionFirstEventOverdue(
           now: _now(),
@@ -1797,6 +1852,30 @@ class _HomePageState extends State<HomePage> {
           eventArrived: _herFix != null,
         )) {
       setState(() => _herFirstEventOverdue = true);
+      overdueNow = true;
+    }
+    // Ruled 2026-09-15: the first fix never
+    // arrives. At the first tick after the platform stream is subscribed with
+    // no event, the absence is held as an event the brain has not been given,
+    // and it reaches the brain where a measured condition raises caution: the
+    // road's own rung inside 60 s, an unlocated position from 60 s. The tick,
+    // not the subscription callback: a platform that refuses at subscribe
+    // reports it after the callback (her_position.dart, the typed
+    // PermissionDeniedException), and nothing may answer her no.
+    final subscribedAt = _herPositionStreamSubscribedAt;
+    if (_herSub != null &&
+        subscribedAt != null &&
+        _herFix == null &&
+        !_herNoEventYet) {
+      _herNoEventYet = true;
+      _herHeldEvent = const PositionUnavailable(_noPositionEventYet);
+      _giveHeldEventIfMeasured();
+    } else if (overdueNow &&
+        _herNoEventYet &&
+        _herHeldEvent == null &&
+        _driveHud.startRung == StartRung.road) {
+      _driveHud.startRung = StartRung.unlocated;
+      _driveHud.poll(now: _now());
     }
     final pollAt = positionWatchdogPollTime(
       now: _now(),
@@ -1840,6 +1919,8 @@ class _HomePageState extends State<HomePage> {
       _herFix = mockFix;
     });
     _maybeRefreshAdvisoriesForFix(mockFix);
+    _herNoEventYet = false;
+    _driveHud.startRung = StartRung.none;
     _feedDriveHud(mockFix);
   }
 
@@ -1930,14 +2011,74 @@ class _HomePageState extends State<HomePage> {
   /// turns a watch ON raises the eyes-off rung immediately. A no-op before a
   /// baseline fix exists (updateEnvironment recomputes only with an estimate).
   void _pushMeasuredHazardToDriveHud() {
-    _driveHud.updateEnvironment(
+    // Ruled 2026-09-15: only a brain that
+    // holds this drive recomputes. An ended share's estimate is not asked, so
+    // nothing is told or shown from it.
+    if (_driveHudRungIsThisDrives) {
+      _driveHud.updateEnvironment(
+        visibilityMeters: _effectiveVisibilityMeters,
+        visibilityAgeSeconds: _effectiveVisibilityAgeSeconds(),
+        advisorySeverity: readAdvisoryAxis(_advisoryResult).level,
+        speedMetersPerSecond: null,
+        measuredHazard: _currentMeasuredHazard(),
+      );
+    }
+    _giveHeldEventIfMeasured();
+  }
+
+  /// Ruled 2026-09-15. Reads the measured
+  /// whiteout at a weather refresh or a visibility band change, then tells it
+  /// to a driver with no share running. A fresh reading under 200 m opens it;
+  /// a fresh reading at or above 200 m closes it; no reading, a stale one or a
+  /// failed fetch changes nothing, so a reading whose age flickers past the
+  /// freshness window does not open it again.
+  void _updateWhiteoutWindow() {
+    final v = _effectiveVisibilityMeters;
+    final age = _effectiveVisibilityAgeSeconds();
+    final fresh =
+        v != null && !v.isNaN && age != null && age <= kVisStaleSeconds;
+    if (fresh && v < kVisLowM) {
+      if (!_whiteoutOpen) {
+        _whiteoutOpen = true;
+        _whiteoutTold = false;
+      }
+    } else if (fresh) {
+      _whiteoutOpen = false;
+    }
+    _noteShareToldWhiteout();
+    if (_whiteoutOpen && !_whiteoutTold && _noShareRunning) {
+      _whiteoutTold = true;
+      _driveHud.tellWithNoShare(DriveAction.considerStopping);
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// A share running this drive that has told the top rung while a whiteout
+  /// is open has told that opening: stopping or refusing afterwards does not
+  /// tell it again.
+  void _noteShareToldWhiteout() {
+    if (_whiteoutOpen &&
+        _driveHudRungIsThisDrives &&
+        _driveHud.spokenRung == DriveAction.considerStopping) {
+      _whiteoutTold = true;
+    }
+  }
+
+  /// The road's own caution as the app holds it now, when it is the top rung;
+  /// otherwise null. Read for the panel of a driver with no share running, so
+  /// a reading that has gone stale shows no rung.
+  DriveAdvice? _roadAdviceIfTopRung() {
+    final road = adviseInDrive(DriveSituation(
+      positionTrust: PositionTrust.trusted,
+      confidenceRadiusMeters: 0,
+      secondsSinceTrustedFix: 0,
+      hasPosition: true,
       visibilityMeters: _effectiveVisibilityMeters,
       visibilityAgeSeconds: _effectiveVisibilityAgeSeconds(),
       advisorySeverity: readAdvisoryAxis(_advisoryResult).level,
       speedMetersPerSecond: null,
-      measuredHazard: _currentMeasuredHazard(),
-    );
-    _giveHeldEventIfMeasured();
+    ));
+    return road.action == DriveAction.considerStopping ? road : null;
   }
 
   /// Whether a measured condition, as the app holds it now, raises caution on
@@ -1963,6 +2104,12 @@ class _HomePageState extends State<HomePage> {
     // From here the brain holds this session's event, so the watchdog may
     // degrade it on a drought, as it does after any event it is given.
     _lastPositionEventAt = _now();
+    // Ruled 2026-09-15: the absence of any
+    // event is the road's own rung inside 60 s; a failure, or the absence from
+    // 60 s, is an unlocated position.
+    _driveHud.startRung = _herNoEventYet && !_herFirstEventOverdue
+        ? StartRung.road
+        : StartRung.unlocated;
     _feedDriveHud(held);
     setState(() => _herFedThisShare = true);
   }
@@ -1991,13 +2138,17 @@ class _HomePageState extends State<HomePage> {
   /// left unchanged (this control does not re-evaluate the JMA watches).
   void _onVisibilityChanged(double? meters) {
     setState(() => _mockVisibilityMeters = meters);
-    _driveHud.updateEnvironment(
-      visibilityMeters: _effectiveVisibilityMeters,
-      visibilityAgeSeconds: _effectiveVisibilityAgeSeconds(),
-      advisorySeverity: readAdvisoryAxis(_advisoryResult).level,
-      speedMetersPerSecond: null,
-    );
+    // Ruled 2026-09-15: as at a refresh.
+    if (_driveHudRungIsThisDrives) {
+      _driveHud.updateEnvironment(
+        visibilityMeters: _effectiveVisibilityMeters,
+        visibilityAgeSeconds: _effectiveVisibilityAgeSeconds(),
+        advisorySeverity: readAdvisoryAxis(_advisoryResult).level,
+        speedMetersPerSecond: null,
+      );
+    }
     _giveHeldEventIfMeasured();
+    _updateWhiteoutWindow();
   }
 
   /// Simulate +60 s of GPS blackout: advance the honest position with [poll] so
@@ -2034,9 +2185,20 @@ class _HomePageState extends State<HomePage> {
     // reading the previous drive's GPS 良好 while the map says 現在地不明.
     // The brain is scoped here, never reset: reset, a replayed fix from
     // another place became a trusted position.
-    final brainIsThisShares = _driveHudIsThisShares;
-    final estimate = brainIsThisShares ? _driveHud.estimate : null;
-    final advice = brainIsThisShares ? _driveHud.advice : null;
+    //
+    // Ruled 2026-09-15: nothing from a share
+    // she ended or refused. With no share running and a measured whiteout in
+    // hand, the road's own rung and its cause. Inside 60 s of a subscription
+    // with no event, the road's rung without a position line.
+    final brainIsThisShares = _driveHudRungIsThisDrives;
+    final roadOnly =
+        brainIsThisShares && _driveHud.startRung == StartRung.road;
+    final DriveAdvice? noShareWhiteout =
+        _noShareRunning && _whiteoutOpen ? _roadAdviceIfTopRung() : null;
+    final estimate =
+        brainIsThisShares && !roadOnly ? _driveHud.estimate : null;
+    final advice =
+        noShareWhiteout ?? (brainIsThisShares ? _driveHud.advice : null);
     final l = AppL10n.of(context);
     final appUnknowns = _appUnknowns();
     // Scoping inputs for the lowest-rung reassurance. None of these raises the
@@ -2057,9 +2219,11 @@ class _HomePageState extends State<HomePage> {
     // black-ice / turmoil watch is firing on-screen (a full-screen driver HUD is
     // BETA_PLAN; this is the alpha app's live-drive caution section). Falls back
     // to the advisor's action before the first recompute.
-    final effective = brainIsThisShares
-        ? _driveHud.effectiveAction ?? advice?.action
-        : null;
+    final effective = noShareWhiteout != null
+        ? DriveAction.considerStopping
+        : brainIsThisShares
+            ? _driveHud.effectiveAction ?? advice?.action
+            : null;
     final hasBaseline = _herFix is PositionAvailable;
 
     final (Color bannerColor, Color textColor) = switch (effective) {
@@ -2277,7 +2441,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         const SizedBox(height: 12),
-        if (estimate == null || advice == null)
+        if (estimate == null)
           Text(
               // Keyed (2026-09-15) so a test reads the rung's place on the
               // card, not every text on the screen.
@@ -2294,6 +2458,8 @@ class _HomePageState extends State<HomePage> {
               l.driveHudUncertaintyLabel,
               _driveHudText.radiusLabel(
                   estimate.confidenceRadiusMeters, l.locale.languageCode)),
+        ],
+        if (advice != null) ...[
           const SizedBox(height: 8),
           // The caution headline banner, coloured by rung.
           Container(
@@ -2506,6 +2672,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _clearPosition() {
+    // Ruled 2026-09-15: what this share told
+    // stays told. Nothing is told at her tap: a whiteout this share did not
+    // tell is told at the next refresh.
+    _noteShareToldWhiteout();
+    _herNoEventYet = false;
     _herSub?.cancel();
     _herSub = null;
     // N8 — she deliberately ENDED the feed: the blackout watchdog must stop
@@ -2627,6 +2798,8 @@ class _HomePageState extends State<HomePage> {
     // banner she reacts to reflects the measured hazard the same cycle the
     // watch row does. Recomputes only if a baseline fix already exists.
     _pushMeasuredHazardToDriveHud();
+    // Ruled 2026-09-15: the measured whiteout, read at every refresh.
+    _updateWhiteoutWindow();
     _announceWatchTransitions();
   }
 
