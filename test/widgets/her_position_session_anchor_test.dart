@@ -27,6 +27,7 @@ import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
 const _ringKey = ValueKey('her-dot-degraded');
@@ -70,6 +71,7 @@ void main() {
         clock: DateTime.now,
         jmaFetch: () async => JmaSuccess(_clearObs()),
         positionSource: () => positions.stream,
+        developerPageEntry: true,
       ),
     );
     await tester.pump();
@@ -175,10 +177,8 @@ void main() {
     'station pin',
     (tester) async {
       await pumpApp(tester);
-      await tester.ensureVisible(find.byKey(const Key('use-mock-button')));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('use-mock-button')));
-      await tester.pump();
+      // The mock is on the development page (2026-09-15).
+      await tapOnDeveloperPage(tester, const Key('use-mock-button'));
       expect(map(tester).herPosition, akitaStation, reason: 'control: mock');
       await tapText(tester, 'クリア');
 
@@ -234,10 +234,8 @@ void main() {
       'dev mock, Clear, then share and a GPS stream error: no ring, and the '
       'map says 現在地不明 (never silent)', (tester) async {
     await pumpApp(tester);
-    await tester.ensureVisible(find.byKey(const Key('use-mock-button')));
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('use-mock-button')));
-    await tester.pump();
+    // The mock is on the development page (2026-09-15).
+    await tapOnDeveloperPage(tester, const Key('use-mock-button'));
     await tapText(tester, 'クリア');
 
     await tapText(tester, '現在地を共有');

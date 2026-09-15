@@ -72,19 +72,11 @@ Future<FakeAlertActuators> _boot(WidgetTester tester, String lang,
     locale: Locale(lang),
     clock: () => _now,
     jmaFetch: jma ?? () async => const JmaFailure('no network in this test'),
+    developerPageEntry: true,
   ));
   await tester.pump();
   await tester.pump();
   return a;
-}
-
-Future<void> _tapKey(WidgetTester tester, Key key) async {
-  final b = find.byKey(key);
-  await tester.ensureVisible(b);
-  await tester.pump();
-  await tester.tap(b);
-  await tester.pump();
-  await tester.pump();
 }
 
 /// The live-drive card, found as the instrument that looks at her map finds
@@ -110,14 +102,15 @@ void _expectNoTeamWords(List<String> texts, String when) {
   }
 }
 
-/// Every card text in three states the card's own controls reach: before
-/// sharing, sharing the Akita mock, and after one simulated blackout.
+/// Every card text in three states: before sharing, sharing the Akita mock,
+/// and after one simulated blackout. The mock and the blackout simulator are
+/// on the development page since 2026-09-15; the card is read on her page.
 Future<List<String>> _cardTextsThroughStates(WidgetTester tester) async {
   final seen = <String>[];
   seen.addAll(_cardTexts(tester));
-  await _tapKey(tester, const Key('use-mock-button'));
+  await tapOnDeveloperPage(tester, const Key('use-mock-button'));
   seen.addAll(_cardTexts(tester));
-  await _tapKey(tester, const Key('drive-hud-blackout-button'));
+  await tapOnDeveloperPage(tester, const Key('drive-hud-blackout-button'));
   seen.addAll(_cardTexts(tester));
   return seen;
 }
@@ -231,7 +224,7 @@ void main() {
         (tester) async {
       final a = await _boot(tester, lang,
           jma: () async => JmaSuccess(_freshObsWithoutVisibility()));
-      await _tapKey(tester, const Key('use-mock-button'));
+      await tapOnDeveloperPage(tester, const Key('use-mock-button'));
       final status = tester
               .widget<Text>(find.byKey(const Key('drive-hud-announce-status')))
               .data ??

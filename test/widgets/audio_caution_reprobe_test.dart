@@ -25,6 +25,7 @@ import 'package:sngnav_app/main.dart';
 import 'package:sngnav_app/services/audio_readiness.dart';
 import 'package:sngnav_app/services/voice_lane_readiness.dart';
 
+import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
 /// A probe whose reading the test can CHANGE between ticks.
@@ -61,6 +62,7 @@ void main() {
       actuators: FakeAlertActuators(),
       audioReadinessProbe: probe,
       voiceLaneReader: () async => verdict,
+      developerPageEntry: true,
     ));
     await tester.pump();
     await tester.pump();
@@ -170,10 +172,8 @@ void main() {
     final readsBefore = probe.reads;
     probe.reading = _muted;
 
-    await tester.ensureVisible(find.byKey(const Key('use-mock-button')));
-    await tester.tap(find.byKey(const Key('use-mock-button')));
-    await tester.pump();
-    await tester.pump();
+    // The mock is on the development page (2026-09-15).
+    await tapOnDeveloperPage(tester, const Key('use-mock-button'));
 
     expect(probe.reads, greaterThan(readsBefore),
         reason: 'Drive start must re-read the probes.');

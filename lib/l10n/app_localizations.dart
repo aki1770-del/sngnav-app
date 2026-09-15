@@ -1210,6 +1210,13 @@ class AppL10n {
   /// The development page's title, and the tooltip of its entry.
   String get developerPageTitle => _ja ? '開発用の画面' : 'Development page';
 
+  /// The development page's card holding the live-drive demos: the Akita mock
+  /// position, the visibility band and the GPS blackout simulator, on her
+  /// live-drive card until 2026-09-15.
+  String get developerLiveDriveDemosSectionTitle => _ja
+      ? '走行中の注意のデモ（開発用）'
+      : 'Live-drive demos (for development)';
+
   /// The development page's last card: the packages the app is built on.
   String get developerPackagesSectionTitle => _ja
       ? 'このアプリのパッケージ（開発用）'

@@ -66,3 +66,58 @@ List<String> cardTitlesOnTopPage(WidgetTester tester) {
   }
   return titles;
 }
+
+/// Returns from the development page to her page by its back button.
+Future<void> closeDeveloperPage(WidgetTester tester) async {
+  // The back button itself: its tooltip is 戻る in Japanese, and
+  // tester.pageBack() looks for "Back".
+  await tester.tap(find.byType(BackButton));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 600));
+  if (find.byKey(kDeveloperPageKey).evaluate().isNotEmpty) {
+    throw TestFailure('the development page did not close');
+  }
+}
+
+/// On the development page, taps the control under [key] and returns to her
+/// page. The live-drive demos (the Akita mock position, the visibility band's
+/// items and the GPS blackout simulator) have been there since 2026-09-15;
+/// until then a test tapped them on her card.
+Future<void> tapOnDeveloperPage(WidgetTester tester, Key key) async {
+  await openDeveloperPage(tester);
+  final control = find.byKey(key);
+  if (control.evaluate().length != 1) {
+    throw TestFailure('${control.evaluate().length} controls keyed $key on '
+        'the development page');
+  }
+  await tester.ensureVisible(control);
+  await tester.pump();
+  await tester.tap(control);
+  await tester.pump();
+  await tester.pump();
+  await closeDeveloperPage(tester);
+}
+
+/// On the development page, chooses [meters] in the visibility band (null is
+/// no override) and returns to her page.
+Future<void> chooseVisibilityBandOnDeveloperPage(
+    WidgetTester tester, double? meters) async {
+  await openDeveloperPage(tester);
+  final band = find.byKey(const Key('drive-hud-visibility'));
+  if (band.evaluate().length != 1) {
+    throw TestFailure('${band.evaluate().length} visibility bands on the '
+        'development page');
+  }
+  await tester.ensureVisible(band);
+  await tester.pump();
+  await tester.tap(band);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+  await tester.tap(find
+      .byWidgetPredicate(
+          (w) => w is DropdownMenuItem<double?> && w.value == meters)
+      .last);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+  await closeDeveloperPage(tester);
+}

@@ -33,9 +33,10 @@ void main() {
     final semantics = tester.ensureSemantics();
     await pumpAndReveal(tester);
 
+    // Her consent row has one action since 2026-09-15: the Akita mock
+    // position moved to the development page.
     for (final (key, label) in [
       ('share-location-button', 'Share my location'),
-      ('use-mock-button', 'Use Akita mock (dev)'),
     ]) {
       final finder = find.byKey(Key(key));
       final node = tester.getSemantics(finder);

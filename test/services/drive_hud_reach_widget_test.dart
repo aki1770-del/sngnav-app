@@ -17,6 +17,7 @@ import 'package:navigation_safety_enums/navigation_safety_enums.dart'
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart';
 
+import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
 // A clear-conditions JMA observation: no ice, no turmoil, no feed loss — so the
@@ -49,6 +50,7 @@ void main() {
           actuators: fake,
           locale: const Locale('ja'),
           jmaFetch: () async => JmaSuccess(_clearObs()),
+          developerPageEntry: true,
         ),
       );
       await tester.pump();
@@ -57,13 +59,8 @@ void main() {
       // reading (AMeDAS returns null; no demo override) → the live brain holds
       // the honest UNKNOWN floor: heightened caution, but SILENT (an
       // unknown-visibility-only rise is shown, never announced — no cry-wolf).
-      final mockBtn = find.byKey(const Key('use-mock-button'));
-      expect(mockBtn, findsOneWidget);
-      await tester.ensureVisible(mockBtn);
-      await tester.pump();
-      await tester.tap(mockBtn);
-      await tester.pump();
-      await tester.pump();
+      // The mock is on the development page (2026-09-15).
+      await tapOnDeveloperPage(tester, const Key('use-mock-button'));
 
       final banner = find.byKey(const Key('drive-hud-caution-banner'));
       await tester.ensureVisible(banner);
@@ -83,13 +80,9 @@ void main() {
 
       // Simulate GPS blackout: 3 × +60 s → past the 120 s honesty horizon →
       // the dot degrades to `lost`. A lost position alone reaches the ceiling.
-      final blackoutBtn = find.byKey(const Key('drive-hud-blackout-button'));
       for (var i = 0; i < 3; i++) {
-        await tester.ensureVisible(blackoutBtn);
-        await tester.pump();
-        await tester.tap(blackoutBtn);
-        await tester.pump();
-        await tester.pump();
+        await tapOnDeveloperPage(
+            tester, const Key('drive-hud-blackout-button'));
       }
 
       // render-SEE: the banner has RISEN to 停車の検討 with the calm JA guidance.

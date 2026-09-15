@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 import '../support/rung_on_card.dart';
 
@@ -79,27 +80,23 @@ void main() {
   testWidgets('on the app: no rung before a share, the stop rung after the GPS '
       'is lost', (tester) async {
     await tester.pumpWidget(SngnavApp(
-        locale: const Locale('ja'), actuators: FakeAlertActuators()));
+        locale: const Locale('ja'),
+        actuators: FakeAlertActuators(),
+        developerPageEntry: true));
     await tester.pump();
     await tester.pump();
     expect(rungOnCard(), isNull, reason: 'nothing shared yet');
     expect(noPositionLineOnCard(), isTrue,
         reason: 'the card says there is no position where the rung would be');
 
-    final mock = find.byKey(const Key('use-mock-button'));
-    await tester.ensureVisible(mock);
-    await tester.tap(mock);
-    await tester.pump();
-    await tester.pump();
+    // The mock and the blackout simulator are on the development page
+    // (2026-09-15).
+    await tapOnDeveloperPage(tester, const Key('use-mock-button'));
     expect(noPositionLineOnCard(), isFalse);
     expect(rungOnCard(), isNotNull, reason: 'a shared position gives a rung');
 
-    final blackout = find.byKey(const Key('drive-hud-blackout-button'));
     for (var i = 0; i < 3; i++) {
-      await tester.ensureVisible(blackout);
-      await tester.tap(blackout);
-      await tester.pump();
-      await tester.pump();
+      await tapOnDeveloperPage(tester, const Key('drive-hud-blackout-button'));
     }
     expect(rungOnCard(), DriveAction.considerStopping,
         reason: 'three minutes without GPS raise the top rung');

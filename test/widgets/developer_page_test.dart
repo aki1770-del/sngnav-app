@@ -52,6 +52,10 @@ List<String> _developmentTitles(AppL10n l) => [
       l.tuningRecordSectionTitle,
       l.glanceAndVoicePacingSectionTitle,
       l.mapDrawingAndDataSectionTitle,
+      // Not a card of her page before, but its controls were on her live-drive
+      // card until 2026-09-15: the Akita mock, the visibility band and the GPS
+      // blackout simulator (demo_controls_off_her_page_test.dart).
+      l.developerLiveDriveDemosSectionTitle,
       // Not a card of her page before: the packages her page foot and
       // live-drive card named until 2026-09-15.
       l.developerPackagesSectionTitle,

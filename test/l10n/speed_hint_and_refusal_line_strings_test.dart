@@ -21,6 +21,7 @@ import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 
+import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
 void main() {
@@ -87,6 +88,7 @@ void main() {
         clock: () => DateTime.utc(2026, 1, 14, 21),
         jmaFetch: () async => const JmaFailure('no network in this test'),
         positionSource: () => positions.stream,
+        developerPageEntry: true,
       ));
       await tester.pump();
       await tester.pump();
@@ -104,14 +106,8 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      final band = find.byKey(const Key('drive-hud-visibility'));
-      await tester.ensureVisible(band);
-      await tester.pump();
-      await tester.tap(band);
-      await tester.pumpAndSettle();
-      // English band label since 2026-09-14; the bands were Japanese on
-      // every device until then.
-      await tester.tap(find.text('Whiteout ~80 m').last);
+      // The band is on the development page since 2026-09-15.
+      await chooseVisibilityBandOnDeveloperPage(tester, 80);
       await tester.pumpAndSettle();
 
       final label = find.text('Speed hint:');

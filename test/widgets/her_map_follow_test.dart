@@ -32,6 +32,7 @@ import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
 const _r13At0km = LatLng(39.7109369, 140.0902946); // idx 0, 0.0 km
@@ -73,6 +74,7 @@ void main() {
       clock: () => now,
       jmaFetch: () async => JmaSuccess(_clearObs()),
       positionSource: () => positions.stream,
+      developerPageEntry: true,
     ));
     await tester.pump();
     await tester.pump();
@@ -272,11 +274,8 @@ void main() {
       await fixAt(tester, _r13At8_2km, 10);
       await tapText(tester, '停止');
 
-      await tester.ensureVisible(find.byKey(const Key('use-mock-button')));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('use-mock-button')));
-      await tester.pump();
-      await tester.pump();
+      // The mock is on the development page (2026-09-15).
+      await tapOnDeveloperPage(tester, const Key('use-mock-button'));
 
       expect(tester.widget<AkitaMap>(find.byType(AkitaMap)).herPosition,
           akitaStation,
@@ -298,10 +297,8 @@ void main() {
       final handPut = camera(tester).center;
       await tapText(tester, '停止');
 
-      await tester.ensureVisible(find.byKey(const Key('use-mock-button')));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('use-mock-button')));
-      await tester.pump();
+      // The mock is on the development page (2026-09-15).
+      await tapOnDeveloperPage(tester, const Key('use-mock-button'));
 
       expect(tester.widget<AkitaMap>(find.byType(AkitaMap)).herPosition,
           akitaStation,

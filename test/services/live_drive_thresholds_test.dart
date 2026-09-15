@@ -17,7 +17,10 @@
 /// 2. The real app, with every driver type, vehicle type, driver-state input
 ///    and simulated road condition set on the development page: her card's rung
 ///    and every spoken line and vibration along one scripted drive are the same
-///    as with nothing set.
+///    as with nothing set. The live-drive demos (the visibility band and the
+///    GPS blackout simulator, on the development page since 2026-09-15) drive
+///    the script and are not among the settings compared: they exist to change
+///    her card, and a release build never offers them.
 ///
 /// When the live drive's thresholds are meant to change (changes to the rung
 /// and to warnings in a whiteout are under way), the tables in part 1 change
@@ -342,18 +345,16 @@ Future<List<String>> _scriptedDrive(
   await tester.pump();
   note('trusted fix, no visibility reading');
 
+  // The band and the blackout simulator are the live-drive demos, on the
+  // development page since 2026-09-15. They drive the script; they are not
+  // among the settings compared, because setting them is meant to change her
+  // card.
   for (final band in const <double?>[1500, 700, 300, 80, null, 300]) {
-    await _choose<double?>(
-        tester, find.byKey(const Key('drive-hud-visibility')), band);
+    await chooseVisibilityBandOnDeveloperPage(tester, band);
     note('visibility band ${band?.toInt() ?? 'none'}');
   }
-  final blackout = find.byKey(const Key('drive-hud-blackout-button'));
   for (var i = 1; i <= 3; i++) {
-    await tester.ensureVisible(blackout);
-    await tester.pump();
-    await tester.tap(blackout);
-    await tester.pump();
-    await tester.pump();
+    await tapOnDeveloperPage(tester, const Key('drive-hud-blackout-button'));
     note('blackout +${i * 60} s');
   }
   await tester.pumpWidget(const SizedBox.shrink());
@@ -376,8 +377,9 @@ void main() {
     expect(changed, isEmpty, reason: changed.join('\n\n'));
   });
 
-  testWidgets('no input on the development page changes her rung, her speech '
-      'or her vibration along a live drive', (tester) async {
+  testWidgets('no setting on the development page other than the live-drive '
+      'demos changes her rung, her speech or her vibration along a live drive',
+      (tester) async {
     final settings = _settings();
     final baseline = await _scriptedDrive(tester, settings.first);
     expect(baseline.where((l) => l.startsWith('  spoken')), isNotEmpty,

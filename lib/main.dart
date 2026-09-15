@@ -2401,52 +2401,10 @@ class _HomePageState extends State<HomePage> {
           l.driveHudDescription,
           style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
         ),
-        const SizedBox(height: 10),
-        // Demo OVERRIDE for the visibility band. Default (null) = live/unknown;
-        // the road has no visibility sensor, so absence reads as 未計測, never clear.
-        Text(
-          key: const Key('drive-hud-visibility-label'),
-          l.driveHudVisibilityOverrideLabel,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-        DropdownButton<double?>(
-          key: const Key('drive-hud-visibility'),
-          value: _mockVisibilityMeters,
-          isExpanded: true,
-          onChanged: _onVisibilityChanged,
-          items: [
-            for (final meters in _visibilityBands)
-              DropdownMenuItem<double?>(
-                value: meters,
-                child: Text(l.driveHudVisibilityBand(meters)),
-              ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        // Wrap, not Row: at phone width the long button label + the live
-        // blackout counter cannot both be honored at natural size — a fixed
-        // Row overflows (caught by the w2 phone-geometry capture on CI).
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            ElevatedButton.icon(
-              key: const Key('drive-hud-blackout-button'),
-              onPressed: hasBaseline ? _simulateGpsBlackout : null,
-              icon: const Icon(Icons.gps_off),
-              label: Text(l.driveHudSimulateBlackout),
-            ),
-            // orange.shade900 measured 3.43:1 on the card (2026-09-15); the
-            // staleness colour already defined for orange grounds is 7.02:1.
-            if (_blackoutSeconds > 0)
-              Text(
-                  key: const Key('drive-hud-blackout-seconds'),
-                  l.driveHudBlackoutSeconds(_blackoutSeconds),
-                  style: const TextStyle(
-                      fontSize: 12, color: kCautionTextOnOrange)),
-          ],
-        ),
+        // The visibility band and the GPS blackout simulator are on the
+        // development page (2026-09-15): on her card, one tap on the band's
+        // clear setting took a measured whiteout's rung, cause and announce
+        // line off it, and a release build had no condition on either.
         // An instruction to share, so shown only while she is not sharing.
         // Until 2026-09-14 it was keyed on "no fix" alone, and after a GPS
         // stream error, while she was sharing, it told her to share.
@@ -3852,6 +3810,15 @@ class _HomePageState extends State<HomePage> {
         child: _renderBudgetPanel(),
       ),
       const SizedBox(height: 16),
+      // The live-drive card's demo controls, on her card until 2026-09-15:
+      // the Akita mock position, the visibility band and the GPS blackout
+      // simulator. They drive the same state as before; her card shows what
+      // they set, and this page is the only place that sets it.
+      _section(
+        title: AppL10n.of(context).developerLiveDriveDemosSectionTitle,
+        child: _liveDriveDemoControls(),
+      ),
+      const SizedBox(height: 16),
       // The package names that were on her page foot and her live-drive card
       // (2026-09-15).
       _section(
@@ -3863,6 +3830,75 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     ];
+  }
+
+  /// The live-drive demos: controls that put a position or a condition on her
+  /// card that nothing measured. Drawn only on the development page.
+  Widget _liveDriveDemoControls() {
+    final l = AppL10n.of(context);
+    final hasBaseline = _herFix is PositionAvailable;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton(
+            key: const Key('use-mock-button'),
+            // Offered while no share and no mock runs, as it was on her card.
+            onPressed: _herSub == null && !_isMockPosition
+                ? _useMockPosition
+                : null,
+            child: Text(l.useAkitaMock),
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Demo OVERRIDE for the visibility band. Default (null) = live/unknown;
+        // the road has no visibility sensor, so absence reads as 未計測, never clear.
+        Text(
+          key: const Key('drive-hud-visibility-label'),
+          l.driveHudVisibilityOverrideLabel,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+        DropdownButton<double?>(
+          key: const Key('drive-hud-visibility'),
+          value: _mockVisibilityMeters,
+          isExpanded: true,
+          onChanged: _onVisibilityChanged,
+          items: [
+            for (final meters in _visibilityBands)
+              DropdownMenuItem<double?>(
+                value: meters,
+                child: Text(l.driveHudVisibilityBand(meters)),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        // Wrap, not Row: at phone width the long button label + the live
+        // blackout counter cannot both be honored at natural size — a fixed
+        // Row overflows (caught by the w2 phone-geometry capture on CI).
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ElevatedButton.icon(
+              key: const Key('drive-hud-blackout-button'),
+              onPressed: hasBaseline ? _simulateGpsBlackout : null,
+              icon: const Icon(Icons.gps_off),
+              label: Text(l.driveHudSimulateBlackout),
+            ),
+            // orange.shade900 measured 3.43:1 on the card (2026-09-15); the
+            // staleness colour already defined for orange grounds is 7.02:1.
+            if (_blackoutSeconds > 0)
+              Text(
+                  key: const Key('drive-hud-blackout-seconds'),
+                  l.driveHudBlackoutSeconds(_blackoutSeconds),
+                  style: const TextStyle(
+                      fontSize: 12, color: kCautionTextOnOrange)),
+          ],
+        ),
+      ],
+    );
   }
 
   Widget _section({required String title, required Widget child}) {
@@ -4762,11 +4798,8 @@ class _HomePageState extends State<HomePage> {
                   onPressed: _shareLocation,
                   child: Text(l.shareMyLocation),
                 ),
-                TextButton(
-                  key: const Key('use-mock-button'),
-                  onPressed: _useMockPosition,
-                  child: Text(l.useAkitaMock),
-                ),
+                // The Akita mock position is on the development page
+                // (2026-09-15); a release build never offers it.
               ],
             ),
           ),

@@ -141,27 +141,21 @@ void main() {
   testWidgets('02 — JA drive HUD, lowest neutral rung (特段の注意なし)', (tester) async {
     final fake = FakeAlertActuators();
     await tester.pumpWidget(
-      SngnavApp(actuators: fake, locale: const Locale('ja')),
+      SngnavApp(
+          actuators: fake,
+          locale: const Locale('ja'),
+          developerPageEntry: true),
     );
     await tester.pump();
 
-    final mockBtn = find.byKey(const Key('use-mock-button'));
-    await tester.ensureVisible(mockBtn);
-    await tester.pump();
-    await tester.tap(mockBtn);
-    await tester.pump();
-    await tester.pump();
+    // The mock, the band and the blackout simulator are on the development
+    // page since 2026-09-15.
+    await tapOnDeveloperPage(tester, const Key('use-mock-button'));
 
     // The honest default is UNKNOWN (未計測 → heightened); the only truthful way
     // to reach the lowest, choice-neutral rung (特段の注意なし) is an actual clear
     // reading, so select the CLEAR demo visibility override before capturing.
-    final visDropdown = find.byKey(const Key('drive-hud-visibility'));
-    await tester.ensureVisible(visDropdown);
-    await tester.pump();
-    await tester.tap(visDropdown);
-    await tester.pump(const Duration(milliseconds: 400));
-    await tester.tap(find.text('クリア ~1.5 km').last);
-    await tester.pump(const Duration(milliseconds: 400));
+    await chooseVisibilityBandOnDeveloperPage(tester, 1500);
 
     final banner = find.byKey(const Key('drive-hud-caution-banner'));
     // Confirm we are in the lowest, choice-neutral rung before capturing —
@@ -201,26 +195,21 @@ void main() {
   testWidgets('03 — JA drive HUD, RISEN to STOP (停車の検討)', (tester) async {
     final fake = FakeAlertActuators();
     await tester.pumpWidget(
-      SngnavApp(actuators: fake, locale: const Locale('ja')),
+      SngnavApp(
+          actuators: fake,
+          locale: const Locale('ja'),
+          developerPageEntry: true),
     );
     await tester.pump();
 
-    final mockBtn = find.byKey(const Key('use-mock-button'));
-    await tester.ensureVisible(mockBtn);
-    await tester.pump();
-    await tester.tap(mockBtn);
-    await tester.pump();
-    await tester.pump();
+    // The mock, the band and the blackout simulator are on the development
+    // page since 2026-09-15.
+    await tapOnDeveloperPage(tester, const Key('use-mock-button'));
 
     // Simulate GPS blackout: 3 × +60 s → past the 120 s honesty horizon →
     // honest dot degrades to `lost` → the caution rung RISES to 停車の検討.
-    final blackoutBtn = find.byKey(const Key('drive-hud-blackout-button'));
     for (var i = 0; i < 3; i++) {
-      await tester.ensureVisible(blackoutBtn);
-      await tester.pump();
-      await tester.tap(blackoutBtn);
-      await tester.pump();
-      await tester.pump();
+      await tapOnDeveloperPage(tester, const Key('drive-hud-blackout-button'));
     }
 
     final banner = find.byKey(const Key('drive-hud-caution-banner'));

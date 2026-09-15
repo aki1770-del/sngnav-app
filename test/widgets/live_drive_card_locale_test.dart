@@ -20,6 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
 final _cjk = RegExp(r'[぀-ヿ㐀-鿿＀-￯]');
@@ -32,28 +33,18 @@ Future<void> _boot(WidgetTester tester, String lang) async {
     locale: Locale(lang),
     clock: () => DateTime.utc(2026, 1, 14, 21),
     jmaFetch: () async => const JmaFailure('no network in this test'),
+    developerPageEntry: true,
   ));
   await tester.pump();
   await tester.pump();
 }
 
-Future<void> _useMock(WidgetTester tester) async {
-  final b = find.byKey(const Key('use-mock-button'));
-  await tester.ensureVisible(b);
-  await tester.pump();
-  await tester.tap(b);
-  await tester.pump();
-  await tester.pump();
-}
+// The demo controls are on the development page (2026-09-15).
+Future<void> _useMock(WidgetTester tester) =>
+    tapOnDeveloperPage(tester, const Key('use-mock-button'));
 
-Future<void> _blackout(WidgetTester tester) async {
-  final b = find.byKey(const Key('drive-hud-blackout-button'));
-  await tester.ensureVisible(b);
-  await tester.pump();
-  await tester.tap(b);
-  await tester.pump();
-  await tester.pump();
-}
+Future<void> _blackout(WidgetTester tester) =>
+    tapOnDeveloperPage(tester, const Key('drive-hud-blackout-button'));
 
 String _textOf(WidgetTester tester, Key key) =>
     tester.widget<Text>(find.byKey(key)).data ?? '';
@@ -79,8 +70,17 @@ void main() {
     for (final key in const [
       Key('drive-hud-description'),
       Key('drive-hud-announce-status'),
-      Key('drive-hud-blackout-seconds'),
     ]) {
+      expect(find.byKey(key), findsOneWidget, reason: '$key');
+      expect(_cjk.hasMatch(_textOf(tester, key)), isTrue,
+          reason: '$key: 「${_textOf(tester, key)}」');
+    }
+    // The demo controls and the counter are read where they are drawn.
+    await openDeveloperPage(tester);
+    for (final english in _englishLiterals) {
+      expect(find.textContaining(english), findsNothing, reason: english);
+    }
+    for (final key in const [Key('drive-hud-blackout-seconds')]) {
       expect(find.byKey(key), findsOneWidget, reason: '$key');
       expect(_cjk.hasMatch(_textOf(tester, key)), isTrue,
           reason: '$key: 「${_textOf(tester, key)}」');
@@ -97,11 +97,13 @@ void main() {
     await _boot(tester, 'en');
     await _useMock(tester);
     await _blackout(tester);
+    expect(find.textContaining('Fuses the current position'), findsOneWidget);
+    // The demo controls and the counter are read where they are drawn.
+    await openDeveloperPage(tester);
     expect(find.textContaining('視程デモ上書き'), findsNothing);
     expect(find.textContaining('上書きなし'), findsNothing);
     final label = _textOf(tester, const Key('drive-hud-visibility-label'));
     expect(_cjk.hasMatch(label), isFalse, reason: label);
-    expect(find.textContaining('Fuses the current position'), findsOneWidget);
     expect(
         find.descendant(
             of: find.byKey(const Key('drive-hud-blackout-button')),

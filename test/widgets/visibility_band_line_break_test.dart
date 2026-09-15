@@ -24,6 +24,7 @@ import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../render_see/render_see_env.dart';
+import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
 const _ipaGothic = '/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf';
@@ -79,9 +80,12 @@ void main() {
       locale: const Locale('ja'),
       clock: () => DateTime.utc(2026, 1, 14, 21),
       jmaFetch: () async => const JmaFailure('no network in this test'),
+      developerPageEntry: true,
     ));
     await tester.pump();
     await tester.pump();
+    // The band is on the development page since 2026-09-15.
+    await openDeveloperPage(tester);
 
     final band = const AppL10n(Locale('ja')).driveHudVisibilityBand(null);
     final control = find.byKey(const Key('drive-hud-visibility'));

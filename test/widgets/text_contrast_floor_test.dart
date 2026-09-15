@@ -143,11 +143,9 @@ void main() {
         await tester.pump(const Duration(milliseconds: 600));
         await _settle(tester);
 
-        final mock = find.byKey(const Key('use-mock-button'));
-        await tester.ensureVisible(mock);
-        await tester.tap(mock);
-        await tester.pump();
-        await tester.pump();
+        // The mock and the blackout simulator are on the development page
+        // (2026-09-15); what they put on her card is read on her page.
+        await tapOnDeveloperPage(tester, const Key('use-mock-button'));
         await _settle(tester);
         expect(find.text(l.mockPositionStatus('35')), findsOneWidget,
             reason: 'precondition: the mock position line is on the screen');
@@ -155,21 +153,24 @@ void main() {
           'the mock position line': (p) => p.text == l.mockPositionStatus('35'),
         }));
 
-        final blackout = find.byKey(const Key('drive-hud-blackout-button'));
         for (var i = 0; i < 3; i++) {
-          await tester.ensureVisible(blackout);
-          await tester.tap(blackout);
-          await tester.pump();
-          await tester.pump();
+          await tapOnDeveloperPage(
+              tester, const Key('drive-hud-blackout-button'));
         }
         await _settle(tester);
         expect(find.byKey(const Key('drive-hud-caution-banner')), findsOneWidget,
             reason: 'precondition: a rung is on the card');
-        expect(find.byKey(const Key('drive-hud-blackout-seconds')),
-            findsOneWidget,
-            reason: 'precondition: the blackout counter is on the card');
         problems.addAll(_pageBelowFloor(tester, '$lang raised rung', named: {
           'the rung banner': (p) => keyed(p, 'drive-hud-caution-banner'),
+        }));
+        // The blackout counter is held to the floor where it is drawn now.
+        await openDeveloperPage(tester);
+        await _settle(tester);
+        expect(find.byKey(const Key('drive-hud-blackout-seconds')),
+            findsOneWidget,
+            reason: 'precondition: the blackout counter is on the page');
+        problems.addAll(_pageBelowFloor(tester, '$lang development page, '
+            'blackout', named: {
           'the blackout counter': (p) => keyed(p, 'drive-hud-blackout-seconds'),
         }));
         expect(problems, isEmpty, reason: problems.join('\n'));
