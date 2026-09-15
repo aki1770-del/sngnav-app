@@ -34,13 +34,15 @@ void main() {
     expect(find.text(DriverProfile.ageingRural.name), findsOneWidget);
   });
 
-  testWidgets('Footer shows Akita station provenance (V21 trace)', (
+  // Until 2026-09-15 this test held the page foot to the team's reason for the
+  // Akita station. Ruled that day: the foot keeps what she needs from it.
+  testWidgets('Footer says routes do not consider snow', (
     tester,
   ) async {
     await tester.pumpWidget(const SngnavApp());
     await tester.pump();
     expect(
-      find.textContaining("HER's mother lives there"),
+      find.textContaining('do not consider snow'),
       findsOneWidget,
     );
   });

@@ -394,15 +394,16 @@ class AppL10n {
   String get driveHudTitle =>
       _ja ? '走行中の注意（自動）' : 'Live drive — compound-failure caution (auto)';
 
-  /// What the card does, above its demo controls.
+  /// What the card does, above its demo controls. The two package names it
+  /// carried until 2026-09-15 are on the development page
+  /// ([developerPackagesBody]).
   String get driveHudDescription => _ja
-      ? '現在地（localization_fallback：GPS → 推測航法 → 現在地 不明。自信のある誤った点は出しません）を、視界と実際の地域の警報・注意報（compound_failure_advisor）と組み合わせます。注意の段階が上がった瞬間に、音声＋振動で自動的に知らせます（手動のボタンは不要です）。上で位置を共有し、視界の段階を下げるか GPS 途絶を再現すると、段階が上がるのを確かめられます。'
-      : 'Fuses the current position (localization_fallback: GPS → dead '
-          'reckoning → lost, never a confident wrong dot) with visibility + the '
-          'real area advisory (compound_failure_advisor). The MOMENT the caution '
-          'rung RISES it auto-announces on audio + haptic — no manual button. '
-          'Share a location above, then lower the visibility band and/or '
-          'simulate a GPS blackout to see it rise.';
+      ? '現在地（GPS → 推測航法 → 現在地 不明。自信のある誤った点は出しません）を、視界と実際の地域の警報・注意報と組み合わせます。注意の段階が上がった瞬間に、音声＋振動で自動的に知らせます（手動のボタンは不要です）。上で位置を共有し、視界の段階を下げるか GPS 途絶を再現すると、段階が上がるのを確かめられます。'
+      : 'Fuses the current position (GPS → dead reckoning → lost, never a '
+          'confident wrong dot) with visibility + the real area advisory. The '
+          'MOMENT the caution rung RISES it auto-announces on audio + haptic — '
+          'no manual button. Share a location above, then lower the visibility '
+          'band and/or simulate a GPS blackout to see it rise.';
 
   /// The card's footer: where each thing the card shows comes from, as the app
   /// reads it. Until 2026-09-14 it said the position is real, while the Akita
@@ -416,8 +417,11 @@ class AppL10n {
   /// while the card is in another: the first draft quoted 停車の検討 and
   /// 視界の測定値がありません under 特段の注意なし. It keeps the facts: with no
   /// reading the card says so, and it never tells her to turn back.
+  ///
+  /// Its last sentence named the two packages and where their versions are
+  /// kept until 2026-09-15; that sentence is on the development page now.
   String get driveHudFooter => _ja
-      ? '位置は端末の GPS です（「秋田のモック位置（開発用）」を押したときはモック位置）。GPS が弱まると、そのことを表示します。地域の警報・注意報は、気象庁と米国の NWS が実際に出したものです。視界は、気象庁の秋田の観測点（アメダス）が視程を出しているときはその値です。この道路に視界のセンサーはありません。値がないときはそう表示し、クリアとは扱いません（デモの上書きで変えられます）。この注意では、速度は不明として扱います。助言だけで、運転するのはいつもドライバーです。引き返すようには伝えません。出典: localization_fallback ＋ compound_failure_advisor（pub.dev、バージョンは pubspec.lock）。'
+      ? '位置は端末の GPS です（「秋田のモック位置（開発用）」を押したときはモック位置）。GPS が弱まると、そのことを表示します。地域の警報・注意報は、気象庁と米国の NWS が実際に出したものです。視界は、気象庁の秋田の観測点（アメダス）が視程を出しているときはその値です。この道路に視界のセンサーはありません。値がないときはそう表示し、クリアとは扱いません（デモの上書きで変えられます）。この注意では、速度は不明として扱います。助言だけで、運転するのはいつもドライバーです。引き返すようには伝えません。'
       : 'Position is this device\'s GPS (the Akita mock position when "Use '
           'Akita mock (dev)" is pressed); when GPS weakens, the card says so. '
           'The area advisory is what JMA and the US NWS actually issued. '
@@ -426,8 +430,7 @@ class AppL10n {
           'With no reading the card says so and never treats it as clear (a '
           'demo band can override it). This caution treats speed as unknown. '
           'Advisory only: the driver always drives, and the card never says to '
-          'turn back. Source: localization_fallback + compound_failure_advisor '
-          '(pub.dev; resolved versions: pubspec.lock).';
+          'turn back.';
 
   /// The label over the visibility demo override.
   String get driveHudVisibilityOverrideLabel => _ja
@@ -1192,6 +1195,42 @@ class AppL10n {
 
   /// The development page's title, and the tooltip of its entry.
   String get developerPageTitle => _ja ? '開発用の画面' : 'Development page';
+
+  /// The development page's last card: the packages the app is built on.
+  String get developerPackagesSectionTitle => _ja
+      ? 'このアプリのパッケージ（開発用）'
+      : 'Packages in this app (for development)';
+
+  /// The package names that were on her page foot and on the live-drive card
+  /// until 2026-09-15, moved here as they were.
+  String get developerPackagesBody => _ja
+      ? 'pub.dev の SNGNav パッケージ（navigation_safety_core、navigation_safety、voice_guidance、driving_conditions、offline_tiles、snow_rendering、map_viewport_bloc）で作られています。走行中の注意の出典: localization_fallback ＋ compound_failure_advisor。バージョンは pubspec.lock にあります。'
+      : 'Built on the SNGNav packages from pub.dev (navigation_safety_core, '
+          'navigation_safety, voice_guidance, driving_conditions, offline_tiles, '
+          'snow_rendering, map_viewport_bloc). The live-drive caution\'s '
+          'source: localization_fallback + compound_failure_advisor. Resolved '
+          'versions are in pubspec.lock.';
+
+  // ===== The foot of her page and the prefecture card's source (2026-09-15) =====
+  //
+  // Until 2026-09-15 both were English literals in every language. The foot
+  // named the reason the Akita station was chosen in the team's own words, a
+  // self-description of the position as honest, the dev mock's colour and seven
+  // package names; the source line cited one of the team's rulings. Each keeps
+  // what she needs from it.
+
+  /// The foot of her home page: the app and its version, that routes do not
+  /// consider snow, and where routes and weather observations come from.
+  String pageFoot(String version) => _ja
+      ? 'sngnav-app $version。ルートは公開OSRMデモサーバーで計算し、雪を考慮しません。気象の観測は気象庁（アメダス）のものです。'
+      : 'sngnav-app $version. Routes are calculated by the public OSRM demo '
+          'server and do not consider snow. Weather observations are from JMA '
+          '(AMeDAS).';
+
+  /// The prefecture weather card's source line.
+  String get prefectureObservationsSource => _ja
+      ? '出典: 気象庁アメダス。各観測点の値を、発表されたとおりに表示しています。'
+      : 'Source: JMA AMeDAS. Each station\'s values are shown as published.';
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {

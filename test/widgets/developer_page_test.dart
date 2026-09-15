@@ -52,6 +52,9 @@ List<String> _developmentTitles(AppL10n l) => [
       l.tuningRecordSectionTitle,
       l.glanceAndVoicePacingSectionTitle,
       l.mapDrawingAndDataSectionTitle,
+      // Not a card of her page before: the packages her page foot and
+      // live-drive card named until 2026-09-15.
+      l.developerPackagesSectionTitle,
     ];
 
 Future<void> _launch(WidgetTester tester, String lang,

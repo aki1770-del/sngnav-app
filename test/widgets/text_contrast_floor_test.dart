@@ -125,7 +125,9 @@ void main() {
           'the muted caution': (p) => keyed(p, 'media-muted-caution'),
           'the share hint': (p) => keyed(p, 'drive-hud-share-hint'),
           'the no-position line': (p) => p.text == l.driveHudNoPositionFed,
-          'the page foot': (p) => p.text.startsWith('sngnav-app '),
+          // By its key: the app bar's title also starts with "sngnav-app ",
+          // so a prefix could pass without the foot (found 2026-09-15).
+          'the page foot': (p) => keyed(p, 'page-foot'),
         }));
 
         // The announce helper moved with its card to the development page

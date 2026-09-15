@@ -3405,6 +3405,8 @@ class _HomePageState extends State<HomePage> {
   /// state, so a choice made on the development page reaches the same code it
   /// reached before; the one such value her own page reads is the simulated
   /// road condition, which marks a possibly icy turn on her next-maneuver card.
+  /// Last comes a card naming the packages the app is built on, which her page
+  /// foot and live-drive card named until the same day.
   List<Widget> _developerSections() {
     final cap = AlertDensityThrottle.defaultCapFor(_profile);
     final glossary = RoadSurfaceConditionGlossary.forConditionAndProfile(
@@ -3643,6 +3645,17 @@ class _HomePageState extends State<HomePage> {
       _section(
         title: AppL10n.of(context).mapDrawingAndDataSectionTitle,
         child: _renderBudgetPanel(),
+      ),
+      const SizedBox(height: 16),
+      // The package names that were on her page foot and her live-drive card
+      // (2026-09-15).
+      _section(
+        title: AppL10n.of(context).developerPackagesSectionTitle,
+        child: Text(
+          key: const Key('developer-packages'),
+          AppL10n.of(context).developerPackagesBody,
+          style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
+        ),
       ),
     ];
   }
@@ -5038,8 +5051,8 @@ class _HomePageState extends State<HomePage> {
           ),
         const SizedBox(height: 4),
         Text(
-          'Source: JMA AMeDAS — verbatim relay per station, no derivation. '
-          'Geographic aggregation only (op-(e) per AAA Article 17 (β)).',
+          key: const Key('prefecture-observations-source'),
+          AppL10n.of(context).prefectureObservationsSource,
           style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
         ),
         Align(
@@ -5657,18 +5670,12 @@ class _Footer extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Text(
-        'sngnav-app $appVersion. '
-        'Built on the SNGNav package family from pub.dev '
-        '(navigation_safety_core, navigation_safety, voice_guidance, '
-        'driving_conditions, offline_tiles, snow_rendering, '
-        'map_viewport_bloc — resolved versions in pubspec.lock). '
-        'Akita station chosen because HER\'s mother lives there (V21). '
-        'GPS shows position with honest accuracy; mock dot is amber (dev). '
-        'Routing via OSRM public demo (NOT snow-aware). '
-        'Corridor weather = 5-station JMA verbatim (op-(e) aggregation only).',
+        key: const Key('page-foot'),
+        // In her language since 2026-09-15, keeping what she needs: routes do
+        // not consider snow, and where routes and weather observations come
+        // from. The package names are on the development page.
+        AppL10n.of(context).pageFoot(appVersion),
         // shade600 measured 4.39:1 on the page ground (2026-09-15); 5.90:1 now.
-        // The words above are unchanged here and named for a ruling: package
-        // names and project terms, in English, on her screen in every language.
         style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
         textAlign: TextAlign.center,
       ),

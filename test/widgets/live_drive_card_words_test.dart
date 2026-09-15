@@ -19,8 +19,10 @@
 /// * When caution rose only because visibility was not measured, the announce
 ///   line said the specific hazard is read aloud elsewhere. Nothing spoke.
 ///
-/// Public names stay: package names, pub.dev, pubspec.lock, NWS and JMA are
-/// not the team's words. Whether they belong in her glance is not ruled here.
+/// Publishers' names stay: NWS and JMA are where the card's advisories and
+/// visibility come from. Package names, pub.dev and pubspec.lock are not the
+/// team's words either, but they are not for her glance: ruled 2026-09-15,
+/// they left her card for the development page.
 library;
 
 import 'package:compound_failure_advisor/compound_failure_advisor.dart';
@@ -33,6 +35,7 @@ import 'package:sngnav_app/main.dart' show SngnavApp;
 import 'package:sngnav_app/services/app_unknowns.dart';
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 
+import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
 final _cjk = RegExp(r'[぀-ヿ㐀-鿿＀-￯]');
@@ -254,6 +257,37 @@ void main() {
 
       expect(status, isNot(contains('個別の危険')), reason: status);
       expect(status, isNot(contains('specific hazard')), reason: status);
+    });
+  }
+
+  // Ruled 2026-09-15: package names are not for her glance. The two the card
+  // is built on are named on the development page instead.
+  for (final lang in const ['ja', 'en']) {
+    testWidgets('$lang: her live-drive card names no package, and the '
+        'development page names the two it is built on', (tester) async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(SngnavApp(
+        actuators: FakeAlertActuators(),
+        locale: Locale(lang),
+        clock: () => _now,
+        jmaFetch: () async => const JmaFailure('no network in this test'),
+        developerPageEntry: true,
+      ));
+      await tester.pump();
+      await tester.pump();
+      final packageWords = RegExp(r'\b[a-z]+_[a-z_]+\b|pub\.dev|pubspec');
+      final texts = await _cardTextsThroughStates(tester);
+      final named = [
+        for (final t in texts)
+          for (final m in packageWords.allMatches(t)) '"${m.group(0)}" in 「$t」',
+      ];
+      expect(named, isEmpty, reason: '$lang: ${named.join('\n')}');
+
+      await openDeveloperPage(tester);
+      for (final name in const ['localization_fallback', 'compound_failure_advisor']) {
+        expect(find.textContaining(name), findsWidgets,
+            reason: '$lang: the development page names $name');
+      }
     });
   }
 }
