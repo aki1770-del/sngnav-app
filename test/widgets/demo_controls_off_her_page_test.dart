@@ -46,7 +46,9 @@ String _jstKey(DateTime utc) {
   return '${j.year}${two(j.month)}${two(j.day)}${two(j.hour)}${two(j.minute)}00';
 }
 
-Future<JmaResult> _measured80m() async => JmaSuccess(JmaObservation(
+Future<JmaResult> _measured80m() => _measured(80);
+
+Future<JmaResult> _measured(int meters) async => JmaSuccess(JmaObservation(
       stationId: '32402',
       stationName: '秋田',
       temperatureCelsius: -3,
@@ -54,13 +56,13 @@ Future<JmaResult> _measured80m() async => JmaSuccess(JmaObservation(
       windMetersPerSecond: 9,
       snowDepthCm: 40,
       precipitation10mMm: 1,
-      visibilityMeters: 80,
+      visibilityMeters: meters,
       observedAtJstKey: _jstKey(_t0),
       fetchedAt: _t0,
     ));
 
 Future<void> _boot(WidgetTester tester, String lang,
-    {bool developerPageEntry = false}) async {
+    {bool developerPageEntry = false, int visibility = 80}) async {
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
   await tester.pumpWidget(SngnavApp(
@@ -68,7 +70,7 @@ Future<void> _boot(WidgetTester tester, String lang,
     locale: Locale(lang),
     actuators: FakeAlertActuators(),
     clock: () => _t0,
-    jmaFetch: _measured80m,
+    jmaFetch: visibility == 80 ? _measured80m : () => _measured(visibility),
     developerPageEntry: developerPageEntry,
   ));
   await tester.pump();
@@ -251,11 +253,17 @@ void main() {
             '${changed.join('\n  ')}');
   });
 
+  // Since 2026-09-16 a demo value may add caution and never take it away, so
+  // under a measured whiteout no demo control changes her card at all. The
+  // control reads a change a demo value may still make: under a measured
+  // 700 m, with the mock position in force, the band set to 80 m raises her.
   testWidgets('control: the same reading sees her card change when the demo '
-      'band is set to clear on the development page', (tester) async {
+      'band is set to 80 m on the development page', (tester) async {
     const lang = 'ja';
     final l = AppL10n(const Locale(lang));
-    await _boot(tester, lang, developerPageEntry: true);
+    await _boot(tester, lang, developerPageEntry: true, visibility: 700);
+    await tapOnDeveloperPage(tester, const Key('use-mock-button'));
+    await _settle(tester);
     final before = _card(tester, lang);
     await openDeveloperPage(tester);
     final band = find.byKey(const Key('drive-hud-visibility'));
@@ -265,7 +273,7 @@ void main() {
     await tester.pump();
     await tester.tap(band);
     await _settle(tester);
-    await tester.tap(find.text(l.driveHudVisibilityBand(1500)).last);
+    await tester.tap(find.text(l.driveHudVisibilityBand(80)).last);
     await _settle(tester);
     await tester.tap(find.byType(BackButton));
     await _settle(tester);

@@ -432,6 +432,18 @@ class AppL10n {
           'Advisory only: the driver always drives, and the card never says to '
           'turn back.';
 
+  /// The card's rung was computed from a test value, not a measurement
+  /// (2026-09-16; words ruled AAA R52 AQ3).
+  String get driveHudTestValueInForce => _ja
+      ? 'テスト値を使った表示です（測定ではありません）'
+      : 'This card uses a test value, not a measurement.';
+
+  /// The icy mark comes from a simulated road condition (2026-09-16; words
+  /// ruled AAA R52 AQ3).
+  String get maneuverTestRoadConditionInForce => _ja
+      ? '凍結の表示はテスト値です（路面は測定していません）'
+      : 'The ice mark is a test value; the road was not measured.';
+
   /// The label over the visibility demo override.
   String get driveHudVisibilityOverrideLabel => _ja
       ? '視程デモ上書き（既定：ライブ／未計測 — 合成クリアなし）'

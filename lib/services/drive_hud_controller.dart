@@ -134,6 +134,13 @@ class DriveHudController extends ChangeNotifier {
   /// alongside the other environment fields before a position event / [poll].
   MeasuredWeatherHazard measuredHazard = MeasuredWeatherHazard.none;
 
+  /// Asked at the moment a rung line is spoken: whether the rung was raised by
+  /// a value nobody measured (set by the app, which alone knows). When true the
+  /// line is spoken with [DriveHudLocalizer.testValueSpokenPrefix] before it,
+  /// as its own utterance, so the line itself still matches the offline audio.
+  bool Function() spokenFromTestValue = _noTestValue;
+  static bool _noTestValue() => false;
+
   LocalizationEstimate? _estimate;
   DriveAdvice? _advice;
   DriveAction? _effectiveAction;
@@ -399,6 +406,9 @@ class DriveHudController extends ChangeNotifier {
           severity: _severityFor(effective),
           text: line,
           localeTag: localeTag,
+          spokenPrefix: spokenFromTestValue()
+              ? _text.testValueSpokenPrefix(localeTag)
+              : null,
         ));
         // Advance the SPOKEN tracker ONLY when a line actually fired.
         _lastSpokenRung = effective;
@@ -462,6 +472,7 @@ class DriveHudController extends ChangeNotifier {
     RouteManeuver maneuver, {
     required bool icyTurn,
     bool positionIsThisShares = true,
+    bool icyTurnFromTestValue = false,
   }) {
     final mode = _modeForNarration(positionIsThisShares);
     final decision = _narrator.decide(
@@ -475,6 +486,11 @@ class DriveHudController extends ChangeNotifier {
         severity: decision.severity,
         text: decision.text,
         localeTag: localeTag,
+        // The caller alone knows where [icyTurn] came from; when it is a value
+        // nobody measured, the icy line is spoken as a test value (AAA R52, AQ4).
+        spokenPrefix: decision.icyCoupled && icyTurnFromTestValue
+            ? _text.testValueSpokenPrefix(localeTag)
+            : null,
       ));
     }
     return decision;

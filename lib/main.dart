@@ -93,6 +93,7 @@ import 'services/advisory_service.dart';
 import 'services/app_unknowns.dart';
 import 'services/drive_hud_controller.dart';
 import 'services/drive_safety_fusion.dart' show measuredConditionRaisesCaution;
+import 'services/visibility_for_caution.dart';
 import 'services/error_log.dart';
 import 'services/log_share.dart';
 import 'services/drive_diary.dart';
@@ -377,6 +378,12 @@ DateTime? positionWatchdogPollTime({
   if (demoClock != null && demoClock.isAfter(now)) return demoClock;
   return now;
 }
+
+/// The time a simulated GPS blackout press polls the drive brain at: the later
+/// of the [simulated] clock and the real [now]. A regressing clock would
+/// un-degrade a dot a real drought degraded (AAA R52, S6).
+DateTime blackoutPollTime({required DateTime simulated, required DateTime now}) =>
+    simulated.isAfter(now) ? simulated : now;
 
 /// How long after the platform position stream is subscribed, with no
 /// position event of any kind, the words for "locating" stop being said
@@ -1398,6 +1405,8 @@ class _HomePageState extends State<HomePage> {
       // pairs, so the HUD's spoken lane follows the resolved locale.
       localeTag: _spokenLanguageCode,
     );
+    // AQ4: a line raised by a value nobody measured is spoken as a test value.
+    _driveHud.spokenFromTestValue = _spokenFromTestValue;
     _driveHud.addListener(_onDriveHudChanged);
     _telemetry = LoomFitTelemetry();
     _telemetrySub = _telemetry.records.listen((record) {
@@ -1912,6 +1921,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _useMockPosition() {
+    // A position nobody measured never replaces a share she is running
+    // (2026-09-16): under a measured 300 m her failed share is the top rung,
+    // and a trusted mock fix in its place was the middle one. The control is
+    // offered only with no share running; this holds it whatever calls it.
+    if (_herSub != null) return;
     _herSub?.cancel();
     _herSub = null;
     // N8 — the mock dot is a static dev tool: the watchdog would "honestly"
@@ -1969,15 +1983,30 @@ class _HomePageState extends State<HomePage> {
   ///   3. null — a first-class UNKNOWN the advisor honours (視程 未計測).
   /// NEVER a synthetic clear: the road carries no visibility sensor, so absence
   /// of a reading is reported as unknown, never as "clear".
-  double? get _effectiveVisibilityMeters =>
-      _mockVisibilityMeters ?? _lastGoodObservation?.visibilityMeters?.toDouble();
+  ///
+  /// Ruled 2026-09-15, invariant 2026-09-16: the demo value is read only where
+  /// it ADDS caution ([visibilityForCaution]). Until then it won outright, and
+  /// under a measured 80 m a demo 1500 m took the top rung, its cause and its
+  /// announce line off her card.
+  VisibilityForCaution get _visibilityForCaution => visibilityForCaution(
+        measuredMeters: _measuredVisibilityMeters,
+        measuredAgeSeconds: _measuredVisibilityAgeSeconds(),
+        testMeters: _mockVisibilityMeters,
+      );
+
+  double? get _effectiveVisibilityMeters => _visibilityForCaution.meters;
 
   /// Age (seconds) of the visibility reading actually fed, or null = unknown age.
-  /// A demo override counts as fresh (0). A live reading carries its REAL
-  /// staleness from `fetchedAt` — the advisor treats an over-window age as
-  /// stale→unknown, so an old reading can never masquerade as fresh.
-  double? _effectiveVisibilityAgeSeconds() {
-    if (_mockVisibilityMeters != null) return 0;
+  /// A demo value, when it is read, counts as fresh (0). A live reading carries
+  /// its REAL staleness from `fetchedAt` — the advisor treats an over-window
+  /// age as stale→unknown, so an old reading can never masquerade as fresh.
+  double? _effectiveVisibilityAgeSeconds() => _visibilityForCaution.ageSeconds;
+
+  /// The station's reading alone, never a demo value.
+  double? get _measuredVisibilityMeters =>
+      _lastGoodObservation?.visibilityMeters?.toDouble();
+
+  double? _measuredVisibilityAgeSeconds() {
     final obs = _lastGoodObservation;
     if (obs == null || obs.visibilityMeters == null) return null;
     return _now().difference(obs.fetchedAt).inSeconds.toDouble();
@@ -2051,8 +2080,11 @@ class _HomePageState extends State<HomePage> {
   /// failed fetch changes nothing, so a reading whose age flickers past the
   /// freshness window does not open it again.
   void _updateWhiteoutWindow() {
-    final v = _effectiveVisibilityMeters;
-    final age = _effectiveVisibilityAgeSeconds();
+    // The measured whiteout is the station's: a demo value neither opens nor
+    // closes it (2026-09-16), so a whiteout a measurement opened is not closed
+    // by a test value and told again as new.
+    final v = _measuredVisibilityMeters;
+    final age = _measuredVisibilityAgeSeconds();
     final fresh =
         v != null && !v.isNaN && age != null && age <= kVisStaleSeconds;
     if (fresh && v < kVisLowM) {
@@ -2102,8 +2134,10 @@ class _HomePageState extends State<HomePage> {
   /// Whether a measured condition, as the app holds it now, raises caution on
   /// its own ([measuredConditionRaisesCaution]).
   bool _measuredConditionRaisesCaution() => measuredConditionRaisesCaution(
-        visibilityMeters: _effectiveVisibilityMeters,
-        visibilityAgeSeconds: _effectiveVisibilityAgeSeconds(),
+        // Measured means measured (2026-09-16): a demo value does not hold back
+        // or give a held event.
+        visibilityMeters: _measuredVisibilityMeters,
+        visibilityAgeSeconds: _measuredVisibilityAgeSeconds(),
         advisorySeverity: readAdvisoryAxis(_advisoryResult).level,
         measuredHazard: _currentMeasuredHazard(),
       );
@@ -2178,13 +2212,52 @@ class _HomePageState extends State<HomePage> {
     final base = _driveHudBaseTime;
     if (base == null) return;
     _blackoutSeconds += 60;
-    _driveHud.poll(now: base.add(Duration(seconds: _blackoutSeconds)));
+    // The simulated clock never runs behind the real one (AAA R52, S6): when
+    // her real drought is already past the simulated seconds, polling at the
+    // simulated time moved the advisor's clock backwards and a degraded dot
+    // dropped a caution step. The same later-of rule the watchdog holds
+    // ([positionWatchdogPollTime]).
+    _driveHud.poll(now: blackoutPollTime(
+      simulated: base.add(Duration(seconds: _blackoutSeconds)),
+      now: _now(),
+    ));
+  }
+
+  /// Whether the simulated blackout clock sits ahead of the real one, so the
+  /// drought the brain holds is one nobody measured.
+  bool get _blackoutClockIsTest {
+    final base = _driveHudBaseTime;
+    if (base == null || _blackoutSeconds == 0) return false;
+    return base.add(Duration(seconds: _blackoutSeconds)).isAfter(_now());
   }
 
   // Visibility bands for the mocked in-drive control. metres, or null =
   // "no reading" (a first-class unknown). Labels follow the app's locale
   // (AppL10n.driveHudVisibilityBand); they were Japanese on every device.
   static const List<double?> _visibilityBands = [null, 1500, 700, 300, 80];
+
+  /// Whether the rung drawn on her card was computed from a value nobody
+  /// measured. False when the card draws no rung ([effective] null).
+  bool _rungOnCardFromTestValue({
+    required DriveAction? effective,
+    required bool brainIsThisShares,
+    required bool noShareWhiteout,
+  }) {
+    if (effective == null) return false;
+    final visibilityIsTest = _visibilityForCaution.isTestValue &&
+        (brainIsThisShares || noShareWhiteout);
+    final mockWithBrain = _isMockPosition && brainIsThisShares;
+    return visibilityIsTest || mockWithBrain;
+  }
+
+  /// Whether a line the drive brain speaks now was raised by a value nobody
+  /// measured: a demo visibility the brain reads, the Akita mock position, or
+  /// the simulated blackout clock ahead of the real one (AQ4). Read by the
+  /// brain at the moment it speaks.
+  bool _spokenFromTestValue() =>
+      _visibilityForCaution.isTestValue ||
+      _isMockPosition ||
+      _blackoutClockIsTest;
 
   /// The unknowns the app owns because the drive brain has no channel for
   /// them — an unprovable advisory lookup, and an unread/failed weather feed.
@@ -2420,6 +2493,27 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         const SizedBox(height: 12),
+        // A test value is what the card shows (2026-09-16): drawn only where
+        // the rung on the card was computed from it (AAA R52, P2) — a demo
+        // visibility read by the brain holding this share or by the no-share
+        // whiteout card, or the Akita mock position with the brain. With no
+        // rung on the card, nothing on it came from a test value.
+        if (_rungOnCardFromTestValue(
+          effective: effective,
+          brainIsThisShares: brainIsThisShares,
+          noShareWhiteout: noShareWhiteout != null,
+        ))
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              key: const Key('drive-hud-test-value'),
+              l.driveHudTestValueInForce,
+              style: const TextStyle(
+                  fontSize: 12,
+                  color: kCautionTextOnAmber,
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
         if (estimate == null)
           Text(
               // Keyed (2026-09-15) so a test reads the rung's place on the
@@ -3301,6 +3395,9 @@ class _HomePageState extends State<HomePage> {
       next,
       icyTurn: _maneuverCoincidesWithHazard(),
       positionIsThisShares: _driveHudPositionIsThisDrives,
+      // Nothing measured reaches the icy coupling: its one input is the
+      // simulated road condition (2026-09-16; AAA R52, AQ4).
+      icyTurnFromTestValue: true,
     );
     setState(() => _lastManeuverNarration = decision);
   }
@@ -5196,6 +5293,13 @@ class _HomePageState extends State<HomePage> {
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
+                ),
+                // Nothing measured reaches this mark: the only input is the
+                // simulated road condition (2026-09-16). Words to be ruled.
+                Text(
+                  key: const Key('maneuver-test-road-condition'),
+                  l.maneuverTestRoadConditionInForce,
+                  style: TextStyle(color: fg, fontSize: 12),
                 ),
               ],
             ],

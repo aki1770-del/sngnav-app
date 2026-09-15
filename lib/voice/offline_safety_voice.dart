@@ -161,6 +161,14 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   'conditions_unknown':
       '路面状況を取得できていません。見える範囲で運転してください。',
 
+  // --- The test-value prefix (AAA R52, AQ4). Spoken as its OWN utterance
+  // before a line a value nobody measured raised (AlertAnnouncer spokenPrefix),
+  // so the line after it still matches its own clip by exact string. Bundled so
+  // the words that say "this is a test" do not go silent offline while the line
+  // they qualify is heard.
+  'test_value_prefix':
+      'テスト値です。',
+
   // --- THE MEMORY (trip_hazard_memory.dart → main.dart dead-zone path).
   // A snow hazard JMA declared VALID FOR THIS TIME BAND, learned before she
   // left, spoken at T+90 with the centre gone. It names itself a FORECAST out

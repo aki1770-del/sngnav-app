@@ -61,6 +61,7 @@ class AlertAnnouncer {
     required AlertSeverity severity,
     required String text,
     required String localeTag,
+    String? spokenPrefix,
   }) {
     if (severity.index < AlertSeverity.warning.index) {
       return Future<void>.value();
@@ -72,7 +73,12 @@ class AlertAnnouncer {
     final prev = _tail;
     final next = () async {
       await prev;
-      await _deliver(severity: severity, text: text, localeTag: localeTag);
+      await _deliver(
+        severity: severity,
+        text: text,
+        localeTag: localeTag,
+        spokenPrefix: spokenPrefix,
+      );
     }();
     _tail = next;
     return next;
@@ -82,6 +88,7 @@ class AlertAnnouncer {
     required AlertSeverity severity,
     required String text,
     required String localeTag,
+    String? spokenPrefix,
   }) async {
     final ttsTag = ttsLocaleTagFor(localeTag);
     // Haptic first + guarded: the tactile cue is delivered regardless of the
@@ -90,6 +97,17 @@ class AlertAnnouncer {
       await actuators.haptic(hapticCueForCoreSeverity(severity));
     } catch (_) {
       // A haptic fault must not suppress the audio channel fired below.
+    }
+    // [spokenPrefix] (AAA R52, AQ4 — e.g. テスト値です。) is its own utterance,
+    // spoken before [text] and guarded on its own: [text] stays the exact
+    // string the offline audio is looked up by, and a fault on the prefix
+    // never silences the line.
+    if (spokenPrefix != null && spokenPrefix.isNotEmpty) {
+      try {
+        await actuators.speak(spokenPrefix, localeTag: ttsTag);
+      } catch (_) {
+        // The line below is still spoken.
+      }
     }
     // Audio second + guarded: a TTS throw is swallowed here, never propagating
     // back to short-circuit the haptic already fired above.

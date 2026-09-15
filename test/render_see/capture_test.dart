@@ -23,6 +23,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'render_see_env.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
+import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart';
 import 'package:sngnav_app/services/advisory_service.dart';
 import 'package:sngnav_app/services/provider_coverage.dart';
@@ -140,12 +141,29 @@ void main() {
 
   testWidgets('02 — JA drive HUD, lowest neutral rung (特段の注意なし)', (tester) async {
     final fake = FakeAlertActuators();
+    // The lowest rung comes from a measured clear reading (2026-09-16): a demo
+    // value may add caution and never clear it, so the station reads 1500 m.
+    final at = DateTime.now();
     await tester.pumpWidget(
       SngnavApp(
           actuators: fake,
           locale: const Locale('ja'),
+          clock: () => at,
+          jmaFetch: () async => JmaSuccess(JmaObservation(
+                stationId: '32402',
+                stationName: '秋田',
+                temperatureCelsius: 5,
+                humidityPercent: 50,
+                windMetersPerSecond: 2,
+                snowDepthCm: null,
+                precipitation10mMm: 0,
+                visibilityMeters: 1500,
+                observedAtJstKey: '20260115060000',
+                fetchedAt: at,
+              )),
           developerPageEntry: true),
     );
+    await tester.pump();
     await tester.pump();
 
     // The mock, the band and the blackout simulator are on the development
@@ -154,16 +172,16 @@ void main() {
 
     // The honest default is UNKNOWN (未計測 → heightened); the only truthful way
     // to reach the lowest, choice-neutral rung (特段の注意なし) is an actual clear
-    // reading, so select the CLEAR demo visibility override before capturing.
-    await chooseVisibilityBandOnDeveloperPage(tester, 1500);
+    // reading, which the station above measured.
 
     final banner = find.byKey(const Key('drive-hud-caution-banner'));
     // Confirm we are in the lowest, choice-neutral rung before capturing —
     // and that the claim is SCOPED to what this harness actually measured.
     //
-    // Nothing here feeds an advisory result or a JMA observation, so at
-    // capture time the advisory lookup cannot prove completeness AND the
-    // measured-weather lane has never been read. The bare 「特段の注意なし」 is
+    // Nothing here feeds an advisory result, so at capture time the advisory
+    // lookup cannot prove completeness. (Until 2026-09-16 no JMA observation
+    // was fed either, and a demo value stood in for the clear reading; the
+    // station's reading is fed now, so only the advisory axis is unconfirmed.) The bare 「特段の注意なし」 is
     // therefore a claim about a picture we did not look at, and it is
     // correctly unreachable in this state. This expectation used to pin the
     // unscoped string — the same fabricated-clear shape B04-2 removed from the
@@ -180,7 +198,7 @@ void main() {
     );
     expect(
       find.descendant(
-          of: banner, matching: find.text('特段の注意なし（一部未確認）')),
+          of: banner, matching: find.text('特段の注意なし（警報・注意報は未確認）')),
       findsOneWidget,
       reason: 'the honest STATE is kept; the CLAIM is scoped to it',
     );

@@ -101,6 +101,11 @@ Set<String> emittableSafetyStaticJa() {
   // (5) main.dart:1218 — the honest-absence line.
   out.add(kConditionsUnknownJaSpokenText);
 
+  // (5b) AAA R52 AQ4 — the test-value prefix, spoken as its own utterance by
+  // AlertAnnouncer before a rung line a test value raised. Produced by CALLING
+  // the localizer the drive brain calls.
+  out.add(localizer.testValueSpokenPrefix('ja'));
+
   // (6) main.dart dead-zone path — THE MEMORY (C2 RED-1). The forecast line is
   // emitted by `TripHazardMemory.speakableJaAt()`, so we produce it the honest
   // way: by CALLING that production emitter with a hazard whose window covers

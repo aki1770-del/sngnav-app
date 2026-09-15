@@ -42,6 +42,10 @@ library;
 import 'package:compound_failure_advisor/compound_failure_advisor.dart';
 import 'package:localization_fallback/localization_fallback.dart';
 
+/// The ja words spoken before a line raised by a test value (AAA R52, AQ4).
+/// Bundled offline as its own clip (`test_value_prefix`).
+const String kTestValueSpokenPrefixJa = 'テスト値です。';
+
 /// Localizes the advisory-only in-drive vocabulary into HER language.
 class DriveHudLocalizer {
   const DriveHudLocalizer();
@@ -131,6 +135,11 @@ class DriveHudLocalizer {
             : 'If you can do so safely, pausing at a safe place is an option.';
     }
   }
+
+  /// Spoken, as its own utterance, before any line a value nobody measured
+  /// raised (AAA R52, AQ4): the voice says what the card line says.
+  String testValueSpokenPrefix(String localeTag) =>
+      _isJa(localeTag) ? kTestValueSpokenPrefixJa : 'Test value.';
 
   /// One-line honesty label for the position estimate's mode — the truth about
   /// how much to believe the dot.
