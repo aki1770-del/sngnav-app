@@ -164,7 +164,7 @@ class DriveHudLocalizer {
       case CautionReason.positionUncertain:
         return ja ? '現在地が不確かです' : 'Position is uncertain';
       case CautionReason.lowVisibility:
-        return ja ? '視界が非常に悪い' : 'Visibility is low';
+        return ja ? '視界が非常に悪い' : 'Visibility is very poor';
       case CautionReason.reducedVisibility:
         return ja ? '視界が低下しています' : 'Visibility is reduced';
       case CautionReason.unknownVisibility:

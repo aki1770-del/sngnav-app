@@ -316,17 +316,16 @@ class AppL10n {
   String get driveHudGuideSpeedLabel => _ja ? '目安速度' : 'Speed hint';
 
   /// The live-drive card's instruction to share, shown only while she is not
-  /// sharing. English unchanged; the Japanese names the two buttons above by
-  /// their own labels ([shareMyLocation], [useAkitaMock]). Added 2026-09-14,
-  /// not yet reviewed on a render.
+  /// sharing. Names the share button by its own label ([shareMyLocation]); the
+  /// card already cautions before she shares, so sharing adds her position
+  /// rather than starting the caution.
   String get driveHudShareHint => _ja
-      ? '上の「現在地を共有」または「秋田のモック位置（開発用）」で位置を共有すると、走行中の注意判断が始まります。'
-      : 'Share a location (Akita mock or GPS) above to start the drive brain.';
+      ? '上の「現在地を共有」を押すと、現在地も使って注意を判断します。'
+      : 'Tap "Share my location" above and the caution also uses your position.';
 
-  /// The live-drive card's line while the drive brain has no position. English
-  /// unchanged. Added 2026-09-14, not yet reviewed on a render.
+  /// The live-drive card's line while no position has arrived.
   String get driveHudNoPositionFed =>
-      _ja ? '（まだ現在地が届いていません）' : '(no position fed yet)';
+      _ja ? '（まだ現在地が届いていません）' : '(no position received yet)';
 
   /// The maneuver panel's line when turn guidance is withheld because her
   /// position is not trusted. Japanese byte-identical to the literal it
@@ -398,12 +397,11 @@ class AppL10n {
   /// carried until 2026-09-15 are on the development page
   /// ([developerPackagesBody]).
   String get driveHudDescription => _ja
-      ? '現在地（GPS → 推測航法 → 現在地 不明。自信のある誤った点は出しません）を、視界と実際の地域の警報・注意報と組み合わせます。注意の段階が上がった瞬間に、音声＋振動で自動的に知らせます（手動のボタンは不要です）。上で位置を共有し、視界の段階を下げるか GPS 途絶を再現すると、段階が上がるのを確かめられます。'
-      : 'Fuses the current position (GPS → dead reckoning → lost, never a '
-          'confident wrong dot) with visibility + the real area advisory. The '
-          'MOMENT the caution rung RISES it auto-announces on audio + haptic — '
-          'no manual button. Share a location above, then lower the visibility '
-          'band and/or simulate a GPS blackout to see it rise.';
+      ? '現在地（GPS → 推測航法 → 現在地 不明。自信のある誤った点は出しません）を、視界と実際の地域の警報・注意報と組み合わせます。注意の段階が上がった瞬間に、音声＋振動で自動的に知らせます（手動のボタンは不要です）。'
+      : 'Combines your position (GPS → dead reckoning → position unknown; never '
+          'a confident wrong dot) with visibility and the area\'s actual warnings '
+          'and advisories. The moment the caution level rises, it tells you by '
+          'voice and vibration automatically; no button is needed.';
 
   /// The card's footer: where each thing the card shows comes from, as the app
   /// reads it. Until 2026-09-14 it said the position is real, while the Akita
@@ -421,16 +419,14 @@ class AppL10n {
   /// Its last sentence named the two packages and where their versions are
   /// kept until 2026-09-15; that sentence is on the development page now.
   String get driveHudFooter => _ja
-      ? '位置は端末の GPS です（「秋田のモック位置（開発用）」を押したときはモック位置）。GPS が弱まると、そのことを表示します。地域の警報・注意報は、気象庁と米国の NWS が実際に出したものです。視界は、気象庁の秋田の観測点（アメダス）が視程を出しているときはその値です。この道路に視界のセンサーはありません。値がないときはそう表示し、クリアとは扱いません（デモの上書きで変えられます）。この注意では、速度は不明として扱います。助言だけで、運転するのはいつもドライバーです。引き返すようには伝えません。'
-      : 'Position is this device\'s GPS (the Akita mock position when "Use '
-          'Akita mock (dev)" is pressed); when GPS weakens, the card says so. '
-          'The area advisory is what JMA and the US NWS actually issued. '
-          'Visibility is the JMA Akita station\'s (AMeDAS) reading when the '
-          'station reports one; there is no visibility sensor on this road. '
-          'With no reading the card says so and never treats it as clear (a '
-          'demo band can override it). This caution treats speed as unknown. '
-          'Advisory only: the driver always drives, and the card never says to '
-          'turn back.';
+      ? '位置は端末の GPS です。GPS が弱まると、そのことを表示します。地域の警報・注意報は、気象庁と米国の NWS が実際に出したものです。視界は、気象庁の秋田の観測点（アメダス）が視程を出しているときはその値です。この道路に視界のセンサーはありません。値がないときはそう表示し、クリアとは扱いません。この注意では、速度は不明として扱います。助言だけで、運転するのはいつもドライバーです。引き返すようには伝えません。'
+      : 'Position is this device\'s GPS; when GPS weakens, the card says so. The '
+          'area advisory is what JMA and the US NWS actually issued. Visibility is '
+          'the JMA Akita station\'s (AMeDAS) reading when the station reports one; '
+          'there is no visibility sensor on this road. With no reading the card '
+          'says so and never treats it as clear. This caution treats speed as '
+          'unknown. Advisory only: the driver always drives, and the card never '
+          'says to turn back.';
 
   /// The card's rung was computed from a test value, not a measurement
   /// (2026-09-16; words ruled AAA R52 AQ3).
@@ -473,19 +469,16 @@ class AppL10n {
   String driveHudBlackoutSeconds(int seconds) =>
       _ja ? 'GPS 途絶: $seconds 秒' : 'blackout: ${seconds}s';
 
-  /// Announce line: the top rung auto-fires. Japanese unchanged.
+  /// Announce line: the top rung is spoken and felt when it rises.
   String get driveHudAnnounceCritical => _ja
-      ? '段階が上がると音声＋振動で自動発報します（重要度: critical）。端末での聴取・体感は本環境では未検証です。'
-      : 'Auto-fires audio + haptic (critical) on rung rise. '
-          'Hearing and feeling it on a device is not verified in this '
-          'environment.';
+      ? '段階が上がると、音声＋振動で知らせます。'
+      : 'When the caution level rises, the app tells you by voice and vibration.';
 
-  /// Announce line: the middle rung auto-fires. Japanese unchanged.
+  /// Announce line: the middle rung is spoken and felt when it rises. Same
+  /// words as the top rung; a test that tells them apart reads the key.
   String get driveHudAnnounceWarning => _ja
-      ? '段階が上がると音声＋振動で自動発報します（重要度: warning）。端末での聴取・体感は本環境では未検証です。'
-      : 'Auto-fires audio + haptic (warning) on rung rise. '
-          'Hearing and feeling it on a device is not verified in this '
-          'environment.';
+      ? '段階が上がると、音声＋振動で知らせます。'
+      : 'When the caution level rises, the app tells you by voice and vibration.';
 
   /// Announce line: raised and shown, and not spoken by this rung.
   ///
@@ -498,11 +491,13 @@ class AppL10n {
   /// both.
   String get driveHudAnnounceRaisedNotSpoken => _ja
       ? '注意に上げました（表示と色のみ）。この段階では読み上げません。'
-      : 'Raised to caution (shown + coloured). This rung is not spoken.';
+      : 'Raised to caution (shown in colour). This level is not read aloud.';
 
   /// Announce line: nothing is announced.
   String get driveHudAnnounceContinue =>
-      _ja ? '継続 — 何も発報しません。' : 'Continue — nothing announced.';
+      _ja
+      ? 'この段階では、音声や振動では知らせません。'
+      : 'At this level, nothing is announced by voice or vibration.';
 
   /// Note in the caution banner when hazards compound.
   String get driveHudCompoundingNote => _ja
@@ -695,13 +690,12 @@ class AppL10n {
   /// the device (the two tapped coordinates), where it goes (the public
   /// OSRM demo server), and why — BEFORE anything is sent.
   String get routeConsentBody => _ja
-      ? '出発地と目的地の座標が、経路計算のため公開OSRMデモサーバー'
-          '（router.project-osrm.org）に送信されます。よろしいですか。'
-          'この選択は記憶され、あとから変更できます。'
-      : 'The origin and destination coordinates you tapped will be sent to '
-          'the public OSRM demo server (router.project-osrm.org) to '
-          'calculate the route. Is that OK? Your choice is remembered and '
-          'can be changed later.';
+      ? '出発地と目的地の座標が、経路計算のため公開OSRMデモサーバー（router.project-osrm.org）に送信されます。よろしいですか。この選択は記憶されます。「送信しない」を選んだときは、ルート欄の「選択を変更」から選び直せます。送信を選ぶと、このアプリの中では取り消せません。'
+      : 'The origin and destination coordinates you tapped will be sent to the '
+          'public OSRM demo server (router.project-osrm.org) to calculate the '
+          'route. Is that OK? Your choice is remembered. If you choose "Do not '
+          'send", you can choose again with "Change choice" in the route panel. If '
+          'you choose to send, it cannot be undone in this app.';
 
   String get routeConsentAccept => _ja ? '送信して経路を取得' : 'Send and fetch route';
 
@@ -836,6 +830,47 @@ class AppL10n {
     final m = minutes % 60;
     return _ja ? '$h時間$m分' : '${h}h ${m}m';
   }
+
+  // ===== Words ruled for her screen, 2026-09-15 (prefecture table, Akita card, banner) =====
+
+  /// Prefecture table column heads. English unchanged.
+  String get prefectureHeadStation => _ja ? '観測点' : 'Station';
+  String get prefectureHeadSnow => _ja ? '積雪深' : 'Snow';
+  String get prefectureHeadTemp => _ja ? '気温' : 'Temp';
+  String get prefectureHeadWind => _ja ? '風速' : 'Wind';
+  String get prefectureHeadObserved => _ja ? '観測時刻' : 'Observed';
+  String get prefectureRefetchAll => _ja ? 'すべて再取得' : 'Re-fetch all';
+
+  /// Akita observation card labels. The row appends its own colon.
+  String get observationStationLabel => _ja ? '観測点' : 'Station';
+  String get observationObservedAtLabel => _ja ? '観測時刻' : 'Observed at';
+  String get observationTemperatureLabel => _ja ? '気温' : 'Temperature';
+  String get observationHumidityLabel => _ja ? '湿度' : 'Humidity';
+  String get observationWindLabel => _ja ? '風速' : 'Wind';
+  String get observationSnowDepthLabel => _ja ? '積雪深' : 'Snow depth';
+  String get observationFetchedLabel => _ja ? '取得時刻' : 'Fetched';
+
+  /// When the Akita observation was fetched, and how long ago. [minutes] is
+  /// minutes since the fetch. Under a minute reads 1分以内 / within 1 min;
+  /// an hour or more reads hours and minutes, as the app's other ages.
+  String observationFetchedAt(String time, int minutes) {
+    if (minutes < 1) return _ja ? '$time（1分以内）' : '$time (within 1 min)';
+    final age = _formatMinutes(minutes);
+    return _ja ? '$time（$age前）' : '$time ($age ago)';
+  }
+
+  /// The Akita card's source caption: which rows JMA published and which are
+  /// this app's judgement. Two lines.
+  String get akitaObservationSource => _ja
+      ? '観測の各行は、気象庁アメダスの発表値です。\nウォッチ2行は気象庁ではなく、このアプリの判断です。'
+      : 'The observation rows are the values JMA AMeDAS published.\nThe two watch rows are this app\'s judgement, not JMA\'s.';
+
+  /// The responsibility banner at the top of her page. English unchanged.
+  String get responsibilityBanner => _ja
+      ? '開発中のアルファ版です。本番のナビゲーション用ではありません。運転の判断はすべて、ドライバーの責任です。このアプリは情報を表示するだけで、車を操作しません。'
+      : 'Alpha software. Not for production navigation. The driver remains '
+          'responsible for all driving decisions. This app surfaces information; '
+          'it does not control the vehicle.';
 
   // ===== JMA feed-loss panel (N15 — the screen must match the speaker) =====
 

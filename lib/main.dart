@@ -4301,7 +4301,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ..._observationFieldRows(observation),
-            _kv('Fetched', _formatFetched(observation.fetchedAt, stale)),
+            _kv(AppL10n.of(context).observationFetchedLabel, _formatFetched(observation.fetchedAt, stale)),
             // BETA_PLAN W1 — the invisible-ice watch verdict, rendered with
             // the same honest-unknown discipline as the fields above.
             _kv(
@@ -4348,15 +4348,7 @@ class _HomePageState extends State<HomePage> {
             // "no derivation" under both was a false claim on the safety
             // surface.
             Text(
-              'Source: JMA AMeDAS — observation fields are verbatim relay. '
-              '路面凍結ウォッチ is DERIVED from them (shared radiative-frost '
-              'classifier) — an inference, not a JMA statement. 荒天ウォッチ '
-              'likewise: derived from the measured 10-min precipitation '
-              '(×6 hourly-equivalent is this app\'s conversion) and 10-min '
-              'mean wind, judged against JMA\'s published intensity tables '
-              '(雨の強さと降り方 / 風の強さと吹き方) — an inference, not a '
-              'JMA statement. JMA\'s own 警報・注意報 arrive separately, '
-              'verbatim, as advisory cards below.',
+              AppL10n.of(context).akitaObservationSource,
               style: TextStyle(
                 color: Colors.grey.shade700,
                 fontSize: 12,
@@ -4470,11 +4462,11 @@ class _HomePageState extends State<HomePage> {
           '${ts.substring(8, 10)}:${ts.substring(10, 12)} JST';
     }
     return [
-      _kv('Station', '${observation.stationName} (${observation.stationId})'),
-      _kv('Observed at', obsDisplay),
-      _kv('Temperature', temp == null ? '—' : '${temp.toStringAsFixed(1)} °C'),
-      _kv('Humidity', hum == null ? '—' : '$hum %'),
-      _kv('Wind', wind == null ? '—' : '${wind.toStringAsFixed(1)} m/s'),
+      _kv(AppL10n.of(context).observationStationLabel, '${observation.stationName} (${observation.stationId})'),
+      _kv(AppL10n.of(context).observationObservedAtLabel, obsDisplay),
+      _kv(AppL10n.of(context).observationTemperatureLabel, temp == null ? '—' : '${temp.toStringAsFixed(1)} °C'),
+      _kv(AppL10n.of(context).observationHumidityLabel, hum == null ? '—' : '$hum %'),
+      _kv(AppL10n.of(context).observationWindLabel, wind == null ? '—' : '${wind.toStringAsFixed(1)} m/s'),
       // W3 — the measured rain-rate the turmoil watch judges on,
       // shown verbatim beside the inference (same discipline as the
       // fields above; '—' = the station did not report the field).
@@ -4484,7 +4476,7 @@ class _HomePageState extends State<HomePage> {
             ? '—'
             : '${observation.precipitation10mMm!.toStringAsFixed(1)} mm',
       ),
-      _kv('Snow depth', snow == null ? '—' : '${snow.toStringAsFixed(0)} cm'),
+      _kv(AppL10n.of(context).observationSnowDepthLabel, snow == null ? '—' : '${snow.toStringAsFixed(0)} cm'),
     ];
   }
 
@@ -5361,31 +5353,36 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Header row
-        const Padding(
-          padding: EdgeInsets.only(bottom: 4),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
           child: Row(
             children: [
               SizedBox(
                 width: corridorStationColumnWidth,
-                child: Text('Station',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                child: Text(AppL10n.of(context).prefectureHeadStation,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.bold)),
               ),
               Expanded(
-                child: Text('Snow',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                child: Text(AppL10n.of(context).prefectureHeadSnow,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.bold)),
               ),
               Expanded(
-                child: Text('Temp',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                child: Text(AppL10n.of(context).prefectureHeadTemp,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.bold)),
               ),
               Expanded(
-                child: Text('Wind',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                child: Text(AppL10n.of(context).prefectureHeadWind,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.bold)),
               ),
               SizedBox(
                 width: corridorObservedColumnWidth,
-                child: Text('Observed',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                child: Text(AppL10n.of(context).prefectureHeadObserved,
+                    style: const TextStyle(
+                        fontSize: 11, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -5408,7 +5405,7 @@ class _HomePageState extends State<HomePage> {
           alignment: Alignment.centerRight,
           child: TextButton(
             onPressed: _refreshCorridor,
-            child: const Text('Re-fetch all'),
+            child: Text(AppL10n.of(context).prefectureRefetchAll),
           ),
         ),
       ],
@@ -5417,7 +5414,8 @@ class _HomePageState extends State<HomePage> {
 
   String _formatFetched(DateTime fetchedAt, int minutesStale) {
     final fmt = DateFormat('HH:mm');
-    return '${fmt.format(fetchedAt)} ($minutesStale min ago)';
+    return AppL10n.of(context)
+        .observationFetchedAt(fmt.format(fetchedAt), minutesStale);
   }
 
   // ===== Sub-bundle 2 — Driver state inputs panel =====
@@ -5865,11 +5863,9 @@ class _Banner extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       color: Colors.amber.shade100,
-      child: const Text(
-        'Alpha software. Not for production navigation. The driver remains '
-        'responsible for all driving decisions. This app surfaces information; '
-        'it does not control the vehicle.',
-        style: TextStyle(fontSize: 12),
+      child: Text(
+        AppL10n.of(context).responsibilityBanner,
+        style: const TextStyle(fontSize: 12),
       ),
     );
   }

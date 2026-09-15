@@ -135,19 +135,24 @@ void main() {
     expect(footer, findsOneWidget);
     final footerText = tester.widget<Text>(footer).data ?? '';
     expect(_cjk.hasMatch(footerText), isTrue, reason: footerText);
-    expect(footerText, contains('秋田のモック位置'),
-        reason: 'the mock position feeds this card, so the footer names it');
+    // The mock left her page for the development page (2026-09-15), so her
+    // footer no longer names it; it names her GPS and the station.
+    expect(footerText, isNot(contains('モック')),
+        reason: 'the mock is not on her page, so her footer does not name it');
+    expect(footerText, contains('位置は端末の GPS です。'));
+    expect(footerText, contains('気象庁の秋田の観測点'));
   });
 
   testWidgets('English: no card text carries the team\'s words, and the footer '
-      'names the mock and the station', (tester) async {
+      'names her GPS and the station, not the mock', (tester) async {
     await _boot(tester, 'en');
     final texts = await _cardTextsThroughStates(tester);
     _expectNoTeamWords(texts, 'en');
     final footerText =
         tester.widget<Text>(find.byKey(const Key('drive-hud-footer'))).data ??
             '';
-    expect(footerText, contains('Akita mock'));
+    expect(footerText, isNot(contains('mock')));
+    expect(footerText, contains("Position is this device's GPS;"));
     expect(footerText, contains('JMA Akita station'));
     expect(footerText, isNot(contains('UNKNOWN by default')));
     expect(footerText, isNot(contains('未計測')),
