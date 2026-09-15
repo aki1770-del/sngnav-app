@@ -235,6 +235,10 @@ Future<void> _choose<T>(WidgetTester tester, Finder dropdown, T value) async {
       .last);
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
+  // A choice that did not take would leave the drive below unchanged and pass
+  // for the wrong reason, so each one is read back from the control.
+  expect(tester.widget<DropdownButton<T>>(dropdown).value, value,
+      reason: 'the choice $value did not take on $dropdown');
 }
 
 List<_Setting> _settings() => [
@@ -278,6 +282,8 @@ List<_Setting> _settings() => [
           await t.pump();
           await t.tap(toggle);
           await t.pump();
+          expect(t.widget<SwitchListTile>(toggle).value, isTrue,
+              reason: 'the confirmation did not take');
         }
       ),
     ];
