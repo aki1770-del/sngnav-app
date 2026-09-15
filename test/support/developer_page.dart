@@ -113,11 +113,22 @@ Future<void> chooseVisibilityBandOnDeveloperPage(
   await tester.tap(band);
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
-  await tester.tap(find
+  // The open menu draws the item again over the page: the last one. A menu
+  // taller than the space scrolls, so the item is brought into view first; a
+  // tap that misses fails here rather than leaving the band unchanged.
+  final item = find
       .byWidgetPredicate(
           (w) => w is DropdownMenuItem<double?> && w.value == meters)
-      .last);
+      .last;
+  await tester.ensureVisible(item);
+  await tester.pump();
+  await tester.tap(item);
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
+  final chosen = tester.widget<DropdownButton<double?>>(band).value;
+  if (chosen != meters) {
+    throw TestFailure('the visibility band reads $chosen after choosing '
+        '$meters on the development page');
+  }
   await closeDeveloperPage(tester);
 }

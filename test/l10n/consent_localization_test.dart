@@ -60,7 +60,10 @@ void main() {
       // The deny-by-default consent affordance is HER language.
       expect(find.text('現在地を共有'), findsOneWidget); // "Share my location"
       expect(find.text('位置情報はまだ共有されていません。'), findsOneWidget);
-      expect(find.text('秋田のモック位置（開発用）'), findsOneWidget);
+      // The Akita mock position is on the development page since 2026-09-15;
+      // her consent row offers sharing only.
+      expect(find.text('秋田のモック位置（開発用）'), findsNothing);
+      expect(find.text('Use Akita mock (dev)'), findsNothing);
       // No English consent leak on the ja surface.
       expect(find.text('Share my location'), findsNothing);
       expect(find.text('Location not yet shared.'), findsNothing);
