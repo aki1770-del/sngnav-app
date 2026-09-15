@@ -2319,6 +2319,11 @@ class _HomePageState extends State<HomePage> {
             ? _driveHud.effectiveAction ?? advice?.action
             : null;
     final hasBaseline = _herFix is PositionAvailable;
+    final rungFromTestValue = _rungOnCardFromTestValue(
+      effective: effective,
+      brainIsThisShares: brainIsThisShares,
+      noShareWhiteout: noShareWhiteout != null,
+    );
 
     final (Color bannerColor, Color textColor) = switch (effective) {
       DriveAction.considerStopping => (Colors.red.shade100, Colors.red.shade900),
@@ -2493,27 +2498,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         const SizedBox(height: 12),
-        // A test value is what the card shows (2026-09-16): drawn only where
-        // the rung on the card was computed from it (AAA R52, P2) — a demo
-        // visibility read by the brain holding this share or by the no-share
-        // whiteout card, or the Akita mock position with the brain. With no
-        // rung on the card, nothing on it came from a test value.
-        if (_rungOnCardFromTestValue(
-          effective: effective,
-          brainIsThisShares: brainIsThisShares,
-          noShareWhiteout: noShareWhiteout != null,
-        ))
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Text(
-              key: const Key('drive-hud-test-value'),
-              l.driveHudTestValueInForce,
-              style: const TextStyle(
-                  fontSize: 12,
-                  color: kCautionTextOnAmber,
-                  fontWeight: FontWeight.w600),
-            ),
-          ),
         if (estimate == null)
           Text(
               // Keyed (2026-09-15) so a test reads the rung's place on the
@@ -2532,8 +2516,28 @@ class _HomePageState extends State<HomePage> {
               _driveHudText.radiusLabel(
                   estimate.confidenceRadiusMeters, l.locale.languageCode)),
         ],
+        // A test value is what the card shows (2026-09-16): drawn only where
+        // the rung on the card was computed from it (AAA R52, P2) — a demo
+        // visibility read by the brain holding this share or by the no-share
+        // whiteout card, or the Akita mock position with the brain. With no
+        // rung on the card, nothing on it came from a test value.
+        // Directly above the rung banner (HIE R57 L1, 2026-09-16): below the
+        // position rows the step and the fact that a test value set it were
+        // ~90 px apart, and a glance at the banner did not reach the line.
+        if (rungFromTestValue)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              key: const Key('drive-hud-test-value'),
+              l.driveHudTestValueInForce,
+              style: const TextStyle(
+                  fontSize: 12,
+                  color: kCautionTextOnAmber,
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
         if (advice != null) ...[
-          const SizedBox(height: 8),
+          SizedBox(height: rungFromTestValue ? 4 : 8),
           // The caution headline banner, coloured by rung.
           Container(
             key: const Key('drive-hud-caution-banner'),
