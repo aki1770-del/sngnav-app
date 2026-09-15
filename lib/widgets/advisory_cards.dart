@@ -306,7 +306,9 @@ class AdvisoryCards extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 4),
               color: Colors.amber.shade50,
               child: Text(
-                l.advisoryPublisherErrored(_sourceLabel(err.source, l)),
+                err.source == AdvisorySource.other
+                    ? l.advisoryFetchFailedBeforeAnyPublisher
+                    : l.advisoryPublisherErrored(_sourceLabel(err.source, l)),
                 // Same amber surface — same contrast floor.
                 style:
                     const TextStyle(color: kCautionTextOnAmber, fontSize: 11),

@@ -41,13 +41,13 @@ void main() {
       (tester) async {
     await tester.pumpWidget(_cards('ja'));
     await tester.pump();
-    expect(find.text('配信元 その他 から取得できませんでした。'), findsOneWidget);
+    expect(find.text('どの配信元からも応答がないまま、取得が失敗しました。'), findsOneWidget);
     expect(find.textContaining('Source'), findsNothing);
   });
 
   testWidgets('en: the English page keeps its word', (tester) async {
     await tester.pumpWidget(_cards('en'));
     await tester.pump();
-    expect(find.text('Could not fetch from Source.'), findsOneWidget);
+    expect(find.text('The fetch failed before any publisher answered.'), findsOneWidget);
   });
 }

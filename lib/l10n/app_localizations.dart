@@ -932,6 +932,14 @@ class AppL10n {
       ? '配信元 $publisher から取得できませんでした。'
       : 'Could not fetch from $publisher.';
 
+  /// A warnings fetch that failed with no publisher named (AAA R58 W2,
+  /// 2026-09-16). The only app writer is a fetch that threw before any
+  /// provider answered, so the line names nobody; 配信元 その他 named no one
+  /// while reading like a publisher's name.
+  String get advisoryFetchFailedBeforeAnyPublisher => _ja
+      ? 'どの配信元からも応答がないまま、取得が失敗しました。'
+      : 'The fetch failed before any publisher answered.';
+
   /// The Akita observation card after a failed fetch. The words are the first
   /// clause of [measuredWatchFeedLost]; the fetch's reason (an endpoint name
   /// and a status code) shown after them until 2026-09-15 is not.
