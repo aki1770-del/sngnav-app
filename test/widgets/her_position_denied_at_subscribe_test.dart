@@ -42,6 +42,7 @@ import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
+import '../support/rung_on_card.dart';
 
 /// geolocator_android 4.6.2, `ErrorCodes.permissionDenied`: the code and the
 /// description it sends, byte for byte.
@@ -105,10 +106,9 @@ bool _rowOffers(String label) =>
 
 /// Every spoken line, every haptic, and every caution headline the card shows.
 String _given(WidgetTester tester, FakeAlertActuators a) {
-  final rungs = [
-    for (final t in const ['停車の検討', '注意して走行', '特段の注意なし'])
-      if (find.textContaining(t).evaluate().isNotEmpty) t,
-  ];
+  // The rung from the caution banner's own headline (2026-09-15), not every
+  // text on the screen that names a rung.
+  final rungs = [if (rungOnCard() case final rung?) rung.name];
   return 'spoken [${a.spoken.join(' | ')}] haptics [${a.haptics.join(' | ')}] '
       'rungs [${rungs.join(' | ')}]';
 }

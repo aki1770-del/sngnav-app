@@ -36,10 +36,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
-import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
+import '../support/rung_on_card.dart';
 
 /// What she is given, as recorded: every spoken line, every haptic, and the
 /// caution panel's rung. Joined into strings so two records compare by value:
@@ -48,17 +48,12 @@ import '../support/fake_alert_actuators.dart';
 typedef _Given = ({String spoken, String haptics, String panel});
 
 String _panel(WidgetTester tester) {
-  bool has(List<String> texts) =>
-      texts.any((t) => find.textContaining(t).evaluate().isNotEmpty);
-  if (has(['停車の検討', 'Consider stopping'])) return 'considerStopping';
-  if (has(['注意して走行', 'Heightened caution'])) return 'heightenedCaution';
-  if (has(['特段の注意なし', 'No elevated caution'])) return 'continueDriving';
-  // The card's no-position line follows the app's locale (2026-09-14); both
-  // locales' words come from the app, so neither is hardcoded here.
-  if (find.text(const AppL10n(Locale('ja')).driveHudNoPositionFed).evaluate().isNotEmpty ||
-      find.text(const AppL10n(Locale('en')).driveHudNoPositionFed).evaluate().isNotEmpty) {
-    return 'no rung (no position fed yet)';
-  }
+  // The rung from the caution banner's own headline (2026-09-15). A search of
+  // the whole screen for rung words read any text naming a rung as the rung.
+  final rung = rungOnCard();
+  if (rung != null) return rung.name;
+  // The card's no-position line, read by its key in either language.
+  if (noPositionLineOnCard()) return 'no rung (no position fed yet)';
   return 'UNREADABLE';
 }
 

@@ -2208,7 +2208,11 @@ class _HomePageState extends State<HomePage> {
           ),
         const SizedBox(height: 12),
         if (estimate == null || advice == null)
-          Text(l.driveHudNoPositionFed,
+          Text(
+              // Keyed (2026-09-15) so a test reads the rung's place on the
+              // card, not every text on the screen.
+              key: const Key('drive-hud-no-position'),
+              l.driveHudNoPositionFed,
               style: TextStyle(color: Colors.grey.shade700, fontSize: 12))
         else ...[
           // The honest position line. The whole panel follows the app's
@@ -2234,6 +2238,10 @@ class _HomePageState extends State<HomePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
+                  // The rung itself, keyed (2026-09-15): tests that searched
+                  // the whole screen for rung words read any text naming a
+                  // rung as the rung.
+                  key: const Key('drive-hud-rung'),
                   _driveHudText.actionHeadline(
                     effective ?? advice.action,
                     l.locale.languageCode,

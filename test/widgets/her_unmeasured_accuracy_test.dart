@@ -41,6 +41,7 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
+import '../support/rung_on_card.dart';
 
 const double _lat = 39.7186;
 const double _lon = 140.1024;
@@ -187,14 +188,11 @@ bool _lineStatesARadius() => find
     .isNotEmpty;
 
 String _panel() {
-  bool has(List<String> texts) =>
-      texts.any((t) => find.textContaining(t).evaluate().isNotEmpty);
-  if (has(['停車の検討', 'Consider stopping'])) return 'considerStopping';
-  if (has(['注意して走行', 'Heightened caution'])) return 'heightenedCaution';
-  if (has(['特段の注意なし', 'No elevated caution'])) return 'continueDriving';
-  if (has(['（まだ現在地が届いていません）', '(no position fed yet)'])) {
-    return 'no rung (no position fed yet)';
-  }
+  // The rung from the caution banner's own headline (2026-09-15). A search of
+  // the whole screen for rung words read any text naming a rung as the rung.
+  final rung = rungOnCard();
+  if (rung != null) return rung.name;
+  if (noPositionLineOnCard()) return 'no rung (no position fed yet)';
   return 'UNREADABLE';
 }
 

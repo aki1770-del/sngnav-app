@@ -38,6 +38,7 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
+import '../support/rung_on_card.dart';
 
 const _unknownWords = ValueKey('her-position-unknown-label');
 const _locationOffWords = ValueKey('her-location-off-label');
@@ -128,17 +129,9 @@ void _expectPhase2(WidgetTester tester, String when) {
 /// What she is given: every spoken line, every haptic, and every caution
 /// headline the card can show.
 String _given(WidgetTester tester, FakeAlertActuators a) {
-  final rungs = [
-    for (final t in const [
-      '停車の検討',
-      '注意して走行',
-      '特段の注意なし',
-      'Consider stopping',
-      'Heightened caution',
-      'No elevated caution',
-    ])
-      if (find.textContaining(t).evaluate().isNotEmpty) t,
-  ];
+  // The rung from the caution banner's own headline (2026-09-15), not every
+  // text on the screen that names a rung.
+  final rungs = [if (rungOnCard() case final rung?) rung.name];
   return 'spoken [${a.spoken.join(' | ')}] haptics [${a.haptics.join(' | ')}] '
       'rungs [${rungs.join(' | ')}]';
 }
