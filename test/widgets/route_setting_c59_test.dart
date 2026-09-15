@@ -14,8 +14,11 @@
 /// * On a phone with no motion signal (every phone state today: the platform's
 ///   speed is discarded), route setting is open only through a route act she
 ///   starts from a control, with ルートは停車中に設定できます。 beside it.
-/// * On the IVI, with no vehicle signal, route setting is closed: the words
-///   stand alone, and no line under the map says the route panel works.
+/// * On the IVI, with no vehicle signal, route setting is closed, and no state
+///   of the car opens it. There the panel says この端末では、このアプリでルートを
+///   設定できません。 alone, never ルートは停車中に設定できます。 (ruled
+///   2026-09-14: the stop line named a condition that opens nothing on that
+///   host), and no line under the map says the route panel works.
 /// * No sound and no haptic for a touch.
 /// * Closing the act keeps the points she chose.
 /// * The section title says ルート（雪を考慮しません）.
@@ -39,6 +42,8 @@ import '../support/fake_alert_actuators.dart';
 // Ruled bytes, 2026-09-14.
 const _whenStoppedJa = 'ルートは停車中に設定できます。';
 const _whenStoppedEn = 'Routes can be set when the car is stopped.';
+const _closedOnThisDeviceJa = 'この端末では、このアプリでルートを設定できません。';
+const _closedOnThisDeviceEn = 'Routes cannot be set in this app on this device.';
 const _titleJa = 'ルート（雪を考慮しません）';
 const _titleEn = 'Route (does not consider snow)';
 const _oldTitle = 'Route — tap A then B (driving, no snow-aware yet)';
@@ -54,6 +59,7 @@ const _servicesOff = 'Location services disabled';
 
 const _openAct = Key('route-act-open');
 const _panelWords = Key('route-setting-when-stopped');
+const _closedWords = Key('route-setting-closed-on-this-device');
 
 Future<FakeAlertActuators> _boot(
   WidgetTester tester, {
@@ -318,8 +324,14 @@ void main() {
       final a = await _boot(tester);
       final givenBefore = '${a.spoken} ${a.haptics}';
       expect(find.text(_titleJa), findsOneWidget);
-      expect(find.byKey(_panelWords), findsOneWidget);
-      expect(tester.widget<Text>(find.byKey(_panelWords)).data, _whenStoppedJa);
+      expect(find.byKey(_closedWords), findsOneWidget);
+      expect(tester.widget<Text>(find.byKey(_closedWords)).data,
+          _closedOnThisDeviceJa);
+      expect(find.byKey(_panelWords), findsNothing, reason: 'one line per host');
+      // Anywhere, not only as a whole line (ruled 2026-09-14).
+      expect(find.textContaining('停車中に設定'), findsNothing,
+          reason: 'on this host no stop opens route setting, so no line says '
+              'one does');
       expect(find.byKey(_openAct), findsNothing,
           reason: 'no route act where route setting is closed');
 
@@ -330,6 +342,16 @@ void main() {
       expect(_onHerMap('B'), findsNothing);
       expect('${a.spoken} ${a.haptics}', givenBefore,
           reason: 'the words only: no sound, no haptic');
+    }, variant: ivi);
+
+    testWidgets('English: the panel says routes cannot be set in this app on '
+        'this device, and names no stop', (tester) async {
+      await _boot(tester, lang: 'en');
+      expect(tester.widget<Text>(find.byKey(_closedWords)).data,
+          _closedOnThisDeviceEn);
+      expect(find.byKey(_panelWords), findsNothing, reason: 'one line per host');
+      expect(find.textContaining('when the car is stopped'), findsNothing,
+          reason: 'anywhere, not only as a whole line');
     }, variant: ivi);
 
     testWidgets('no line under the map says the route panel works',

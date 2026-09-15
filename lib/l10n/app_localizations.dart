@@ -190,11 +190,21 @@ class AppL10n {
   // no motion signal a route is set only through the route act, started from
   // a control; on the IVI with no vehicle signal route setting is closed.
 
-  /// Shown where route setting is closed, and beside the route act. Ruled
-  /// 2026-09-14, byte-exact. It states the condition; it does not tell her to
-  /// stop the car.
+  /// Shown on a phone where route setting is closed, and beside the route act.
+  /// Ruled 2026-09-14, byte-exact. It states the condition; it does not tell
+  /// her to stop the car. Never shown on a host where no state of the car
+  /// opens route setting: there [routeSettingClosedOnThisDevice] is.
   String get routeSettingWhenStopped =>
       _ja ? 'ルートは停車中に設定できます。' : 'Routes can be set when the car is stopped.';
+
+  /// The route panel's line on a host that reads no vehicle signal, where
+  /// route setting is closed and nothing opens it. Ruled 2026-09-14,
+  /// byte-exact: it states the state, with no cause, no instruction and no
+  /// stop. "In this app" is load-bearing: the car's own navigation on the same
+  /// screen may set routes.
+  String get routeSettingClosedOnThisDevice => _ja
+      ? 'この端末では、このアプリでルートを設定できません。'
+      : 'Routes cannot be set in this app on this device.';
 
   /// The route section's title. Ruled 2026-09-14, byte-exact: no driving, no
   /// gesture, no promise, and the snow condition once. Was 'Route — tap A then
@@ -252,11 +262,13 @@ class AppL10n {
       : 'Source: OSRM public demo (router.project-osrm.org). NOT snow-aware. '
           'NOT for production navigation.';
 
-  /// A route request that failed. [reason] is the router's own text, shown as
-  /// it was before.
-  String routeFetchFailed(String reason) => _ja
-      ? 'ルートを取得できませんでした: $reason'
-      : 'Route fetch failed: $reason';
+  /// A route request that failed. Ruled 2026-09-14, byte-exact: the app's own
+  /// words and nothing after them. The router's reason is not shown: on a dead
+  /// network it carries the request's address with both chosen points, and on
+  /// a refusal the server's whole reply. It names no cause, because the router
+  /// throws one exception type for both and its text is not read.
+  String get routeFetchFailed =>
+      _ja ? 'ルートを取得できませんでした。' : 'Route fetch failed.';
 
   /// The control that clears A, B and the route.
   String get routeReset => _ja ? 'リセット' : 'Reset';
@@ -323,23 +335,99 @@ class AppL10n {
       ? 'この曲がり角の案内は保留しています（現在地が信頼できません）。'
       : 'Guidance for this turn is on hold (your position is not trusted).';
 
-  // The live-drive card's description, demo controls and announce line. Until
-  // 2026-09-14 the description, the blackout button and counter, and the
-  // announce line were English in Japanese mode, and the visibility demo label
-  // and bands Japanese in English mode. Each side keeps its bytes; the other
-  // side is new and not yet reviewed on a render. The card's title and footer
-  // are not here: they stay as they are while the instrument that looks at her
-  // map finds the card by its title and reads the footer.
+  /// The title of the section that shows the next turn. Until 2026-09-14 it
+  /// was English in Japanese mode and called the narration "honest". The
+  /// Japanese names what the section shows with the words its own line uses
+  /// (次の案内がここに表示されます); not yet reviewed on a render.
+  ///
+  /// English without the implementation term (2026-09-15): it read "Next
+  /// maneuver — confidence-gated narration".
+  String get maneuverSectionTitle => _ja ? '次の案内' : 'Next maneuver';
+
+  // The next-turn banner's state, its control and what her press did. Until
+  // 2026-09-15 these were English in every language, and the state was named
+  // by the gate's internal names (SPEAK, HEDGE, SUPPRESSED). The words for
+  // her position are not repeated here: the section's own row and her line
+  // already carry them. No state's words contain another's, so a reader that
+  // finds a state by its words cannot find another. Not yet reviewed on a
+  // render.
+
+  /// Banner state: her position is trusted, and the turn is read as given.
+  String get maneuverTierSpeak => _ja ? 'そのまま読み上げます' : 'Read aloud as given';
+
+  /// Banner state: her position is only suspect, and the turn is read as a
+  /// possibility she is asked to confirm. No position the app gives the drive
+  /// brain reaches this state today.
+  String get maneuverTierHedge =>
+      _ja ? '確認をお願いして読み上げます' : 'Read aloud with a check';
+
+  /// Banner state: her position is not trusted, and the turn is not read.
+  String get maneuverTierSuppressed => _ja ? '読み上げません' : 'Not read aloud';
+
+  /// Beside a line that also says the turn may be icy.
+  String get maneuverIcyMark => _ja ? '❄ 凍結のおそれ' : '❄ May be icy';
+
+  /// The control that reads the next maneuver aloud, through the same gate.
+  String get maneuverNarrateButton =>
+      _ja ? '次の案内を読み上げる' : 'Read the next maneuver aloud';
+
+  /// After her press, when the turn was announced.
+  String get maneuverNarrationAnnounced =>
+      _ja ? '音声＋振動で知らせました。' : 'Announced on audio + haptic.';
+
+  /// After her press, when nothing was read.
+  String get maneuverNarrationNotSpoken =>
+      _ja ? '何も読み上げていません。' : 'Nothing was read aloud.';
+
+  // The live-drive card's title, description, demo controls, announce line and
+  // footer. Until 2026-09-14 the description, the blackout button and counter,
+  // and the announce line were English in Japanese mode, and the visibility
+  // demo label and bands Japanese in English mode; the title and footer were
+  // English in both, and several of these lines carried words that only the
+  // team that built the app can read (work-package tags, its name for the
+  // driver, a self-description as honest, the names of its own speech
+  // routing). Those words are gone from both languages, each line keeping what
+  // it tells her. Public names stay: package names, pub.dev, pubspec.lock,
+  // NWS and JMA. New or changed sentences are not yet reviewed on a render.
+
+  /// The card's title.
+  String get driveHudTitle =>
+      _ja ? '走行中の注意（自動）' : 'Live drive — compound-failure caution (auto)';
 
   /// What the card does, above its demo controls.
   String get driveHudDescription => _ja
-      ? '正直な現在地（localization_fallback：GPS → 推測航法 → 現在地 不明。自信のある誤った点は出しません）を、視界と実際の地域の警報・注意報（compound_failure_advisor）と組み合わせます。注意の段階が上がった瞬間に、WS5 と同じ音声＋振動で自動的に知らせます（手動のボタンは不要です）。上で位置を共有し、視界の段階を下げるか GPS 途絶を再現すると、段階が上がるのを確かめられます。'
-      : 'Fuses HER honest position (localization_fallback: GPS → dead '
+      ? '現在地（localization_fallback：GPS → 推測航法 → 現在地 不明。自信のある誤った点は出しません）を、視界と実際の地域の警報・注意報（compound_failure_advisor）と組み合わせます。注意の段階が上がった瞬間に、音声＋振動で自動的に知らせます（手動のボタンは不要です）。上で位置を共有し、視界の段階を下げるか GPS 途絶を再現すると、段階が上がるのを確かめられます。'
+      : 'Fuses the current position (localization_fallback: GPS → dead '
           'reckoning → lost, never a confident wrong dot) with visibility + the '
           'real area advisory (compound_failure_advisor). The MOMENT the caution '
-          'rung RISES it auto-announces on the SAME audio + haptic channel as '
-          'WS5 — no manual button. Share a location above, then lower the '
-          'visibility band and/or simulate a GPS blackout to see it rise.';
+          'rung RISES it auto-announces on audio + haptic — no manual button. '
+          'Share a location above, then lower the visibility band and/or '
+          'simulate a GPS blackout to see it rise.';
+
+  /// The card's footer: where each thing the card shows comes from, as the app
+  /// reads it. Until 2026-09-14 it said the position is real, while the Akita
+  /// mock position feeds this card; that visibility is unknown by default,
+  /// while the JMA Akita station's reading feeds it whenever the station
+  /// reports one (whatever her own location); and, in English, that absence
+  /// reads as 未計測, while the English card reads "No visibility reading".
+  ///
+  /// It names no state the card shows (2026-09-15). The footer is drawn under
+  /// every state, so a state's own words here put that state on her card
+  /// while the card is in another: the first draft quoted 停車の検討 and
+  /// 視界の測定値がありません under 特段の注意なし. It keeps the facts: with no
+  /// reading the card says so, and it never tells her to turn back.
+  String get driveHudFooter => _ja
+      ? '位置は端末の GPS です（「秋田のモック位置（開発用）」を押したときはモック位置）。GPS が弱まると、そのことを表示します。地域の警報・注意報は、気象庁と米国の NWS が実際に出したものです。視界は、気象庁の秋田の観測点（アメダス）が視程を出しているときはその値です。この道路に視界のセンサーはありません。値がないときはそう表示し、クリアとは扱いません（デモの上書きで変えられます）。この注意では、速度は不明として扱います。助言だけで、運転するのはいつもドライバーです。引き返すようには伝えません。出典: localization_fallback ＋ compound_failure_advisor（pub.dev、バージョンは pubspec.lock）。'
+      : 'Position is this device\'s GPS (the Akita mock position when "Use '
+          'Akita mock (dev)" is pressed); when GPS weakens, the card says so. '
+          'The area advisory is what JMA and the US NWS actually issued. '
+          'Visibility is the JMA Akita station\'s (AMeDAS) reading when the '
+          'station reports one; there is no visibility sensor on this road. '
+          'With no reading the card says so and never treats it as clear (a '
+          'demo band can override it). This caution treats speed as unknown. '
+          'Advisory only: the driver always drives, and the card never says to '
+          'turn back. Source: localization_fallback + compound_failure_advisor '
+          '(pub.dev; resolved versions: pubspec.lock).';
 
   /// The label over the visibility demo override.
   String get driveHudVisibilityOverrideLabel => _ja
@@ -349,8 +437,11 @@ class AppL10n {
   /// One band of the visibility demo override, by its metres; null is no
   /// override.
   String driveHudVisibilityBand(double? meters) => switch (meters) {
+        // Japanese without the framing dashes (2026-09-14): at phone width
+        // the closing dash fell alone onto a second line, and beside Japanese
+        // a long dash reads like 一. English keeps its bytes.
         null => _ja
-            ? '— 上書きなし：ライブ／未計測（既定）—'
+            ? '上書きなし：ライブ／未計測（既定）'
             : '— No override: live / not measured (default) —',
         1500.0 => _ja ? 'クリア ~1.5 km' : 'Clear ~1.5 km',
         700.0 => _ja ? '視界低下 ~700 m' : 'Reduced visibility ~700 m',
@@ -367,29 +458,36 @@ class AppL10n {
   String driveHudBlackoutSeconds(int seconds) =>
       _ja ? 'GPS 途絶: $seconds 秒' : 'blackout: ${seconds}s';
 
-  /// Announce line: the top rung auto-fires.
+  /// Announce line: the top rung auto-fires. Japanese unchanged.
   String get driveHudAnnounceCritical => _ja
       ? '段階が上がると音声＋振動で自動発報します（重要度: critical）。端末での聴取・体感は本環境では未検証です。'
       : 'Auto-fires audio + haptic (critical) on rung rise. '
-          'On-device HEAR/FEEL not verified in this env.';
+          'Hearing and feeling it on a device is not verified in this '
+          'environment.';
 
-  /// Announce line: the middle rung auto-fires on this lane.
+  /// Announce line: the middle rung auto-fires. Japanese unchanged.
   String get driveHudAnnounceWarning => _ja
       ? '段階が上がると音声＋振動で自動発報します（重要度: warning）。端末での聴取・体感は本環境では未検証です。'
       : 'Auto-fires audio + haptic (warning) on rung rise. '
-          'On-device HEAR/FEEL not verified in this env.';
+          'Hearing and feeling it on a device is not verified in this '
+          'environment.';
 
-  /// Announce line: raised and shown, spoken on its own measured-watch lane.
+  /// Announce line: raised and shown, and not spoken by this rung.
+  ///
+  /// Until 2026-09-14 it also said the specific hazard is read aloud through
+  /// the app's own measured-weather route. That holds when caution rose only
+  /// from a measured weather watch, which has spoken. The same line is shown
+  /// when caution rose only because visibility was not measured: measured in
+  /// the real app with a fresh Akita reading that carries no visibility and a
+  /// shared position, nothing was spoken. The line now says only what holds in
+  /// both.
   String get driveHudAnnounceRaisedNotSpoken => _ja
-      ? '注意に上げました（表示と色のみ）。個別の危険の文言は実測ウォッチの経路で読み上げ、この段階では重ねて読み上げません。'
-      : 'Raised to caution (shown + coloured). The specific '
-          'hazard line is spoken on its own measured-watch lane; '
-          'this rung does not double-speak it.';
+      ? '注意に上げました（表示と色のみ）。この段階では読み上げません。'
+      : 'Raised to caution (shown + coloured). This rung is not spoken.';
 
   /// Announce line: nothing is announced.
-  String get driveHudAnnounceContinue => _ja
-      ? '継続 — 何も発報しません（音声ゲートと同じ扱い）。'
-      : 'Continue — nothing announced (parity with the voice gate).';
+  String get driveHudAnnounceContinue =>
+      _ja ? '継続 — 何も発報しません。' : 'Continue — nothing announced.';
 
   /// Note in the caution banner when hazards compound.
   String get driveHudCompoundingNote => _ja

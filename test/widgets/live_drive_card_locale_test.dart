@@ -8,11 +8,11 @@
 /// and bands keep theirs. The new sentences are unruled candidates for a look
 /// on a render.
 ///
-/// Not changed, and not asserted: the card's title and its footer. The
-/// instrument that looks at her map finds this card by its English title, and
-/// compares what the card says about stopping across a Japanese and an English
-/// run, which the footer's "consider stopping" would break in Japanese. Both
-/// stay until that instrument no longer keys on them.
+/// The card's title and footer are asserted in live_drive_card_words_test.dart:
+/// since 2026-09-14 they follow the app's locale too, once the instrument that
+/// looks at her map found the card by the key on its description and compared
+/// each language with itself. The English description's words that only the
+/// team could read were removed on the same day; the rest keeps its bytes.
 library;
 
 import 'package:flutter/material.dart';
@@ -59,7 +59,7 @@ String _textOf(WidgetTester tester, Key key) =>
     tester.widget<Text>(find.byKey(key)).data ?? '';
 
 const _englishLiterals = [
-  'Fuses HER honest position',
+  'Fuses the current position',
   'Simulate GPS blackout',
   'blackout: ',
   'Auto-fires audio + haptic',
@@ -101,7 +101,7 @@ void main() {
     expect(find.textContaining('上書きなし'), findsNothing);
     final label = _textOf(tester, const Key('drive-hud-visibility-label'));
     expect(_cjk.hasMatch(label), isFalse, reason: label);
-    expect(find.textContaining('Fuses HER honest position'), findsOneWidget);
+    expect(find.textContaining('Fuses the current position'), findsOneWidget);
     expect(
         find.descendant(
             of: find.byKey(const Key('drive-hud-blackout-button')),

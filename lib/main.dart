@@ -1031,12 +1031,12 @@ class _HomePageState extends State<HomePage> {
   bool? _osrmConsent;
   bool _osrmConsentLoaded = false;
 
-  // (e) honest maneuver narration — the real step list parsed by the
-  // ALREADY-BUILT OsrmRoutingEngine pipeline (steps=true), plus the NEXT
-  // actionable maneuver surfaced in the drive flow. `_lastManeuverNarration`
-  // holds the most recent gated decision (spoken / hedged / suppressed) so the
-  // panel can show, honestly, what the announcer did.
-  List<RouteManeuver> _routeManeuvers = const [];
+  // (e) honest maneuver narration — the NEXT actionable maneuver from the real
+  // step list parsed by the ALREADY-BUILT OsrmRoutingEngine pipeline
+  // (steps=true), surfaced in the drive flow. `_lastManeuverNarration` holds
+  // the most recent gated decision (spoken / hedged / suppressed) so the panel
+  // can show what the announcer did. The whole list is not kept: its only
+  // reader was a parsed-maneuver count, no longer drawn (2026-09-15).
   RouteManeuver? _nextManeuver;
   ManeuverNarration? _lastManeuverNarration;
 
@@ -2310,14 +2310,10 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
         const SizedBox(height: 6),
+        // Where each thing on the card comes from, in the app's language.
         Text(
-          'Position is REAL (HER GPS, honestly degraded); area advisory is REAL '
-          '(NWS + JMA); visibility is UNKNOWN by default — no sensor on this '
-          'road, so absence reads as 未計測, never clear (a demo band can override '
-          'it); speed is unknown. '
-          'Advisory-only, driver-always-drives; the ceiling is "consider '
-          'stopping", never "turn back". Source: localization_fallback + '
-          'compound_failure_advisor (pub.dev; resolved versions: pubspec.lock).',
+          key: const Key('drive-hud-footer'),
+          l.driveHudFooter,
           style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
         ),
       ],
@@ -2868,10 +2864,9 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  /// Clear the parsed maneuver list + next maneuver + last narration decision.
+  /// Clear the next maneuver + last narration decision.
   /// Called inside a `setState` when the route is reset/replaced.
   void _clearManeuverState() {
-    _routeManeuvers = const [];
     _nextManeuver = null;
     _lastManeuverNarration = null;
   }
@@ -3024,7 +3019,6 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     setState(() {
       _routeResult = result;
-      _routeManeuvers = maneuvers;
       _nextManeuver = nextActionableManeuver(maneuvers);
       _lastManeuverNarration = null;
       _routeLoading = false;
@@ -3427,7 +3421,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Live drive — compound-failure caution (WS6, auto)',
+              title: AppL10n.of(context).driveHudTitle,
               child: _driveHudPanel(),
             ),
             const SizedBox(height: 16),
@@ -3503,7 +3497,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Next maneuver — honest confidence-gated narration',
+              title: AppL10n.of(context).maneuverSectionTitle,
               child: _maneuverNarrationPanel(),
             ),
             const SizedBox(height: 16),
@@ -4606,11 +4600,20 @@ class _HomePageState extends State<HomePage> {
   /// reaches this panel's state.
   Widget _routePanel() {
     final l = AppL10n.of(context);
-    final whenStopped = Text(
-      l.routeSettingWhenStopped,
-      key: const Key('route-setting-when-stopped'),
-      style: TextStyle(color: Colors.grey.shade800, fontSize: 12),
-    );
+    // One line per host, never both (ruled 2026-09-14). On a host that reads no
+    // vehicle signal no state of the car opens route setting, so its line names
+    // no stop; the phone keeps the line that names the stop that opens it.
+    final whenStopped = routeSettingHost() == RouteSettingHost.phone
+        ? Text(
+            l.routeSettingWhenStopped,
+            key: const Key('route-setting-when-stopped'),
+            style: TextStyle(color: Colors.grey.shade800, fontSize: 12),
+          )
+        : Text(
+            l.routeSettingClosedOnThisDevice,
+            key: const Key('route-setting-closed-on-this-device'),
+            style: TextStyle(color: Colors.grey.shade800, fontSize: 12),
+          );
     // Closed (the IVI with no vehicle signal, or a phone measured moving): the
     // words, and a route she already set shown as it is, with no control that
     // sets, re-asks or clears one. Until 2026-09-14 closed meant the IVI only,
@@ -4658,12 +4661,16 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-            RouteFailure(:final reason) => Container(
+            // The app's own words only (ruled 2026-09-14). The reason stays in
+            // the result and reaches no widget: it can hold the request's
+            // address with both chosen points, or a server's whole reply. It
+            // is not written to the error log either, which keeps no location.
+            RouteFailure() => Container(
                 key: const Key('route-fetch-failed'),
                 padding: const EdgeInsets.all(8),
                 color: Colors.red.shade50,
                 child: Text(
-                  l.routeFetchFailed(reason),
+                  l.routeFetchFailed,
                   style: TextStyle(color: Colors.red.shade900),
                 ),
               ),
@@ -4741,21 +4748,25 @@ class _HomePageState extends State<HomePage> {
     final preview = _driveHud.previewNextManeuver(next,
         icyTurn: icy, positionIsThisShares: _driveHudIsThisShares);
 
+    // The banner's state in the app's language (2026-09-15). Until then it was
+    // the gate's internal name and an English reason in every language; the
+    // reason is carried by the position row above and by her line.
+    final l = AppL10n.of(context);
     final (Color bg, Color fg, String tier) = switch (preview.confidence) {
       NarrationConfidence.speak => (
           Colors.green.shade100,
           Colors.green.shade900,
-          'SPEAK — GPS trusted',
+          l.maneuverTierSpeak,
         ),
       NarrationConfidence.hedge => (
           Colors.amber.shade100,
           Colors.amber.shade900,
-          'HEDGE — GPS suspect',
+          l.maneuverTierHedge,
         ),
       NarrationConfidence.suppressed => (
           Colors.blueGrey.shade100,
           Colors.blueGrey.shade900,
-          'SUPPRESSED — position not trusted',
+          l.maneuverTierSuppressed,
         ),
     };
 
@@ -4764,28 +4775,21 @@ class _HomePageState extends State<HomePage> {
     // a turn.
     // In the app's resolved locale (2026-09-14; was a Japanese literal on every
     // device), like the narration text it stands in for.
-    final l = AppL10n.of(context);
     final herLine = preview.confidence == NarrationConfidence.suppressed
         ? l.maneuverGuidancePaused
         : preview.text;
 
+    // Not drawn since 2026-09-15, because they are for the people who build
+    // the app and not for her: a paragraph naming the routing class, its
+    // request flag and the gate's state names; a count of parsed maneuvers;
+    // and a note that turn timing and hearing are unverified in this
+    // environment. That bound is recorded in KNOWN_LIMITATIONS.md.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'The NEXT maneuver (parsed by OsrmRoutingEngine, steps=true), narrated '
-          'ONLY when the honest position allows it. A turn is never spoken '
-          'against a drifting or lost dot — the confidently-wrong instruction '
-          'this gate refuses. Simulate a GPS blackout in the drive panel above '
-          'to watch SPEAK → SUPPRESS.',
-          style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
-        ),
-        const SizedBox(height: 8),
         if (mode != null)
           _kv(l.driveHudPositionTrustLabel,
               _driveHudText.modeLabel(mode, l.locale.languageCode)),
-        _kv('Maneuvers parsed', '${_routeManeuvers.length} '
-            '(next: ${next.index + 1})'),
         // NOTE: the raw ENGLISH engine instruction is deliberately NOT rendered
         // to HER — it would both leak English to a JA driver (D4) and show a
         // confident "turn" string even when the position gate suppresses it.
@@ -4803,6 +4807,7 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
+                key: const Key('maneuver-narration-tier'),
                 tier,
                 style: TextStyle(
                   color: fg,
@@ -4816,7 +4821,7 @@ class _HomePageState extends State<HomePage> {
                   preview.confidence != NarrationConfidence.suppressed) ...[
                 const SizedBox(height: 4),
                 Text(
-                  '❄ icy-turn advisory coupled',
+                  l.maneuverIcyMark,
                   style: TextStyle(
                     color: fg,
                     fontSize: 12,
@@ -4834,27 +4839,20 @@ class _HomePageState extends State<HomePage> {
               key: const Key('maneuver-narrate-button'),
               onPressed: _narrateNextManeuver,
               icon: const Icon(Icons.record_voice_over),
-              label: const Text('Narrate next maneuver (gated)'),
+              label: Text(l.maneuverNarrateButton),
             ),
             const SizedBox(width: 8),
             if (_lastManeuverNarration != null)
               Expanded(
                 child: Text(
+                  key: const Key('maneuver-narration-result'),
                   _lastManeuverNarration!.shouldAnnounce
-                      ? 'Announced (${_lastManeuverNarration!.confidence.name}) '
-                          '— audio + haptic.'
-                      : 'Suppressed — nothing announced (honest silence).',
+                      ? l.maneuverNarrationAnnounced
+                      : l.maneuverNarrationNotSpoken,
                   style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
                 ),
               ),
           ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Turn-trigger TIMING and whether HER HEARS the line are device-'
-          'observable and NOT verified in this env (no device). Not a '
-          '"guidance works" claim.',
-          style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
         ),
       ],
     );

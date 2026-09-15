@@ -82,7 +82,10 @@ void main() {
     for (final title in [
       'Map — Akita-shi (station 32402)',
       'Driver profile',
-      'Live drive — compound-failure caution (WS6, auto)',
+      // 2026-09-14: the live-drive card's title follows the app's language and
+      // carries no work-package tag; was 'Live drive — compound-failure
+      // caution (WS6, auto)' in both.
+      '走行中の注意（自動）',
       // Ruled 2026-09-14; was 'Route — tap A then B (driving, no
       // snow-aware yet)' in both locales.
       'ルート（雪を考慮しません）',

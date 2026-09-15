@@ -14,6 +14,9 @@
 ///   nothing.
 /// * Before any route, the maneuver panel names no gesture on the map.
 /// * The page footer makes no promise about snow ("yet").
+/// * A failed request says the app's own words and nothing after them: no
+///   server reply, no exception, no address with her chosen points (ruled
+///   2026-09-14).
 library;
 
 import 'package:flutter/material.dart';
@@ -27,14 +30,18 @@ import 'package:sngnav_app/main.dart' show SngnavApp;
 import '../support/fake_alert_actuators.dart';
 
 class _FakeEngine implements re.RoutingEngine {
-  _FakeEngine({this.fail = false});
+  _FakeEngine({this.fail = false, this.error = const re.RoutingException('HTTP 503')});
   final bool fail;
+
+  /// What a failed request throws: the router's own exception, or anything
+  /// else the app wraps itself.
+  final Object error;
   var requests = 0;
 
   @override
   Future<re.RouteResult> calculateRoute(re.RouteRequest request) async {
     requests++;
-    if (fail) throw const re.RoutingException('HTTP 503');
+    if (fail) throw error;
     return re.RouteResult(
       shape: [request.origin, request.destination],
       maneuvers: const [],
@@ -56,8 +63,10 @@ class _FakeEngine implements re.RoutingEngine {
 }
 
 Future<_FakeEngine> _boot(WidgetTester tester,
-    {String lang = 'ja', bool fail = false}) async {
-  final engine = _FakeEngine(fail: fail);
+    {String lang = 'ja',
+    bool fail = false,
+    Object error = const re.RoutingException('HTTP 503')}) async {
+  final engine = _FakeEngine(fail: fail, error: error);
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
   await tester.pumpWidget(SngnavApp(
@@ -210,18 +219,63 @@ void main() {
           find.descendant(
               of: failed, matching: find.textContaining('Route fetch failed')),
           findsNothing);
+      // Ruled 2026-09-14: the app's own words, closed, and nothing after them.
+      expect(
+          find.descendant(
+              of: failed, matching: find.text('ルートを取得できませんでした。')),
+          findsOneWidget);
+      expect(find.textContaining('HTTP 503'), findsNothing);
       await _drain(tester);
     });
 
-    testWidgets('English: a failed fetch keeps its bytes', (tester) async {
+    testWidgets('English: a failed fetch says the app\'s own words and nothing '
+        'after them', (tester) async {
       await _boot(tester, lang: 'en', fail: true);
       await _fetchThroughAct(tester);
       expect(
           find.descendant(
               of: find.byKey(const Key('route-fetch-failed')),
-              matching: find.text('Route fetch failed: HTTP 503')),
+              matching: find.text('Route fetch failed.')),
           findsOneWidget);
+      expect(find.textContaining('HTTP 503'), findsNothing);
       await _drain(tester);
     });
+
+    // A reason carrying a marker, as the real router's reasons carry a
+    // server's reply or a request address holding both chosen points. The
+    // marker must reach no widget, in either language, whether the router
+    // threw its own exception or the app wrapped another one.
+    const marker = 'MARKER-5c1e';
+    const address = 'uri=https://router.example/route/v1/driving/'
+        '140.10000,39.70000;140.20000,39.80000';
+    for (final lang in const ['ja', 'en']) {
+      for (final error in <Object>[
+        const re.RoutingException('OSRM network error: $marker $address'),
+        StateError('$marker $address'),
+      ]) {
+        testWidgets('$lang: no part of a failure\'s reason reaches the screen '
+            '(${error.runtimeType})', (tester) async {
+          final semantics = tester.ensureSemantics();
+          await _boot(tester, lang: lang, fail: true, error: error);
+          await _fetchThroughAct(tester);
+          expect(find.byKey(const Key('route-fetch-failed')), findsOneWidget,
+              reason: 'precondition: the fetch failed');
+          expect(find.textContaining(marker), findsNothing);
+          expect(find.textContaining('140.10000'), findsNothing);
+          expect(find.textContaining('router.example'), findsNothing);
+          // Nor what a screen reader is given (nowhere in the tree).
+          expect(find.bySemanticsLabel(RegExp(marker)), findsNothing);
+          expect(find.bySemanticsLabel(RegExp('140\\.10000')), findsNothing);
+          expect(
+              find.bySemanticsLabel(
+                  RegExp(lang == 'ja' ? 'ルートを取得できませんでした' : 'Route fetch failed')),
+              findsWidgets,
+              reason: 'control: the semantics tree is read, and it holds the '
+                  'failure words');
+          await _drain(tester);
+          semantics.dispose();
+        });
+      }
+    }
   });
 }

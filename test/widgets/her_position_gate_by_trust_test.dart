@@ -227,7 +227,11 @@ Future<void> _fetchRouteThroughAct(WidgetTester tester) async {
   await tester.pump(const Duration(seconds: 3));
 }
 
-const _speakTier = 'SPEAK — GPS trusted';
+// The next-turn banner's words for a turn read as given. Until 2026-09-15 they
+// were 'SPEAK — GPS trusted' in every language; they now follow the app's
+// language. The state they mark is the same, and no other state's words
+// contain them (test/l10n/maneuver_tier_words_test.dart).
+const _speakTier = 'そのまま読み上げます';
 
 void main() {
   testWidgets(
