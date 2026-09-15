@@ -289,6 +289,13 @@ Stream<PositionFix> herPositionStream({
 }) {
   final controller = StreamController<PositionFix>();
   StreamSubscription<Position>? sub;
+  // Set when the listener is gone. Every platform call below is awaited, and
+  // a cancel that comes while one is awaited (停止 on the permission dialog)
+  // finds no subscription to end; without this the start went on after her
+  // answer and subscribed the platform stream with nothing left to cancel it
+  // (measured 2026-09-15: subscribed once, never cancelled, after the app was
+  // gone).
+  var cancelled = false;
 
   Future<void> start() async {
     try {
@@ -303,6 +310,7 @@ Stream<PositionFix> herPositionStream({
         ));
         return;
       }
+      if (cancelled) return;
       if (!serviceEnabled) {
         controller.add(const PositionUnavailable('Location services disabled'));
         return;
@@ -317,6 +325,7 @@ Stream<PositionFix> herPositionStream({
         ));
         return;
       }
+      if (cancelled) return;
       if (permission == LocationPermission.denied) {
         try {
           permission =
@@ -329,6 +338,7 @@ Stream<PositionFix> herPositionStream({
           ));
           return;
         }
+        if (cancelled) return;
         if (permission == LocationPermission.denied) {
           controller.add(const PositionUnavailable(
             _permissionDeniedReason,
@@ -417,6 +427,7 @@ Stream<PositionFix> herPositionStream({
 
   controller.onListen = start;
   controller.onCancel = () async {
+    cancelled = true;
     await sub?.cancel();
   };
   return controller.stream;
