@@ -87,7 +87,8 @@ TripHazardMemory _memoryAt(DateTime capturedAt) =>
 // The panel's refresh button label depends on state and sits down the scroll;
 // a bare tap silently MISSES off-screen (feed_loss_survival_test discipline).
 Future<void> _refetch(WidgetTester tester, {required bool fromSuccess}) async {
-  final finder = find.text(fromSuccess ? 'Re-fetch' : 'Retry');
+  final finder = find.byKey(
+      Key(fromSuccess ? 'jma-refetch-button' : 'jma-retry-button'));
   await tester.ensureVisible(finder);
   await tester.pump();
   await tester.tap(finder);

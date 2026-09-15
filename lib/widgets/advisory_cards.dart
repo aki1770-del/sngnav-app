@@ -13,9 +13,10 @@
 /// fetch actions) are localized for HER via [AppL10n] (D4).
 ///
 /// Empty state: an honest localized no-data line — does NOT fall back to a
-/// stale snapshot. Loading state: spinner. Error state: the exception message
-/// surfaced (verbatim) behind a localized prefix, plus the per-publisher
-/// `providerErrors` channel.
+/// stale snapshot. Loading state: spinner. Error state: a localized failure
+/// line with nothing after it (no exception text, URL or status code, as
+/// ruled for the route line), plus the per-publisher `providerErrors` channel, which names the
+/// publisher and not its exception.
 library;
 
 import 'package:condition_aggregator/condition_aggregator.dart';
@@ -115,7 +116,8 @@ class AdvisoryCards extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             color: Colors.red.shade50,
             child: Text(
-              l.advisoryFetchFailed(errorMessage!),
+              key: const Key('advisory-fetch-failed'),
+              l.advisoryFetchFailed,
               style: TextStyle(color: Colors.red.shade900),
             ),
           ),
@@ -304,8 +306,7 @@ class AdvisoryCards extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 4),
               color: Colors.amber.shade50,
               child: Text(
-                l.advisoryPublisherErrored(
-                    _sourceLabel(err.source), err.message),
+                l.advisoryPublisherErrored(_sourceLabel(err.source)),
                 // Same amber surface — same contrast floor.
                 style:
                     const TextStyle(color: kCautionTextOnAmber, fontSize: 11),

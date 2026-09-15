@@ -411,7 +411,7 @@ void main() {
         ),
       ));
       await tester.pump();
-      expect(find.text(jaL10n.advisoryFetchFailed('boom')), findsOneWidget);
+      expect(find.text(jaL10n.advisoryFetchFailed), findsOneWidget);
       // The Retry action is HER language too.
       expect(find.text(jaL10n.retry), findsOneWidget);
     });

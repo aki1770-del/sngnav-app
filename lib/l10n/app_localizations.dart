@@ -854,11 +854,12 @@ class AppL10n {
       : 'JMA forecast fetched at $time, before departure — a forecast, not '
           'an observation.';
 
-  /// Error-state prefix for a failed advisory fetch. [message] is the
-  /// exception text, passed through verbatim (an honest degrade).
-  String advisoryFetchFailed(String message) => _ja
-      ? '警報・注意報の取得に失敗しました: $message'
-      : 'Advisory fetch failed: $message';
+  /// A failed advisory fetch: the app's own words and nothing after them, as
+  /// the route line ([routeFetchFailed]). Until 2026-09-15 this line ended with the
+  /// exception text, which put an exception class, a status code and the
+  /// request's URL on her screen.
+  String get advisoryFetchFailed =>
+      _ja ? '警報・注意報を取得できませんでした。' : 'Advisory fetch failed.';
 
   /// Before any advisory fetch has run.
   String get advisoryNoFetchYet => _ja ? '（まだ取得していません）' : '(no fetch yet)';
@@ -873,10 +874,23 @@ class AppL10n {
   String get retry => _ja ? '再試行' : 'Retry';
 
   /// Per-publisher soft-error line. [publisher] is the source label
-  /// (verbatim); [message] is the exception text (verbatim).
-  String advisoryPublisherErrored(String publisher, String message) => _ja
-      ? '配信元 $publisher でエラー: $message'
-      : 'Publisher $publisher errored: $message';
+  /// (verbatim). The exception text that followed it until 2026-09-15 is not
+  /// shown, as for [routeFetchFailed].
+  String advisoryPublisherErrored(String publisher) => _ja
+      ? '配信元 $publisher から取得できませんでした。'
+      : 'Could not fetch from $publisher.';
+
+  /// The Akita observation card after a failed fetch. The words are the first
+  /// clause of [measuredWatchFeedLost]; the fetch's reason (an endpoint name
+  /// and a status code) shown after them until 2026-09-15 is not.
+  String get jmaObservationFetchFailed => _ja
+      ? '気象観測を取得できませんでした。'
+      : 'The weather observation could not be read.';
+
+  /// One station's row in the prefecture weather card after a failed fetch.
+  /// The reason shown after it until 2026-09-15 is not.
+  String get corridorStationFetchFailed =>
+      _ja ? '取得できませんでした。' : 'Fetch failed.';
 
   // ===== Voice-lane readiness (A1) + speech-unverified chip (Tier-1) =====
 

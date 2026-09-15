@@ -91,7 +91,10 @@ void main() {
       errorMessage: 'Some transport error',
       onRefresh: () => refreshed = true,
     )));
-    expect(find.textContaining('Some transport error'), findsOneWidget);
+    // The app's words and nothing after them (as ruled for the route line): the
+    // exception text is not shown.
+    expect(find.text('Advisory fetch failed.'), findsOneWidget);
+    expect(find.textContaining('Some transport error'), findsNothing);
     expect(find.text('Retry'), findsOneWidget);
     await tester.tap(find.text('Retry'));
     expect(refreshed, isTrue);
@@ -119,7 +122,9 @@ void main() {
     // The honest degraded state appears, with the per-publisher error note.
     expect(find.byKey(const Key('advisory-unknown-degraded')), findsOneWidget);
     expect(find.textContaining('unknown'), findsOneWidget);
-    expect(find.textContaining('HTTP 503'), findsOneWidget);
+    // The publisher is named; its exception text is not shown.
+    expect(find.text('Could not fetch from 気象庁.'), findsOneWidget);
+    expect(find.textContaining('HTTP 503'), findsNothing);
   });
 
   testWidgets(

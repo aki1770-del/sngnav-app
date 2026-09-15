@@ -20,6 +20,7 @@ library;
 import 'package:flutter/material.dart';
 
 import 'jma_fetch.dart';
+import 'l10n/app_localizations.dart';
 
 /// Width of the station-name column (header + every row).
 const double corridorStationColumnWidth = 130;
@@ -56,10 +57,7 @@ class CorridorRow extends StatelessWidget {
             tempMin: tempMin,
             tempMax: tempMax,
           ),
-        JmaFailure(:final reason) => _FailureRow(
-            descriptor: descriptor,
-            reason: reason,
-          ),
+        JmaFailure() => _FailureRow(descriptor: descriptor),
       },
     );
   }
@@ -183,15 +181,14 @@ class _TempCell extends StatelessWidget {
 }
 
 class _FailureRow extends StatelessWidget {
-  const _FailureRow({required this.descriptor, required this.reason});
+  const _FailureRow({required this.descriptor});
 
   final String descriptor;
-  final String reason;
-
   @override
   Widget build(BuildContext context) {
-    // Preserve column structure: data cells become em-dashes; the reason
-    // sits under the descriptor on the second name-column line. This
+    // Preserve column structure: data cells become em-dashes; the failure
+    // line sits under the descriptor on the second name-column line. The
+    // fetch's reason is not shown there (ruled 2026-09-14 for the route line, applied here 2026-09-15). This
     // keeps the table's visual rhythm intact when one row fails.
     return Row(
       children: [
@@ -202,7 +199,8 @@ class _FailureRow extends StatelessWidget {
             children: [
               Text('— ($descriptor)', style: const TextStyle(fontSize: 12)),
               Text(
-                'fetch failed: $reason',
+                key: const Key('corridor-station-fetch-failed'),
+                AppL10n.of(context).corridorStationFetchFailed,
                 style: TextStyle(fontSize: 10, color: Colors.red.shade700),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,

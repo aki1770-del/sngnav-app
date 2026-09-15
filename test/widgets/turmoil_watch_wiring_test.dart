@@ -83,7 +83,7 @@ void main() {
 
     // Second fetch with the SAME caution: the window persists — no repeat
     // (cry-wolf discipline).
-    await tester.tap(find.text('Re-fetch'));
+    await tester.tap(find.byKey(const Key('jma-refetch-button')));
     await tester.pump();
     await tester.pump();
     expect(
@@ -125,7 +125,7 @@ void main() {
     // On fetch failure the panel shows the explicit failure card (staleness
     // must be visible; cached data is never shown) and NO watch rows — same
     // discipline as the existing 路面凍結ウォッチ behavior.
-    expect(find.textContaining('JMA fetch failed'), findsOneWidget);
+    expect(find.byKey(const Key('jma-fetch-failed')), findsOneWidget);
     expect(find.text('荒天ウォッチ:'), findsNothing);
     // W0 detection-survival: with NO cached observation the honest absence-line
     // speaks (GAP-2 wiring) — silence-as-all-clear is the defect this removes.

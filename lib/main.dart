@@ -3949,10 +3949,11 @@ class _HomePageState extends State<HomePage> {
     }
     final result = _jmaResult;
     if (result == null) {
+      final l = AppL10n.of(context);
       return Row(children: [
-        const Text('(no fetch yet)'),
+        Text(l.advisoryNoFetchYet),
         const Spacer(),
-        TextButton(onPressed: _refreshJma, child: const Text('Fetch')),
+        TextButton(onPressed: _refreshJma, child: Text(l.advisoryFetch)),
       ]);
     }
     switch (result) {
@@ -4026,13 +4027,14 @@ class _HomePageState extends State<HomePage> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
+                key: const Key('jma-refetch-button'),
                 onPressed: _refreshJma,
-                child: const Text('Re-fetch'),
+                child: Text(AppL10n.of(context).advisoryReFetch),
               ),
             ),
           ],
         );
-      case JmaFailure(:final reason):
+      case JmaFailure():
         // N15 — the screen must match the speaker. This panel previously said
         // "Cached data is NOT shown" while the voice was WARNING FROM that
         // cache (the stale black-ice re-warn) — a flat contradiction on the
@@ -4055,7 +4057,8 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.all(8),
               color: Colors.red.shade50,
               child: Text(
-                'JMA fetch failed: $reason',
+                key: const Key('jma-fetch-failed'),
+                l.jmaObservationFetchFailed,
                 style: TextStyle(color: Colors.red.shade900),
               ),
             ),
@@ -4100,8 +4103,9 @@ class _HomePageState extends State<HomePage> {
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
+                key: const Key('jma-retry-button'),
                 onPressed: _refreshJma,
-                child: const Text('Retry'),
+                child: Text(l.retry),
               ),
             ),
           ],
@@ -4992,10 +4996,11 @@ class _HomePageState extends State<HomePage> {
     }
     final results = _corridorResults;
     if (results == null) {
+      final l = AppL10n.of(context);
       return Row(children: [
-        const Text('(no fetch yet)'),
+        Text(l.advisoryNoFetchYet),
         const Spacer(),
-        TextButton(onPressed: _refreshCorridor, child: const Text('Fetch')),
+        TextButton(onPressed: _refreshCorridor, child: Text(l.advisoryFetch)),
       ]);
     }
     // Compute temperature min/max across resolved stations for gradient shading.

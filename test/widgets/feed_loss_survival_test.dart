@@ -77,12 +77,14 @@ const _notLiveClause = '最新の情報は取得できていません';
 const _absenceLine = '路面状況を取得できていません';
 const _liveLooksWet = '路面は濡れて見えても';
 
-// The JMA panel's refresh button is labelled 'Re-fetch' in the success state and
-// 'Retry' in the failure state, and it sits far down the scroll (off-screen at
-// pump). ensureVisible + the state-correct label is required — a bare
-// find.text('Re-fetch').tap silently MISSES off-screen.
+// The JMA panel's refresh button is keyed jma-refetch-button in the success
+// state and jma-retry-button in the failure state (its words follow her
+// language), and it sits far down the scroll (off-screen at pump).
+// ensureVisible + the state-correct key is required — a bare tap on an
+// off-screen button silently MISSES.
 Future<void> _refetch(WidgetTester tester, {required bool fromSuccess}) async {
-  final finder = find.text(fromSuccess ? 'Re-fetch' : 'Retry');
+  final finder = find.byKey(
+      Key(fromSuccess ? 'jma-refetch-button' : 'jma-retry-button'));
   await tester.ensureVisible(finder);
   await tester.pump();
   await tester.tap(finder);

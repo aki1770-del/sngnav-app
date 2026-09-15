@@ -72,7 +72,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pump();
-    await tester.ensureVisible(find.text('Retry'));
+    await tester.ensureVisible(find.byKey(const Key('jma-retry-button')));
     await tester.pump();
     await tester.ensureVisible(anchor);
     await tester.pump();
@@ -91,9 +91,9 @@ void main() {
     await tester.pump();
 
     next = const JmaFailure('offline');
-    await tester.ensureVisible(find.text('Re-fetch'));
+    await tester.ensureVisible(find.byKey(const Key('jma-refetch-button')));
     await tester.pump();
-    await tester.tap(find.text('Re-fetch'));
+    await tester.tap(find.byKey(const Key('jma-refetch-button')));
     await tester.pump();
     await tester.pump();
 
@@ -139,9 +139,9 @@ void main() {
 
     now = _clockAt(const Duration(minutes: 90)); // T+90: observation expired
     next = const JmaFailure('the centre is gone');
-    await tester.ensureVisible(find.text('Re-fetch'));
+    await tester.ensureVisible(find.byKey(const Key('jma-refetch-button')));
     await tester.pump();
-    await tester.tap(find.text('Re-fetch'));
+    await tester.tap(find.byKey(const Key('jma-refetch-button')));
     await tester.pump();
     await tester.pump();
 
