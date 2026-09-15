@@ -217,7 +217,10 @@ class AkitaMap extends StatelessWidget {
                     point: destination!,
                     width: 50,
                     height: 50,
-                    child: const _EndpointMarker(label: 'B', color: Colors.red),
+                    // Not red (2026-09-14): the station pin beside it is
+                    // Colors.red.shade700, the same colour B's disc had.
+                    child:
+                        const _EndpointMarker(label: 'B', color: Colors.purple),
                   ),
                 if (herPosition != null)
                   Marker(
