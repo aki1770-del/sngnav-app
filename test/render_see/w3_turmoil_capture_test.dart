@@ -78,7 +78,7 @@ void main() {
     // Guard, then bring the JMA card block into view (bottom-most last-wins
     // alignment discipline from w2_fixes_capture_test.dart).
     expect(find.text(guardRowText), findsOneWidget);
-    await tester.ensureVisible(find.textContaining('荒天ウォッチ likewise'));
+    await tester.ensureVisible(find.textContaining('このアプリの判断です'));
     await tester.pump();
     await tester.ensureVisible(find.text('荒天ウォッチ:'));
     await tester.pump();
