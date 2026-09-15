@@ -48,6 +48,9 @@ const String akitaOfflineMbtilesAsset = 'assets/tiles/akita_offline.mbtiles';
 /// snow on this road before HER prefecture is in anyone's hand.
 const String gunmaOfflineMbtilesAsset = 'assets/tiles/gunma_offline.mbtiles';
 
+/// Keeps two loads in one process from sharing a staging name.
+int _stagingSerial = 0;
+
 /// Build an [OfflineTileProvider] from raw MBTiles [bytes].
 ///
 /// [MbTiles] wraps sqlite3, which opens a FILE path — so the bundled asset
@@ -70,7 +73,27 @@ Future<OfflineTileProvider> buildOfflineTileProviderFromBytes(
   // Akita's, or the reverse. Tiles still appear, so nothing looks broken.
   // A default would let that back in the moment a caller forgot it.
   final file = File('${tempDir.path}/$archiveFilename');
-  await file.writeAsBytes(bytes, flush: true);
+  // Written under a name of this start's own, then moved over the fixed name
+  // in one step (2026-09-14). The temporary directory is shared by every
+  // process of the user on Linux, and a second start of the app is a second
+  // process there: writing the fixed name in place truncated the file another
+  // running copy held open in SQLite, and a copy starting at the same moment
+  // could open it half-written. A rename replaces the name atomically; a copy
+  // that already holds the old file keeps the old file's bytes.
+  final staging = File(
+      '${tempDir.path}/.$archiveFilename.$pid.${_stagingSerial++}.part');
+  try {
+    await staging.writeAsBytes(bytes, flush: true);
+    await staging.rename(file.path);
+  } finally {
+    if (staging.existsSync()) {
+      try {
+        staging.deleteSync();
+      } on FileSystemException {
+        // Nothing more to do: the load itself reports the failure.
+      }
+    }
+  }
 
   // Read-only open; format is 'png' so mbtiles disables gzip decode.
   final archive = MbTiles(path: file.path);
