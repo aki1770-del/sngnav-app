@@ -5,10 +5,12 @@
 // AAA Article 17 (β): tests verify behaviour at the integrator surface;
 // driver-facing wording is package-owned and not exercised here.
 
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navigation_safety/navigation_safety.dart';
 import 'package:voice_guidance/voice_guidance.dart';
 
+import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 
 void main() {
@@ -74,7 +76,8 @@ void main() {
         await tester.pumpWidget(const SngnavApp());
         await tester.pump();
         expect(
-          find.textContaining('Glance budget + voice pace'),
+          find.text(const AppL10n(Locale('en'))
+              .glanceAndVoicePacingSectionTitle),
           findsOneWidget,
         );
         expect(

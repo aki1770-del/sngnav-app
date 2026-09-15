@@ -5,12 +5,14 @@
 // AAA Article 17 (β): tests verify behaviour at the integrator surface;
 // driver-facing wording is unaffected at the rendering layer.
 
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:map_viewport_bloc/map_viewport_bloc.dart';
 import 'package:navigation_safety_core/navigation_safety_core.dart';
 import 'package:offline_tiles/offline_tiles.dart' as offline_tiles;
 import 'package:snow_rendering/snow_rendering.dart' as snow_rendering;
 
+import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 
 void main() {
@@ -90,7 +92,8 @@ void main() {
         await tester.pumpWidget(const SngnavApp());
         await tester.pump();
         expect(
-          find.textContaining('Render budget viewport'),
+          find.text(
+              const AppL10n(Locale('en')).mapDrawingAndDataSectionTitle),
           findsOneWidget,
         );
         expect(find.text('Frame (in budget)'), findsOneWidget);

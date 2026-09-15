@@ -19,9 +19,11 @@
 // driver-facing wording. Wording-class verification lives in
 // navigation_safety_core's own test suite.
 
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navigation_safety_core/navigation_safety_core.dart';
 
+import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 
 void main() {
@@ -112,18 +114,10 @@ void main() {
       // Baseline render: with vehicleClassToken = null, the
       // with-vehicle visibility row should equal the baseline (no
       // delta annotation parenthesis).
-      expect(
-        find.text(
-          'Vehicle class (HER cohort: kei-car-at-65 default)',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.text(
-          'Threshold preview (profile × vehicle × driver-state)',
-        ),
-        findsOneWidget,
-      );
+      // Section titles follow the app's language since 2026-09-15.
+      const en = AppL10n(Locale('en'));
+      expect(find.text(en.vehicleTypeSectionTitle), findsOneWidget);
+      expect(find.text(en.warningThresholdsSectionTitle), findsOneWidget);
 
       // Open the vehicle-class dropdown. There are two String? dropdowns
       // possible on screen; we scope to the one inside the section we

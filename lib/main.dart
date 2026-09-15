@@ -3174,7 +3174,7 @@ class _HomePageState extends State<HomePage> {
             // and she would have scrolled past fourteen cards to find herself.
             const SizedBox(height: 16),
             _section(
-              title: 'Map — Akita-shi (station 32402)',
+              title: AppL10n.of(context).mapSectionTitle,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -3269,7 +3269,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Driver profile',
+              title: AppL10n.of(context).driverTypeSectionTitle,
               child: DropdownButton<DriverProfile>(
                 value: _profile,
                 isExpanded: true,
@@ -3295,7 +3295,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Mocked road condition',
+              title: AppL10n.of(context).simulatedRoadConditionSectionTitle,
               child: DropdownButton<RoadSurfaceCondition>(
                 value: _condition,
                 isExpanded: true,
@@ -3312,7 +3312,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Vehicle class (HER cohort: kei-car-at-65 default)',
+              title: AppL10n.of(context).vehicleTypeSectionTitle,
               child: DropdownButton<String?>(
                 value: _vehicleClassToken,
                 isExpanded: true,
@@ -3347,13 +3347,12 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Driver state inputs (NSC 0.10.0 — #28 / #29 / #30)',
+              title: AppL10n.of(context).driverStateInputsSectionTitle,
               child: _driverStateInputs(),
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Threshold preview '
-                  '(profile × vehicle × driver-state)',
+              title: AppL10n.of(context).warningThresholdsSectionTitle,
               child: _ThresholdPreview(
                 profile: _profile,
                 vehicleClassToken: _vehicleClassToken,
@@ -3367,7 +3366,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Glossary (per profile)',
+              title: AppL10n.of(context).roadConditionNamesSectionTitle,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -3380,7 +3379,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Action-coupled explainer (current condition × profile)',
+              title: AppL10n.of(context).roadConditionGuidanceSectionTitle,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -3436,7 +3435,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Alert density throttle',
+              title: AppL10n.of(context).alertRateLimitSectionTitle,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -3485,19 +3484,17 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'LoomFit telemetry — developer / calibration trace',
+              title: AppL10n.of(context).tuningRecordSectionTitle,
               child: _loomFitTelemetryPanel(),
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Glance budget + voice pace + alert expandable '
-                  '(navigation_safety / voice_guidance)',
+              title: AppL10n.of(context).glanceAndVoicePacingSectionTitle,
               child: _glanceBudgetPanel(),
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Render budget viewport '
-                  '(offline_tiles / snow_rendering / map_viewport_bloc)',
+              title: AppL10n.of(context).mapDrawingAndDataSectionTitle,
               child: _renderBudgetPanel(),
             ),
             const SizedBox(height: 16),
@@ -3512,17 +3509,17 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'JMA AMeDAS — Akita-shi (station 32402)',
+              title: AppL10n.of(context).akitaObservationSectionTitle,
               child: _jmaPanel(),
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Corridor weather — Akita prefecture spine',
+              title: AppL10n.of(context).prefectureObservationsSectionTitle,
               child: _corridorPanel(),
             ),
             const SizedBox(height: 16),
             _section(
-              title: 'Active advisories — NWS + JMA (publisher verbatim)',
+              title: AppL10n.of(context).advisoriesSectionTitle,
               child: AdvisoryCards(
                 loading: _advisoryLoading,
                 result: _advisoryResult,

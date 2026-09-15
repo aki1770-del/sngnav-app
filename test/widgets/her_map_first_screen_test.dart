@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/akita_map.dart';
 import 'package:sngnav_app/jma_fetch.dart';
+import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
@@ -79,9 +80,12 @@ void main() {
       jmaFetch: () async => JmaSuccess(_clearObs()),
     ));
     await tester.pump();
+    const ja = AppL10n(Locale('ja'));
     for (final title in [
-      'Map — Akita-shi (station 32402)',
-      'Driver profile',
+      // 2026-09-15: both titles follow the app's language; were
+      // 'Map — Akita-shi (station 32402)' and 'Driver profile' in both.
+      ja.mapSectionTitle,
+      ja.driverTypeSectionTitle,
       // 2026-09-14: the live-drive card's title follows the app's language and
       // carries no work-package tag; was 'Live drive — compound-failure
       // caution (WS6, auto)' in both.
@@ -94,8 +98,8 @@ void main() {
     }
     expect(find.byType(AkitaMap), findsOneWidget);
     // The map directly under the banner: the first section title on the page.
-    final mapTitle = tester.getRect(find.text('Map — Akita-shi (station 32402)'));
-    final profileTitle = tester.getRect(find.text('Driver profile'));
+    final mapTitle = tester.getRect(find.text(ja.mapSectionTitle));
+    final profileTitle = tester.getRect(find.text(ja.driverTypeSectionTitle));
     expect(mapTitle.top, lessThan(profileTitle.top),
         reason: 'the map section comes before the first developer panel');
   });

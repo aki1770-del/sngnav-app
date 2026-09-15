@@ -23,6 +23,7 @@ import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_test/flutter_test.dart';
 
 import 'render_see_env.dart';
+import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 
 void main() {
@@ -100,7 +101,8 @@ void main() {
       (tester) async {
     await tester.pumpWidget(const SngnavApp(locale: Locale('en')));
     await tester.pump();
-    final preview = find.textContaining('Threshold preview');
+    final preview =
+        find.text(const AppL10n(Locale('en')).warningThresholdsSectionTitle);
     await captureApp(
       tester,
       targets: [

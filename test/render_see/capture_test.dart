@@ -383,7 +383,8 @@ void main() {
     // sensor wired), so the per-profile glossary renders 路面状況不明 — never a
     // synthetic ice hazard. Scroll that section into view and capture it so a
     // human can SEE the honest default (OPS-066).
-    final section = find.text('Glossary (per profile)');
+    final section =
+        find.text(const AppL10n(Locale('ja')).roadConditionNamesSectionTitle);
     await captureApp(
       tester,
       target: section,

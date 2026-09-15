@@ -7,9 +7,11 @@
 // confirmation pattern. Tests verify behaviour at the API boundary
 // per AAA Article 17 (β); no driver-facing wording exercised.
 
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navigation_safety_core/navigation_safety_core.dart';
 
+import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 
 void main() {
@@ -131,7 +133,8 @@ void main() {
         await tester.pump();
         // Section header is visible.
         expect(
-          find.textContaining('Driver state inputs'),
+          find.text(
+              const AppL10n(Locale('en')).driverStateInputsSectionTitle),
           findsOneWidget,
         );
         // Three sub-headers per brief: circadian / session / confidence.

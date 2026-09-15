@@ -726,12 +726,14 @@ class AppL10n {
       : 'Fires audio + haptic (severity: $severityName). '
           'On-device HEAR/FEEL not verified in this env.';
 
-  /// Helper under the announce button when the current condition is info-class
-  /// (announced on neither channel — parity with the voice gate).
+  /// Helper under the announce button when the chosen condition is below
+  /// warning: the announcer returns without voice or vibration
+  /// (alert_announcer.dart, severity below warning). Until 2026-09-15 it said
+  /// this with the severity token and the app's name for its speech gate.
   String get announceInfoHelper => _ja
-      ? '情報クラス — どちらのチャンネルでも発報しません（音声ゲートと同じ扱い）。'
-      : 'info-class — not announced on either channel '
-          '(parity with the voice gate).';
+      ? 'この路面状態は情報だけのため、押しても音声と振動では知らせません。'
+      : 'This road condition is information only, so pressing this does not '
+          'announce it by voice or vibration.';
 
   // ===== Advisory card states (D4 — HER-surface, was English-only) =====
 
@@ -1103,6 +1105,84 @@ class AppL10n {
           'automatically, and no location is recorded (the area '
           'field is only your own words). It leaves the device only when '
           'you tap share and choose a destination yourself.';
+
+  // ===== Home page card titles (2026-09-15) =====
+  //
+  // Until 2026-09-15 fifteen of these were English literals in every language,
+  // and some carried the team's own words: its name for the driver's cohort,
+  // a package version with issue numbers, a tool's name, package names, and a
+  // default ("kei-car-at-65") the vehicle dropdown does not have. Each title
+  // now says what its card is. A card that exists for development says so, so
+  // it is not read as advice; the tuning record keeps its "not driving advice"
+  // boundary in words.
+
+  /// Her map.
+  String get mapSectionTitle => _ja ? '地図' : 'Map';
+
+  /// The driver-type selector.
+  String get driverTypeSectionTitle => _ja ? '運転者のタイプ' : 'Driver type';
+
+  /// The road-condition selector: a chosen value, not a measured one.
+  String get simulatedRoadConditionSectionTitle => _ja
+      ? '模擬の路面状態（開発用）'
+      : 'Simulated road condition (for development)';
+
+  /// The vehicle-type selector. Its value starts as unknown.
+  String get vehicleTypeSectionTitle => _ja ? '車両の種類' : 'Vehicle type';
+
+  /// Manual driver-state inputs: time of day, days driven, confidence.
+  String get driverStateInputsSectionTitle => _ja
+      ? '運転者の状態の入力（開発用）'
+      : 'Driver state inputs (for development)';
+
+  /// The warning thresholds the chosen driver type, vehicle and state give.
+  String get warningThresholdsSectionTitle => _ja
+      ? '警告の基準値（運転者のタイプ・車両・状態別）'
+      : 'Warning thresholds (by driver type, vehicle and state)';
+
+  /// The names and spoken words for the chosen road condition.
+  String get roadConditionNamesSectionTitle => _ja
+      ? '選んだ路面状態の呼び方'
+      : 'Names for the chosen road condition';
+
+  /// The guidance for the chosen road condition, and the announce button.
+  String get roadConditionGuidanceSectionTitle => _ja
+      ? '選んだ路面状態の案内'
+      : 'Guidance for the chosen road condition';
+
+  /// A simulated burst of warnings against the rate limit.
+  String get alertRateLimitSectionTitle => _ja
+      ? '警告の回数制限の試験（開発用）'
+      : 'Alert rate limit test (for development)';
+
+  /// The record the rate-limit test writes, for tuning.
+  String get tuningRecordSectionTitle => _ja
+      ? '開発・調整用の記録（運転の助言ではありません）'
+      : 'Development and tuning record (not driving advice)';
+
+  /// Simulated glances at the screen against a time budget, and voice pacing.
+  String get glanceAndVoicePacingSectionTitle => _ja
+      ? '画面を見る時間と音声の間隔の試験（開発用）'
+      : 'Screen glance time and voice pacing test (for development)';
+
+  /// Simulated map frames and tile downloads against their budgets.
+  String get mapDrawingAndDataSectionTitle => _ja
+      ? '地図の描画と通信量の試験（開発用）'
+      : 'Map drawing and data use test (for development)';
+
+  /// The Akita station's latest observation, from the publisher.
+  String get akitaObservationSectionTitle => _ja
+      ? '秋田の気象観測（気象庁アメダス）'
+      : 'Akita weather observations (JMA AMeDAS)';
+
+  /// Observations at stations across the prefecture, from the publisher.
+  String get prefectureObservationsSectionTitle => _ja
+      ? '秋田県内各地の気象観測（気象庁アメダス）'
+      : 'Weather observations across Akita Prefecture (JMA AMeDAS)';
+
+  /// Warnings and advisories the publishers have issued.
+  String get advisoriesSectionTitle =>
+      _ja ? '発表中の警報・注意報' : 'Warnings and advisories in force';
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {

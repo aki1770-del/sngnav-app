@@ -30,6 +30,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart' show LocationPermission;
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
+import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
@@ -101,9 +102,20 @@ Future<void> _refuse(
 }
 
 /// No live node reads a card: its title, or anything past its own words.
+///
+/// The map card's title is 地図 / Map since 2026-09-15 (was 'Map — Akita-shi
+/// (station 32402)'). Live words contain 地図 on their own (「…地図は表示された
+/// ままです。」), so the title is matched whole, or at the head of a merged read.
 void _noCardAnnounced(List<String> live, String state) {
+  final titles = [
+    const AppL10n(Locale('ja')).mapSectionTitle,
+    const AppL10n(Locale('en')).mapSectionTitle,
+  ];
   for (final label in live) {
-    expect(label, isNot(contains('Map — Akita-shi')), reason: '$state: 「$label」');
+    for (final title in titles) {
+      expect(label == title || label.startsWith('$title\n'), isFalse,
+          reason: '$state: 「$label」');
+    }
     expect(label, isNot(contains('\n')), reason: '$state: 「$label」');
   }
 }
@@ -172,8 +184,9 @@ void main() {
     final semantics = tester.ensureSemantics();
     final positions = await _boot(tester);
     final live = _liveLabels(tester);
-    for (final title in const [
-      'JMA AMeDAS — Akita-shi (station 32402)',
+    for (final title in [
+      // Was 'JMA AMeDAS — Akita-shi (station 32402)' until 2026-09-15.
+      const AppL10n(Locale('ja')).akitaObservationSectionTitle,
       'フィードバック — ログを共有',
       '運転日記 — 走った後にひとこと',
     ]) {
