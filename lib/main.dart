@@ -616,6 +616,7 @@ class SngnavApp extends StatelessWidget {
     this.clock,
     this.positionSource,
     this.routingEngineFactory,
+    this.advisoryProviders,
     this.developerPageEntry,
   });
 
@@ -656,6 +657,11 @@ class SngnavApp extends StatelessWidget {
   /// OSRM public demo engine). Lets tests render a fetched route: the test
   /// binding answers every HTTP request with 400.
   final RoutingEngine Function()? routingEngineFactory;
+
+  /// Injectable advisory publishers, each with the area it covers (null -> the
+  /// real NWS and JMA providers). Lets tests read the point the app asks
+  /// advisories for, which no surface shows.
+  final List<CoveredProvider>? advisoryProviders;
 
   /// Asks for the development page's entry in her app bar (null ->
   /// [kDeveloperPageFromEnvironment]). A release build ignores it.
@@ -712,6 +718,7 @@ class SngnavApp extends StatelessWidget {
         clock: clock,
         positionSource: positionSource,
         routingEngineFactory: routingEngineFactory,
+        advisoryProviders: advisoryProviders,
         developerPageEntry: developerPageEntry,
       ),
     );
@@ -737,6 +744,7 @@ class HomePage extends StatefulWidget {
     this.clock,
     this.positionSource,
     this.routingEngineFactory,
+    this.advisoryProviders,
     this.developerPageEntry,
   });
 
@@ -799,6 +807,9 @@ class HomePage extends StatefulWidget {
 
   /// Injectable routing engine (null -> the OSRM public demo engine).
   final RoutingEngine Function()? routingEngineFactory;
+
+  /// Injectable advisory publishers (null -> the real NWS and JMA providers).
+  final List<CoveredProvider>? advisoryProviders;
 
   /// Asks for the development page's entry in her app bar (null ->
   /// [kDeveloperPageFromEnvironment]). A release build ignores it.
@@ -1413,7 +1424,8 @@ class _HomePageState extends State<HomePage> {
     // covers, so HER Akita point goes ONLY to JMA and the US NWS endpoint
     // is never called (no HTTP-400 error card, and no coordinate leaked to
     // a service that cannot help her). See services/provider_coverage.dart.
-    _advisoryService = AdvisoryService(providers: [
+    _advisoryService =
+        AdvisoryService(providers: widget.advisoryProviders ?? [
       CoveredProvider(
         provider: NoaaAdvisoryProvider(client: _nwsClient),
         covers: nwsCoverage,
@@ -1723,6 +1735,7 @@ class _HomePageState extends State<HomePage> {
       // Ruled 2026-09-15: what this share
       // told stays told. Nothing is told here: nothing answers her no.
       _noteShareToldWhiteout();
+      _forgetAdvisoryPointOfTheShare();
       _positionWatchdog?.cancel();
       _positionWatchdog = null;
       _lastPositionEventAt = null;
@@ -2667,6 +2680,16 @@ class _HomePageState extends State<HomePage> {
     // the retained data was actually fetched, so the stale label is honest.
   }
 
+  /// A share she ended with 停止, or refused, leaves no point behind for the
+  /// advisories (2026-09-15). The 10-minute refresh and her refresh button
+  /// then ask where they ask for a driver who never shared, not at the last
+  /// place the ended share was, for the life of the app. The next share's
+  /// first position asks at her position again, even at the same place.
+  void _forgetAdvisoryPointOfTheShare() {
+    _lastAdvisoryLat = null;
+    _lastAdvisoryLon = null;
+  }
+
   void _onAdvisoryRefreshTapped() {
     final lat = _lastAdvisoryLat;
     final lon = _lastAdvisoryLon;
@@ -2684,6 +2707,7 @@ class _HomePageState extends State<HomePage> {
     // stays told. Nothing is told at her tap: a whiteout this share did not
     // tell is told at the next refresh.
     _noteShareToldWhiteout();
+    _forgetAdvisoryPointOfTheShare();
     _herNoEventYet = false;
     _herSub?.cancel();
     _herSub = null;
