@@ -95,22 +95,22 @@ class _SuccessRow extends StatelessWidget {
             children: [
               Text(observation.stationName,
                   style: const TextStyle(fontSize: 12)),
+              // grey.shade700, as the card's other secondary lines: shade600
+              // was 4.17:1 on the card (2026-09-15), under the 4.5:1 floor.
               Text(descriptor,
-                  style: TextStyle(fontSize: 10, color: Colors.grey.shade600)),
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade700)),
             ],
           ),
         ),
         Expanded(
-          child: Text(
+          child: _ValueWithUnit(
             snow == null ? '—' : '${snow.toStringAsFixed(0)} cm',
-            style: const TextStyle(fontSize: 12),
           ),
         ),
         Expanded(child: _TempCell(temp: temp, tempMin: tempMin, tempMax: tempMax)),
         Expanded(
-          child: Text(
+          child: _ValueWithUnit(
             wind == null ? '—' : '${wind.toStringAsFixed(1)} m/s',
-            style: const TextStyle(fontSize: 12),
           ),
         ),
         SizedBox(
@@ -121,6 +121,30 @@ class _SuccessRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A value and its unit on one line. At phone width a cell can be narrower
+/// than "-2.1 °C" or "7.5 m/s", and the line broke inside the unit (seen
+/// 2026-09-15 at 393 px). The text is laid out unwrapped and drawn smaller only
+/// when the cell is narrower than it; where it fits it is drawn as before.
+class _ValueWithUnit extends StatelessWidget {
+  const _ValueWithUnit(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: AlignmentDirectional.centerStart,
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 12),
+        softWrap: false,
+        maxLines: 1,
+      ),
     );
   }
 }
@@ -163,12 +187,14 @@ class _TempCell extends StatelessWidget {
 
     final text = temp == null ? '—' : '${temp!.toStringAsFixed(1)} °C';
     final cell = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      // 3 px each side (was 6): at 393 px the cell is 43 px, and "-2.1 °C" in
+      // Roboto is 37 px (measured 2026-09-15), so 6 px left it drawn at 0.84.
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(3),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 12)),
+      child: _ValueWithUnit(text),
     );
 
     if (semanticEndpoint == null) return cell;
@@ -201,7 +227,10 @@ class _FailureRow extends StatelessWidget {
               Text(
                 key: const Key('corridor-station-fetch-failed'),
                 AppL10n.of(context).corridorStationFetchFailed,
-                style: TextStyle(fontSize: 10, color: Colors.red.shade700),
+                // red.shade900 at 11 px (2026-09-15): red.shade700 at 10 px was
+                // 4.51:1 on the card, at the floor; the source line beside the
+                // table is 11 px.
+                style: TextStyle(fontSize: 11, color: Colors.red.shade900),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
