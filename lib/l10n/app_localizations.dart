@@ -922,6 +922,12 @@ class AppL10n {
   /// Per-publisher soft-error line. [publisher] is the source label
   /// (verbatim). The exception text that followed it until 2026-09-15 is not
   /// shown, as for [routeFetchFailed].
+  /// The name shown for an advisory source that has no name of its own: the
+  /// card head, and the publisher in [advisoryPublisherErrored]. A fetch that
+  /// threw before any publisher answered is reported under it. English
+  /// unchanged; until 2026-09-16 the Japanese page read the English word too.
+  String get advisoryOtherSource => _ja ? 'その他' : 'Source';
+
   String advisoryPublisherErrored(String publisher) => _ja
       ? '配信元 $publisher から取得できませんでした。'
       : 'Could not fetch from $publisher.';

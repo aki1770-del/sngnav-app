@@ -306,7 +306,7 @@ class AdvisoryCards extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 4),
               color: Colors.amber.shade50,
               child: Text(
-                l.advisoryPublisherErrored(_sourceLabel(err.source)),
+                l.advisoryPublisherErrored(_sourceLabel(err.source, l)),
                 // Same amber surface — same contrast floor.
                 style:
                     const TextStyle(color: kCautionTextOnAmber, fontSize: 11),
@@ -374,7 +374,7 @@ class _AdvisoryCard extends StatelessWidget {
           Row(
             children: [
               Text(
-                _sourceLabel(advisory.source),
+                _sourceLabel(advisory.source, AppL10n.of(context)),
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: Colors.grey.shade800,
@@ -455,7 +455,9 @@ class _AdvisoryCard extends StatelessWidget {
   }
 }
 
-String _sourceLabel(AdvisorySource source) {
+/// The publisher's name as her page shows it. A source with no name of its
+/// own reads in the page's language ([AppL10n.advisoryOtherSource]).
+String _sourceLabel(AdvisorySource source, AppL10n l) {
   switch (source) {
     case AdvisorySource.nwsUnitedStates:
       return 'NWS';
@@ -464,7 +466,7 @@ String _sourceLabel(AdvisorySource source) {
     case AdvisorySource.metNorway:
       return 'MET Norway';
     case AdvisorySource.other:
-      return 'Source';
+      return l.advisoryOtherSource;
   }
 }
 
