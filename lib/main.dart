@@ -20,6 +20,7 @@ import 'package:condition_aggregator/condition_aggregator.dart'
         AdvisoryAggregateResult,
         AdvisoryProviderError,
         AdvisorySource;
+import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -116,6 +117,17 @@ import 'widgets/advisory_cards.dart';
 /// rate-limit accounting + security contact.
 const String kSngnavAppUserAgent =
     '(sngnav-app, https://github.com/aki1770-del/sngnav)';
+
+/// Whether this build offers the development page: the cards built to test the
+/// app, which are not on her home page (2026-09-15). Only a non-release build
+/// launched with
+///
+///     flutter run --dart-define=SNGNAV_DEVELOPER_PAGE=true
+///
+/// draws the entry to that page in her app bar. A release build never does,
+/// whatever it was built with, and nothing else on her page leads there.
+const bool kDeveloperPageFromEnvironment =
+    !kReleaseMode && bool.fromEnvironment('SNGNAV_DEVELOPER_PAGE');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -576,6 +588,9 @@ class SngnavApp extends StatelessWidget {
   /// off-mobile/under-test — null renders NOTHING). Same idiom as
   /// [voiceLaneReader]: tests drive the media-muted caution with a canned
   /// reading, no channel, no device.
+  ///
+  /// [developerPageEntry] asks for the entry to the development page in her app
+  /// bar (null = [kDeveloperPageFromEnvironment]). A release build ignores it.
   const SngnavApp({
     super.key,
     this.actuators,
@@ -594,6 +609,7 @@ class SngnavApp extends StatelessWidget {
     this.clock,
     this.positionSource,
     this.routingEngineFactory,
+    this.developerPageEntry,
   });
 
   final AlertActuators? actuators;
@@ -633,6 +649,10 @@ class SngnavApp extends StatelessWidget {
   /// OSRM public demo engine). Lets tests render a fetched route: the test
   /// binding answers every HTTP request with 400.
   final RoutingEngine Function()? routingEngineFactory;
+
+  /// Asks for the development page's entry in her app bar (null ->
+  /// [kDeveloperPageFromEnvironment]). A release build ignores it.
+  final bool? developerPageEntry;
 
   @override
   Widget build(BuildContext context) {
@@ -685,6 +705,7 @@ class SngnavApp extends StatelessWidget {
         clock: clock,
         positionSource: positionSource,
         routingEngineFactory: routingEngineFactory,
+        developerPageEntry: developerPageEntry,
       ),
     );
   }
@@ -709,6 +730,7 @@ class HomePage extends StatefulWidget {
     this.clock,
     this.positionSource,
     this.routingEngineFactory,
+    this.developerPageEntry,
   });
 
   /// Injectable actuator layer (null -> [defaultAlertActuators]).
@@ -771,11 +793,58 @@ class HomePage extends StatefulWidget {
   /// Injectable routing engine (null -> the OSRM public demo engine).
   final RoutingEngine Function()? routingEngineFactory;
 
+  /// Asks for the development page's entry in her app bar (null ->
+  /// [kDeveloperPageFromEnvironment]). A release build ignores it.
+  final bool? developerPageEntry;
+
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+  // The development page (2026-09-15) is a route of its own, above this page,
+  // and its cards read this state. A rebuild of this page does not reach that
+  // route, so every setState here also ticks this notifier, which the route
+  // listens to. The values stay here so a choice made there reaches the same
+  // code it reached when the cards were on this page.
+  final ValueNotifier<int> _developerPageRevision = ValueNotifier<int>(0);
+
+  @override
+  void setState(VoidCallback fn) {
+    super.setState(fn);
+    _developerPageRevision.value++;
+  }
+
+  /// Whether her app bar draws the entry to the development page.
+  bool get _developerPageOffered =>
+      !kReleaseMode &&
+      (widget.developerPageEntry ?? kDeveloperPageFromEnvironment);
+
+  /// Opens the development page: the cards that exist for the people who build
+  /// the app. It is reached only from the entry [_developerPageOffered] draws.
+  void _openDeveloperPage() {
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      settings: const RouteSettings(name: '/development'),
+      builder: (routeContext) => Scaffold(
+        appBar: AppBar(
+          title: Text(AppL10n.of(routeContext).developerPageTitle),
+          backgroundColor: Theme.of(routeContext).colorScheme.inversePrimary,
+        ),
+        body: ListenableBuilder(
+          listenable: _developerPageRevision,
+          builder: (_, _) => SingleChildScrollView(
+            key: const Key('developer-page'),
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: _developerSections(),
+            ),
+          ),
+        ),
+      ),
+    ));
+  }
+
   // V21: ageingRural is the default — HER's mother is the named first customer.
   DriverProfile _profile = DriverProfile.ageingRural;
 
@@ -1512,6 +1581,7 @@ class _HomePageState extends State<HomePage> {
     _nwsClient.close();
     _herMapController.dispose();
     _movingReadings.dispose();
+    _developerPageRevision.dispose();
     super.dispose();
   }
 
@@ -3141,19 +3211,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final cap = AlertDensityThrottle.defaultCapFor(_profile);
-    final glossary = RoadSurfaceConditionGlossary.forConditionAndProfile(
-      _condition,
-      _profile,
-    );
-    // Action-coupled explainer for current (condition, profile) tuple.
-    // Action string is rendered VERBATIM per AAA Article 17 (β) — the
-    // package owns the wording (advisory mood, JAF/MLIT vocabulary,
-    // per-profile verbosity). The app must not paraphrase or restyle.
-    final explainer = AlertExplainer.forConditionAndProfile(
-      _condition,
-      _profile,
-    );
     // What HER map draws about her position: from the position controller's
     // estimate when it is dead-reckoning or lost, so a GPS stream error never
     // blanks the map and `lost` says so in words (see her_map_inputs.dart).
@@ -3170,6 +3227,16 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('sngnav-app (alpha)'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        actions: [
+          // Drawn only in a build that asks for it (kDeveloperPageFromEnvironment).
+          if (_developerPageOffered)
+            IconButton(
+              key: const Key('developer-page-entry'),
+              icon: const Icon(Icons.developer_mode),
+              tooltip: AppL10n.of(context).developerPageTitle,
+              onPressed: _openDeveloperPage,
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -3277,233 +3344,8 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
-              title: AppL10n.of(context).driverTypeSectionTitle,
-              child: DropdownButton<DriverProfile>(
-                value: _profile,
-                isExpanded: true,
-                onChanged: (v) {
-                  if (v != null) {
-                    setState(() {
-                      _profile = v;
-                      // Sub-bundle 4: per-cohort budgets + floor change
-                      // when the profile changes; tear down + rebuild
-                      // the trio so the active demo reflects the new
-                      // cohort defaults.
-                      _rebuildSubBundle4For(v);
-                    });
-                  }
-                },
-                items: DriverProfile.values
-                    .map((p) => DropdownMenuItem(
-                          value: p,
-                          child: Text(p.name),
-                        ))
-                    .toList(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _section(
-              title: AppL10n.of(context).simulatedRoadConditionSectionTitle,
-              child: DropdownButton<RoadSurfaceCondition>(
-                value: _condition,
-                isExpanded: true,
-                onChanged: (v) {
-                  if (v != null) setState(() => _condition = v);
-                },
-                items: RoadSurfaceCondition.values
-                    .map((c) => DropdownMenuItem(
-                          value: c,
-                          child: Text(c.name),
-                        ))
-                    .toList(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            _section(
-              title: AppL10n.of(context).vehicleTypeSectionTitle,
-              child: DropdownButton<String?>(
-                value: _vehicleClassToken,
-                isExpanded: true,
-                onChanged: (v) {
-                  setState(() => _vehicleClassToken = v);
-                },
-                items: const [
-                  DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('unknown / no signal (baseline)'),
-                  ),
-                  DropdownMenuItem<String?>(
-                    value: 'kei-car',
-                    child: Text(
-                      'kei-car (HER cohort default — overrides registered)',
-                    ),
-                  ),
-                  DropdownMenuItem<String?>(
-                    value: 'compact-sedan',
-                    child: Text('compact-sedan (no override registered)'),
-                  ),
-                  DropdownMenuItem<String?>(
-                    value: '4wd',
-                    child: Text('4wd (no override registered)'),
-                  ),
-                  DropdownMenuItem<String?>(
-                    value: 'commercial-light',
-                    child: Text('commercial-light (no override registered)'),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            _section(
-              title: AppL10n.of(context).driverStateInputsSectionTitle,
-              child: _driverStateInputs(),
-            ),
-            const SizedBox(height: 16),
-            _section(
-              title: AppL10n.of(context).warningThresholdsSectionTitle,
-              child: _ThresholdPreview(
-                profile: _profile,
-                vehicleClassToken: _vehicleClassToken,
-                vehicleOverrides: _vehicleOverrides,
-                circadianPhase: _circadianPhase,
-                sessionState: _sessionState,
-                confidence: _confidence,
-                isHighConfidenceConfirmed: _isHighConfidenceConfirmed,
-                kvBuilder: _kv,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _section(
-              title: AppL10n.of(context).roadConditionNamesSectionTitle,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _kv('JA name', glossary.jaName),
-                  _kv('EN name', glossary.enName),
-                  _kv('JA speak', glossary.jaSpeakString),
-                  _kv('EN speak', glossary.enSpeakString),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            _section(
-              title: AppL10n.of(context).roadConditionGuidanceSectionTitle,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Verbatim per AAA Article 17 (β): publisher voice
-                  // preserved; no app-side paraphrase or truncation.
-                  Text(
-                    explainer.action,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 6),
-                  _kv('Verbosity', explainer.verbosity.name),
-                  _kv('Locale', explainer.localeTag),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Source: navigation_safety_core AlertExplainer — verbatim '
-                    'relay from JAF / MLIT / NEXCO public driver-guidance.',
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontSize: 11,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  // WS5 — the button that ends the silence. Speaks the guidance
-                  // aloud AND fires the tactile cue (OPS-059 floor: audio for
-                  // eyes-off, haptic for deaf/HoH or roaring-wind whiteout).
-                  // On desktop/test this is a no-op (NoOpAlertActuators).
-                  // Label + helper are localized (D4 — HER reads Japanese).
-                  ElevatedButton.icon(
-                    key: const Key('announce-alert-button'),
-                    onPressed: _announceCurrentAlert,
-                    icon: const Icon(Icons.campaign_outlined),
-                    label: Text(AppL10n.of(context).announceToDriver),
-                  ),
-                  Text(
-                    severityForCondition(_condition).index >=
-                            AlertSeverity.warning.index
-                        ? AppL10n.of(context).announceFiresHelper(
-                            severityForCondition(_condition).name)
-                        : AppL10n.of(context).announceInfoHelper,
-                    // shade600 measured 4.17:1 on the card (2026-09-15).
-                    style: TextStyle(
-                      color: Colors.grey.shade700,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            _section(
               title: AppL10n.of(context).driveHudTitle,
               child: _driveHudPanel(),
-            ),
-            const SizedBox(height: 16),
-            _section(
-              title: AppL10n.of(context).alertRateLimitSectionTitle,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _kv('Per-profile cap', '${cap.toStringAsFixed(1)} alerts/min'),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: _fireAlertSequence,
-                    child: const Text('Fire 8 sequential warning alerts'),
-                  ),
-                  const SizedBox(height: 4),
-                  // AAE-7: this control evaluates AlertDensityThrottle and
-                  // records telemetry. It does NOT call _announcer — no audio,
-                  // no haptic, nothing reaches HER from this button. It is a
-                  // throttle-decision simulation, and it says so, because the
-                  // 2026-07-09 on-device walk read its green result word as
-                  // proof the alert path actuates. It is not that proof.
-                  Text(
-                    'Throttle decision only — this control does not announce '
-                    '(no audio, no haptic).',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (_attempts.isEmpty)
-                    const Text('(no attempts yet)')
-                  else
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: _attempts
-                          .map((a) => Text(
-                                'Attempt ${a.index} '
-                                '(t+${a.relativeSeconds}s): '
-                                '${a.fired ? "WOULD FIRE" : "throttled"}',
-                                style: TextStyle(
-                                  color: a.fired
-                                      ? Colors.green.shade700
-                                      : Colors.grey.shade600,
-                                ),
-                              ))
-                          .toList(),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            _section(
-              title: AppL10n.of(context).tuningRecordSectionTitle,
-              child: _loomFitTelemetryPanel(),
-            ),
-            const SizedBox(height: 16),
-            _section(
-              title: AppL10n.of(context).glanceAndVoicePacingSectionTitle,
-              child: _glanceBudgetPanel(),
-            ),
-            const SizedBox(height: 16),
-            _section(
-              title: AppL10n.of(context).mapDrawingAndDataSectionTitle,
-              child: _renderBudgetPanel(),
             ),
             const SizedBox(height: 16),
             _section(
@@ -3556,6 +3398,253 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
     );
+  }
+
+  /// The cards that exist for the people who build the app, in the order they
+  /// had on her home page until 2026-09-15. They read and write this page's
+  /// state, so a choice made on the development page reaches the same code it
+  /// reached before; the one such value her own page reads is the simulated
+  /// road condition, which marks a possibly icy turn on her next-maneuver card.
+  List<Widget> _developerSections() {
+    final cap = AlertDensityThrottle.defaultCapFor(_profile);
+    final glossary = RoadSurfaceConditionGlossary.forConditionAndProfile(
+      _condition,
+      _profile,
+    );
+    // Action-coupled explainer for current (condition, profile) tuple.
+    // Action string is rendered VERBATIM per AAA Article 17 (β) — the
+    // package owns the wording (advisory mood, JAF/MLIT vocabulary,
+    // per-profile verbosity). The app must not paraphrase or restyle.
+    final explainer = AlertExplainer.forConditionAndProfile(
+      _condition,
+      _profile,
+    );
+    return [
+      _section(
+        title: AppL10n.of(context).driverTypeSectionTitle,
+        child: DropdownButton<DriverProfile>(
+          value: _profile,
+          isExpanded: true,
+          onChanged: (v) {
+            if (v != null) {
+              setState(() {
+                _profile = v;
+                // Sub-bundle 4: per-cohort budgets + floor change
+                // when the profile changes; tear down + rebuild
+                // the trio so the active demo reflects the new
+                // cohort defaults.
+                _rebuildSubBundle4For(v);
+              });
+            }
+          },
+          items: DriverProfile.values
+              .map((p) => DropdownMenuItem(
+                    value: p,
+                    child: Text(p.name),
+                  ))
+              .toList(),
+        ),
+      ),
+      const SizedBox(height: 16),
+      _section(
+        title: AppL10n.of(context).simulatedRoadConditionSectionTitle,
+        child: DropdownButton<RoadSurfaceCondition>(
+          value: _condition,
+          isExpanded: true,
+          onChanged: (v) {
+            if (v != null) setState(() => _condition = v);
+          },
+          items: RoadSurfaceCondition.values
+              .map((c) => DropdownMenuItem(
+                    value: c,
+                    child: Text(c.name),
+                  ))
+              .toList(),
+        ),
+      ),
+      const SizedBox(height: 16),
+      _section(
+        title: AppL10n.of(context).vehicleTypeSectionTitle,
+        child: DropdownButton<String?>(
+          value: _vehicleClassToken,
+          isExpanded: true,
+          onChanged: (v) {
+            setState(() => _vehicleClassToken = v);
+          },
+          items: const [
+            DropdownMenuItem<String?>(
+              value: null,
+              child: Text('unknown / no signal (baseline)'),
+            ),
+            DropdownMenuItem<String?>(
+              value: 'kei-car',
+              child: Text(
+                'kei-car (HER cohort default — overrides registered)',
+              ),
+            ),
+            DropdownMenuItem<String?>(
+              value: 'compact-sedan',
+              child: Text('compact-sedan (no override registered)'),
+            ),
+            DropdownMenuItem<String?>(
+              value: '4wd',
+              child: Text('4wd (no override registered)'),
+            ),
+            DropdownMenuItem<String?>(
+              value: 'commercial-light',
+              child: Text('commercial-light (no override registered)'),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 16),
+      _section(
+        title: AppL10n.of(context).driverStateInputsSectionTitle,
+        child: _driverStateInputs(),
+      ),
+      const SizedBox(height: 16),
+      _section(
+        title: AppL10n.of(context).warningThresholdsSectionTitle,
+        child: _ThresholdPreview(
+          profile: _profile,
+          vehicleClassToken: _vehicleClassToken,
+          vehicleOverrides: _vehicleOverrides,
+          circadianPhase: _circadianPhase,
+          sessionState: _sessionState,
+          confidence: _confidence,
+          isHighConfidenceConfirmed: _isHighConfidenceConfirmed,
+          kvBuilder: _kv,
+        ),
+      ),
+      const SizedBox(height: 16),
+      _section(
+        title: AppL10n.of(context).roadConditionNamesSectionTitle,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _kv('JA name', glossary.jaName),
+            _kv('EN name', glossary.enName),
+            _kv('JA speak', glossary.jaSpeakString),
+            _kv('EN speak', glossary.enSpeakString),
+          ],
+        ),
+      ),
+      const SizedBox(height: 16),
+      _section(
+        title: AppL10n.of(context).roadConditionGuidanceSectionTitle,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Verbatim per AAA Article 17 (β): publisher voice
+            // preserved; no app-side paraphrase or truncation.
+            Text(
+              explainer.action,
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 6),
+            _kv('Verbosity', explainer.verbosity.name),
+            _kv('Locale', explainer.localeTag),
+            const SizedBox(height: 4),
+            Text(
+              'Source: navigation_safety_core AlertExplainer — verbatim '
+              'relay from JAF / MLIT / NEXCO public driver-guidance.',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(height: 10),
+            // WS5 — the button that ends the silence. Speaks the guidance
+            // aloud AND fires the tactile cue (OPS-059 floor: audio for
+            // eyes-off, haptic for deaf/HoH or roaring-wind whiteout).
+            // On desktop/test this is a no-op (NoOpAlertActuators).
+            // Label + helper are localized (D4 — HER reads Japanese).
+            ElevatedButton.icon(
+              key: const Key('announce-alert-button'),
+              onPressed: _announceCurrentAlert,
+              icon: const Icon(Icons.campaign_outlined),
+              label: Text(AppL10n.of(context).announceToDriver),
+            ),
+            Text(
+              severityForCondition(_condition).index >=
+                      AlertSeverity.warning.index
+                  ? AppL10n.of(context).announceFiresHelper(
+                      severityForCondition(_condition).name)
+                  : AppL10n.of(context).announceInfoHelper,
+              // shade600 measured 4.17:1 on the card (2026-09-15).
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 16),
+      _section(
+        title: AppL10n.of(context).alertRateLimitSectionTitle,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _kv('Per-profile cap', '${cap.toStringAsFixed(1)} alerts/min'),
+            const SizedBox(height: 8),
+            ElevatedButton(
+              onPressed: _fireAlertSequence,
+              child: const Text('Fire 8 sequential warning alerts'),
+            ),
+            const SizedBox(height: 4),
+            // AAE-7: this control evaluates AlertDensityThrottle and
+            // records telemetry. It does NOT call _announcer — no audio,
+            // no haptic, nothing reaches HER from this button. It is a
+            // throttle-decision simulation, and it says so, because the
+            // 2026-07-09 on-device walk read its green result word as
+            // proof the alert path actuates. It is not that proof.
+            Text(
+              'Throttle decision only — this control does not announce '
+              '(no audio, no haptic).',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_attempts.isEmpty)
+              const Text('(no attempts yet)')
+            else
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: _attempts
+                    .map((a) => Text(
+                          'Attempt ${a.index} '
+                          '(t+${a.relativeSeconds}s): '
+                          '${a.fired ? "WOULD FIRE" : "throttled"}',
+                          style: TextStyle(
+                            color: a.fired
+                                ? Colors.green.shade700
+                                : Colors.grey.shade600,
+                          ),
+                        ))
+                    .toList(),
+              ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 16),
+      _section(
+        title: AppL10n.of(context).tuningRecordSectionTitle,
+        child: _loomFitTelemetryPanel(),
+      ),
+      const SizedBox(height: 16),
+      _section(
+        title: AppL10n.of(context).glanceAndVoicePacingSectionTitle,
+        child: _glanceBudgetPanel(),
+      ),
+      const SizedBox(height: 16),
+      _section(
+        title: AppL10n.of(context).mapDrawingAndDataSectionTitle,
+        child: _renderBudgetPanel(),
+      ),
+    ];
   }
 
   Widget _section({required String title, required Widget child}) {

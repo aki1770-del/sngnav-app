@@ -13,6 +13,8 @@ import 'package:voice_guidance/voice_guidance.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 
+import 'support/developer_page.dart';
+
 void main() {
   group('Sub-bundle 3 — package API contract', () {
     test(
@@ -73,8 +75,10 @@ void main() {
     testWidgets(
       'Glance budget panel renders with simulate buttons + pace display',
       (tester) async {
-        await tester.pumpWidget(const SngnavApp());
+        // This card is on the development page (2026-09-15).
+        await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
         await tester.pump();
+        await openDeveloperPage(tester);
         expect(
           find.text(const AppL10n(Locale('en'))
               .glanceAndVoicePacingSectionTitle),
@@ -95,8 +99,10 @@ void main() {
       'Tapping simulate-glance increments the events-recorded counter '
       '(integrator wiring fires record() into the package tracker)',
       (tester) async {
-        await tester.pumpWidget(const SngnavApp());
+        // This card is on the development page (2026-09-15).
+        await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
         await tester.pump();
+        await openDeveloperPage(tester);
         final btn = find.text('Simulate glance (800 ms)');
         await tester.ensureVisible(btn);
         // Tap once; consumed should be 0.8s; counter goes 0 -> 1.
@@ -113,8 +119,10 @@ void main() {
       'AlertExplainerExpandableSheet renders inside sub-bundle 3 panel '
       'with cohort-default expansion state for ageingRural (default)',
       (tester) async {
-        await tester.pumpWidget(const SngnavApp());
+        // This card is on the development page (2026-09-15).
+        await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
         await tester.pump();
+        await openDeveloperPage(tester);
         // The sheet renders the source-line attribution per package
         // default. ageingRural defaults to expanded per
         // AlertExplainerExpandableSheet.defaultExpansionForProfile.

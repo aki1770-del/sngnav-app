@@ -26,6 +26,8 @@ import 'render_see_env.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 
+import '../support/developer_page.dart';
+
 void main() {
   const ipa = '/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf';
   const droid = '/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf';
@@ -99,8 +101,12 @@ void main() {
 
   testWidgets('w2c — threshold-preview labels readable at phone width',
       (tester) async {
-    await tester.pumpWidget(const SngnavApp(locale: Locale('en')));
+    // The thresholds card is on the development page (2026-09-15); this
+    // capture is of that page now.
+    await tester.pumpWidget(
+        const SngnavApp(locale: Locale('en'), developerPageEntry: true));
     await tester.pump();
+    await openDeveloperPage(tester);
     final preview =
         find.text(const AppL10n(Locale('en')).warningThresholdsSectionTitle);
     await captureApp(

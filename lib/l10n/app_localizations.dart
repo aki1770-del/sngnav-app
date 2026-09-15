@@ -1183,6 +1183,15 @@ class AppL10n {
   /// Warnings and advisories the publishers have issued.
   String get advisoriesSectionTitle =>
       _ja ? '発表中の警報・注意報' : 'Warnings and advisories in force';
+
+  // ===== The development page (2026-09-15) =====
+  //
+  // The eleven cards above from 運転者のタイプ to 地図の描画と通信量の試験 are not on
+  // her home page. They are on this page, which only a build that asks for it
+  // offers.
+
+  /// The development page's title, and the tooltip of its entry.
+  String get developerPageTitle => _ja ? '開発用の画面' : 'Development page';
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {

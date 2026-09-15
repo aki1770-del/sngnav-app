@@ -29,6 +29,7 @@ import 'package:sngnav_app/services/provider_coverage.dart';
 import 'package:sngnav_app/widgets/advisory_cards.dart';
 
 import '../support/fake_alert_actuators.dart';
+import '../support/developer_page.dart';
 
 /// Fake JMA provider returning one 大雪警報 (renders as the JMA card).
 class _FakeJma implements AdvisoryProvider {
@@ -377,8 +378,12 @@ void main() {
   testWidgets(
       '13 — road-surface default is UNKNOWN, not a fabricated ice hazard '
       '(路面状況不明)', (tester) async {
-    await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
+    // The road-condition names card is on the development page (2026-09-15);
+    // this capture is of that page now.
+    await tester.pumpWidget(
+        const SngnavApp(locale: Locale('ja'), developerPageEntry: true));
     await tester.pump();
+    await openDeveloperPage(tester);
     // The road-surface condition defaults to RoadSurfaceCondition.unknown (no
     // sensor wired), so the per-profile glossary renders 路面状況不明 — never a
     // synthetic ice hazard. Scroll that section into view and capture it so a

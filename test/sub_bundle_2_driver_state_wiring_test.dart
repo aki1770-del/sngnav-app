@@ -14,6 +14,8 @@ import 'package:navigation_safety_core/navigation_safety_core.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 
+import 'support/developer_page.dart';
+
 void main() {
   group('Sub-bundle 2 — DriverState-axis API contract', () {
     test(
@@ -129,8 +131,10 @@ void main() {
     testWidgets(
       'Driver state inputs section renders with 3 dropdowns + sliders',
       (tester) async {
-        await tester.pumpWidget(const SngnavApp());
+        // This card is on the development page (2026-09-15).
+        await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
         await tester.pump();
+        await openDeveloperPage(tester);
         // Section header is visible.
         expect(
           find.text(
@@ -148,8 +152,10 @@ void main() {
       'Threshold preview shows baseline + vehicle + driver-state row '
       '(extended composition)',
       (tester) async {
-        await tester.pumpWidget(const SngnavApp());
+        // This card is on the development page (2026-09-15).
+        await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
         await tester.pump();
+        await openDeveloperPage(tester);
         // Three rows now visible per brief shape.
         expect(
           find.textContaining('Baseline warning visibility'),
@@ -170,8 +176,10 @@ void main() {
       'Confidence dropdown set to high reveals confirmation toggle '
       '(cap-override-with-confirmation surface)',
       (tester) async {
-        await tester.pumpWidget(const SngnavApp());
+        // This card is on the development page (2026-09-15).
+        await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
         await tester.pump();
+        await openDeveloperPage(tester);
         // Find the confidence dropdown by its placeholder text.
         await tester.ensureVisible(
           find.text('(no signal — no cap modification)').first,

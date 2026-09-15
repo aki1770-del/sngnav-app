@@ -20,6 +20,8 @@ import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 import 'package:sngnav_app/widgets/advisory_cards.dart';
 
+import '../support/developer_page.dart';
+
 // headline/description left empty so [eventClass] renders exactly once per
 // card — keeps find.text(eventClass) unambiguous for getTopLeft ordering.
 Advisory _advisory(AdvisorySource source, String eventClass) => Advisory(
@@ -328,8 +330,11 @@ void main() {
   group('WS5 announce affordance localized (task 3a / D4)', () {
     testWidgets('ja surface shows the JA announce label + helper, no EN leak',
         (tester) async {
-      await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
+      // The announce button is on the development page (2026-09-15).
+      await tester.pumpWidget(
+          const SngnavApp(locale: Locale('ja'), developerPageEntry: true));
       await tester.pump();
+      await openDeveloperPage(tester);
 
       // The button label is HER language...
       expect(find.text(jaL10n.announceToDriver), findsOneWidget);
@@ -357,8 +362,10 @@ void main() {
     });
 
     testWidgets('en surface shows the English announce label', (tester) async {
-      await tester.pumpWidget(const SngnavApp(locale: Locale('en')));
+      await tester.pumpWidget(
+          const SngnavApp(locale: Locale('en'), developerPageEntry: true));
       await tester.pump();
+      await openDeveloperPage(tester);
       expect(
         find.text('Announce to driver (audio + haptic)'),
         findsOneWidget,

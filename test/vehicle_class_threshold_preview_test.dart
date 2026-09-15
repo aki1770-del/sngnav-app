@@ -26,6 +26,8 @@ import 'package:navigation_safety_core/navigation_safety_core.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 
+import 'support/developer_page.dart';
+
 void main() {
   group('NSC #3 vehicle-class threshold-config wiring', () {
     test(
@@ -108,8 +110,11 @@ void main() {
     'NSC #3 — vehicle-class dropdown selection of kei-car renders '
     '+50 / +1 delta in the threshold preview section',
     (tester) async {
-      await tester.pumpWidget(const SngnavApp());
+      // The vehicle and threshold cards are on the development page
+      // (2026-09-15).
+      await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
       await tester.pump();
+      await openDeveloperPage(tester);
 
       // Baseline render: with vehicleClassToken = null, the
       // with-vehicle visibility row should equal the baseline (no

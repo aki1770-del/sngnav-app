@@ -13,6 +13,7 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart';
 
 import '../support/fake_alert_actuators.dart';
+import '../support/developer_page.dart';
 
 // A clear-conditions JMA observation so the W0 detection-survival lane stays
 // SILENT (no ice, no turmoil, no feed loss) — isolating this WS5 announce-button
@@ -47,11 +48,16 @@ void main() {
       await tester.pumpWidget(SngnavApp(
         actuators: fake,
         jmaFetch: () async => JmaSuccess(_clearObs()),
+        developerPageEntry: true,
       ));
       await tester.pump();
 
       // initState holds the screen awake (foreground-only).
       expect(fake.keepAwakeCalls, contains(true));
+
+      // The guidance card and its announce button are on the development
+      // page (2026-09-15); the path to them is the only change here.
+      await openDeveloperPage(tester);
 
       final button = find.byKey(const Key('announce-alert-button'));
       expect(button, findsOneWidget);

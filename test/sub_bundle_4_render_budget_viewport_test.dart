@@ -15,6 +15,8 @@ import 'package:snow_rendering/snow_rendering.dart' as snow_rendering;
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 
+import 'support/developer_page.dart';
+
 void main() {
   group('Sub-bundle 4 — package API contract', () {
     test(
@@ -89,8 +91,10 @@ void main() {
       'Render budget viewport panel renders with frame + fetch buttons '
       '+ RenderFidelity row',
       (tester) async {
-        await tester.pumpWidget(const SngnavApp());
+        // This card is on the development page (2026-09-15).
+        await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
         await tester.pump();
+        await openDeveloperPage(tester);
         expect(
           find.text(
               const AppL10n(Locale('en')).mapDrawingAndDataSectionTitle),
@@ -109,8 +113,10 @@ void main() {
     testWidgets(
       'Floor row reflects per-cohort default for ageingRural (medium)',
       (tester) async {
-        await tester.pumpWidget(const SngnavApp());
+        // This card is on the development page (2026-09-15).
+        await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
         await tester.pump();
+        await openDeveloperPage(tester);
         // ageingRural is the default profile; floor row shows medium.
         expect(
           find.textContaining('medium'),
@@ -123,8 +129,10 @@ void main() {
       'Tapping Frame (over budget) increments frames-recorded counter '
       '(integrator wiring fires record() into PerformanceBudget)',
       (tester) async {
-        await tester.pumpWidget(const SngnavApp());
+        // This card is on the development page (2026-09-15).
+        await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
         await tester.pump();
+        await openDeveloperPage(tester);
         final btn = find.text('Frame (over budget)');
         await tester.ensureVisible(btn);
         await tester.tap(btn);

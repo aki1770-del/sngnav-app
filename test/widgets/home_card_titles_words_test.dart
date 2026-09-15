@@ -11,8 +11,12 @@
 /// ("info-class").
 ///
 /// Read from the rendered page, not from the source: a title is the first text
-/// of each card that sits directly in the home page's column. A title that says
+/// of each card that sits directly in the page's column. A title that says
 /// what a card is in her language cannot also be a title in ours.
+///
+/// Since 2026-09-15 eleven of the twenty cards are on the development page,
+/// not on her home page. Their titles are read there, so the same rule holds
+/// for all twenty wherever they are drawn.
 ///
 /// Not ruled here, and named for a ruling instead: the English inside those
 /// cards (dropdown values, rows, sources, buttons), the app bar, the banner
@@ -25,6 +29,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
 final _japanese = RegExp(r'[぀-ヿ㐀-鿿]');
@@ -38,46 +43,18 @@ final _teamWords = RegExp(r'\bHER\b|[Cc]ohort|Loom|\bNSC\b|#\d|'
     r'verbatim|spine|kei-car|'
     r'ゲート|[Vv]oice gate|info-class|情報クラス|parity');
 
-/// The title of each card in the home page's own column, top to bottom.
-List<String> _cardTitles(WidgetTester tester) {
-  final scroll = find.byType(SingleChildScrollView).first;
-  final titles = <String>[];
-  for (final e in find
-      .descendant(of: scroll, matching: find.byType(Card))
-      .evaluate()) {
-    var nested = false;
-    e.visitAncestorElements((a) {
-      if (a.widget is Card) {
-        nested = true;
-        return false;
-      }
-      return a.widget is! SingleChildScrollView;
-    });
-    if (nested) continue;
-    String? title;
-    void firstText(Element c) {
-      if (title != null) return;
-      final w = c.widget;
-      if (w is RichText) {
-        title = w.text.toPlainText();
-        return;
-      }
-      c.visitChildren(firstText);
-    }
-
-    e.visitChildren(firstText);
-    titles.add(title ?? '(card with no text)');
-  }
-  return titles;
-}
-
+/// The card titles on her home page, then on the development page.
 Future<List<String>> _titlesIn(WidgetTester tester, String lang) async {
   await tester.pumpWidget(const SizedBox.shrink());
-  await tester.pumpWidget(
-      SngnavApp(locale: Locale(lang), actuators: FakeAlertActuators()));
+  await tester.pumpWidget(SngnavApp(
+      locale: Locale(lang),
+      actuators: FakeAlertActuators(),
+      developerPageEntry: true));
   await tester.pump();
   await tester.pump();
-  return _cardTitles(tester);
+  final titles = cardTitlesOnTopPage(tester);
+  await openDeveloperPage(tester);
+  return [...titles, ...cardTitlesOnTopPage(tester)];
 }
 
 void main() {
@@ -87,7 +64,7 @@ void main() {
     final en = await _titlesIn(tester, 'en');
 
     expect(ja.length, greaterThanOrEqualTo(20),
-        reason: 'precondition: the home page\'s cards were read: $ja');
+        reason: 'precondition: the cards of both pages were read: $ja');
     expect(en.length, ja.length,
         reason: 'the same cards in both languages: $ja / $en');
 
@@ -105,7 +82,7 @@ void main() {
   });
 
   testWidgets('the announce button\'s helper says what the button does, in '
-      'her words, on her screen', (tester) async {
+      'her words, on the page it is drawn on', (tester) async {
     for (final lang in const ['ja', 'en']) {
       final l = AppL10n(Locale(lang));
       await _titlesIn(tester, lang);

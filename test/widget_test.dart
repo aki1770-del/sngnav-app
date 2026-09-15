@@ -10,6 +10,8 @@ import 'package:navigation_safety_core/navigation_safety_core.dart';
 
 import 'package:sngnav_app/main.dart';
 
+import 'support/developer_page.dart';
+
 void main() {
   testWidgets('App boots and shows alpha banner', (tester) async {
     await tester.pumpWidget(const SngnavApp());
@@ -24,8 +26,10 @@ void main() {
   testWidgets('DriverProfile selector defaults to ageingRural (V21)', (
     tester,
   ) async {
-    await tester.pumpWidget(const SngnavApp());
+    // The driver-type selector is on the development page (2026-09-15).
+    await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
     await tester.pump();
+    await openDeveloperPage(tester);
     // Default profile per V21 — HER's mother in Akita.
     expect(find.text(DriverProfile.ageingRural.name), findsOneWidget);
   });

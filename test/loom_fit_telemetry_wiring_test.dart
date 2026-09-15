@@ -17,12 +17,17 @@ import 'package:navigation_safety_core/navigation_safety_core.dart';
 
 import 'package:sngnav_app/main.dart';
 
+import 'support/developer_page.dart';
+
 void main() {
   testWidgets(
     '#102 — _fireAlertSequence emits 8 telemetry records in default state',
     (tester) async {
-      await tester.pumpWidget(const SngnavApp());
+      // The rate-limit test and tuning record are on the development page
+      // (2026-09-15).
+      await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
       await tester.pump();
+      await openDeveloperPage(tester);
       // Tap the fire-alert-sequence button.
       final fireButton = find.text('Fire 8 sequential warning alerts');
       expect(fireButton, findsOneWidget);

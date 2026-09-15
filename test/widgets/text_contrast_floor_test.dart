@@ -36,6 +36,7 @@ import 'package:sngnav_app/services/audio_readiness.dart';
 import 'package:sngnav_app/services/haptic_readiness.dart';
 import 'package:sngnav_app/services/voice_lane_readiness.dart';
 
+import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 import '../support/painted_text_contrast.dart';
 
@@ -99,6 +100,7 @@ void main() {
           hapticUnverified: ValueNotifier<bool>(true),
           audioReadinessProbe: _MutedAudio(),
           hapticReadinessProbe: _Tactile(tactileAvailable),
+          developerPageEntry: true,
         ));
         await tester.pump();
         await tester.pump();
@@ -123,9 +125,21 @@ void main() {
           'the muted caution': (p) => keyed(p, 'media-muted-caution'),
           'the share hint': (p) => keyed(p, 'drive-hud-share-hint'),
           'the no-position line': (p) => p.text == l.driveHudNoPositionFed,
-          'the announce helper': (p) => p.text == l.announceInfoHelper,
           'the page foot': (p) => p.text.startsWith('sngnav-app '),
         }));
+
+        // The announce helper moved with its card to the development page
+        // (2026-09-15), and is held to the floor where it is drawn now. The
+        // page under it is read in the same pass.
+        await openDeveloperPage(tester);
+        await _settle(tester);
+        problems.addAll(_pageBelowFloor(tester, '$lang development page', named: {
+          'the announce helper': (p) => p.text == l.announceInfoHelper,
+        }));
+        await tester.tap(find.byType(BackButton));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 600));
+        await _settle(tester);
 
         final mock = find.byKey(const Key('use-mock-button'));
         await tester.ensureVisible(mock);
