@@ -1146,10 +1146,6 @@ class _HomePageState extends State<HomePage> {
   /// an earlier session's, and no surface shows it as this one's.
   bool _herFedThisShare = false;
 
-  /// While she shares, whether the drive brain holds anything of this session.
-  /// When not sharing, its state is whatever the last feed left, as before.
-  bool get _driveHudIsThisShares => _herSub == null || _herFedThisShare;
-
   // Ruled 2026-09-15: the driver with no
   // position in a measured whiteout.
 
@@ -1160,6 +1156,15 @@ class _HomePageState extends State<HomePage> {
   bool get _driveHudRungIsThisDrives =>
       _isMockPosition ||
       (_herSub != null && _herFedThisShare && !isLocationRefusal(_herFix));
+
+  /// Whether the position the drive brain holds is this drive's, for every
+  /// surface that reads it: the caution card's position lines and the next
+  /// turn. As [_driveHudRungIsThisDrives], and not while the rung is the
+  /// road's own because no position event has come. Until 2026-09-15 the next
+  /// turn read the brain whenever no share ran, so after 停止 a turn was read
+  /// aloud from the position she had ended, 10 minutes later as at once.
+  bool get _driveHudPositionIsThisDrives =>
+      _driveHudRungIsThisDrives && _driveHud.startRung != StartRung.road;
 
   /// No share is running: she never shared, ended it with 停止, or refused.
   bool get _noShareRunning =>
@@ -2190,13 +2195,16 @@ class _HomePageState extends State<HomePage> {
     // she ended or refused. With no share running and a measured whiteout in
     // hand, the road's own rung and its cause. Inside 60 s of a subscription
     // with no event, the road's rung without a position line.
+    //
+    // Her tap does not take a measured whiteout off her card (2026-09-15):
+    // while a share runs and has not yet given the brain anything (the
+    // permission dialog, or the seconds before the first check), the card
+    // shows the road's top rung and its cause as it did before her tap.
+    // Showing is not telling: nothing here speaks or vibrates.
     final brainIsThisShares = _driveHudRungIsThisDrives;
-    final roadOnly =
-        brainIsThisShares && _driveHud.startRung == StartRung.road;
     final DriveAdvice? noShareWhiteout =
-        _noShareRunning && _whiteoutOpen ? _roadAdviceIfTopRung() : null;
-    final estimate =
-        brainIsThisShares && !roadOnly ? _driveHud.estimate : null;
+        !brainIsThisShares && _whiteoutOpen ? _roadAdviceIfTopRung() : null;
+    final estimate = _driveHudPositionIsThisDrives ? _driveHud.estimate : null;
     final advice =
         noShareWhiteout ?? (brainIsThisShares ? _driveHud.advice : null);
     final l = AppL10n.of(context);
@@ -3310,7 +3318,7 @@ class _HomePageState extends State<HomePage> {
     final decision = _driveHud.narrateNextManeuver(
       next,
       icyTurn: _maneuverCoincidesWithHazard(),
-      positionIsThisShares: _driveHudIsThisShares,
+      positionIsThisShares: _driveHudPositionIsThisDrives,
     );
     setState(() => _lastManeuverNarration = decision);
   }
@@ -5040,12 +5048,14 @@ class _HomePageState extends State<HomePage> {
       );
     }
 
-    // Scoped like the caution panel: an earlier session's estimate says
-    // nothing about where she is in this one.
-    final mode = _driveHudIsThisShares ? _driveHud.estimate?.mode : null;
+    // Scoped as the caution panel is: an earlier session's estimate says
+    // nothing about where she is in this one, and neither does a share she
+    // ended or refused (2026-09-15).
+    final mode =
+        _driveHudPositionIsThisDrives ? _driveHud.estimate?.mode : null;
     final icy = _maneuverCoincidesWithHazard();
     final preview = _driveHud.previewNextManeuver(next,
-        icyTurn: icy, positionIsThisShares: _driveHudIsThisShares);
+        icyTurn: icy, positionIsThisShares: _driveHudPositionIsThisDrives);
 
     // The banner's state in the app's language (2026-09-15). Until then it was
     // the gate's internal name and an English reason in every language; the
