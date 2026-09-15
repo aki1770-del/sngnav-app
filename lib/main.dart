@@ -2021,6 +2021,10 @@ class _HomePageState extends State<HomePage> {
         // vibrations while dispatching speech. "Fired unconditionally" was
         // read as "arrives", on the one channel nothing could report. The
         // tactile chip below is the other half; neither speaks for the other.
+        //
+        // Words and icon in kCautionTextOnAmber (2026-09-15): amber.shade900 on
+        // this amber.shade100 measured 2.38:1, under the 4.5:1 floor, on the
+        // chip meant for the driver who has lost a channel. Now 7.16:1.
         if (_speechUnverified.value) ...[
           Align(
             alignment: AlignmentDirectional.centerStart,
@@ -2035,14 +2039,14 @@ class _HomePageState extends State<HomePage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.volume_off_outlined,
-                      size: 14, color: Colors.amber.shade900),
+                  const Icon(Icons.volume_off_outlined,
+                      size: 14, color: kCautionTextOnAmber),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Text(
                       AppL10n.of(context).speechUnverifiedChip,
-                      style: TextStyle(
-                        color: Colors.amber.shade900,
+                      style: const TextStyle(
+                        color: kCautionTextOnAmber,
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
                       ),
@@ -2058,6 +2062,7 @@ class _HomePageState extends State<HomePage> {
         // OWED did not land. Independent of the speech chip above: the two
         // channels fail independently and the deaf / hard-of-hearing driver
         // this one is written for reads no meaning at all in the other.
+        // Same colours as the speech chip, and the same 2.38:1 until 2026-09-15.
         if (_hapticUnverified.value) ...[
           Align(
             alignment: AlignmentDirectional.centerStart,
@@ -2072,16 +2077,16 @@ class _HomePageState extends State<HomePage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.vibration,
-                      size: 14, color: Colors.amber.shade900),
+                  const Icon(Icons.vibration,
+                      size: 14, color: kCautionTextOnAmber),
                   const SizedBox(width: 4),
                   Flexible(
                     child: Semantics(
                       liveRegion: true,
                       child: Text(
                         AppL10n.of(context).hapticUnverifiedChip,
-                        style: TextStyle(
-                          color: Colors.amber.shade900,
+                        style: const TextStyle(
+                          color: kCautionTextOnAmber,
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                         ),
@@ -2177,30 +2182,34 @@ class _HomePageState extends State<HomePage> {
               icon: const Icon(Icons.gps_off),
               label: Text(l.driveHudSimulateBlackout),
             ),
+            // orange.shade900 measured 3.43:1 on the card (2026-09-15); the
+            // staleness colour already defined for orange grounds is 7.02:1.
             if (_blackoutSeconds > 0)
               Text(
                   key: const Key('drive-hud-blackout-seconds'),
                   l.driveHudBlackoutSeconds(_blackoutSeconds),
-                  style: TextStyle(
-                      fontSize: 12, color: Colors.orange.shade900)),
+                  style: const TextStyle(
+                      fontSize: 12, color: kCautionTextOnOrange)),
           ],
         ),
         // An instruction to share, so shown only while she is not sharing.
         // Until 2026-09-14 it was keyed on "no fix" alone, and after a GPS
         // stream error, while she was sharing, it told her to share.
+        // grey.shade600 measured 4.17:1 on the card for this line and the
+        // no-position line below (2026-09-15); shade700 is 5.60:1.
         if (!hasBaseline && _herSub == null)
           Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               key: const Key('drive-hud-share-hint'),
               l.driveHudShareHint,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
             ),
           ),
         const SizedBox(height: 12),
         if (estimate == null || advice == null)
           Text(l.driveHudNoPositionFed,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12))
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 12))
         else ...[
           // The honest position line. The whole panel follows the app's
           // resolved locale (2026-09-13; every value was 'ja' and every label
@@ -3411,8 +3420,9 @@ class _HomePageState extends State<HomePage> {
                         ? AppL10n.of(context).announceFiresHelper(
                             severityForCondition(_condition).name)
                         : AppL10n.of(context).announceInfoHelper,
+                    // shade600 measured 4.17:1 on the card (2026-09-15).
                     style: TextStyle(
-                      color: Colors.grey.shade600,
+                      color: Colors.grey.shade700,
                       fontSize: 11,
                     ),
                   ),
@@ -4214,19 +4224,21 @@ class _HomePageState extends State<HomePage> {
         color: Colors.amber.shade50,
         borderRadius: BorderRadius.circular(6),
       ),
+      // amber.shade900 on this amber.shade50 measured 2.63:1 (2026-09-15);
+      // kCautionTextOnAmber is 7.90:1.
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.volume_off_outlined,
-              size: 16, color: Colors.amber.shade900),
+          const Icon(Icons.volume_off_outlined,
+              size: 16, color: kCautionTextOnAmber),
           const SizedBox(width: 6),
           Expanded(
             child: Semantics(
               liveRegion: true,
               child: Text(
                 l.voiceOfflineCaution,
-                style: TextStyle(
-                  color: Colors.amber.shade900,
+                style: const TextStyle(
+                  color: kCautionTextOnAmber,
                   fontSize: 12,
                 ),
               ),
@@ -4472,11 +4484,13 @@ class _HomePageState extends State<HomePage> {
       return Row(
         children: [
           Expanded(
+            // amber.shade900 measured 2.52:1 on the card (2026-09-15);
+            // kCautionTextOnAmber is 7.60:1 and still reads as amber.
             child: Text(
               l.mockPositionStatus(acc),
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 12,
-                color: Colors.amber.shade900,
+                color: kCautionTextOnAmber,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -4525,9 +4539,10 @@ class _HomePageState extends State<HomePage> {
         l.positionLostStatus(double.infinity),
         Colors.blueGrey.shade700,
       ),
+      // shade600 measured 4.17:1 on the card (2026-09-15); shade700 is 5.60:1.
       null => (
         l.locatingYou,
-        Colors.grey.shade600,
+        Colors.grey.shade700,
       ),
       // A position the drive brain was not given (ruled 2026-09-14): it would
       // not have been a trusted fix, so the line claims no position and no
@@ -4758,9 +4773,12 @@ class _HomePageState extends State<HomePage> {
           Colors.green.shade900,
           l.maneuverTierSpeak,
         ),
+      // amber.shade900 here was 2.38:1 (2026-09-15). No position the app
+      // gives the drive brain reaches this state today, so no rendered test
+      // reaches it; kCautionTextOnAmber on amber.shade100 is 7.16:1.
       NarrationConfidence.hedge => (
           Colors.amber.shade100,
-          Colors.amber.shade900,
+          kCautionTextOnAmber,
           l.maneuverTierHedge,
         ),
       NarrationConfidence.suppressed => (
@@ -5554,7 +5572,10 @@ class _Footer extends StatelessWidget {
         'GPS shows position with honest accuracy; mock dot is amber (dev). '
         'Routing via OSRM public demo (NOT snow-aware). '
         'Corridor weather = 5-station JMA verbatim (op-(e) aggregation only).',
-        style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+        // shade600 measured 4.39:1 on the page ground (2026-09-15); 5.90:1 now.
+        // The words above are unchanged here and named for a ruling: package
+        // names and project terms, in English, on her screen in every language.
+        style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
         textAlign: TextAlign.center,
       ),
     );
