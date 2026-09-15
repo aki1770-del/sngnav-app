@@ -24,7 +24,7 @@ import 'package:sngnav_app/main.dart' show SngnavApp;
 import '../support/fake_alert_actuators.dart';
 
 const _hint =
-    'Share a location (Akita mock or GPS) above to start the drive brain.';
+    'Tap "Share my location" above and the caution also uses your position.';
 
 Future<StreamController<PositionFix>> _boot(WidgetTester tester) async {
   final positions = StreamController<PositionFix>.broadcast();

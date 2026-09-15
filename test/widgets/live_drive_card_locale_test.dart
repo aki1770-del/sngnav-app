@@ -50,12 +50,12 @@ String _textOf(WidgetTester tester, Key key) =>
     tester.widget<Text>(find.byKey(key)).data ?? '';
 
 const _englishLiterals = [
-  'Fuses the current position',
+  'Combines your position',
   'Simulate GPS blackout',
   'blackout: ',
-  'Auto-fires audio + haptic',
-  'Raised to caution (shown + coloured)',
-  'Continue — nothing announced',
+  'the app tells you by voice and vibration',
+  'Raised to caution (shown in colour)',
+  'nothing is announced by voice or vibration',
 ];
 
 void main() {
@@ -97,7 +97,7 @@ void main() {
     await _boot(tester, 'en');
     await _useMock(tester);
     await _blackout(tester);
-    expect(find.textContaining('Fuses the current position'), findsOneWidget);
+    expect(find.textContaining('Combines your position'), findsOneWidget);
     // The demo controls and the counter are read where they are drawn.
     await openDeveloperPage(tester);
     expect(find.textContaining('視程デモ上書き'), findsNothing);
