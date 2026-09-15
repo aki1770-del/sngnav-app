@@ -3273,6 +3273,25 @@ class _HomePageState extends State<HomePage> {
     return granted;
   }
 
+  /// Asks the routing question again after she agreed to send. With both
+  /// points chosen the question goes through the fetch, as the re-ask after a
+  /// no does: a yes fetches, a no shows the declined state and sends nothing.
+  /// With no points chosen the answer is asked and remembered on its own. A
+  /// dismissal remembers nothing, so she is asked before the next send.
+  Future<void> _changeRouteConsentAfterYes() async {
+    _osrmConsent = null;
+    if (_origin != null && _destination != null) {
+      await _fetchRoute();
+      return;
+    }
+    final granted = await _promptRouteConsent();
+    if (!mounted) return;
+    setState(() => _osrmConsent = granted);
+    if (granted != null) {
+      unawaited(_routeConsentStore().then((store) => store?.save(granted)));
+    }
+  }
+
   /// The pre-send disclosure dialog (ja-primary via AppL10n). States what
   /// leaves the device and where it goes BEFORE anything is sent.
   Future<bool?> _promptRouteConsent() {
@@ -5164,6 +5183,17 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
           },
+        // A remembered yes is not a locked door either: after she agreed to
+        // send, the same control that re-asks after a no is offered here.
+        if (open && !_routeLoading && _osrmConsent == true)
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: TextButton(
+              key: const Key('route-consent-change'),
+              onPressed: _changeRouteConsentAfterYes,
+              child: Text(l.routeConsentChangeChoice),
+            ),
+          ),
         if (open)
           Align(
             alignment: Alignment.centerRight,

@@ -690,12 +690,11 @@ class AppL10n {
   /// the device (the two tapped coordinates), where it goes (the public
   /// OSRM demo server), and why — BEFORE anything is sent.
   String get routeConsentBody => _ja
-      ? '出発地と目的地の座標が、経路計算のため公開OSRMデモサーバー（router.project-osrm.org）に送信されます。よろしいですか。この選択は記憶されます。「送信しない」を選んだときは、ルート欄の「選択を変更」から選び直せます。送信を選ぶと、このアプリの中では取り消せません。'
+      ? '出発地と目的地の座標が、経路計算のため公開OSRMデモサーバー（router.project-osrm.org）に送信されます。よろしいですか。この選択は記憶され、ルート欄の「選択を変更」から変更できます。'
       : 'The origin and destination coordinates you tapped will be sent to the '
           'public OSRM demo server (router.project-osrm.org) to calculate the '
-          'route. Is that OK? Your choice is remembered. If you choose "Do not '
-          'send", you can choose again with "Change choice" in the route panel. If '
-          'you choose to send, it cannot be undone in this app.';
+          'route. Is that OK? Your choice is remembered and can be changed with '
+          '"Change choice" in the route panel.';
 
   String get routeConsentAccept => _ja ? '送信して経路を取得' : 'Send and fetch route';
 
@@ -708,8 +707,8 @@ class AppL10n {
       ? '経路は取得していません — 座標は送信されていません。'
       : 'No route was fetched — your coordinates were not sent.';
 
-  /// Path back after a persisted decline (dignity: a remembered "no" must
-  /// never be a locked door).
+  /// Path back after a remembered answer, a no or a yes (dignity: neither
+  /// may be a locked door).
   String get routeConsentChangeChoice => _ja ? '選択を変更' : 'Change choice';
 
   // ===== Advisory ordering / NWS de-emphasis for the ja surface (task 4) =====
