@@ -1,0 +1,1615 @@
+[
+ {
+  "controlDatetime": "2026-05-24T08:08:27Z",
+  "reportDatetime": "2026-05-24T17:08:00+09:00",
+  "infoType": "発表",
+  "publishingOffice": "新潟地方気象台",
+  "headlineText": "注意報を解除します。",
+  "warning": {
+   "class10Items": [
+    {
+     "areaCode": "150010",
+     "kinds": [
+      {
+       "code": "10",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "150020",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "150030",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "150040",
+     "kinds": [
+      {
+       "code": "10",
+       "status": "解除"
+      }
+     ]
+    }
+   ],
+   "class20Items": [
+    {
+     "areaCode": "1510000",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520400",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520600",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520800",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520900",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521000",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521200",
+     "kinds": [
+      {
+       "code": "10",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521300",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521600",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521700",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521800",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522300",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522400",
+     "kinds": [
+      {
+       "code": "10",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522600",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522700",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1530700",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1534200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1536100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1538500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1540500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1546100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1548200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1550400",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1558100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1558600",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    }
+   ]
+  },
+  "dataTypeCode": "VPWW55"
+ },
+ {
+  "controlDatetime": "2026-05-25T23:18:29Z",
+  "reportDatetime": "2026-05-26T08:18:00+09:00",
+  "infoType": "発表",
+  "publishingOffice": "新潟地方気象台",
+  "headlineText": "注意報を解除します。",
+  "warning": {
+   "class10Items": [
+    {
+     "areaCode": "150010",
+     "kinds": [
+      {
+       "code": "29",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "150020",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "150030",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "150040",
+     "kinds": [
+      {
+       "code": "29",
+       "status": "解除"
+      }
+     ]
+    }
+   ],
+   "class20Items": [
+    {
+     "areaCode": "1510000",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520400",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520600",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520800",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520900",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521000",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521200",
+     "kinds": [
+      {
+       "code": "29",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521300",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521600",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521700",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521800",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522300",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522400",
+     "kinds": [
+      {
+       "code": "29",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522600",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522700",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1530700",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1534200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1536100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1538500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1540500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1546100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1548200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1550400",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1558100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1558600",
+     "kinds": [
+      {
+       "code": "29",
+       "status": "解除"
+      }
+     ]
+    }
+   ]
+  },
+  "offices": [
+   {
+    "type": "補足情報担当",
+    "name": "新潟県土木部砂防課"
+   },
+   {
+    "type": "気象関係",
+    "name": "新潟地方気象台"
+   }
+  ],
+  "dataTypeCode": "VPWW56"
+ },
+ {
+  "controlDatetime": "2026-05-19T11:13:34Z",
+  "reportDatetime": "2026-05-19T20:13:00+09:00",
+  "infoType": "発表",
+  "publishingOffice": "新潟地方気象台",
+  "headlineText": "注意報を解除します。",
+  "warning": {
+   "class10Items": [
+    {
+     "areaCode": "150010",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "150020",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "150030",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "150040",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    }
+   ],
+   "class20Items": [
+    {
+     "areaCode": "1510000",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520200",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520400",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520500",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520600",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520800",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520900",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521000",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521200",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521300",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521600",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521700",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521800",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522200",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522300",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522400",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522600",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522700",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1530700",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1534200",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1536100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1538500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1540500",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1546100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1548200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1550400",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1558100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1558600",
+     "kinds": [
+      {
+       "code": "15",
+       "status": "解除"
+      }
+     ]
+    }
+   ]
+  },
+  "dataTypeCode": "VPWW58"
+ },
+ {
+  "controlDatetime": "2026-05-19T23:16:04Z",
+  "reportDatetime": "2026-05-20T08:16:00+09:00",
+  "infoType": "発表",
+  "publishingOffice": "新潟地方気象台",
+  "headlineText": "注意報を解除します。",
+  "warning": {
+   "class10Items": [
+    {
+     "areaCode": "150010",
+     "kinds": [
+      {
+       "code": "16",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "150020",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "150030",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "150040",
+     "kinds": [
+      {
+       "code": "16",
+       "status": "解除"
+      }
+     ]
+    }
+   ],
+   "class20Items": [
+    {
+     "areaCode": "1510000",
+     "kinds": [
+      {
+       "code": "16",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520400",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520600",
+     "kinds": [
+      {
+       "code": "16",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520800",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520900",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521000",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521200",
+     "kinds": [
+      {
+       "code": "16",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521300",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521600",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521700",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521800",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522300",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522400",
+     "kinds": [
+      {
+       "code": "16",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522600",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522700",
+     "kinds": [
+      {
+       "code": "16",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1530700",
+     "kinds": [
+      {
+       "code": "16",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1534200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1536100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1538500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1540500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1546100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1548200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1550400",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1558100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1558600",
+     "kinds": [
+      {
+       "code": "16",
+       "status": "解除"
+      }
+     ]
+    }
+   ]
+  },
+  "dataTypeCode": "VPWW59"
+ },
+ {
+  "controlDatetime": "2026-05-26T06:45:40Z",
+  "reportDatetime": "2026-05-26T15:45:00+09:00",
+  "infoType": "発表",
+  "publishingOffice": "新潟地方気象台",
+  "headlineText": "中越、上越では、濃霧による視程障害に注意してください。",
+  "warning": {
+   "class10Items": [
+    {
+     "areaCode": "150010",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "150020",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "150030",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "150040",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    }
+   ],
+   "class20Items": [
+    {
+     "areaCode": "1510000",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520200",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520400",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520500",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520600",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520800",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1520900",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521000",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除",
+       "properties": [
+        {
+         "type": "濃霧危険度",
+         "significancyPart": {
+          "locals": [
+           {
+            "code": "20"
+           }
+          ]
+         }
+        },
+        {
+         "type": "濃霧"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "areaCode": "1521100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521300",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1521600",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除",
+       "properties": [
+        {
+         "type": "濃霧危険度",
+         "significancyPart": {
+          "locals": [
+           {
+            "areaName": "陸上",
+            "code": "20"
+           }
+          ]
+         }
+        },
+        {
+         "type": "濃霧"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "areaCode": "1521700",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除",
+       "properties": [
+        {
+         "type": "濃霧危険度",
+         "significancyPart": {
+          "locals": [
+           {
+            "code": "20"
+           }
+          ]
+         }
+        },
+        {
+         "type": "濃霧"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "areaCode": "1521800",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522200",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除",
+       "properties": [
+        {
+         "type": "濃霧危険度",
+         "significancyPart": {
+          "locals": [
+           {
+            "areaName": "陸上",
+            "code": "20"
+           }
+          ]
+         }
+        },
+        {
+         "type": "濃霧"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "areaCode": "1522300",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522400",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1522500",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除",
+       "properties": [
+        {
+         "type": "濃霧危険度",
+         "significancyPart": {
+          "locals": [
+           {
+            "code": "20"
+           }
+          ]
+         }
+        },
+        {
+         "type": "濃霧"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "areaCode": "1522600",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除",
+       "properties": [
+        {
+         "type": "濃霧危険度",
+         "significancyPart": {
+          "locals": [
+           {
+            "code": "20"
+           }
+          ]
+         }
+        },
+        {
+         "type": "濃霧"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "areaCode": "1522700",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1530700",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1534200",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1536100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1538500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1540500",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1546100",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除",
+       "properties": [
+        {
+         "type": "濃霧危険度",
+         "significancyPart": {
+          "locals": [
+           {
+            "code": "20"
+           }
+          ]
+         }
+        },
+        {
+         "type": "濃霧"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "areaCode": "1548200",
+     "kinds": [
+      {
+       "code": "20",
+       "status": "解除",
+       "properties": [
+        {
+         "type": "濃霧危険度",
+         "significancyPart": {
+          "locals": [
+           {
+            "code": "20"
+           }
+          ]
+         }
+        },
+        {
+         "type": "濃霧"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "areaCode": "1550400",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1558100",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    },
+    {
+     "areaCode": "1558600",
+     "kinds": [
+      {
+       "status": "発表警報・注意報はなし"
+      }
+     ]
+    }
+   ]
+  },
+  "dataTypeCode": "VPWW61"
+ }
+]

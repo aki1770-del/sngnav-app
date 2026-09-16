@@ -44,27 +44,56 @@
 /// 862 h old while its newest was 3.7 h, both entirely normal. Nothing in this
 /// file exercises that shape, and a reader could reasonably assume it does.
 ///
-/// That is not a latent bug here today: the app pins
-/// `condition_aggregator_jma ^0.5.0`, and 0.5.0 reads the RETIRED path. The
-/// notice firing on every read is CORRECT right now, because that feed really
-/// is dead. **The gap opens the moment an r8-carrying version reaches the app.**
+/// **What is owed HERE, when an r8-carrying version reaches this app, is the
+/// control this file still lacks: a fixture proving the notice does NOT fire on
+/// a healthy r8 office.** Until then this file proves the notice APPEARS and
+/// does not prove it appears APPROPRIATELY, and those are different claims.
 ///
-/// And it opens onto the failure this unit ranks as worse than silence.
-/// Measured live 2026-08-24 20:07 JST across all 13 catalogued offices on the
-/// r8 feed, using the newest document per office: **4 of 13 — 31% — exceed the
-/// 6-hour default staleness threshold with nothing wrong**, including `050000`,
-/// HER mother's prefecture, at 12.2 h. JMA rewrites a WARNING document when
-/// something changes; a quiet prefecture is simply not rewritten for days. The
-/// 6-hour default was calibrated against the sibling FORECAST path, which is
-/// schedule-driven. On the r8 feed this notice would tell her
-/// 「安全とは限りません」 about healthy data roughly one office in three.
+/// ═══════════════════════════════════════════════════════════════════════════
+/// ⚑ 2026-09-16 — THE DEBT ABOVE IS PAID, AND THE FEED IS NO LONGER FROZEN.
+/// ═══════════════════════════════════════════════════════════════════════════
 ///
-/// The threshold is `condition_aggregator_jma`'s to decide (NDI owns that
-/// family) and is open at the time of writing. **What is owed HERE, when an
-/// r8-carrying version reaches this app, is the control this file still lacks:
-/// a fixture proving the notice does NOT fire on a healthy r8 office.** Until
-/// then this file proves the notice APPEARS and does not prove it appears
-/// APPROPRIATELY, and those are different claims.
+/// The app moved to `condition_aggregator_jma '>=0.7.0 <0.8.0'` this day, which
+/// reads `bosai/warning/data/r8/`. So the moment the section above called "the
+/// gap opens" arrived, and it is closed in the same commit rather than after
+/// it. Measured live this day, from this machine, both paths:
+///
+///   data/warning/050000.json (retired) -> 200, reportDatetime
+///     2026-05-28T06:11+09:00. **ONE HUNDRED AND ELEVEN DAYS.**
+///   data/r8/050000.json      (live)    -> 200, newest of five documents
+///     2026-09-16T09:50+09:00. **This morning.**
+///
+/// She had no live JMA warning for 111 days and the app never errored once.
+///
+/// **Every fixture in this file is now the r8 shape**, and the fixtures are
+/// real documents rather than invented ones — with one honest exception that
+/// has to be stated, because it is the kind of thing this file exists to catch:
+///
+///   * `jma_warning_r8_niigata_150000_live_inforce_20260916.json` and
+///     `jma_warning_r8_akita_050000_live_20260916.json` are **byte-for-byte as
+///     served** this day.
+///   * The two FROZEN fixtures are **DERIVED**, and they must be, because no
+///     frozen r8 document exists anywhere in the world — the r8 path is the one
+///     that is alive. Each was built from the real live document for its own
+///     prefecture by two declared mutations and nothing else: every
+///     `reportDatetime` and `controlDatetime` shifted back by a fixed offset,
+///     and the warning `kinds` statuses set (Akita: 27 kinds 解除 -> 発表, so a
+///     dead warning is in force; Niigata: 10 kinds -> 解除, so the document
+///     carries nothing). Area codes, office names, document count, bulletin
+///     families and schema are the publisher's own.
+///
+/// **The control that was owed is now the CRY-WOLF test below**, and it is no
+/// longer a hypothetical age: measured this day across all 58 JMA offices on
+/// the live r8 path, the newest-document age was max 59.63 h (2.48 d), median
+/// 5.25 h, with **27 of 58 — 46.6% — past the adapter's 6-hour default and
+/// nothing wrong with any of them.** That is why this app sets 7 days, and the
+/// number is now fitted to measured healthy cadence instead of to a corpse.
+///
+/// ⚑ **And one class changed under this app's feet.** Past 7 days 0.7.0 emits
+/// `kJmaPathRetirementEventClass`, not `kJmaStaleFeedEventClass` — so at 111
+/// days the class this file used to name fires never. That trap has its own
+/// file: `jma_feed_health_set_test.dart`, which is RED when the app matches one
+/// constant instead of the set.
 library;
 
 import 'dart:convert';
@@ -78,6 +107,7 @@ import 'package:http/testing.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/services/jma_advisory_provider_factory.dart';
+import 'package:sngnav_app/services/jma_feed_health.dart';
 import 'package:sngnav_app/widgets/advisory_cards.dart';
 
 /// `kJmaStaleFeedEventClass`, condition_aggregator_jma 0.5.0
@@ -87,6 +117,15 @@ import 'package:sngnav_app/widgets/advisory_cards.dart';
 /// "the feed has stopped".
 const String kStaleFeedEventClass = '気象情報の更新停止';
 
+/// `kJmaPathRetirementEventClass`, condition_aggregator_jma 0.7.0
+/// (lib/src/jma_advisory_mapper.dart:928), spelled out for the same reason.
+///
+/// ⚑ THIS, not the constant above, is what a 111-day feed produces in this app.
+/// The message is different in kind and not only in magnitude: "this delivery
+/// path may no longer be served" points at a one-line fix, where "the data is
+/// old" points at waiting — and the unit waited 87 days on the second wording.
+const String kPathRetirementEventClass = '気象情報の提供経路が変更された可能性';
+
 /// Akita city, in the prefecture the frozen fixture covers.
 const double kAkitaLat = 39.7186;
 const double kAkitaLon = 140.1024;
@@ -95,7 +134,7 @@ const double kAkitaLon = 140.1024;
 final DateTime kFrozenReportedAt = DateTime.parse('2026-05-28T06:11:00+09:00');
 
 String _frozenDocument() => File(
-      'test/fixtures/jma_warning_akita_050000_frozen_20260528.json',
+      'test/fixtures/jma_warning_r8_akita_050000_frozen_20260528.json',
     ).readAsStringSync();
 
 MockClient _serving(String body) => MockClient((request) async {
@@ -154,29 +193,40 @@ void main() {
       final now = kFrozenReportedAt.add(const Duration(days: 88));
       final out = await _fetchAt(now);
 
-      final dead = out.where((a) => a.eventClass == '雷注意報');
-      final notice =
+      final dead = out.where((a) => a.eventClass == '濃霧注意報');
+      final staleOnly =
           out.where((a) => a.eventClass == kStaleFeedEventClass);
+      final retirement =
+          out.where((a) => a.eventClass == kPathRetirementEventClass);
 
       expect(
         dead,
         isNotEmpty,
         reason: 'precondition: the frozen document really does still serve a '
-            '雷注意報 as in force — if this fails the fixture has changed and '
-            'the rest of this file is testing nothing',
+            '濃霧注意報 as in force — if this fails the fixture has changed and '
+            'the rest of this file is testing nothing. (It was 雷注意報 while '
+            'this file read the retired path; the r8 fixture is derived from '
+            'the real Akita document, whose class is 濃霧 — code 20, the same '
+            'class the live path carried in force while we read a corpse.)',
       );
-      // ⚑ ON THE 0.3.x LINE THE MARKER IS NOT IN THE LIST. 0.3.2 reports
-      // freshness OUT-OF-BAND via `AdvisoryFeedFreshnessReporting`; the
-      // in-band `Advisory` notice is a 0.5.0 capability, and 0.5.0 pays for it
-      // by dropping the interface that feeds `canAssertNoAdvisory`. The app is
-      // pinned to the line that keeps the guard fed, so the marker arrives as
-      // `staleSources` and is rendered by the banner — asserted below.
+      // ⚑ 0.7.0 RESTORED `AdvisoryFeedFreshnessReporting`, which 0.5.0 and
+      // 0.6.0 had dropped, so the app now gets the marker BOTH ways: in-band as
+      // an Advisory, and out-of-band as `staleSources` feeding
+      // `canAssertNoAdvisory`. Both are asserted — the second below.
       expect(
-        notice,
+        retirement,
+        isNotEmpty,
+        reason: 'at 111 days the adapter must say the delivery path may have '
+            'been retired. This is the sentence that would have saved 111 '
+            'days, because it names a fix instead of counselling patience.',
+      );
+      expect(
+        staleOnly,
         isEmpty,
-        reason: '0.3.2 emits no in-band notice — if this ever becomes '
-            'non-empty the pin has moved and the banner assertions below are '
-            'no longer the only marker',
+        reason: 'and it is NOT the plain stale-feed class — at this age the '
+            'retirement branch wins. Asserted so the trap is visible here too: '
+            'a reader who matched only 気象情報の更新停止 would find nothing. '
+            'See jma_feed_health_set_test.dart.',
       );
     });
 
@@ -201,7 +251,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(
-        find.textContaining('雷注意報'),
+        find.textContaining('濃霧注意報'),
         findsWidgets,
         reason: 'precondition: the dead warning does render',
       );
@@ -256,16 +306,18 @@ void main() {
     test('CONTROL — a FRESH document produces no notice, so the notice above '
         'was caused by staleness and not by construction', () async {
       // Same fixture, same code path, clock moved to one hour after the
-      // document's own reportDatetime. Inside the 6-hour default threshold.
+      // document's own newest reportDatetime. Inside every threshold.
       final out = await _fetchAt(kFrozenReportedAt.add(const Duration(hours: 1)));
 
       expect(
-        out.where((a) => a.eventClass == '雷注意報'),
+        out.where((a) => a.eventClass == '濃霧注意報'),
         isNotEmpty,
         reason: 'the warning itself is unaffected by the clock',
       );
       expect(
-        out.where((a) => a.eventClass == kStaleFeedEventClass),
+        out.where((a) =>
+            a.eventClass == kStaleFeedEventClass ||
+            a.eventClass == kPathRetirementEventClass),
         isEmpty,
         reason: 'if a notice fires on a one-hour-old document then this whole '
             'file proves nothing: it would fire on every read, including the '
@@ -313,13 +365,22 @@ void _fabricatedAllClearGroup() {
     test('90-day-dead Niigata document -> canAssertNoAdvisory is FALSE',
         () async {
       final frozen = File(
-        'test/fixtures/jma_warning_niigata_150000_frozen_zero_warnings.json',
+        'test/fixtures/jma_warning_r8_niigata_150000_frozen_zero_warnings.json',
       ).readAsStringSync();
 
       // Precondition, asserted rather than assumed: this really is the
       // dangerous shape — old, and carrying nothing.
-      final decoded = jsonDecode(frozen) as Map<String, dynamic>;
-      final reported = DateTime.parse(decoded['reportDatetime'] as String);
+      // ⚑ r8 ROOT IS A LIST, and freshness is the NEWEST document, never the
+      // oldest or the first. Reading element 0 would have taken this fixture's
+      // 2026-05-19 bulletin as the feed's age where its newest is 2026-05-26 —
+      // a week of error in the safe direction here, and in the OTHER direction
+      // on a live feed, where it reports a healthy office as weeks dead and
+      // fires a false feed-death notice over real warnings.
+      final decoded = jsonDecode(frozen) as List<dynamic>;
+      final reported = decoded
+          .map((d) => DateTime.parse(
+              (d as Map<String, dynamic>)['reportDatetime'] as String))
+          .reduce((a, b) => a.isAfter(b) ? a : b);
       final now = reported.add(const Duration(days: 90));
 
       final provider = buildJmaAdvisoryProvider(
@@ -341,11 +402,25 @@ void _fabricatedAllClearGroup() {
         longitude: 139.0235,
       );
 
+      // ⚑ WEATHER advisories, not the whole list. On 0.3.2 the list really was
+      // empty, because freshness was reported only out-of-band. 0.7.0 reports
+      // it BOTH ways, so the feed-health notice is now IN the list — and
+      // asserting the whole list empty would fail for the best possible
+      // reason: the app is being told something it was not told before. The
+      // case under test is unchanged and is still the dangerous one — the
+      // publisher named no warning at all.
       expect(
-        result.advisories,
+        weatherAdvisoriesOnly(result.advisories),
         isEmpty,
         reason: 'precondition: the frozen Niigata document lists no warnings — '
             'this is the empty-list case, not the stale-warning case',
+      );
+      expect(
+        jmaFeedHealthNotices(result.advisories),
+        isNotEmpty,
+        reason: 'and the ONLY thing in the list is the channel reporting on '
+            'itself. If this is empty she is looking at a blank advisory panel '
+            'for a prefecture nobody has described since May.',
       );
       expect(
         result.providerErrors,

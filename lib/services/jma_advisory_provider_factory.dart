@@ -31,9 +31,15 @@ import 'package:http/http.dart' as http;
 /// warning as `status=発表` — could not be reached from a test at all. A
 /// factory that cannot be given a frozen feed cannot be asked what HER screen
 /// shows when the feed freezes.
-/// ⚑ The clock parameter is named `clock` on the 0.3.x line and `now` on 0.5.x.
-/// The rename is not in either CHANGELOG. This factory is the one place that has
-/// to know, which is the argument for the factory existing at all.
+/// ⚑ The clock parameter is named `clock` on the 0.3.x line and `now` from
+/// 0.5.x on. The rename is not in either CHANGELOG. This factory is the one
+/// place that has to know, which is the argument for the factory existing at
+/// all — and on 2026-09-16, moving the app to 0.7.0, it was the only compile
+/// error in the tree. One word, in one file, because the knowledge was kept in
+/// one place.
+///
+/// The app-side parameter stays named `clock` so no caller or test moves; only
+/// the package-side name changes at the construction site below.
 AdvisoryProvider buildJmaAdvisoryProvider({
   required String userAgent,
   http.Client? client,
@@ -42,7 +48,7 @@ AdvisoryProvider buildJmaAdvisoryProvider({
   return JmaAdvisoryProvider(
     userAgent: userAgent,
     client: client,
-    clock: clock,
+    now: clock,
     // ⚑ 7 DAYS, NOT THE ADAPTER'S 6-HOUR DEFAULT — set by the integrator,
     // which is the route the adapter's own dartdoc names for an integrator
     // that has measured its region.
@@ -101,9 +107,41 @@ AdvisoryProvider buildJmaAdvisoryProvider({
     //     a corpse would be inventing a measurement.
     //   * 7 d stays the value NDI staged for 0.5.1/0.3.3, so the app and the
     //     adapter family still agree when those publish.
-    // HONEST BOUND: this number is currently UNFALSIFIABLE against live data
-    // and must be re-derived from real cadence if JMA ever resumes writing
-    // this path. It is a placeholder that fails safe, not a fitted bound.
+    // ⚑ 2026-09-16 — THE BOUND ABOVE IS DISCHARGED. It read: "this number is
+    // currently UNFALSIFIABLE against live data and must be re-derived from
+    // real cadence if JMA ever resumes writing this path. It is a placeholder
+    // that fails safe, not a fitted bound."
+    //
+    // The app moved to the r8 path this day, and that path IS being written.
+    // So the re-derivation the bound demanded became possible, and was done
+    // rather than deferred. Measured this day, all 58 offices from JMA's own
+    // area.json, age from the newest document-level `reportDatetime` — the
+    // exact field `parseJmaR8Feed` uses:
+    //
+    //     max 59.63 h (2.48 d)   median 5.25 h   min 0.60 h
+    //     >= 6 h : 27/58 = 46.6%
+    //     >= 1 d : 16/58 = 27.6%
+    //     >= 3 d :  0/58 =  0.0%
+    //     >= 7 d :  0/58 =  0.0%
+    //
+    // CONTROL, because "everything is healthy" is what a broken instrument
+    // reports just as readily: the SAME method against the retired path the
+    // same minute returned Akita at 111.53 d and Sapporo at 111.62 d. The
+    // instrument can produce a stale reading; on r8 there is none.
+    //
+    // 7 d is now a FITTED bound with margin over an observed healthy maximum
+    // of 2.48 d, and the value is unchanged — the first time it has been the
+    // same number for a measured reason rather than for want of one.
+    //
+    // And the adapter's own 6-hour default is measurably wrong for THIS path:
+    // it would fire on 46.6% of offices with nothing wrong. That is the
+    // cry-wolf failure this unit ranks beside silence, and it is why the
+    // integrator sets this value rather than inheriting it.
+    //
+    // HONEST BOUND, the one that replaces it: this is ONE reading of a quiet
+    // September evening, not a season. Winter is when she needs it and when
+    // cadence is fastest; a quiet spell in a snowbound prefecture is the case
+    // that could still exceed 2.48 d. Re-derive before winter.
     staleFeedThreshold: const Duration(days: 7),
   );
 }

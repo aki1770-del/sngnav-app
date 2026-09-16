@@ -38,7 +38,23 @@ dependencies:
   voice_guidance: ^0.7.2
   offline_tiles: ^0.5.0
   map_viewport_bloc: ^0.4.0
-  driving_conditions: ^0.6.0
+  # 2026-09-16 — WIDENED FOR CURRENCY, NOT FOR SERVICE, and the distinction is
+  # measured rather than assumed. 0.7.0 fixes a missed-alarm rate its own
+  # CHANGELOG puts at 24.59% on the `ageingRural` profile — her mother's. That
+  # fix is real and it does not reach her through this app: VERIFIED by grep,
+  # the app calls none of the scored path. Nine identifiers
+  # (SafetyScoreSimulator, CpuSafetyScoreSimulationEngine,
+  # NativeSafetyScoreSimulationEngine, SimulatedSafetyScore,
+  # FleetConfidenceProvider, ConstantFleetConfidenceProvider,
+  # FleetHazardConfidenceAdapter, fleetConfidenceScore, hasFleetData) return
+  # 0 hits across lib/ and test/. Every import of this package is a narrow
+  # `show` naming exactly RoadSurfaceState and HysteresisFilter, and a full
+  # recursive diff of the published 0.6.0 and 0.7.1 archives shows those two
+  # symbols unchanged but for one comment line.
+  # Taken so the app is not sitting on a range that excludes a published safety
+  # fix. It buys her nothing today, and saying otherwise would be the
+  # built-capability-not-reach claim this seat exists to catch.
+  driving_conditions: '>=0.6.0 <0.8.0'
   driving_weather: ^0.5.0
   adaptive_reroute: ^0.2.0
   route_condition_forecast: ^0.2.0
@@ -72,7 +88,24 @@ dependencies:
   # by the windscreen; a false all-clear removes the prompt to look out of it."
   #
   # Restore to ^0.5.0 only when a 0.5.x carries the interface again.
-  condition_aggregator_jma: ^0.3.0
+  #
+  # 2026-09-16 — MOVED TO 0.7.0, AND THE FLOOR IS PINNED ON PURPOSE.
+  # Measured live this day, both paths, from this machine:
+  #   bosai/warning/data/warning/050000.json -> HTTP 200, reportDatetime
+  #     2026-05-28T06:11+09:00. Akita. ONE HUNDRED AND ELEVEN DAYS OLD.
+  #   bosai/warning/data/r8/050000.json      -> HTTP 200, newest of five
+  #     documents 2026-09-16T09:50+09:00. This morning.
+  # JMA retired the first path on 2026-05-29. It never errored; it answers 200
+  # with well-formed JSON. A frozen feed does not look absent, it looks calm,
+  # and that is why 111 days passed with nobody noticing. 0.7.0 reads r8.
+  #
+  # The floor is `>=0.7.0` and NOT `>=0.3.0`, because `'>=0.3.0 <0.8.0'`
+  # resolves to 0.5.0 — the one version that both stays on the retired path AND
+  # drops `AdvisoryFeedFreshnessReporting`. That would answer
+  # `canAssertNoAdvisory` TRUE on a frozen document: a positive all-clear
+  # computed from a corpse. A widening that lands 0.5.0 by accident is worse
+  # than not widening.
+  condition_aggregator_jma: '>=0.7.0 <0.8.0'
   noaa_nws_adapter: '>=0.0.3 <0.1.0'
   flutter_map: ^8.2.2
   flutter_bloc: ^9.0.0
