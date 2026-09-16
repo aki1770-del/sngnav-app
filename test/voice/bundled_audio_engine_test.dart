@@ -73,7 +73,7 @@ void main() {
     test('the absence line plays from bundled audio and NEVER reaches the TTS',
         () async {
       await engine.speak(kConditionsUnknownJaSpokenText);
-      expect(played, <String>['audio/ja/conditions_unknown.wav']);
+      expect(played, <String>['assets/audio/ja/conditions_unknown.wav']);
       expect(
         tts.spoken,
         isEmpty,

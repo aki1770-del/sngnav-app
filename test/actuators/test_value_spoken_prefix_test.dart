@@ -123,8 +123,8 @@ void main() {
     await engine.speak('テスト値です。');
     await engine.speak(stopJa);
     expect(played, [
-      'audio/ja/test_value_prefix.wav',
-      'audio/ja/guidance_consider_stopping.wav',
+      'assets/audio/ja/test_value_prefix.wav',
+      'assets/audio/ja/guidance_consider_stopping.wav',
     ]);
     expect(tts.spoken, isEmpty);
   });

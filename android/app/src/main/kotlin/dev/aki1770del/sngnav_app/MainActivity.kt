@@ -172,9 +172,11 @@ class MainActivity : FlutterActivity() {
                         }
                     }
 
+                    // Flutter assets live under flutter_assets/<declared path>.
+                    // tool/check_bundled_audio_in_apk.py reads this line to check
+                    // a built APK, so keep the rule on one line in this form.
+                    val key = "flutter_assets/$asset"
                     try {
-                        // Flutter assets live under flutter_assets/<declared path>.
-                        val key = "flutter_assets/$asset"
                         val afd = assets.openFd(key)
                         val player = android.media.MediaPlayer()
                         player.setAudioAttributes(nav)
@@ -237,7 +239,14 @@ class MainActivity : FlutterActivity() {
                         // Never crash the surface she is driving on. Abandon
                         // focus (EXIT 4 — idempotent whether or not it was held)
                         // and report the failure honestly so the caller falls
-                        // back to TTS.
+                        // back to TTS. One log line, no stack trace: without it a
+                        // clip that cannot be opened turns into a TTS line with
+                        // nothing in a release logcat to say so.
+                        android.util.Log.w(
+                            "SngnavBundledAudio",
+                            "bundled clip not played, falling back to TTS: $key " +
+                                "(${e.javaClass.simpleName}: ${e.message})",
+                        )
                         abandonFocus()
                         reply(false)
                     }

@@ -326,6 +326,20 @@ jobs:
       - name: Build debug APK
         run: flutter build apk --debug
 
+      # The offline voice opens its clips with a key Dart builds and Kotlin
+      # prefixes. From 2026-07-12 to 2026-09-16 that key named a path the APK
+      # did not hold: every phrase fell back to the phone's TTS, nothing was
+      # logged, and every test passed against a fake player. This records the
+      # keys from the engine's real channel call and checks each one against
+      # the APK just built.
+      - name: Offline voice clips open where Android looks for them (reads the built APK)
+        run: |
+          SNGNAV_BUNDLED_AUDIO_KEYS_OUT="$RUNNER_TEMP/bundled_audio_keys.txt" \
+            flutter test test/voice/bundled_audio_platform_keys_test.dart
+          python3 tool/check_bundled_audio_in_apk.py \
+            build/app/outputs/flutter-apk/app-debug.apk \
+            "$RUNNER_TEMP/bundled_audio_keys.txt"
+
   # ---------------------------------------------------------------------------
   # The VEHICLE. Until this job runs, nobody outside one laptop can install this
   # app: `android-build` above proves the APK compiles and then throws it away
@@ -440,6 +454,15 @@ jobs:
 
       - name: Build release APK
         run: flutter build apk --release
+
+      # Same check as in android-build, on the artifact a person installs.
+      - name: Offline voice clips open where Android looks for them (reads the built APK)
+        run: |
+          SNGNAV_BUNDLED_AUDIO_KEYS_OUT="$RUNNER_TEMP/bundled_audio_keys.txt" \
+            flutter test test/voice/bundled_audio_platform_keys_test.dart
+          python3 tool/check_bundled_audio_in_apk.py \
+            build/app/outputs/flutter-apk/app-release.apk \
+            "$RUNNER_TEMP/bundled_audio_keys.txt"
 
       # THE ARTIFACT PLAY ACTUALLY TAKES. Added 2026-08-10 (AAE).
       # This job was named "build the vehicle" and built the wrong one: new apps

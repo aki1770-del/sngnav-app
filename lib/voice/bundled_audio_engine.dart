@@ -44,7 +44,9 @@ import 'package:voice_guidance/voice_guidance.dart' show TtsEngine;
 
 import 'offline_safety_voice.dart';
 
-/// Plays a bundled asset (path relative to the `assets/` root) at [volume].
+/// Plays the bundled asset with Flutter asset key [assetKey] at [volume]. The
+/// key is the path exactly as pubspec.yaml declares it, including its leading
+/// `assets/` (for example `assets/audio/ja/conditions_unknown.wav`).
 ///
 /// Returns TRUE only when playback actually COMPLETED (the platform resolves
 /// on MediaPlayer's completion listener — see MainActivity.kt). False means
@@ -52,7 +54,7 @@ import 'offline_safety_voice.dart';
 /// assume she heard it. Because the Future spans the WHOLE utterance,
 /// sequential `await speak(...)` calls serialize again: the second phrase
 /// starts after the first finishes, never on top of it.
-typedef PlayAsset = Future<bool> Function(String assetRelPath, double volume);
+typedef PlayAsset = Future<bool> Function(String assetKey, double volume);
 
 /// The first-party mouth: our own Kotlin MediaPlayer, no third-party plugin.
 ///
@@ -103,14 +105,14 @@ class BundledAudioEngine implements TtsEngine {
   /// fallback path and let a broken mouth look perfectly healthy in CI.
   PlayAsset get _play =>
       _injectedPlay ??
-      (String assetRelPath, double volume) async {
+      (String assetKey, double volume) async {
         // N9 — the ONE raw platform await on the bundled path, capped (see
         // [playTimeout]). Un-timeouted, a wedged MediaPlayer would hang this
         // Future — and with completion-resolved play (N14) that hang would
         // also queue-starve every subsequent sequential announce.
         final ok = await kBundledAudioChannel.invokeMethod<bool>(
           'play',
-          <String, Object?>{'asset': assetRelPath},
+          <String, Object?>{'asset': assetKey},
         ).timeout(playTimeout);
         return ok ?? false;
       };
@@ -150,9 +152,13 @@ class BundledAudioEngine implements TtsEngine {
       return _fallback.speak(text);
     }
     try {
-      // Asset paths are relative to the `assets/` root declared in pubspec, so
-      // the leading `assets/` is stripped.
-      final spoke = await _play(asset.replaceFirst('assets/', ''), _volume);
+      // The key goes to the platform unchanged. It is the Flutter asset key,
+      // the path exactly as pubspec.yaml declares it (assets/audio/ja/<id>.wav),
+      // and Android opens it at flutter_assets/<key>, where the APK holds it.
+      // Until 2026-09-16 the leading `assets/` was stripped here, so Android
+      // opened a path the APK does not contain and every phrase fell back to
+      // TTS. tool/check_bundled_audio_in_apk.py checks this against a built APK.
+      final spoke = await _play(asset, _volume);
       if (!spoke) {
         // The platform did not report playback COMPLETED (never started, or
         // errored mid-phrase). She was NOT verifiably spoken to in full.
