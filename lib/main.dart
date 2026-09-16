@@ -3698,8 +3698,11 @@ class _HomePageState extends State<HomePage> {
     );
     // Action-coupled explainer for current (condition, profile) tuple.
     // Action string is rendered VERBATIM per AAA Article 17 (β) — the
-    // package owns the wording (advisory mood, JAF/MLIT vocabulary,
+    // package owns the wording (advisory mood, road-surface vocabulary,
     // per-profile verbosity). The app must not paraphrase or restyle.
+    // The wording is navigation_safety_core's own; it was described here
+    // as JAF/MLIT vocabulary until that package's 0.11.8 entry recorded
+    // that it never came from those sources.
     final explainer = AlertExplainer.forConditionAndProfile(
       _condition,
       _profile,
@@ -3831,8 +3834,10 @@ class _HomePageState extends State<HomePage> {
             _kv('Locale', explainer.localeTag),
             const SizedBox(height: 4),
             Text(
-              'Source: navigation_safety_core AlertExplainer — verbatim '
-              'relay from JAF / MLIT / NEXCO public driver-guidance.',
+              'Source: navigation_safety_core AlertExplainer — the '
+              "package's own wording, rendered verbatim. It is not taken "
+              'from JAF, MLIT or NEXCO, and the speeds it names are its '
+              'own advisory reference points.',
               style: TextStyle(
                 color: Colors.grey.shade700,
                 fontSize: 11,

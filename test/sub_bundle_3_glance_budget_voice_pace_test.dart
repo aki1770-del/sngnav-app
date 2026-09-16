@@ -123,12 +123,36 @@ void main() {
         await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
         await tester.pump();
         await openDeveloperPage(tester);
-        // The sheet renders the source-line attribution per package
-        // default. ageingRural defaults to expanded per
+        // The sheet renders the source line at the package default.
+        // ageingRural defaults to expanded per
         // AlertExplainerExpandableSheet.defaultExpansionForProfile.
+        //
+        // navigation_safety 0.9.7 changed that default from
+        // 'AlertExplainer (JAF / MLIT / NEXCO)' to 'AlertExplainer',
+        // because the wording on the card is navigation_safety_core's own
+        // and was never taken from those three organisations. This card is
+        // on the development page, so the reader is a developer and the
+        // Dart class name is the accurate answer to "where did this text
+        // come from". A driver-facing surface would pass its own
+        // sourceLine, in her language, naming a source the text is
+        // actually from.
+        expect(
+          find.textContaining('AlertExplainer'),
+          findsWidgets,
+        );
+        // The retired attribution must not reappear as a CLAIM. The card
+        // still names those three organisations once, in the line that
+        // says the wording is not theirs — a developer who read the old
+        // attribution needs to be told it was withdrawn, so the words are
+        // forbidden as a source claim, not as words.
         expect(
           find.textContaining('AlertExplainer (JAF / MLIT / NEXCO)'),
-          findsWidgets,
+          findsNothing,
+        );
+        expect(find.textContaining('relay from JAF'), findsNothing);
+        expect(
+          find.textContaining("package's own wording"),
+          findsOneWidget,
         );
       },
     );

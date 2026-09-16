@@ -545,26 +545,26 @@ packages:
     dependency: "direct main"
     description:
       name: navigation_safety
-      sha256: "8b34357902a3b4e30234b56f0dca12f0b52b3806b2c69805fc14930bcc9b3444"
+      sha256: "0135b84261e5955d775fa8e217e091c0021848fdb1b79cdf68dc9bf58f02b691"
       url: "https://pub.dev"
     source: hosted
-    version: "0.9.6"
+    version: "0.9.7"
   navigation_safety_calibration:
     dependency: "direct main"
     description:
       name: navigation_safety_calibration
-      sha256: "8a214f0992e1378b660bc17fece8704a474909cbf718923a25d48baed672d5ac"
+      sha256: "155e2bfe20e384fd78e960a4daea6715abd591e2f60de5a381af1ae2455d8573"
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.3"
+    version: "0.1.4"
   navigation_safety_core:
     dependency: "direct main"
     description:
       name: navigation_safety_core
-      sha256: "060c654dc9561aaf401d3bd6c60a48838a27b3a32772a851a6831255dbd20d52"
+      sha256: "4c08163ab8c4840a39b92b9845dad82e2e5644bc89596c9830313d33855b34e0"
       url: "https://pub.dev"
     source: hosted
-    version: "0.11.5"
+    version: "0.11.8"
   navigation_safety_enums:
     dependency: "direct main"
     description:
@@ -958,10 +958,10 @@ packages:
     dependency: "direct main"
     description:
       name: voice_guidance
-      sha256: f968d05f4f08ff228120ae89df730764fd87ba3c1445181f3089f41f22781160
+      sha256: a0c3a1789d48ea575f42fc18289e4953e9b704819b22576a77d763ed9cdc71eb
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.6"
+    version: "0.7.8"
   wakelock_plus:
     dependency: "direct main"
     description:
