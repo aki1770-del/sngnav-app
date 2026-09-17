@@ -111,9 +111,9 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   'alert_slush_agricultural_forestry':
       'シャーベット、轍（わだち）に注意',
   'alert_wet_ice_ageing_rural':
-      'アイスバーンです。最も滑りやすい路面状態です。可能であれば停車できる安全な場所を探してください。走行中は時速20km以下を目安に',
+      'アイスバーンです。最も滑りやすい路面の一つです。可能であれば停車できる安全な場所を探してください。走行中は時速20km以下を目安に',
   'alert_wet_ice_snow_zone_experienced':
-      'アイスバーン、最危険、20km/h以下',
+      'アイスバーン、極めて危険、20km/h以下',
   'alert_wet_ice_novice_urban':
       'アイスバーン、極めて危険。可能なら安全な場所で停車してください。走行時は時速20km以下に',
   'alert_wet_ice_professional':

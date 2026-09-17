@@ -118,6 +118,35 @@ jobs:
           channel: stable
           flutter-version: '3.41.4'
 
+      # 2026-09-18. Every offline voice clip must still say the words its catalog
+      # entry holds. The app finds a clip by those exact words, and until this
+      # step nothing compared a clip's audio with them: with two catalog values
+      # moved to navigation_safety_core 0.11.9's new wet-ice sentences and both
+      # clips left as they were, `flutter test` and `render_offline_voice.sh
+      # --check` were green, and the APK check reads only clip names. The guard
+      # re-renders every clip from the catalog in a clean copy with
+      # tool/render_offline_voice.sh and byte-compares each with the committed one.
+      #
+      # The engine is installed here, above the hermeticity step, because that
+      # step runs every tool/*.sh --self-test and this guard's self-test renders.
+      # A consequence, stated so nobody finds it later: until this step the
+      # phoneme oracle (test/voice/offline_voice_readable_phonemes_test.dart)
+      # SKIPPED in this job, "open_jtalk engine not present on this host" (run
+      # 33737493473). From here on it runs.
+      #
+      # The clips are bytes of one engine build, printed below. A red in which
+      # every clip differs is an engine change until shown otherwise.
+      - name: Offline voice engine (the clip guard renders with it)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends open-jtalk open-jtalk-mecab-naist-jdic hts-voice-nitech-jp-atr503-m001
+          dpkg-query -W -f='${Package} ${Version}\n' open-jtalk open-jtalk-mecab-naist-jdic hts-voice-nitech-jp-atr503-m001
+
+      - name: Offline voice clips say their catalog words (re-render and byte-compare)
+        run: |
+          bash tool/offline_voice_render_guard.sh --self-test
+          bash tool/offline_voice_render_guard.sh
+
       # 2026-08-11: these two steps previously resolved the guards through a path
       # inside a DIFFERENT, PRIVATE repo ($HOME/Documents/...) that a runner never
       # checks out, so both were permanent no-ops that always passed — while
@@ -411,6 +440,21 @@ jobs:
         with:
           channel: stable
           flutter-version: '3.41.4'
+
+      # Same guard as the `test` job (see the note there): an installable
+      # artifact is not built off clips that say other words than the ones the
+      # app looks them up by. The engine also makes the phoneme oracle run in
+      # this job's `flutter test` instead of skipping.
+      - name: Offline voice engine (the clip guard renders with it)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends open-jtalk open-jtalk-mecab-naist-jdic hts-voice-nitech-jp-atr503-m001
+          dpkg-query -W -f='${Package} ${Version}\n' open-jtalk open-jtalk-mecab-naist-jdic hts-voice-nitech-jp-atr503-m001
+
+      - name: Offline voice clips say their catalog words (re-render and byte-compare)
+        run: |
+          bash tool/offline_voice_render_guard.sh --self-test
+          bash tool/offline_voice_render_guard.sh
 
       - name: Resolve dependencies
         run: flutter pub get

@@ -545,26 +545,26 @@ packages:
     dependency: "direct main"
     description:
       name: navigation_safety
-      sha256: "0135b84261e5955d775fa8e217e091c0021848fdb1b79cdf68dc9bf58f02b691"
+      sha256: dd73f9896be87f49896c5e48c40af590d63da0487145079e4013d6bd690337fb
       url: "https://pub.dev"
     source: hosted
-    version: "0.9.7"
+    version: "0.9.8"
   navigation_safety_calibration:
     dependency: "direct main"
     description:
       name: navigation_safety_calibration
-      sha256: "155e2bfe20e384fd78e960a4daea6715abd591e2f60de5a381af1ae2455d8573"
+      sha256: b1f048c1e2a35381d56f47847f721a7d1d018410debb4c63e65809f35190f69f
       url: "https://pub.dev"
     source: hosted
-    version: "0.1.4"
+    version: "0.1.5"
   navigation_safety_core:
     dependency: "direct main"
     description:
       name: navigation_safety_core
-      sha256: "4c08163ab8c4840a39b92b9845dad82e2e5644bc89596c9830313d33855b34e0"
+      sha256: f894deb4712ce5e3cd22620515ab783d9e5acba9e31875757b7c78163a82083a
       url: "https://pub.dev"
     source: hosted
-    version: "0.11.8"
+    version: "0.11.9"
   navigation_safety_enums:
     dependency: "direct main"
     description:
