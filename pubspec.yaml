@@ -33,7 +33,15 @@ dependencies:
   # onto main carried a lock resolving 0.11.2, `pub get` honoured it because it
   # still satisfied `>=0.10.0`, and three voice guards went red. The bound now
   # lives where the solver has to obey it.
-  navigation_safety_core: '>=0.11.3 <0.12.0'
+  #
+  # 2026-09-18 — RAISED TO 0.11.9 FOR THE SAME REASON. 0.11.9 changed two
+  # wet-ice sentences, and the catalog values and clips for
+  # alert_wet_ice_ageing_rural and alert_wet_ice_snow_zone_experienced moved
+  # with it. Below 0.11.9 the emitter says the old words, the catalog holds the
+  # new ones, and both lines are silent offline. Measured with the floor still
+  # at 0.11.3: main's lock (core 0.11.5) carried in, `pub get` kept 0.11.5, and
+  # four voice tests went red.
+  navigation_safety_core: '>=0.11.9 <0.12.0'
   navigation_safety: ^0.9.0
   voice_guidance: ^0.7.2
   offline_tiles: ^0.5.0
