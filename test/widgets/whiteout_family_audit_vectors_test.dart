@@ -347,7 +347,7 @@ void main() {
         return null;
       });
       messenger().setMockStreamHandler(
-          updates, MockStreamHandler.inline(onListen: (_, __) {}));
+          updates, MockStreamHandler.inline(onListen: (_, _) {}));
       final a = await _boot(tester, visibilities: const [1500, 80]);
       await _advance(tester, const Duration(minutes: 9, seconds: 40));
       expect(a.spoken, isEmpty, reason: 'control: 1,500 m tells nothing');

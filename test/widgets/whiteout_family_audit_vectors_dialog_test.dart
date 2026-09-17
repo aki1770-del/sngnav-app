@@ -26,10 +26,8 @@ import 'package:compound_failure_advisor/compound_failure_advisor.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:routing_engine/routing_engine.dart' as re;
-import 'package:sngnav_app/akita_map.dart';
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
@@ -213,81 +211,6 @@ Future<void> _tapStop(WidgetTester tester) async {
   await tester.pump();
 }
 
-Position _position(DateTime at) => Position(
-      latitude: 39.7186,
-      longitude: 140.1024,
-      timestamp: at,
-      accuracy: 10,
-      hasAccuracy: true,
-      altitude: 0,
-      altitudeAccuracy: 0,
-      heading: 0,
-      headingAccuracy: 0,
-      speed: 0,
-      speedAccuracy: 0,
-    );
-
-class _Positioned {
-  final platform = StreamController<Position>();
-  Stream<PositionFix> source() => herPositionStream(
-        isServiceEnabled: () async => true,
-        checkPermission: () async => LocationPermission.whileInUse,
-        positionStream: () => platform.stream,
-      );
-  void fix() => platform.add(_position(_now));
-}
-
-Future<void> _routeWithOneTurn(WidgetTester tester) async {
-  final open = find.byKey(const Key('route-act-open'));
-  await tester.ensureVisible(open);
-  await tester.pump();
-  await tester.tap(open);
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 300));
-  final actMap =
-      find.descendant(of: find.byType(Dialog), matching: find.byType(AkitaMap));
-  final r = tester.getRect(actMap);
-  await tester.tapAt(r.center + const Offset(-80, -30));
-  await tester.pump(const Duration(milliseconds: 350));
-  await tester.tapAt(r.center + const Offset(80, 30));
-  await tester.pump(const Duration(milliseconds: 350));
-  await tester.tap(find.byKey(const Key('route-act-get-route')));
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 300));
-  await tester.pump(const Duration(seconds: 3));
-  await tester.pump(const Duration(milliseconds: 300));
-  await tester.tap(find.byKey(const Key('route-consent-accept')));
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 300));
-  await tester.pump(const Duration(seconds: 3));
-  expect(find.byKey(const Key('maneuver-narration-banner')), findsOneWidget,
-      reason: 'control: the route has a next maneuver');
-}
-
-String _textOfKey(WidgetTester tester, String key) {
-  final f = find.byKey(Key(key));
-  expect(f, findsOneWidget, reason: '$key is drawn');
-  return tester.widget<Text>(f).data ?? '';
-}
-
-Future<({String tier, String result, int spokenByPress})> _narration(
-    WidgetTester tester, FakeAlertActuators a) async {
-  final tier = _textOfKey(tester, 'maneuver-narration-tier');
-  final before = a.spoken.length;
-  final b = find.byKey(const Key('maneuver-narrate-button'));
-  await tester.ensureVisible(b);
-  await tester.pump();
-  await tester.tap(b);
-  for (var i = 0; i < 5; i++) {
-    await tester.pump();
-  }
-  return (
-    tier: tier,
-    result: _textOfKey(tester, 'maneuver-narration-result'),
-    spokenByPress: a.spoken.length - before,
-  );
-}
-
 void main() {
   const method = MethodChannel('flutter.baseflow.com/geolocator');
   const updates = EventChannel('flutter.baseflow.com/geolocator_updates');
@@ -309,7 +232,7 @@ void main() {
       return null;
     });
     messenger().setMockStreamHandler(
-        updates, MockStreamHandler.inline(onListen: (_, __) {}));
+        updates, MockStreamHandler.inline(onListen: (_, _) {}));
   }
 
   tearDown(() {
