@@ -184,6 +184,11 @@ dev_dependencies:
   # Direct sqlite reads in the offline-archive contract test (per-zoom tile
   # counts + custom metadata keys the mbtiles API does not expose).
   sqlite3: ^3.3.4
+  # test/widgets/her_android_fix_reaches_her_map_test.dart registers the real
+  # GeolocatorAndroid, the parser a phone runs, which drops geolocator's
+  # "measured" flags. Already resolved at 4.6.2 through geolocator; declaring it
+  # moves no version.
+  geolocator_android: ^4.6.2
 
 flutter:
   uses-material-design: true

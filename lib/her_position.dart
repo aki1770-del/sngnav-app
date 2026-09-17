@@ -98,14 +98,37 @@ const double kStoppedAtMostMps = 0.5;
 double? _reported(bool flagged, double value) =>
     flagged && value.isFinite && value >= 0 ? value : null;
 
+/// Whether the platform measured [value], a field of [p] whose geolocator flag
+/// is [flag].
+///
+/// On Android the flag never arrives (measured 2026-09-17). geolocator_android
+/// 4.6.2 parses every position with `AndroidPosition.fromMap`, which reads the
+/// flags through `Position.fromMap` and then rebuilds the position from its
+/// numbers alone, so `hasAccuracy`, `hasSpeed` and `hasSpeedAccuracy` are false
+/// on every Android position. Read as "not measured", that made every GPS fix
+/// on an Android phone a sample with no accuracy: never a fix, never on her
+/// map, which said 現在地 不明 while the phone held a 30 m fix.
+///
+/// What the Android parser still carries is exact: `LocationMapper.toHashMap`
+/// writes a value only when the platform measured it, and `Position.fromMap`
+/// reads an omitted value as exactly 0.0. So on an [AndroidPosition] a value
+/// other than 0.0 was measured. A measured 0.0 cannot be told from no
+/// measurement there, and reads as none: no 0 m ring, and a speed of 0.0 never
+/// concludes a stop. A flag that is set is believed as before.
+bool _measured(Position p, bool flag, double value) =>
+    flag || (p is AndroidPosition && value != 0);
+
 /// The least rate her ring may grow at after [p]: the reported speed plus the
 /// reported speed accuracy when that accuracy is usable, the speed alone when
 /// it is not, and `null` when no usable speed was reported. A 0.0 without the
 /// flag is a placeholder, never a stop.
 double? groundSpeedFloorMps(Position p) {
-  final speed = _reported(p.hasSpeed, p.speed);
+  final speed = _reported(_measured(p, p.hasSpeed, p.speed), p.speed);
   if (speed == null) return null;
-  return speed + (_reported(p.hasSpeedAccuracy, p.speedAccuracy) ?? 0);
+  return speed +
+      (_reported(_measured(p, p.hasSpeedAccuracy, p.speedAccuracy),
+              p.speedAccuracy) ??
+          0);
 }
 
 /// What [p] measured about motion: see [GroundMotion]. Fail-closed by
@@ -115,9 +138,10 @@ double? groundSpeedFloorMps(Position p) {
 /// measured horizontal accuracy: it only closes, and closing needs less
 /// evidence than opening.
 GroundMotion groundMotionOf(Position p) {
-  final speed = _reported(p.hasSpeed, p.speed);
+  final speed = _reported(_measured(p, p.hasSpeed, p.speed), p.speed);
   if (speed == null) return GroundMotion.unknown;
-  final accuracy = _reported(p.hasSpeedAccuracy, p.speedAccuracy);
+  final accuracy = _reported(
+      _measured(p, p.hasSpeedAccuracy, p.speedAccuracy), p.speedAccuracy);
   if (speed - (accuracy ?? 0) > kStoppedAtMostMps) return GroundMotion.moving;
   if (accuracy != null &&
       speed + accuracy <= kStoppedAtMostMps &&
@@ -132,7 +156,7 @@ GroundMotion groundMotionOf(Position p) {
 /// (ruled 2026-09-14). A flagged 0.0 is believed. iOS writes its accuracy on
 /// every fix, an invalid -1 included, so the flag alone is not enough.
 double? usableAccuracyMeters(Position p) =>
-    _reported(p.hasAccuracy, p.accuracy);
+    _reported(_measured(p, p.hasAccuracy, p.accuracy), p.accuracy);
 
 class PositionUnavailable extends PositionFix {
   final String reason;
@@ -376,11 +400,13 @@ Stream<PositionFix> herPositionStream({
         // honest PositionUnavailable, never a confidently-wrong dot that
         // would also crash flutter_map 8.3.0's checkLatLng. See fixFromSample.
         // Accuracy and speed are read here, where the platform's flags are
-        // still in hand: a value the platform did not flag is never read.
+        // still in hand: a value the platform did not measure is never read.
+        // On Android the flags are lost in the plugin's parser; see _measured.
         (p) => controller.add(fixFromSample(
           latitude: p.latitude,
           longitude: p.longitude,
-          accuracyMeters: p.hasAccuracy ? p.accuracy : null,
+          accuracyMeters:
+              _measured(p, p.hasAccuracy, p.accuracy) ? p.accuracy : null,
           timestamp: p.timestamp,
           speedFloorMps: groundSpeedFloorMps(p),
           motion: groundMotionOf(p),
