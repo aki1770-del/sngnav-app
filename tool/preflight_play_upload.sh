@@ -69,10 +69,37 @@
 #     BUILT. Under --skip-build those can be different trees, and then the gate
 #     describes neither honestly. The default path (build both here) closes it.
 #
+# ⚑ ARGUMENT DEFECT — FOUND 2026-09-16, REPAIRED 2026-09-18 (AAE).
+#
+#   Until 2026-09-18 this line read
+#       AAB="$REPO_ROOT/build/app/outputs/bundle/release/app-release.aab"
+#   with no way to override it, and the script accepted only --self-test and
+#   --skip-build. Handed the held release bundle as an argument:
+#       tool/preflight_play_upload.sh /home/komada/work/r67-.../sngnav-app-...aab
+#   it IGNORED THE ARGUMENT IN SILENCE, read a stale DEBUG-SIGNED bundle sitting
+#   in the build directory under the same name, and returned
+#       PREFLIGHT FAIL — DEBUG-SIGNED: Owner: C=US, O=Android, CN=Android Debug
+#   about a file nobody had asked it about. The bundle that was actually passed
+#   carried CN=SNGNav Upload and was fine.
+#
+#   The verdict was maximally loud and about the wrong file. That is worse than
+#   silence: a gate that names the wrong artifact teaches its reader to distrust
+#   the right answer next time. And the failure is symmetric — the same script
+#   would have returned PASS about a stale bundle while a broken one waited
+#   upstairs. A gate is only as good as its certainty about WHICH FILE it read.
+#
+#   Repair: --aab/--apk take explicit paths, a bare path argument is accepted as
+#   the AAB, an UNRECOGNISED argument is a hard error instead of being dropped,
+#   and the resolved absolute path + sha256 of both artifacts is PRINTED BEFORE
+#   THE FIRST GATE RUNS. You can now always see what it read.
+#   Recorded at outputs/operational-records/preflight_play_upload_defect_2026_09_16.md.
+#
 # USAGE
-#   tool/preflight_play_upload.sh              # build both, then gate
-#   tool/preflight_play_upload.sh --skip-build # gate whatever is already built
-#   tool/preflight_play_upload.sh --self-test  # prove the guards fail
+#   tool/preflight_play_upload.sh                     # build both here, then gate
+#   tool/preflight_play_upload.sh --skip-build        # gate whatever is already built
+#   tool/preflight_play_upload.sh <file.aab>          # gate THIS bundle (implies --skip-build)
+#   tool/preflight_play_upload.sh --aab A --apk B     # gate these two explicitly
+#   tool/preflight_play_upload.sh --self-test         # prove the guards fail
 #
 set -uo pipefail
 
@@ -204,6 +231,40 @@ check_perm_parity() {
   return $rc
 }
 
+# $1 = a single CLI token. Echoes its CLASS. "unknown" is a REFUSAL, never a skip.
+#
+# This function exists because the 2026-09-16 defect was not in a gate — it was in
+# the argument handling, the one part of the script nothing exercised. An argument
+# the script does not understand is now a class it must NAME, so the live path can
+# refuse it instead of dropping it on the floor and gating something else.
+classify_arg() {
+  case "$1" in
+    --self-test)  echo "self-test" ;;
+    --skip-build) echo "skip-build" ;;
+    --aab)        echo "aab-opt" ;;
+    --apk)        echo "apk-opt" ;;
+    -h|--help)    echo "help" ;;
+    *.aab)        echo "aab-path" ;;
+    *.apk)        echo "apk-path" ;;
+    *)            echo "unknown" ;;
+  esac
+}
+
+# $1 = path, $2 = label. Refuses anything that is not a readable, non-empty ZIP.
+#
+# An AAB and an APK are both ZIP containers ("PK" magic). A path that is not one
+# was handed here by mistake, and gating a non-artifact as though it were an
+# artifact is how a reassuring verdict gets attached to nothing.
+check_artifact_readable() {
+  local p="$1" label="$2" magic
+  [ -n "$p" ]  || { echo "$label: no path given"; return 1; }
+  [ -f "$p" ]  || { echo "$label: not a file: $p"; return 1; }
+  [ -s "$p" ]  || { echo "$label: empty file: $p"; return 1; }
+  magic="$(head -c2 "$p" 2>/dev/null | tr -d '\0')"
+  [ "$magic" = "PK" ] || { echo "$label: not a ZIP container (magic '$magic'): $p"; return 1; }
+  return 0
+}
+
 # ---------------------------------------------------------------- self-test
 if [ "${1:-}" = "--self-test" ]; then
   pass=0; total=0
@@ -266,20 +327,73 @@ if [ "${1:-}" = "--self-test" ]; then
   t "64 KB align accepted"            0 check_so_align 0x10000 libflutter.so
   t "fresh versionCode accepted"      0 check_version_code 4 "$(printf '1\n2\n3')"
 
+  # ARGUMENT-HANDLING tests (2026-09-18). The 2026-09-16 defect lived HERE and
+  # nothing exercised it: the script gated a hard-coded path and dropped the
+  # argument it was given, in silence. The specific token that was dropped is the
+  # first case below.
+  t "a bare .aab path is an ARTIFACT"    0 test "$(classify_arg /home/komada/work/r67-release-hold-4d591cf/sngnav-app-0.0.5+2-4d591cf-release.aab)" = "aab-path"
+  t "a bare .apk path is an ARTIFACT"    0 test "$(classify_arg build/app/outputs/flutter-apk/app-release.apk)" = "apk-path"
+  t "--aab is an option"                 0 test "$(classify_arg --aab)" = "aab-opt"
+  t "--apk is an option"                 0 test "$(classify_arg --apk)" = "apk-opt"
+  t "--skip-build still understood"      0 test "$(classify_arg --skip-build)" = "skip-build"
+  t "--self-test still understood"       0 test "$(classify_arg --self-test)" = "self-test"
+  t "a typo'd flag is UNKNOWN not dropped" 0 test "$(classify_arg --skipbuild)" = "unknown"
+  t "a stray word is UNKNOWN not dropped"  0 test "$(classify_arg notes.txt)" = "unknown"
+
+  # The artifact must be a real ZIP container before any gate speaks about it.
+  NOT_A_ZIP="$(mktemp)"; printf 'this is not a bundle\n' > "$NOT_A_ZIP"
+  EMPTY_FILE="$(mktemp)"
+  REAL_ZIP="$(mktemp)"; printf 'PK\003\004rest-of-a-zip' > "$REAL_ZIP"
+  t "a text file is not an artifact"   1 check_artifact_readable "$NOT_A_ZIP" AAB
+  t "an empty file is not an artifact" 1 check_artifact_readable "$EMPTY_FILE" AAB
+  t "a missing path is not an artifact" 1 check_artifact_readable /nonexistent/nope.aab AAB
+  t "an unset path is not an artifact"  1 check_artifact_readable "" AAB
+  t "a ZIP container is accepted"       0 check_artifact_readable "$REAL_ZIP" AAB
+  rm -f "$NOT_A_ZIP" "$EMPTY_FILE" "$REAL_ZIP"
+
   echo "SELF-TEST: $pass/$total PASS"
   [ "$pass" -eq "$total" ] || exit 1
   exit 0
 fi
 
 # ---------------------------------------------------------------- live run
+usage() { sed -n '/^# USAGE/,/^$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+
 SKIP_BUILD=0
-[ "${1:-}" = "--skip-build" ] && SKIP_BUILD=1
+GIVEN_AAB=0
+GIVEN_APK=0
+while [ $# -gt 0 ]; do
+  case "$(classify_arg "$1")" in
+    skip-build) SKIP_BUILD=1; shift ;;
+    help)       usage; exit 0 ;;
+    aab-opt)    shift
+                [ $# -gt 0 ] || { echo "FAIL: --aab needs a path"; exit 2; }
+                AAB="$1"; GIVEN_AAB=1; SKIP_BUILD=1; shift ;;
+    apk-opt)    shift
+                [ $# -gt 0 ] || { echo "FAIL: --apk needs a path"; exit 2; }
+                APK="$1"; GIVEN_APK=1; SKIP_BUILD=1; shift ;;
+    aab-path)   AAB="$1"; GIVEN_AAB=1; SKIP_BUILD=1; shift ;;
+    apk-path)   APK="$1"; GIVEN_APK=1; SKIP_BUILD=1; shift ;;
+    unknown|*)  echo "FAIL: unrecognised argument '$1' — REFUSING TO RUN."
+                echo "  Until 2026-09-18 this script DROPPED arguments it did not"
+                echo "  understand and gated a hard-coded path instead, then reported"
+                echo "  the verdict as though it were about your file. It will not"
+                echo "  do that again. Say what you mean:"
+                echo
+                usage
+                exit 2 ;;
+  esac
+done
 
 echo "== Play upload preflight =="
 echo "repo:   $REPO_ROOT"
 echo "commit: $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo '(not a git tree)')"
 if [ -n "$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null)" ]; then
   echo "NOTE:   working tree is DIRTY — the artifact does not correspond to any commit."
+fi
+if [ "$GIVEN_AAB" -eq 1 ] && [ "$GIVEN_APK" -eq 0 ]; then
+  echo "NOTE:   a bundle was given and no APK. Gates 2, 4 and 5 read the APK (see"
+  echo "        HONEST BOUNDS) and will report UNVERIFIED rather than pass."
 fi
 
 if [ "$SKIP_BUILD" -eq 0 ]; then
@@ -291,8 +405,27 @@ else
   echo "   different trees, gate 2 says nothing about the AAB. You were told."
 fi
 
+# WHICH FILE AM I READING. Printed BEFORE the first gate, always, resolved to an
+# absolute path and fingerprinted. The 2026-09-16 defect was invisible precisely
+# because this block did not exist: the verdict named a gate, never a file, so a
+# loud FAIL about a stale artifact was indistinguishable from a true one.
 [ -f "$AAB" ] || { echo "FAIL: no bundle at $AAB"; exit 1; }
-[ -f "$APK" ] || { echo "FAIL: no apk at $APK"; exit 1; }
+check_artifact_readable "$AAB" "AAB" || exit 1
+AAB="$(cd "$(dirname "$AAB")" && pwd)/$(basename "$AAB")"
+HAVE_APK=0
+if [ -f "$APK" ] && check_artifact_readable "$APK" "APK"; then
+  APK="$(cd "$(dirname "$APK")" && pwd)/$(basename "$APK")"
+  HAVE_APK=1
+fi
+echo "-- artifacts under test (this is the file this run is about)"
+echo "   AAB: $AAB"
+echo "        $(stat -c%s "$AAB") bytes  sha256=$(sha256sum "$AAB" | cut -c1-64)"
+if [ "$HAVE_APK" -eq 1 ]; then
+  echo "   APK: $APK"
+  echo "        $(stat -c%s "$APK") bytes  sha256=$(sha256sum "$APK" | cut -c1-64)"
+else
+  echo "   APK: ABSENT ($APK) — gates 2, 4 and 5 are UNVERIFIED, not clear."
+fi
 
 fails=0
 note() { echo "  $1"; }
@@ -310,7 +443,10 @@ fi
 # --- gate 2: targetSdk / minSdk (read from the APK; see HONEST BOUNDS)
 echo "-- gate 2/5  targetSdk"
 AAPT2="$(ls "${ANDROID_HOME:-$HOME/android-sdk}"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1)"
-if [ -z "$AAPT2" ]; then
+if [ "$HAVE_APK" -eq 0 ]; then
+  note "FAIL: no APK beside this bundle — targetSdk UNVERIFIED, not clear."
+  fails=$((fails+1))
+elif [ -z "$AAPT2" ]; then
   note "FAIL: no aapt2 found — cannot read targetSdk. UNVERIFIED, not clear."
   fails=$((fails+1))
 else

@@ -5,7 +5,19 @@ description: >-
   pub.dev — eating our own dog food while learning what fails.
 # Build-number discipline (go-live plan GL-A5, 2026-07-20): +N increments per
 # Play-track upload; versionCode must never repeat on the track.
-version: 0.0.5+2
+#
+# 0.0.2 (2026-09-18) — the NAME goes DOWN from 0.0.5 on purpose. Nothing has ever
+# been released: 1 tag in this repo's life, and tool/play_uploaded_version_codes.txt
+# holds zero consumed versionCodes. 0.0.5 was a build counter, not a release
+# sequence. 0.0.2 is the second build ever to reach a real person's phone and the
+# first to reach HERS; the Chair's hand-install is 0.0.1. The release sequence
+# starts where REACH starts, not where the counter happened to stand.
+#
+# versionCode goes 2 -> 3 and that direction is NOT optional. Android enforces
+# monotonicity on versionCode, never on the name, and the Chair's phone holds an
+# install at 2 — an update must exceed it. Play has never seen 2, but Play is not
+# who we are updating.
+version: 0.0.2+3
 publish_to: 'none'
 
 environment:

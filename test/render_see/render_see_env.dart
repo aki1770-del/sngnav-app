@@ -460,17 +460,51 @@ bool goldenPixelsComparableHere() {
 /// Replace the golden comparator with one that SKIPS (pass + honest
 /// note) every comparison. Called when no real glyphs loaded, and when
 /// [goldenPixelsComparableHere] says this host did not cut these goldens.
+// ⚑ THE SKIP NOTE USED TO STATE THE WRONG REASON. Corrected 2026-09-18 (AAE,
+// 0.0.2 release train), found while counting skips for release criterion C5.
+//
+// This comparator is installed from TWO different conditions (see the call
+// pattern in every capture suite: `if (!cjkLoaded || !goldenPixelsComparableHere())`)
+// and it printed ONE of them unconditionally: "no CJK fonts on this host".
+//
+// On CI that sentence is now FALSE. Since 2026-09-18 the workflow installs
+// fonts-ipafont-gothic and fonts-droid-fallback and asserts both faces exist
+// before the suite runs, so the fonts ARE there; the goldens skip for the OTHER
+// reason — CI pins Flutter 3.41.4 and these goldens were cut on a dev host
+// running 3.45.0-1.0.pre-48, so shaping and anti-aliasing differ and the pixels
+// are not comparable whatever fonts are present.
+//
+// Why a wrong reason in a skip note is not cosmetic: 43 skip lines in the
+// 2026-09-18 CI run each told their reader to go install fonts. Someone acting
+// on that would have installed fonts, seen the skips continue, and had no way
+// to tell a working guard from a broken one. A skip is not a pass, and a skip
+// that misnames its cause cannot even be audited.
+//
+// The reason is resolved at install time from the same predicate the caller
+// used, so the note can no longer drift from the condition. Engine-mismatch is
+// reported first when both hold, because it is the load-bearing one: it would
+// skip these goldens even with every font present.
 void installNoopGoldenComparator() {
-  goldenFileComparator = _SkipNoteComparator();
+  goldenFileComparator = _SkipNoteComparator(
+    reason: goldenPixelsComparableHere()
+        ? 'no CJK fonts on this host'
+        : 'this host did not cut these goldens — CI pins a different Flutter '
+            'engine than the dev host that cut them, so pixels are not '
+            'comparable even with identical fonts',
+  );
 }
 
 class _SkipNoteComparator extends GoldenFileComparator {
+  _SkipNoteComparator({required this.reason});
+
+  /// Why this host cannot compare these pixels. Resolved at install time.
+  final String reason;
+
   @override
   Future<bool> compare(Uint8List imageBytes, Uri golden) async {
     // ignore: avoid_print
-    print('render_see: golden comparison SKIPPED for $golden — no CJK '
-        'fonts on this host, pixel claims are withdrawn (render pipeline '
-        'was still exercised).');
+    print('render_see: golden comparison SKIPPED for $golden — $reason; '
+        'pixel claims are withdrawn (render pipeline was still exercised).');
     return true;
   }
 

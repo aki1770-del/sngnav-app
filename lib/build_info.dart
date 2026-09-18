@@ -13,4 +13,4 @@
 library;
 
 /// The app version, mirrored from pubspec.yaml (test-enforced).
-const String appVersion = '0.0.5';
+const String appVersion = '0.0.2';

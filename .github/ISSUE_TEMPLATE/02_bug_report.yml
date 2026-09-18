@@ -37,8 +37,8 @@ body:
     id: app-version
     attributes:
       label: アプリのバージョン
-      description: 画面をいちばん下まで動かすと、小さな文字で書かれています（例：sngnav-app 0.0.5）。分からなければ空欄で大丈夫です。
-      placeholder: 例：0.0.5
+      description: 画面をいちばん下まで動かすと、小さな文字で書かれています（例：sngnav-app 0.0.2）。分からなければ空欄で大丈夫です。
+      placeholder: 例：0.0.2
     validations:
       required: false
   - type: dropdown
