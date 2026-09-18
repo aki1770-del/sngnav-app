@@ -27,7 +27,13 @@ import '../render_see/render_see_env.dart';
 import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
-const _ipaGothic = '/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf';
+// IPAGothic is searched for by name (render_see_env.dart,
+// ipaGothicSearchOrder), not taken from the absolute path that lived here
+// until 2026-09-18 — the path a runner does not have, which is why this failed
+// on the first CI run, 35300438549. The face is named in this suite's own
+// title and in the finding above, so it is IPAGothic or a red: the dash was
+// seen breaking against IPAGothic's metrics and another Japanese face would
+// wrap somewhere else.
 
 final _onlyDashes = RegExp(r'^[—–―\-]+$');
 final _dashAtEnd = RegExp(r'^\s*[—–―\-]|[—–―\-]\s*$');
@@ -66,9 +72,9 @@ void main() {
 
   testWidgets('phone width, real glyphs: no line of the Japanese band is only '
       'a dash, closed or open', (tester) async {
-    final fontsLoaded =
-        await tester.runAsync(() => loadCjkFamily('Roboto', [_ipaGothic])) ??
-            false;
+    final fontsLoaded = await tester.runAsync(
+            () => loadDiscoveredFace('Roboto', FaceSearch.ipaGothic)) ??
+        false;
     expect(fontsLoaded, isTrue,
         reason: 'without real glyph metrics this test cannot fail');
     tester.view.devicePixelRatio = 2.0;

@@ -52,7 +52,9 @@ void main() {
     // The point of THIS capture: the app-bundled symbols subset, loaded
     // under the exact family ThemeData.fontFamilyFallback names.
     final symbolsLoaded = await loadBundledSymbolsFont();
-    if (!cjkLoaded || !symbolsLoaded) installNoopGoldenComparator();
+    if (!cjkLoaded || !symbolsLoaded || !goldenPixelsComparableHere()) {
+      installNoopGoldenComparator();
+    }
     final tmp = await Directory.systemTemp.createTemp('fm_cache_symbols_font');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(

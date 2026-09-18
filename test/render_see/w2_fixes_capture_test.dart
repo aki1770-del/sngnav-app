@@ -35,7 +35,9 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
-    if (!cjkLoaded) installNoopGoldenComparator();
+    if (!cjkLoaded || !goldenPixelsComparableHere()) {
+      installNoopGoldenComparator();
+    }
     // flutter_map's tile cache calls path_provider on first build; give it a
     // real temp dir (same env note as capture_test.dart).
     final tmp = await Directory.systemTemp.createTemp('fm_cache_w2_fixes');

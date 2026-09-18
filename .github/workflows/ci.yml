@@ -147,6 +147,53 @@ jobs:
           bash tool/offline_voice_render_guard.sh --self-test
           bash tool/offline_voice_render_guard.sh
 
+      # HER screen is Japanese, and seven guards read it with REAL glyph
+      # metrics: the prefecture card against the contrast floor in two faces,
+      # the map's first screen at text scale 1.5 and 2.0, and the Japanese
+      # visibility band that once left 「—」 alone on a line, where a long dash
+      # beside Japanese text reads like the kanji 一. With the test font's
+      # uniform boxes none of those defects is visible — the 秋田 marker fits,
+      # the band does not wrap — so each guard asserts its face LOADED and
+      # fails closed otherwise, reason "without real glyph metrics this test
+      # cannot fail".
+      #
+      # A runner carries no Japanese face. On the first CI run this app ever
+      # had (35300438549, head da281ce) all seven went red for exactly that,
+      # and the test support was also seeking Roboto inside one developer's
+      # $HOME. The support now discovers its faces (test/render_see/
+      # render_see_env.dart); this step gives it something to discover.
+      #
+      # The two packages are the two the dev host already carries, chosen so a
+      # runner and that host resolve the SAME files and measure the same
+      # metrics — a legibility floor read against a different face is a
+      # different measurement, silently. ipag.ttf is also the face the two
+      # face-named suites require by name; without it they fail closed rather
+      # than accept a substitute, which is correct and is NOT what we want CI
+      # doing every run.
+      #
+      # Versions are printed, because these fonts are an INPUT to a measured
+      # threshold: if a contrast or overflow result ever moves, the first
+      # question is whether the face moved under it.
+      #
+      # Deliberately not `--no-install-recommends`-exempt and deliberately not
+      # fonts-noto-cjk: Noto would also satisfy the generic Japanese search,
+      # but it is a different face with different metrics from the one the
+      # findings above were measured against, and the generic search would
+      # then pick it up on the dev host too.
+      - name: Japanese + fallback faces (seven legibility guards need real glyphs)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends fonts-ipafont-gothic fonts-droid-fallback
+          dpkg-query -W -f='${Package} ${Version}\n' fonts-ipafont-gothic fonts-droid-fallback
+          # The discovery's tier-2 paths, asserted here rather than left to a
+          # test failure: a package that moves its files would otherwise show
+          # up as seven confusing legibility reds.
+          for f in /usr/share/fonts/opentype/ipafont-gothic/ipag.ttf \
+                   /usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf; do
+            test -f "$f" || { echo "expected face missing: $f"; exit 1; }
+            echo "present: $f ($(stat -c%s "$f") bytes)"
+          done
+
       # 2026-08-11: these two steps previously resolved the guards through a path
       # inside a DIFFERENT, PRIVATE repo ($HOME/Documents/...) that a runner never
       # checks out, so both were permanent no-ops that always passed — while
@@ -455,6 +502,23 @@ jobs:
         run: |
           bash tool/offline_voice_render_guard.sh --self-test
           bash tool/offline_voice_render_guard.sh
+
+      # This job runs the full suite below, so it needs the same faces as the
+      # `test` job — see the long note at that job's copy of this step for WHY
+      # these two packages and not another. A release artifact must not be cut
+      # off a run where the seven legibility guards went red for want of a
+      # font: that red is indistinguishable at a glance from HER screen having
+      # actually regressed.
+      - name: Japanese + fallback faces (seven legibility guards need real glyphs)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends fonts-ipafont-gothic fonts-droid-fallback
+          dpkg-query -W -f='${Package} ${Version}\n' fonts-ipafont-gothic fonts-droid-fallback
+          for f in /usr/share/fonts/opentype/ipafont-gothic/ipag.ttf \
+                   /usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf; do
+            test -f "$f" || { echo "expected face missing: $f"; exit 1; }
+            echo "present: $f ($(stat -c%s "$f") bytes)"
+          done
 
       - name: Resolve dependencies
         run: flutter pub get

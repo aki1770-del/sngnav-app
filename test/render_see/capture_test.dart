@@ -89,7 +89,9 @@ void main() {
     // explicit family, so (a) the real SngnavApp tree renders CJK+Latin and
     // (b) the harness-built advisory surface can request it directly.
     final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
-    if (!cjkLoaded) installNoopGoldenComparator();
+    if (!cjkLoaded || !goldenPixelsComparableHere()) {
+      installNoopGoldenComparator();
+    }
     await loadCjkFamily('NotoCJK', [ipa, droid]);
     // flutter_map's built-in tile cache calls path_provider on first build;
     // there is no plugin in a widget test, so it throws an intermittent

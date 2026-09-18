@@ -35,9 +35,14 @@ import 'package:sngnav_app/main.dart' show SngnavApp;
 import '../render_see/render_see_env.dart';
 import '../support/fake_alert_actuators.dart';
 
-const _ipaGothic = '/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf';
-const _droidFallback =
-    '/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf';
+// The face is discovered on this host (render_see_env.dart,
+// japaneseFontSearchOrder) rather than named by absolute path. Those paths
+// lived here until 2026-09-18 and are why this suite failed on the first CI
+// run, 35300438549: a runner has neither of them installed. Any face that
+// really covers Japanese serves here — what this suite needs is real glyph
+// metrics rather than the test font's uniform boxes, not one particular
+// design. On the dev host and on CI the search returns the same two Debian
+// files it used to name, so the measured overflows do not move.
 
 Future<void> _frames(WidgetTester tester, int n) async {
   for (var i = 0; i < n; i++) {
@@ -71,7 +76,7 @@ void main() {
     testWidgets('text scale $scale: no layout overflow on her first screen',
         (tester) async {
       final fontsLoaded = await tester.runAsync(
-              () => loadCjkFamily('Roboto', [_ipaGothic, _droidFallback])) ??
+              () => loadDiscoveredFace('Roboto', FaceSearch.japanese)) ??
           false;
       await tester.runAsync(loadMaterialIconsFont);
       expect(fontsLoaded, isTrue,

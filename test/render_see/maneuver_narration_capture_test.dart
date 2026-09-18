@@ -176,7 +176,9 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
-    if (!cjkLoaded) installNoopGoldenComparator();
+    if (!cjkLoaded || !goldenPixelsComparableHere()) {
+      installNoopGoldenComparator();
+    }
     await loadCjkFamily('NotoCJK', [ipa, droid]);
     final tmp = await Directory.systemTemp.createTemp('fm_cache_maneuver_see');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

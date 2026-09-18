@@ -73,7 +73,9 @@ void main() {
     // not evidence about HER device, so this suite loads the SAME bytes the
     // APK ships and mirrors the app's real fallback chain below.
     final symbolsLoaded = await loadBundledSymbolsFont();
-    if (!cjkLoaded || !symbolsLoaded) installNoopGoldenComparator();
+    if (!cjkLoaded || !symbolsLoaded || !goldenPixelsComparableHere()) {
+      installNoopGoldenComparator();
+    }
   });
 
   Widget host(AdvisoryAggregateResult result, {bool pointCovered = true}) =>

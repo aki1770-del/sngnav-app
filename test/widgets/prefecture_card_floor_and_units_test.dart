@@ -21,11 +21,18 @@
 /// Android's face for these Latin values, in
 /// prefecture_card_floor_and_units_roboto_test.dart. Each value's drawn scale
 /// is printed. Bound: neither face is measured on a phone.
+///
+/// IPAGothic is searched for by name, not taken from a fixed path (which is
+/// why this failed on the first CI run, 35300438549 — a runner carries no
+/// `fonts-ipafont-gothic` unless CI installs it, and CI now does). It is this
+/// face or nothing: the findings above were measured against IPAGothic's
+/// metrics, so substituting another Japanese face would re-point them at
+/// numbers they were never taken from. Search order in `render_see_env.dart`,
+/// `ipaGothicSearchOrder`.
 library;
 
+import '../render_see/render_see_env.dart' show FaceSearch;
 import '../support/prefecture_card_check.dart';
 
-void main() => prefectureCardTests(
-  face: 'IPAGothic',
-  path: '/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf',
-);
+void main() =>
+    prefectureCardTests(face: 'IPAGothic', search: FaceSearch.ipaGothic);

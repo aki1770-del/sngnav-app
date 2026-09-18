@@ -38,7 +38,9 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
-    if (!cjkLoaded) installNoopGoldenComparator();
+    if (!cjkLoaded || !goldenPixelsComparableHere()) {
+      installNoopGoldenComparator();
+    }
     // The station pin is an Icons.* glyph. Unloaded, it draws as a red hollow
     // box — and inside frame 15's hollow ring that box reads as part of the
     // degraded state.

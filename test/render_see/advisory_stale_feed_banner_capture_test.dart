@@ -54,7 +54,9 @@ void main() {
     // subset it renders as TOFU (□) — so this suite loads the SAME bytes the
     // APK ships and mirrors the app's real fallback chain below.
     final symbolsLoaded = await loadBundledSymbolsFont();
-    if (!cjkLoaded || !symbolsLoaded) installNoopGoldenComparator();
+    if (!cjkLoaded || !symbolsLoaded || !goldenPixelsComparableHere()) {
+      installNoopGoldenComparator();
+    }
   });
 
   Widget host(AdvisoryAggregateResult result) => MaterialApp(

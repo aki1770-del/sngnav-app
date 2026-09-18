@@ -37,7 +37,9 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
-    if (!cjkLoaded) installNoopGoldenComparator();
+    if (!cjkLoaded || !goldenPixelsComparableHere()) {
+      installNoopGoldenComparator();
+    }
   });
 
   testWidgets(

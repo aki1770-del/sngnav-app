@@ -28,7 +28,9 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
-    if (!cjkLoaded) installNoopGoldenComparator();
+    if (!cjkLoaded || !goldenPixelsComparableHere()) {
+      installNoopGoldenComparator();
+    }
     // flutter_map's built-in tile cache calls path_provider — mock it the
     // same way w3_turmoil_capture_test.dart does.
     final tmp = await Directory.systemTemp.createTemp('fm_cache_voice_lane');

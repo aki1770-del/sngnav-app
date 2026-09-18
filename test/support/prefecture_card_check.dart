@@ -56,9 +56,16 @@ Future<void> _settleReal(WidgetTester tester, [int n = 30]) async {
 final _valueWithUnit = RegExp(r'^-?\d+(\.\d+)? (cm|°C|m/s)$');
 
 /// Registers the card's tests with [face] loaded as the app's default family,
-/// from the font file at [path]. One face per test file: a family loaded once
-/// in a test process is not replaced by a second load of the same name.
-void prefectureCardTests({required String face, required String path}) {
+/// discovered on this host by [search]. One face per test file: a family
+/// loaded once in a test process is not replaced by a second load of the same
+/// name.
+///
+/// [search], not a path: until 2026-09-18 the two callers passed absolute
+/// paths, one of them inside one developer's `$HOME`, so on the first CI run
+/// (35300438549) all four of these tests failed on a font that was never going
+/// to be there. The assertion below is unchanged and still fails closed —
+/// only the looking moved.
+void prefectureCardTests({required String face, required FaceSearch search}) {
   setUpAll(() async {
     final tmp = await Directory.systemTemp.createTemp('prefecture_card');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -73,7 +80,8 @@ void prefectureCardTests({required String face, required String path}) {
         'line and the descriptors are above the floor, and every value keeps '
         'its unit on one line', (tester) async {
       final fontsLoaded =
-          await tester.runAsync(() => loadCjkFamily('Roboto', [path])) ?? false;
+          await tester.runAsync(() => loadDiscoveredFace('Roboto', search)) ??
+              false;
       expect(
         fontsLoaded,
         isTrue,

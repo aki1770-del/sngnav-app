@@ -45,7 +45,9 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
-    if (!cjkLoaded) installNoopGoldenComparator();
+    if (!cjkLoaded || !goldenPixelsComparableHere()) {
+      installNoopGoldenComparator();
+    }
     // flutter_map / path_provider is called by the map's built-in cache; give
     // it a real temp dir so the mocked channel succeeds.
     tmp = await Directory.systemTemp.createTemp('offline_map_render_see');
