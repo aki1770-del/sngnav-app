@@ -1,7 +1,9 @@
 /// Advisory cards — renders one `Advisory` per card in the home page.
 ///
-/// Source label is publisher-verbatim (`NWS` for NOAA records;
-/// `気象庁` for JMA records). Event class + headline + description +
+/// The source LABEL is the publisher's name in the page's language (`NWS` for
+/// NOAA records; `気象庁` on HER Japanese page and `JMA` on the English one —
+/// HIE R105, see [AppL10n.advisoryJmaPublisher]). Event class + headline +
+/// description +
 /// area + effective + expires are all rendered verbatim per the
 /// verbatim-relay discipline — the publisher's wording is the
 /// substrate the driver decides on, not our paraphrase. No
@@ -457,14 +459,21 @@ class _AdvisoryCard extends StatelessWidget {
   }
 }
 
-/// The publisher's name as her page shows it. A source with no name of its
-/// own reads in the page's language ([AppL10n.advisoryOtherSource]).
+/// The publisher's name as her page shows it, in the page's language. A source
+/// with no name of its own reads in the page's language too
+/// ([AppL10n.advisoryOtherSource]).
+///
+/// HIE R105 (2026-09-18): JMA was the literal 気象庁 in every locale, so the
+/// English page named one publisher two ways — 気象庁 in the card head and
+/// "Could not fetch from 気象庁." on the error line, beside nine other English
+/// strings that all say JMA. See [AppL10n.advisoryJmaPublisher]. This is the
+/// publisher's NAME; the verbatim publisher CONTENT below is untouched.
 String _sourceLabel(AdvisorySource source, AppL10n l) {
   switch (source) {
     case AdvisorySource.nwsUnitedStates:
       return 'NWS';
     case AdvisorySource.jmaJapan:
-      return '気象庁';
+      return l.advisoryJmaPublisher;
     case AdvisorySource.metNorway:
       return 'MET Norway';
     case AdvisorySource.other:

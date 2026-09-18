@@ -70,7 +70,10 @@ void main() {
     ),
     'en': (
       advisory: 'Advisory fetch failed.',
-      publisher: 'Could not fetch from 気象庁.',
+      // HIE R105, 2026-09-18 (AAA R58 W3): the publisher's name reads in the
+      // page's language. This line was an English sentence with a Japanese
+      // subject, beside nine English strings that all say JMA.
+      publisher: 'Could not fetch from JMA.',
       observation: 'The weather observation could not be read.',
       station: 'Fetch failed.',
     ),

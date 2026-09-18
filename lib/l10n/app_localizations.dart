@@ -928,6 +928,27 @@ class AppL10n {
   /// unchanged; until 2026-09-16 the Japanese page read the English word too.
   String get advisoryOtherSource => _ja ? 'その他' : 'Source';
 
+  /// The Japan Meteorological Agency's name, in the page's language (HIE R105,
+  /// AAA R58 W3). It is the publisher of every warning HER app shows in Akita,
+  /// and it appears twice on one page: the advisory card head, and the
+  /// publisher inside [advisoryPublisherErrored].
+  ///
+  /// Until 2026-09-18 both were the literal 気象庁 in EVERY locale, while the
+  /// nine other English strings that name the same body all say "JMA"
+  /// (:424, :425, :631, :865 twice, :900, :1253, :1258, :1308, :1314). So the
+  /// English page named one publisher two ways, worst on the error line, which
+  /// read verbatim "Could not fetch from 気象庁." — an English sentence whose
+  /// only subject was in another script. On a font stack with no CJK face that
+  /// sentence names three empty boxes, and a source name that renders as
+  /// nothing reads as no source at all.
+  ///
+  /// This is the publisher's NAME, not its safety wording. The verbatim-relay
+  /// discipline in `advisory_cards.dart` covers event class, headline, area and
+  /// description — the publisher's own words about the hazard — and those stay
+  /// verbatim and untranslated in every locale. NWS and MET Norway are already
+  /// one Latin string each and are unchanged.
+  String get advisoryJmaPublisher => _ja ? '気象庁' : 'JMA';
+
   String advisoryPublisherErrored(String publisher) => _ja
       ? '配信元 $publisher から取得できませんでした。'
       : 'Could not fetch from $publisher.';
