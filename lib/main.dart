@@ -5396,32 +5396,43 @@ class _HomePageState extends State<HomePage> {
           padding: const EdgeInsets.only(bottom: 4),
           child: Row(
             children: [
+              // Each data column names its unit on the head's second line. The
+              // unit used to sit beside every value, where it did not fit a
+              // 43 px cell and shrank the temperature to 9.21 px — see
+              // `CorridorColumnHead` and `corridorSnowUnit` in corridor_row.dart
+              // for the measurement and why the unit is one line down rather
+              // than inline.
               SizedBox(
                 width: corridorStationColumnWidth,
-                child: Text(AppL10n.of(context).prefectureHeadStation,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.bold)),
+                child: CorridorColumnHead(
+                  label: AppL10n.of(context).prefectureHeadStation,
+                  unit: null,
+                ),
               ),
               Expanded(
-                child: Text(AppL10n.of(context).prefectureHeadSnow,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.bold)),
+                child: CorridorColumnHead(
+                  label: AppL10n.of(context).prefectureHeadSnow,
+                  unit: corridorSnowUnit,
+                ),
               ),
               Expanded(
-                child: Text(AppL10n.of(context).prefectureHeadTemp,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.bold)),
+                child: CorridorColumnHead(
+                  label: AppL10n.of(context).prefectureHeadTemp,
+                  unit: corridorTempUnit,
+                ),
               ),
               Expanded(
-                child: Text(AppL10n.of(context).prefectureHeadWind,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.bold)),
+                child: CorridorColumnHead(
+                  label: AppL10n.of(context).prefectureHeadWind,
+                  unit: corridorWindUnit,
+                ),
               ),
               SizedBox(
                 width: corridorObservedColumnWidth,
-                child: Text(AppL10n.of(context).prefectureHeadObserved,
-                    style: const TextStyle(
-                        fontSize: 11, fontWeight: FontWeight.bold)),
+                child: CorridorColumnHead(
+                  label: AppL10n.of(context).prefectureHeadObserved,
+                  unit: null,
+                ),
               ),
             ],
           ),

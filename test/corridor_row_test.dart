@@ -52,10 +52,22 @@ void main() {
     );
     expect(find.text('湯沢'), findsOneWidget);
     expect(find.text('南・山間'), findsOneWidget);
-    expect(find.text('-3.2 °C'), findsOneWidget);
-    expect(find.text('12 cm'), findsOneWidget);
-    expect(find.text('1.4 m/s'), findsOneWidget);
+    // The unit moved to the column head (2026-09-18): it does not fit a 43 px
+    // cell at phone width, where it shrank the temperature to 7.93 px with a
+    // Japanese face. The cells draw the bare value.
+    expect(find.text('-3.2'), findsOneWidget);
+    expect(find.text('12'), findsOneWidget);
+    expect(find.text('1.4'), findsOneWidget);
     expect(find.text('21:50 JST'), findsOneWidget);
+    // …and the unit must still reach a reader who cannot see the head. This is
+    // the half that would be silently lost by moving the expectations above and
+    // nothing else, so it is asserted here rather than left to the card test.
+    expect(find.bySemanticsLabel('12 cm'), findsOneWidget);
+    expect(find.bySemanticsLabel('1.4 m/s'), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(RegExp(r'-3\.2 °C')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('descriptor is rendered in Japanese (V96 cohort fit)', (
@@ -108,7 +120,7 @@ void main() {
       ),
     );
     final container = tester.widget<Container>(
-      find.ancestor(of: find.text('-2.0 °C'), matching: find.byType(Container)),
+      find.ancestor(of: find.text('-2.0'), matching: find.byType(Container)),
     );
     final decoration = container.decoration as BoxDecoration;
     expect(decoration.color, Colors.transparent);
