@@ -266,15 +266,22 @@ class _StationMarker extends StatelessWidget {
     // takes its own height, top-aligned where it always sat, so large text
     // is drawn at full size and nothing overflows. At default scale it fits
     // the box and lays out exactly as before.
+    //
+    // The width is freed the same way (2026-09-19): on an English page the
+    // label is "Akita", and at text scale 2.0 the 60 px box broke it into
+    // "Akit" and "a" (rendered). The label now takes the width its word
+    // needs, centred over the pin as before.
     return OverflowBox(
       alignment: Alignment.topCenter,
+      minWidth: 0,
+      maxWidth: double.infinity,
       minHeight: 0,
       maxHeight: double.infinity,
-      child: _stationColumn(),
+      child: _stationColumn(AppL10n.of(context).akitaStationMapLabel),
     );
   }
 
-  Widget _stationColumn() {
+  Widget _stationColumn(String label) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -286,7 +293,7 @@ class _StationMarker extends StatelessWidget {
             border: Border.all(color: Colors.blueGrey.shade700, width: 1),
           ),
           child: Text(
-            '秋田',
+            label,
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.bold,

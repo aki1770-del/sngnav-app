@@ -4609,41 +4609,14 @@ class _HomePageState extends State<HomePage> {
             // BETA_PLAN W1 — the invisible-ice watch verdict, rendered with
             // the same honest-unknown discipline as the fields above.
             _kv(
-              '路面凍結ウォッチ',
-              switch (_invisibleIceResult) {
-                InvisibleIceWatchResult.watch =>
-                  '⚠ ブラックアイスバーンのおそれ（放射冷却の窓）',
-                InvisibleIceWatchResult.clear => '該当なし',
-                // The classifier DECLINED to judge this reading — every field
-                // was measured and in range, and it still produced no verdict.
-                // Deliberately distinguishable from `outOfScope`'s
-                // 「本ウォッチの対象外」: that says another lane owns these
-                // conditions, which is false here — no lane covers it (the app
-                // has no fog concept at all). Not spoken: it is the absence of
-                // a judgement, not a hazard (see the enum's dartdoc).
-                InvisibleIceWatchResult.outsideModelEnvelope =>
-                  '判定範囲外（この気象条件は判定していません）',
-                // Sub-zero ambient, no precip: expected-frozen regime. Distinct,
-                // possibility-graded, NOT the surprise wording (Chair
-                // calibration 2026-07-23; Andon 2026-07-20T13:40Z).
-                InvisibleIceWatchResult.subZeroFrozen =>
-                  '⚠ 路面凍結のおそれ（気温0°C以下）',
-                // A scope exclusion is NOT an all-clear. Say plainly that
-                // this watch does not cover these conditions, and never
-                // imply the surface is safe (Andon 2026-07-20T13:40Z).
-                InvisibleIceWatchResult.outOfScope =>
-                  '本ウォッチの対象外（この条件は判定していません）',
-                InvisibleIceWatchResult.unknown || null =>
-                  '判定不能（気温・湿度・降水の観測値が不足）',
-              },
+              AppL10n.of(context).roadIceWatchLabel,
+              AppL10n.of(context).roadIceWatchVerdict(_invisibleIceResult),
             ),
             // BETA_PLAN W3 — the measured-turmoil watch verdict, same
             // honest-unknown discipline (per-channel 判定不能 named).
             _kv(
-              '荒天ウォッチ',
-              _turmoilState == null
-                  ? '判定不能（降水・風の観測値が不足）'
-                  : turmoilRowText(_turmoilState!),
+              AppL10n.of(context).turmoilWatchLabel,
+              AppL10n.of(context).turmoilWatchVerdict(_turmoilState),
             ),
             const SizedBox(height: 8),
             // Honesty split (CT Joel-Test catch, 2026-07-09 vision audit):
@@ -4766,7 +4739,7 @@ class _HomePageState extends State<HomePage> {
           '${ts.substring(8, 10)}:${ts.substring(10, 12)} JST';
     }
     return [
-      _kv(AppL10n.of(context).observationStationLabel, '${observation.stationName} (${observation.stationId})'),
+      _kv(AppL10n.of(context).observationStationLabel, '${AppL10n.of(context).stationName(observation.stationId, observation.stationName)} (${observation.stationId})'),
       _kv(AppL10n.of(context).observationObservedAtLabel, obsDisplay),
       _kv(AppL10n.of(context).observationTemperatureLabel, temp == null ? '—' : '${temp.toStringAsFixed(1)} °C'),
       _kv(AppL10n.of(context).observationHumidityLabel, hum == null ? '—' : '$hum %'),
@@ -4775,7 +4748,7 @@ class _HomePageState extends State<HomePage> {
       // shown verbatim beside the inference (same discipline as the
       // fields above; '—' = the station did not report the field).
       _kv(
-        '降水量（10分間）',
+        AppL10n.of(context).observationPrecipitation10mLabel,
         observation.precipitation10mMm == null
             ? '—'
             : '${observation.precipitation10mMm!.toStringAsFixed(1)} mm',
@@ -5727,7 +5700,8 @@ class _HomePageState extends State<HomePage> {
         for (var i = 0; i < results.length; i++)
           CorridorRow(
             result: results[i],
-            descriptor: corridorStations[i].descriptor,
+            descriptor: AppL10n.of(context).stationDescriptor(
+                corridorStations[i].id, corridorStations[i].descriptor),
             tempMin: tempMin,
             tempMax: tempMax,
           ),

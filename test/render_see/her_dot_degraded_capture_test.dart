@@ -25,9 +25,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MethodChannel;
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:sngnav_app/akita_map.dart';
+import 'package:sngnav_app/l10n/app_localizations.dart';
 
 import 'render_see_env.dart';
 
@@ -59,6 +61,16 @@ void main() {
 
   Widget frame(AkitaMap map) => MaterialApp(
         theme: ThemeData(fontFamily: 'Roboto'),
+        // HER's page: the map's station label is localized, so this frame
+        // draws it as her app does, in Japanese.
+        locale: const Locale('ja'),
+        localizationsDelegates: const [
+          AppL10n.delegate,
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('ja'), Locale('en')],
         home: Scaffold(
           backgroundColor: Colors.white,
           body: Center(child: SizedBox(width: 600, child: map)),

@@ -24,6 +24,9 @@ library;
 import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/widgets.dart';
 
+import '../services/invisible_ice_watch.dart' show InvisibleIceWatchResult;
+import '../services/turmoil_watch.dart' show TurmoilWatchState, turmoilRowText;
+
 /// Minimal app-level localizations for sngnav-app's consent + status surface.
 ///
 /// Resolution is by [Locale.languageCode]: `ja` -> Japanese, anything else
@@ -848,6 +851,108 @@ class AppL10n {
   String get observationWindLabel => _ja ? '風速' : 'Wind';
   String get observationSnowDepthLabel => _ja ? '積雪深' : 'Snow depth';
   String get observationFetchedLabel => _ja ? '取得時刻' : 'Fetched';
+
+  /// The measured 10-minute precipitation row on the Akita card.
+  String get observationPrecipitation10mLabel =>
+      _ja ? '降水量（10分間）' : 'Precipitation (10 min)';
+
+  // ===== The two watch rows on the Akita card =====
+  //
+  // Until 2026-09-19 these rows were drawn in Japanese on every page, so a
+  // driver reading English saw 該当なし and 判定不能 side by side and could not
+  // tell "none" from "cannot judge" — the one distinction these rows exist to
+  // make. The English says "cannot judge" wherever the Japanese says 判定不能,
+  // and "None" only where the Japanese says 該当なし. The Japanese is unchanged.
+  // "Road-ice" and "turmoil" are the words the card's own feed lines already
+  // use for these watches (measuredWatchNotYetRead, measuredWatchFeedLost).
+
+  /// The black-ice watch row's label.
+  String get roadIceWatchLabel => _ja ? '路面凍結ウォッチ' : 'Road-ice watch';
+
+  /// The black-ice watch verdict as drawn. [r] null is the same as unknown:
+  /// no verdict has been computed, and that is never shown as none.
+  String roadIceWatchVerdict(InvisibleIceWatchResult? r) => switch (r) {
+        InvisibleIceWatchResult.watch => _ja
+            ? '⚠ ブラックアイスバーンのおそれ（放射冷却の窓）'
+            : '⚠ Black ice possible (radiative cooling window)',
+        InvisibleIceWatchResult.clear => _ja ? '該当なし' : 'None',
+        // The classifier DECLINED to judge this reading — every field was
+        // measured and in range, and it still produced no verdict.
+        // Deliberately distinguishable from `outOfScope`'s wording: that one
+        // says another lane owns these conditions, which is false here — no
+        // lane covers it (the app has no fog concept at all). Not spoken: it
+        // is the absence of a judgement, not a hazard (see the enum's
+        // dartdoc).
+        InvisibleIceWatchResult.outsideModelEnvelope => _ja
+            ? '判定範囲外（この気象条件は判定していません）'
+            : 'Outside its range (these weather conditions are not judged)',
+        // Sub-zero ambient, no precip: expected-frozen regime. Distinct,
+        // possibility-graded, NOT the surprise wording. English as the
+        // sub-zero chip's own words, "Road may be frozen".
+        InvisibleIceWatchResult.subZeroFrozen => _ja
+            ? '⚠ 路面凍結のおそれ（気温0°C以下）'
+            : '⚠ Road may be frozen (air temperature 0 °C or below)',
+        // A scope exclusion is NOT an all-clear. Say plainly that this watch
+        // does not cover these conditions, and never imply the surface is
+        // safe.
+        InvisibleIceWatchResult.outOfScope => _ja
+            ? '本ウォッチの対象外（この条件は判定していません）'
+            : 'Not covered by this watch (this condition is not judged)',
+        InvisibleIceWatchResult.unknown || null => _ja
+            ? '判定不能（気温・湿度・降水の観測値が不足）'
+            : 'Cannot judge (temperature, humidity or precipitation not '
+                'reported)',
+      };
+
+  /// The measured-turmoil watch row's label.
+  String get turmoilWatchLabel => _ja ? '荒天ウォッチ' : 'Turmoil watch';
+
+  /// The measured-turmoil verdict as drawn; [s] null means nothing was judged.
+  String turmoilWatchVerdict(TurmoilWatchState? s) => s == null
+      ? (_ja
+          ? '判定不能（降水・風の観測値が不足）'
+          : 'Cannot judge (precipitation and wind not reported)')
+      : turmoilRowText(s, ja: _ja);
+
+  // ===== Station names on an English page =====
+  //
+  // The station table (jma_fetch.dart) carries each station's kanji name and a
+  // short Japanese place description, chosen so a driver who reads Japanese
+  // has no translation step. A driver reading English had the same kanji and
+  // could not read them. The names below are JMA's own English names for these
+  // stations, from JMA's AMeDAS station table (enName); the descriptions are
+  // this app's. Both are held to JMA's table by
+  // test/corridor_stations_match_jma_table_test.dart.
+
+  static const _stationNamesEn = <String, String>{
+    '32286': 'Oga',
+    '32402': 'Akita',
+    '32551': 'Omagari',
+    '32596': 'Yokote',
+    '32691': 'Yuzawa',
+  };
+
+  static const _stationDescriptorsEn = <String, String>{
+    '32286': 'North coast',
+    '32402': 'City',
+    '32551': 'Central inland',
+    '32596': 'South inland',
+    '32691': 'South mountains',
+  };
+
+  /// A station's name as drawn. In Japanese, [name] as the station table gives
+  /// it. In English, JMA's English name for [stationId]; a station this app
+  /// has no English name for keeps [name], so a new station shows its kanji
+  /// rather than nothing.
+  String stationName(String stationId, String name) =>
+      _ja ? name : (_stationNamesEn[stationId] ?? name);
+
+  /// A prefecture-table row's place description; same rule as [stationName].
+  String stationDescriptor(String stationId, String descriptor) =>
+      _ja ? descriptor : (_stationDescriptorsEn[stationId] ?? descriptor);
+
+  /// The label on the map's Akita station marker.
+  String get akitaStationMapLabel => _ja ? '秋田' : 'Akita';
 
   /// When the Akita observation was fetched, and how long ago. [minutes] is
   /// minutes since the fetch. Under a minute reads 1分以内 / within 1 min;

@@ -194,6 +194,10 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
       tester.view.devicePixelRatio = 2.0;
       tester.view.physicalSize = const Size(393 * 2.0, 852 * 2.0);
       addTearDown(tester.view.reset);
+      // A station's name and place as the [lang] page draws them, read from
+      // the app's own localizations, as the head words are (clause 7). On the
+      // ja page these are the station table's own words.
+      final page = AppL10n(Locale(lang));
 
       await http.runWithClient(() async {
         await tester.pumpWidget(
@@ -242,7 +246,10 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
         }
 
         // R6: the descriptors of the rows that answered.
-        final descriptors = {for (final s in corridorStations) s.descriptor};
+        final descriptors = {
+          for (final s in corridorStations)
+            page.stationDescriptor(s.id, s.descriptor),
+        };
         final shown = painted.where((p) => descriptors.contains(p.text));
         expect(
           shown,
@@ -349,7 +356,7 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
               };
               final named = [
                 for (final st in corridorStations)
-                  if (drawn.contains(st.name)) st,
+                  if (drawn.contains(page.stationName(st.id, st.name))) st,
               ];
               if (named.length != 1) {
                 problems.add(
@@ -359,10 +366,11 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
                 return null;
               }
               final st = named.single;
-              if (!drawn.contains(st.descriptor)) {
+              final place = page.stationDescriptor(st.id, st.descriptor);
+              if (!drawn.contains(place)) {
                 problems.add(
                   'the row of ${st.name} does not draw its own place '
-                  '「${st.descriptor}」; it draws $drawn',
+                  '「$place」; it draws $drawn',
                 );
               }
               return st.id;

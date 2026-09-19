@@ -171,7 +171,9 @@ class _SuccessRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(observation.stationName,
+              Text(
+                  AppL10n.of(context).stationName(
+                      observation.stationId, observation.stationName),
                   style: const TextStyle(fontSize: 12)),
               // grey.shade700, as the card's other secondary lines: shade600
               // was 4.17:1 on the card (2026-09-15), under the 4.5:1 floor.

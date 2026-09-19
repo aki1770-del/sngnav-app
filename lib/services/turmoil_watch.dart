@@ -128,24 +128,44 @@ TurmoilWatchState evaluateTurmoilWatch(JmaObservation obs) {
 ///   overstate the measurement.
 /// - A channel with no measurement is named 判定不能, even when the other
 ///   channel is clear — absence of data is never displayed as safety.
-String turmoilRowText(TurmoilWatchState s) {
+///
+/// English ([ja] false) says the same thing in the same order, for a page in
+/// English: "cannot judge" wherever the ja says 判定不能, never "None" for a
+/// channel nobody measured. 強めの風 is "fairly strong wind", keeping the ja
+/// row's step down from JMA's 強い風; the spoken English line says "Strong
+/// wind" (turmoilSpokenText) and is not changed here.
+String turmoilRowText(TurmoilWatchState s, {bool ja = true}) {
   final rainCaution = s.rain == TurmoilChannel.caution;
   final windCaution = s.wind == TurmoilChannel.caution;
-  if (rainCaution && windCaution) return '⚠ 強い雨・強めの風を観測中';
+  if (rainCaution && windCaution) {
+    return ja ? '⚠ 強い雨・強めの風を観測中' : '⚠ Heavy rain and fairly strong wind observed';
+  }
   if (rainCaution) {
-    return s.wind == TurmoilChannel.unknown
-        ? '⚠ 強い雨を観測中（風は判定不能）'
-        : '⚠ 強い雨を観測中';
+    if (s.wind == TurmoilChannel.unknown) {
+      return ja ? '⚠ 強い雨を観測中（風は判定不能）' : '⚠ Heavy rain observed (cannot judge wind)';
+    }
+    return ja ? '⚠ 強い雨を観測中' : '⚠ Heavy rain observed';
   }
   if (windCaution) {
-    return s.rain == TurmoilChannel.unknown
-        ? '⚠ 強めの風を観測中（降水は判定不能）'
-        : '⚠ 強めの風を観測中';
+    if (s.rain == TurmoilChannel.unknown) {
+      return ja
+          ? '⚠ 強めの風を観測中（降水は判定不能）'
+          : '⚠ Fairly strong wind observed (cannot judge precipitation)';
+    }
+    return ja ? '⚠ 強めの風を観測中' : '⚠ Fairly strong wind observed';
   }
-  if (s.allUnknown) return '判定不能（降水・風の観測値が不足）';
-  if (s.rain == TurmoilChannel.unknown) return '該当なし（降水は判定不能）';
-  if (s.wind == TurmoilChannel.unknown) return '該当なし（風は判定不能）';
-  return '該当なし';
+  if (s.allUnknown) {
+    return ja
+        ? '判定不能（降水・風の観測値が不足）'
+        : 'Cannot judge (precipitation and wind not reported)';
+  }
+  if (s.rain == TurmoilChannel.unknown) {
+    return ja ? '該当なし（降水は判定不能）' : 'None (cannot judge precipitation)';
+  }
+  if (s.wind == TurmoilChannel.unknown) {
+    return ja ? '該当なし（風は判定不能）' : 'None (cannot judge wind)';
+  }
+  return ja ? '該当なし' : 'None';
 }
 
 /// Spoken caution line for a turmoil transition — possibility-graded and
