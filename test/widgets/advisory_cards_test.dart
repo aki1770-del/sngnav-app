@@ -463,6 +463,158 @@ void main() {
       );
     });
   });
+
+  // ===== HIE R114, 2026-09-19 — the card's own labels =====
+  //
+  // R105 named this and did not fix it: HER Japanese card drew the English
+  // word `severe` in the severity pill, because the pill rendered
+  // `advisory.severity.name`. Beside it the same Row drew `eff.`, and lower
+  // down the card drew `expires`. Seen in
+  // `outputs/hie/r105_w3_l2_frame_items_2026_09_18/frames/ja_card-head_cjk_new.png`.
+  //
+  // Both directions, as for the publisher label: HER page must change, the
+  // English page must not, and the publisher's verbatim wording must not move
+  // in either.
+  group('the advisory card\'s own labels read the page\'s language', () {
+    Advisory jmaSevere() => Advisory(
+          source: AdvisorySource.jmaJapan,
+          eventClass: '大雪警報',
+          severity: AdvisorySeverity.severe,
+          certainty: AdvisoryCertainty.unknown,
+          urgency: AdvisoryUrgency.unknown,
+          areaDescription: '秋田中央',
+          effective: DateTime.utc(2026, 1, 15, 4, 23),
+          expires: DateTime.utc(2026, 1, 15, 12, 0),
+          headline: '秋田県では、大雪に警戒してください。',
+          description: '秋田県では、大雪に警戒してください。',
+        );
+
+    Widget ja(Widget child) => MaterialApp(
+          locale: const Locale('ja'),
+          localizationsDelegates: const [
+            AppL10n.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppL10n.supportedLocales,
+          home: Scaffold(body: child),
+        );
+
+    Widget cards(Advisory a) => AdvisoryCards(
+          loading: false,
+          result: AdvisoryAggregateResult(
+            advisories: [a],
+            providerErrors: const [],
+          ),
+          errorMessage: null,
+          onRefresh: _noop,
+        );
+
+    testWidgets('HER ja page: the severity pill and both times are Japanese',
+        (tester) async {
+      await tester.pumpWidget(ja(cards(jmaSevere())));
+
+      expect(find.text('重大'), findsOneWidget);
+      expect(find.text('severe'), findsNothing);
+      expect(find.textContaining('開始 '), findsOneWidget);
+      expect(find.textContaining('eff. '), findsNothing);
+      expect(find.textContaining('終了 '), findsOneWidget);
+      expect(find.textContaining('expires '), findsNothing);
+
+      // The publisher's verbatim wording did not move.
+      expect(find.text('大雪警報'), findsOneWidget);
+      expect(find.text('秋田中央'), findsOneWidget);
+      expect(find.text('秋田県では、大雪に警戒してください。'), findsOneWidget);
+    });
+
+    testWidgets('the English page is unmoved — still the enum token and eff.',
+        (tester) async {
+      await tester.pumpWidget(wrap(cards(jmaSevere())));
+
+      expect(find.text('severe'), findsOneWidget);
+      expect(find.text('重大'), findsNothing);
+      expect(find.textContaining('eff. '), findsOneWidget);
+      expect(find.textContaining('expires '), findsOneWidget);
+      expect(find.text('大雪警報'), findsOneWidget);
+    });
+
+    // Every level, because the one that matters most is the one no fixture
+    // ever carries. An unknown severity must reach her as unknown.
+    testWidgets('every severity level draws a Japanese word on HER page',
+        (tester) async {
+      const expected = <AdvisorySeverity, String>{
+        AdvisorySeverity.extreme: '甚大',
+        AdvisorySeverity.severe: '重大',
+        AdvisorySeverity.moderate: '中程度',
+        AdvisorySeverity.minor: '軽微',
+        AdvisorySeverity.unknown: '重要度不明',
+      };
+      // The map is exhaustive over the enum, so a level added upstream fails
+      // here instead of silently drawing an English token on her page.
+      expect(expected.keys.toSet(), AdvisorySeverity.values.toSet());
+
+      for (final level in AdvisorySeverity.values) {
+        await tester.pumpWidget(ja(cards(Advisory(
+          source: AdvisorySource.jmaJapan,
+          eventClass: '大雪警報',
+          severity: level,
+          certainty: AdvisoryCertainty.unknown,
+          urgency: AdvisoryUrgency.unknown,
+          areaDescription: '秋田中央',
+          effective: null,
+          expires: null,
+          headline: '',
+          description: '',
+        ))));
+        expect(find.text(expected[level]!), findsOneWidget,
+            reason: 'severity $level must draw ${expected[level]} on HER page');
+        expect(find.text(level.name), findsNothing,
+            reason: 'severity $level must not draw its raw enum token');
+      }
+    });
+
+    // ⚑ THE ASSERTION THAT HOLDS THE DESIGN DECISION, not just the strings.
+    //
+    // Measured in condition_aggregator_jma 0.7.0 `jma_advisory_mapper.dart`
+    // :724-734 — 特別警報/危険警報 → extreme, 警報 → severe, 注意報 → moderate.
+    // So for a JMA card 「警報」 would be exactly right. This same pill also
+    // renders NWS and MET Norway advisories, whose severity comes from CAP.
+    // Printing JMA's regulated word on those would attribute a Japanese
+    // regulatory classification to a publisher that never issued one.
+    testWidgets('the pill never borrows JMA\'s regulated vocabulary',
+        (tester) async {
+      const regulated = ['特別警報', '注意報', '警報'];
+      for (final source in [
+        AdvisorySource.nwsUnitedStates,
+        AdvisorySource.metNorway,
+        AdvisorySource.other,
+      ]) {
+        for (final level in AdvisorySeverity.values) {
+          await tester.pumpWidget(ja(cards(Advisory(
+            source: source,
+            // eventClass is the publisher's verbatim wording and is the one
+            // place a regulated word may legitimately appear; it is empty here
+            // so any hit below is the pill's.
+            eventClass: '',
+            severity: level,
+            certainty: AdvisoryCertainty.unknown,
+            urgency: AdvisoryUrgency.unknown,
+            areaDescription: '',
+            effective: null,
+            expires: null,
+            headline: '',
+            description: '',
+          ))));
+          for (final word in regulated) {
+            expect(find.textContaining(word), findsNothing,
+                reason: '$source / $level must not print $word — that is '
+                    'JMA\'s classification, not ours');
+          }
+        }
+      }
+    });
+  });
 }
 
 void _noop() {}

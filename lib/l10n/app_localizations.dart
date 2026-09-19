@@ -953,6 +953,65 @@ class AppL10n {
       ? '配信元 $publisher から取得できませんでした。'
       : 'Could not fetch from $publisher.';
 
+  // ===== The advisory card's OWN labels (HIE R114, 2026-09-19) =====
+  //
+  // Named but not fixed by HIE R105, seen in that lane's
+  // `frames/ja_card-head_cjk_new.png`: HER Japanese card drew the English word
+  // `severe` in the severity pill, because the pill rendered
+  // `advisory.severity.name` — the raw Dart enum token — in every locale.
+  // Beside it on the same Row the card drew `eff.`, and lower down `expires`:
+  // three English tokens on a Japanese page, the same defect class as the R105
+  // error line that read "Could not fetch from ▯▯▯."
+  //
+  // The rule these follow is R105's, unchanged and applied one level out: the
+  // card's OWN labels read the page's language; the publisher's verbatim
+  // wording does not move. eventClass, areaDescription, headline and
+  // description stay untranslated in every locale, and so does
+  // `AdvisorySource.attributionString`, which belongs to the package and
+  // carries the publisher's attribution terms — that one is named, not touched.
+  //
+  // ⚑ THE SEVERITY WORDS DELIBERATELY AVOID JMA'S REGULATED VOCABULARY.
+  // Measured in condition_aggregator_jma 0.7.0 `jma_advisory_mapper.dart:724-734`:
+  // 特別警報/危険警報 → extreme, 警報 → severe, 注意報 → moderate. So for a JMA
+  // card 「警報」 would be exactly right — and this same pill also renders NWS
+  // and MET Norway advisories, whose severity comes from CAP, not from JMA.
+  // Printing 「警報」 on an NWS card would attribute a Japanese regulatory
+  // classification to a publisher that never issued one. These are OUR scale,
+  // so they are said in our own plain words.
+  //
+  // English is UNCHANGED on purpose — it is byte-for-byte the enum token it
+  // already drew — so the English page is provably unmoved and the only
+  // difference is the one that was defective.
+
+  /// Severity `extreme`, as the pill says it in the page's language.
+  String get advisorySeverityExtreme => _ja ? '甚大' : 'extreme';
+
+  /// Severity `severe`.
+  String get advisorySeveritySevere => _ja ? '重大' : 'severe';
+
+  /// Severity `moderate`.
+  String get advisorySeverityModerate => _ja ? '中程度' : 'moderate';
+
+  /// Severity `minor`.
+  String get advisorySeverityMinor => _ja ? '軽微' : 'minor';
+
+  /// Severity `unknown` — said in full rather than as a bare 「不明」.
+  ///
+  /// The pill sits immediately after the publisher's name, so 「気象庁 不明」
+  /// can be read as an unknown PUBLISHER rather than an unknown severity. The
+  /// three extra characters remove that reading. An unknown severity must
+  /// reach her as unknown, and must never be mistakable for anything else.
+  String get advisorySeverityUnknown => _ja ? '重要度不明' : 'unknown';
+
+  /// The time an advisory takes effect. Was the English literal `eff.` in
+  /// every locale.
+  String advisoryEffectiveAt(String time) => _ja ? '開始 $time' : 'eff. $time';
+
+  /// The time an advisory stops applying. Was the English literal `expires`
+  /// in every locale.
+  String advisoryExpiresAt(String time) =>
+      _ja ? '終了 $time' : 'expires $time';
+
   /// A warnings fetch that failed with no publisher named (AAA R58 W2,
   /// 2026-09-16). The only app writer is a fetch that threw before any
   /// provider answered, so the line names nobody; 配信元 その他 named no one

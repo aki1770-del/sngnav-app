@@ -395,7 +395,7 @@ class _AdvisoryCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Text(
-                  advisory.severity.name,
+                  _severityLabel(advisory.severity, AppL10n.of(context)),
                   style: TextStyle(
                     color: _severityColor(advisory.severity),
                     fontSize: 11,
@@ -406,7 +406,8 @@ class _AdvisoryCard extends StatelessWidget {
               const Spacer(),
               if (advisory.effective != null)
                 Text(
-                  'eff. ${fmt.format(advisory.effective!.toLocal())}',
+                  AppL10n.of(context)
+                      .advisoryEffectiveAt(fmt.format(advisory.effective!.toLocal())),
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
                 ),
             ],
@@ -442,7 +443,8 @@ class _AdvisoryCard extends StatelessWidget {
           if (advisory.expires != null) ...[
             const SizedBox(height: 4),
             Text(
-              'expires ${fmt.format(advisory.expires!.toLocal())}',
+              AppL10n.of(context)
+                  .advisoryExpiresAt(fmt.format(advisory.expires!.toLocal())),
               style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
             ),
           ],
@@ -531,6 +533,36 @@ Widget _honestyBanner({
         ),
       ),
     );
+
+/// The severity pill's text, in the page's language.
+///
+/// HIE R114 (2026-09-19). Until this change the pill drew
+/// `advisory.severity.name` — the raw Dart enum token — so HER Japanese card
+/// read the English word `severe` beside 気象庁 and 大雪警報. Seen in
+/// `outputs/hie/r105_w3_l2_frame_items_2026_09_18/frames/ja_card-head_cjk_new.png`,
+/// named in that lane's record, and fixed here.
+///
+/// Exhaustive on the enum, deliberately: a `String` switch on
+/// `severity.name` would fall through silently if the package added a level,
+/// and a severity that falls through is a severity she is not told.
+/// This mirrors [_severityColor] one-for-one so colour and word can never
+/// describe different levels.
+///
+/// The words are OUR scale, not JMA's — see [AppL10n.advisorySeveritySevere].
+String _severityLabel(AdvisorySeverity severity, AppL10n l) {
+  switch (severity) {
+    case AdvisorySeverity.extreme:
+      return l.advisorySeverityExtreme;
+    case AdvisorySeverity.severe:
+      return l.advisorySeveritySevere;
+    case AdvisorySeverity.moderate:
+      return l.advisorySeverityModerate;
+    case AdvisorySeverity.minor:
+      return l.advisorySeverityMinor;
+    case AdvisorySeverity.unknown:
+      return l.advisorySeverityUnknown;
+  }
+}
 
 Color _severityColor(AdvisorySeverity severity) {
   switch (severity) {
