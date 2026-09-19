@@ -136,6 +136,44 @@ Per CLAUDE.md §3 Andon-must-produce-loom: the cord-pull (Komada-voice "do not w
 
 ---
 
+## TRAP-13 — pub publishes `dependency_overrides` as written, and its validator calls them a hint
+
+- **First observed**: SNGNav, 2026-09-19. 9 of 36 published archives carried `path: ../<sibling>` overrides — 7 in the package ROOT `pubspec.yaml`, 4 in `example/pubspec.yaml`. `pub get` inside each extracted archive exits 66, "path which doesn't exist". The same packages' `dart pub publish --dry-run` said "Package has 0 warnings", with a hint "Non-dev dependencies are overridden in pubspec.yaml".
+- **Symptom**: the publish succeeds and an app that depends on the package resolves normally (a dependency's overrides never apply to its dependents). Only someone resolving INSIDE the downloaded package — its tests, its example, an editor opening it — fails, and they are the one person we never hear from.
+- **Class**: success-shaped publish; a belief ("pub strips them") written into comments and shipped.
+- **Pre-flight check**: no `path:` override in any shipped `pubspec.yaml`. Package root → `pubspec_overrides.yaml` (pub never publishes the root one); `example/` → `example/pubspec_overrides.yaml`, named in the package `.pubignore` (a nested one IS published otherwise). Prove it from outside: rebuild the archive from the dry-run's own file list, resolve it alone in an empty directory. Standing guard: `scripts/sibling_constraint_check.py`, archive-path lane.
+- **Linked feedback memory**: none; the record is `outputs/flutter-dart-developer/r115_published_examples_on_main_2026_09_19/`.
+
+---
+
+## TRAP-14 — a `.pubignore` replaces its own directory's `.gitignore`, not the repository's
+
+- **First observed**: 2026-09-19, measured with `dart pub publish --dry-run` (Dart 3.11.1) in a scratch repository. With a `.pubignore` present, a file named only in that directory's `.gitignore` IS published. The repository-root `.gitignore` still applies — but only when publishing from inside the git work tree; from a copy outside it, `build/` and `coverage/` are published.
+- **Symptom**: adding a `.pubignore` can silently start shipping what the package's own `.gitignore` kept out; publishing from a staging copy ships build output (this catalog shipped 15-17 MB `build/` directories that way on 2026-07-13).
+- **Class**: tooling semantics; both the fear ("it will ship build/") and the belief ("it replaces every .gitignore") were wrong until measured.
+- **Pre-flight check**: a new `.pubignore` restates its directory's `.gitignore`, and names `build/` and `coverage/` so it travels with the package. Compare the dry-run file list before and after: it must not change.
+- **Linked feedback memory**: none; the measurement matrix is in the record above (`pubignore_semantics`).
+
+---
+
+## TRAP-15 — an empty sandbox makes `pub get` exit 66, the same code as the defect
+
+- **First observed**: 2026-09-19. A harness copied a package's file list by a RELATIVE path after `cd`-ing into the package, so it copied nothing; `pub get` in the empty directory exited 66 and all nine packages "reproduced" the defect. Only stderr (`No such file or directory`) showed it.
+- **Symptom**: a false red that looks exactly like the true red. The same harness would have produced a false green had the defect's code been 0.
+- **Class**: dead instrument, success-shaped (here failure-shaped).
+- **Pre-flight check**: resolve every input path to absolute before `cd`; refuse to run the tool unless the sandbox holds every listed file; classify each non-zero exit by its MESSAGE, never its code alone.
+- **Linked feedback memory**: none.
+
+---
+
+## TRAP-16 — `git stash` is shared by every worktree of a repository
+
+- **First observed**: 2026-09-19, SNGNav (80+ worktrees). `git stash list` in a brand-new worktree showed two entries from other work (2026-06-23, 2026-08-25). A `push`/`pop` pair in one worktree operates on the stack every other worktree uses; a `pop` in a busy repository can take someone else's entry.
+- **Symptom**: none when it goes right; lost or misapplied work when two worktrees stash at once.
+- **Class**: shared state that looks local.
+- **Pre-flight check**: in a repository other seats use, compare against a pristine `git worktree add --detach <path> <sha>` instead of stashing.
+- **Linked feedback memory**: none.
+
 ---
 
 ## Vision attribution (file-level, 3-slot)
