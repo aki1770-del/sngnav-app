@@ -69,7 +69,7 @@ Future<void> _settleReal(WidgetTester tester, [int n = 30]) async {
 
 typedef _Extent = ({String what, double left, double right, double? drawnPx});
 
-void prefectureGapTests({required String face, required String path}) {
+void prefectureGapTests({required String face, required FaceSearch search}) {
   setUpAll(() async {
     final tmp = await Directory.systemTemp.createTemp('prefecture_gap');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -84,7 +84,8 @@ void prefectureGapTests({required String face, required String path}) {
         '$lang, $face, 393 px: every value drawn at 11 px or more, and 4 px '
         'or more between neighbouring columns', (tester) async {
       final loaded =
-          await tester.runAsync(() => loadCjkFamily('Roboto', [path])) ?? false;
+          await tester.runAsync(() => loadDiscoveredFace('Roboto', search)) ??
+              false;
       expect(loaded, isTrue,
           reason: 'without real glyph metrics the measure cannot fail');
       tester.view.devicePixelRatio = 2.0;
