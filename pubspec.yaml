@@ -27,7 +27,11 @@ description: >-
 # eedd04e and held at /home/komada/work/r114-release-hold-0.0.2+4/. This build
 # is a different artifact: it adds HIE's W3, L2 and severity words and FSE's
 # W1 triple. Two different artifacts must never share a versionCode.
-version: 0.0.2+5
+# 2026-09-19 (AAE, R115): +5 -> +6. The +5 APK exists (e7e21af, held at
+# /home/komada/work/r115-release-hold-0.0.2+5/). This build adds the outlined
+# check button (cf796cb), the weakest real cue (9cfa2e0) and the bundled check
+# line (52edb1d): a different artifact, so a different versionCode.
+version: 0.0.2+6
 publish_to: 'none'
 
 environment:
