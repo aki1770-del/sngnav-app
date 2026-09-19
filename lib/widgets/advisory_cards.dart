@@ -1,7 +1,9 @@
 /// Advisory cards — renders one `Advisory` per card in the home page.
 ///
-/// Source label is publisher-verbatim (`NWS` for NOAA records;
-/// `気象庁` for JMA records). Event class + headline + description +
+/// The source LABEL is the publisher's name in the page's language (`NWS` for
+/// NOAA records; `気象庁` on HER Japanese page and `JMA` on the English one —
+/// HIE R105, see [AppL10n.advisoryJmaPublisher]). Event class + headline +
+/// description +
 /// area + effective + expires are all rendered verbatim per the
 /// verbatim-relay discipline — the publisher's wording is the
 /// substrate the driver decides on, not our paraphrase. No
@@ -393,7 +395,7 @@ class _AdvisoryCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Text(
-                  advisory.severity.name,
+                  _severityLabel(advisory.severity, AppL10n.of(context)),
                   style: TextStyle(
                     color: _severityColor(advisory.severity),
                     fontSize: 11,
@@ -404,7 +406,8 @@ class _AdvisoryCard extends StatelessWidget {
               const Spacer(),
               if (advisory.effective != null)
                 Text(
-                  'eff. ${fmt.format(advisory.effective!.toLocal())}',
+                  AppL10n.of(context)
+                      .advisoryEffectiveAt(fmt.format(advisory.effective!.toLocal())),
                   style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
                 ),
             ],
@@ -440,7 +443,8 @@ class _AdvisoryCard extends StatelessWidget {
           if (advisory.expires != null) ...[
             const SizedBox(height: 4),
             Text(
-              'expires ${fmt.format(advisory.expires!.toLocal())}',
+              AppL10n.of(context)
+                  .advisoryExpiresAt(fmt.format(advisory.expires!.toLocal())),
               style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
             ),
           ],
@@ -457,14 +461,21 @@ class _AdvisoryCard extends StatelessWidget {
   }
 }
 
-/// The publisher's name as her page shows it. A source with no name of its
-/// own reads in the page's language ([AppL10n.advisoryOtherSource]).
+/// The publisher's name as her page shows it, in the page's language. A source
+/// with no name of its own reads in the page's language too
+/// ([AppL10n.advisoryOtherSource]).
+///
+/// HIE R105 (2026-09-18): JMA was the literal 気象庁 in every locale, so the
+/// English page named one publisher two ways — 気象庁 in the card head and
+/// "Could not fetch from 気象庁." on the error line, beside nine other English
+/// strings that all say JMA. See [AppL10n.advisoryJmaPublisher]. This is the
+/// publisher's NAME; the verbatim publisher CONTENT below is untouched.
 String _sourceLabel(AdvisorySource source, AppL10n l) {
   switch (source) {
     case AdvisorySource.nwsUnitedStates:
       return 'NWS';
     case AdvisorySource.jmaJapan:
-      return '気象庁';
+      return l.advisoryJmaPublisher;
     case AdvisorySource.metNorway:
       return 'MET Norway';
     case AdvisorySource.other:
@@ -522,6 +533,36 @@ Widget _honestyBanner({
         ),
       ),
     );
+
+/// The severity pill's text, in the page's language.
+///
+/// HIE R114 (2026-09-19). Until this change the pill drew
+/// `advisory.severity.name` — the raw Dart enum token — so HER Japanese card
+/// read the English word `severe` beside 気象庁 and 大雪警報. Seen in
+/// `outputs/hie/r105_w3_l2_frame_items_2026_09_18/frames/ja_card-head_cjk_new.png`,
+/// named in that lane's record, and fixed here.
+///
+/// Exhaustive on the enum, deliberately: a `String` switch on
+/// `severity.name` would fall through silently if the package added a level,
+/// and a severity that falls through is a severity she is not told.
+/// This mirrors [_severityColor] one-for-one so colour and word can never
+/// describe different levels.
+///
+/// The words are OUR scale, not JMA's — see [AppL10n.advisorySeveritySevere].
+String _severityLabel(AdvisorySeverity severity, AppL10n l) {
+  switch (severity) {
+    case AdvisorySeverity.extreme:
+      return l.advisorySeverityExtreme;
+    case AdvisorySeverity.severe:
+      return l.advisorySeveritySevere;
+    case AdvisorySeverity.moderate:
+      return l.advisorySeverityModerate;
+    case AdvisorySeverity.minor:
+      return l.advisorySeverityMinor;
+    case AdvisorySeverity.unknown:
+      return l.advisorySeverityUnknown;
+  }
+}
 
 Color _severityColor(AdvisorySeverity severity) {
   switch (severity) {

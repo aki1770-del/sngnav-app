@@ -1,6 +1,30 @@
 /// The prefecture observations card at phone width, read with one face: the
 /// station failure line and the descriptors against the floor, and each value
-/// with its unit on one line, with the scale it is drawn at printed.
+/// readable, with the scale it is drawn at printed.
+///
+/// ⚑⚑ R7 IN THIS FILE WAS AMENDED ON 2026-09-18 AND THE AMENDMENT IS A
+/// PROPOSAL, NOT A SETTLED CHANGE. This is an audited check; the seat that
+/// amended it does not own it and is not clearing it.
+///
+/// WHY it had to move: R7 asserted that every value is drawn WITH ITS UNIT on
+/// one line. The unit no longer sits beside the value — it does not fit a 43 px
+/// cell at 393 px, where the cell shrank "-12.1 °C" to 7.93 px with a Japanese
+/// face, under this card's own 11 px floor — so it is drawn once in the column
+/// head instead. R7's premise is therefore gone, and it fails 4 of 4 with
+/// `Expected: <9> Actual: <0>`. It could not be left as it was and it could not
+/// be deleted.
+///
+/// WHAT it became, and the direction matters: STRICTER. The amendment adds
+/// three assertions the old R7 did not make — a drawn-size floor (which the old
+/// check computed, PRINTED, and never held, so it passed the very defect this
+/// change fixes), the unit's presence in a column head, and the unit's presence
+/// in what a screen reader says. It is proven capable of failing on four
+/// independent paths, each mutated alone: units back in the cells, a head's
+/// unit removed, the unit dropped from the cell semantics, and a value scaled
+/// under the floor. Logs in the amending seat's record for 2026-09-18.
+///
+/// WHAT IS OWED: this file's owner and its auditor must accept or refuse the
+/// amendment. Until they do, R7 is a proposal that happens to be green.
 library;
 
 import 'dart:io';
@@ -53,7 +77,35 @@ Future<void> _settleReal(WidgetTester tester, [int n = 30]) async {
   }
 }
 
-final _valueWithUnit = RegExp(r'^-?\d+(\.\d+)? (cm|°C|m/s)$');
+// PROPOSED (2026-09-18) — the successor to `_valueWithUnit`.
+//
+// R7 was written when a value carried its own unit, and its purpose was that
+// the unit must never be separated from its value: at 393 px "7.5 m/s" had
+// broken across two lines with the unit on the second. That purpose is intact.
+// What changed is where the unit lives. It does not fit a 43 px cell — the
+// cell's FittedBox shrank "-12.1 °C" to 7.93 px with a Japanese face, under
+// this card's own 11 px floor — so the unit is now drawn once in the column
+// head and the cells carry bare numbers.
+//
+// This is deliberately a STRICTER check than the one it replaces, not a looser
+// one, because a check that is relaxed to let a change through has been bought
+// rather than moved. It adds three assertions the old R7 did not make:
+//   * a DRAWN-SIZE FLOOR. The old check computed each value's drawn scale and
+//     PRINTED it, and asserted nothing about it — so it passed a temperature
+//     drawn at 0.744 of 12 px, which is the defect this change exists to fix.
+//   * the unit must be present, exactly once, in a column head. A unit taken
+//     out of the cells that never arrived in a head has been deleted, and bare
+//     numbers with no statement of what they measure would satisfy a regex.
+//   * each data cell's SEMANTICS must still carry value AND unit, so a reader
+//     who cannot see the column head has not silently lost it.
+final _bareValue = RegExp(r'^-?\d+(\.\d+)?$');
+
+/// The unit each data column is drawn in, expected once each in the heads.
+const _headUnits = ['cm', '°C', 'm/s'];
+
+/// The smallest a value may be DRAWN, after any scale-down. The card already
+/// holds its failure line to 11 px.
+const double _valueFloorPx = 11.0;
 
 /// Registers the card's tests with [face] loaded as the app's default family,
 /// discovered on this host by [search]. One face per test file: a family
@@ -162,14 +214,17 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
           print('$lang $face descriptor: ${p.describe()}');
         }
 
-        // R7: every value with its unit, on one line, all of it painted.
+        // R7 (proposed): every value bare and on one line, drawn at or above
+        // the floor, with its unit in the column head and in its semantics.
         var values = 0;
+        final drawnValues = <String>[];
         for (final ro
             in tester.allRenderObjects.whereType<RenderParagraph>().toSet()) {
           if (!inRows.contains(ro)) continue;
           final text = ro.text.toPlainText();
-          if (!_valueWithUnit.hasMatch(text)) continue;
+          if (!_bareValue.hasMatch(text)) continue;
           values++;
+          drawnValues.add(text);
           final tp =
               TextPainter(
                 text: ro.text,
@@ -213,14 +268,102 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
               '${laidOut.toStringAsFixed(1)} of ${natural.toStringAsFixed(1)}',
             );
           }
+          // The floor the old check printed and never held.
+          final drawnPx = (ro.text.style?.fontSize ?? 0) * scale;
+          if (drawnPx + 0.001 < _valueFloorPx) {
+            problems.add(
+              '「$text」: drawn at ${drawnPx.toStringAsFixed(2)} px, under the '
+              '${_valueFloorPx.toStringAsFixed(0)} px floor',
+            );
+          }
         }
         expect(
           values,
           9,
           reason: 'precondition: three answered rows, three values each',
         );
+
+        // The unit must be in the head — exactly once each.
+        for (final unit in _headUnits) {
+          final n = find.text(unit).evaluate().length;
+          // ignore: avoid_print
+          print('$lang $face unit in head 「$unit」 x$n');
+          if (n != 1) {
+            problems.add(
+              '「$unit」 is drawn $n times; it must appear exactly once, in its '
+              'column head',
+            );
+          }
+        }
+
+        // …and it must still reach a reader who cannot see the head.
+        //
+        // ⚑ Two corrections this rule needed before it measured anything, both
+        // found by running it rather than by reading it:
+        //  1. Semantics must be turned ON and a frame pumped, or the tree is
+        //     empty. The first draft read the owner without enabling it and
+        //     threw on a null. A version that had caught the null and counted
+        //     zero would have been worse — it would have condemned correct code.
+        //  2. A cell's label does NOT become its own node. Flutter merges it
+        //     into the row's node, so the row announces
+        //     "…130 cm -2.1 °C, coldest in corridor 7.5 m/s 06:00 JST" as one
+        //     string. A rule matching labels that END with a unit found zero of
+        //     them and was about to fail a card that announces every unit
+        //     correctly. The rule now asks the question it actually means:
+        //     for every value drawn in a cell, is that value followed by its
+        //     unit SOMEWHERE in what a screen reader would say?
+        final semantics = tester.ensureSemantics();
+        await tester.pump();
+        final spoken = <String>[];
+        _collectLabels(
+          tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!,
+          spoken,
+        );
+        final allSpoken = spoken.join(' \u0000 ');
+        for (final v in drawnValues) {
+          // ⚑ Boundary-checked, not a bare substring. The first version asked
+          // `contains('$v $u')`, so 「2.1」 passed on the 「-2.1 °C」 of another
+          // column: a value that was never announced would have been cleared by
+          // a different value that was. A check with a path that cannot fail is
+          // not a check.
+          final heard = _headUnits.where((u) => _saidWithUnit(allSpoken, v, u));
+          // ignore: avoid_print
+          print('$lang $face announces 「$v」 with '
+              '${heard.isEmpty ? 'NO UNIT' : heard.join('/')}');
+          if (heard.isEmpty) {
+            problems.add(
+              'the value 「$v」 is drawn in a cell but no screen-reader label '
+              'says it with a unit; the unit is in the column head, which a '
+              'reader who cannot see it never reaches',
+            );
+          }
+        }
+        semantics.dispose();
         expect(problems, isEmpty, reason: problems.join('\n'));
       }, _jmaNetwork);
     });
   }
+}
+
+/// Every semantics label in the subtree, in order.
+void _collectLabels(SemanticsNode n, List<String> out) {
+  if (n.label.isNotEmpty) out.add(n.label);
+  n.visitChildren((c) {
+    _collectLabels(c, out);
+    return true;
+  });
+}
+
+/// Whether [all] says [value] immediately followed by [unit], with [value]
+/// starting at a boundary — so a shorter value cannot be cleared by a longer
+/// one that happens to end with its digits.
+bool _saidWithUnit(String all, String value, String unit) {
+  final needle = '$value $unit';
+  var i = all.indexOf(needle);
+  while (i != -1) {
+    final before = i == 0 ? ' ' : all[i - 1];
+    if (!RegExp(r'[0-9.\-]').hasMatch(before)) return true;
+    i = all.indexOf(needle, i + 1);
+  }
+  return false;
 }
