@@ -47,7 +47,8 @@
 ///      purpose;
 ///   6. each answered row belongs to ONE station and shows THAT station's
 ///      readings: the station name and the place the row draws both name the
-///      same station, each answered station is on exactly one row, and the
+///      same station as the app's own station table and words name it, each
+///      answered station is on exactly one row, and the
 ///      number under each head on that row is that station's own reading of
 ///      that head's quantity, as this test's fixture serves it. So a row that
 ///      shows the corridor's warmest temperature in place of its own, which
@@ -60,7 +61,10 @@
 /// WHAT IT DOES NOT ASSERT: a scale applied ABOVE the row; a device text scale,
 /// which this 1.0-scale test never sets; whether the heads' words read well at
 /// a glance, which is a question for the frame and not for this check; any face
-/// other than the one each file loads; a phone.
+/// other than the one each file loads; that the station table's ids, and the
+/// names and places the app draws for them, are the right ones —
+/// test/corridor_stations_match_jma_table_test.dart holds those against JMA's
+/// own station table; a phone.
 /// On 2026-09-19 each clause was proven able to fail: its defect was planted
 /// and the check went red.
 library;
