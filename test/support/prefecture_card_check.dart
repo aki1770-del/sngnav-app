@@ -6,7 +6,11 @@
 /// 2026-09-18 (7f6928a) and strengthened on 2026-09-19. An independent audit
 /// had found that the amendment's WORDS claimed more than its assertions held.
 /// In this version the assertions reach the words, and the words claim no more
-/// than the assertions. It goes back to that audit before it leaves PROPOSED.
+/// than the assertions. A second read the same day found two places where that
+/// still was not so: clause 6 said "the station's measurement" while checking
+/// only the quantity, and clause 2 said "every transform" while measuring only
+/// its horizontal scale. Both now check what they say. It goes back to that
+/// audit before it leaves PROPOSED.
 /// Until 2026-09-19 it was called an audited check in several places, but no
 /// audit had read it before that day.
 ///
@@ -22,8 +26,10 @@
 /// WHAT R7 ASSERTS, on the 393 px frame, ja and en, one face per file, three
 /// answered stations:
 ///   1. each of the nine values is bare, on one line, and not truncated;
-///   2. each is drawn at >= 11 px, measured through its own text scaler and
-///      every transform between it and its row (a FittedBox, a Transform);
+///   2. each is drawn at >= 11 px: its font size through its own text
+///      scaler, times the SMALLER of the horizontal and vertical scale of every
+///      transform between it and its row (a FittedBox, a Transform), so a
+///      glyph squashed in either direction is held;
 ///   3. each of cm, °C and m/s is drawn exactly once, as exact text, in a
 ///      cell of a row of columns: a column head;
 ///   4. each value's own semantics node says it followed by exactly one unit,
@@ -35,9 +41,14 @@
 ///      -2.1 °C. Before this clause, only pixel goldens of other features stood
 ///      against that, and those are re-cut in bulk whenever the heads change on
 ///      purpose;
-///   6. the number under each head is the station's measurement OF that head's
-///      quantity in this test's fixture, so a wind reading moved into the snow
-///      column together with its label is caught too.
+///   6. each answered row belongs to ONE station and shows THAT station's
+///      readings: the station name and the place the row draws both name the
+///      same station, each answered station is on exactly one row, and the
+///      number under each head on that row is that station's own reading of
+///      that head's quantity, as this test's fixture serves it. So a row that
+///      shows the corridor's warmest temperature in place of its own, which
+///      would hide the coldest station's ice, is caught, and so are one
+///      station's numbers under another place's name.
 /// WHAT IT DOES NOT ASSERT: a scale applied ABOVE the row; a device text scale,
 /// which this 1.0-scale test never sets; anything about the heads' own words
 /// (積雪深 / 気温 / 風速); any face other than the one each file loads; a phone.
@@ -69,15 +80,17 @@ const _answered = {
   '32551': (-4.3, 58, 2.1),
 };
 
-/// Each number the card should draw for [_answered], with the unit of the
-/// quantity the station measured it as (clause 6). The nine are distinct.
-final Map<String, String> _measuredAs = {
-  for (final v in _answered.values) ...{
-    v.$1.toStringAsFixed(1): '°C',
-    v.$2.toStringAsFixed(0): 'cm',
-    v.$3.toStringAsFixed(1): 'm/s',
-  },
-};
+/// What the row of the answered station [stationId] should draw under each
+/// head (clause 6), formatted as the card formats it: the temperature and the
+/// wind to one decimal place, the snow depth to none.
+Map<String, String> _readingsOf(String stationId) {
+  final v = _answered[stationId]!;
+  return {
+    '°C': v.$1.toStringAsFixed(1),
+    'cm': v.$2.toStringAsFixed(0),
+    'm/s': v.$3.toStringAsFixed(1),
+  };
+}
 
 /// Three stations answer, two fail.
 http.Client _jmaNetwork() => MockClient((req) async {
@@ -118,8 +131,9 @@ final _bareValue = RegExp(r'^-?\d+(\.\d+)?$');
 const _headUnits = ['cm', '°C', 'm/s'];
 
 /// The smallest a value may be DRAWN: its font size through its own text
-/// scaler, times every transform between it and its row (clause 2). The card
-/// already holds its failure line to 11 px.
+/// scaler, times the smaller of the horizontal and vertical scale of every
+/// transform between it and its row (clause 2). The card already holds its
+/// failure line to 11 px.
 const double _valueFloorPx = 11.0;
 
 /// Registers the card's tests with [face] loaded as the app's default family,
@@ -255,6 +269,48 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
           column[unit] = (left, left + cell.size.width);
         }
 
+        // Clause 6: the station each row with numbers belongs to, read from
+        // what the row draws. Its station name comes with the observation, and
+        // its place comes from the station list by position (lib/main.dart), so
+        // the two naming different stations is exactly how one station's
+        // numbers would reach her under another place's name.
+        final stationOfRow = <Element, String?>{};
+        String? stationOf(Element rowElement) =>
+            stationOfRow.putIfAbsent(rowElement, () {
+              final drawn = {
+                for (final e
+                    in find
+                        .descendant(
+                          of: find.byElementPredicate(
+                            (x) => identical(x, rowElement),
+                          ),
+                          matching: find.byType(Text),
+                        )
+                        .evaluate())
+                  (e.widget as Text).data ?? '',
+              };
+              final named = [
+                for (final st in corridorStations)
+                  if (drawn.contains(st.name)) st,
+              ];
+              if (named.length != 1) {
+                problems.add(
+                  'a row with numbers draws ${named.length} station names '
+                  '(${named.map((st) => st.name).join('/')}): $drawn',
+                );
+                return null;
+              }
+              final st = named.single;
+              if (!drawn.contains(st.descriptor)) {
+                problems.add(
+                  'the row of ${st.name} does not draw its own place '
+                  '「${st.descriptor}」; it draws $drawn',
+                );
+              }
+              return st.id;
+            });
+        final readingsOn = <String, int>{};
+
         // Clauses 1, 2, 4, 5 and 6, value by value.
         final rowBoxes = <RenderObject>{
           for (final e in rows.evaluate()) e.renderObject!,
@@ -294,7 +350,10 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
 
           // 2: the size it is drawn at. The 2026-09-18 version took only a
           // FittedBox's width ratio, so a value shrunk by its text scaler or by
-          // a Transform passed while the check printed "scale 1.000".
+          // a Transform passed while the check printed "scale 1.000". The next
+          // version took only the horizontal scale, so glyphs squashed to 0.6
+          // of their height passed at "12.00 px". The smaller of the two scales
+          // is the size she can read.
           RenderObject? row;
           for (RenderObject? a = ro.parent; a != null; a = a.parent) {
             if (rowBoxes.contains(a)) {
@@ -302,7 +361,10 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
               break;
             }
           }
-          final geometric = row == null ? 1.0 : _xScale(ro.getTransformTo(row));
+          final (horizontal, vertical) = row == null
+              ? (1.0, 1.0)
+              : _scales(ro.getTransformTo(row));
+          final geometric = horizontal < vertical ? horizontal : vertical;
           final textScale = ro.textScaler.scale(1);
           final drawnPx =
               ro.textScaler.scale(ro.text.style?.fontSize ?? 0) * geometric;
@@ -331,8 +393,30 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
               if (cx >= c.value.$1 && cx <= c.value.$2) c.key,
           ];
 
-          // 6: what the station measured it as.
-          final measuredAs = _measuredAs[text];
+          // 6: the row it is drawn on, and that row's station's own reading
+          // under this head.
+          Element? rowElement;
+          el.visitAncestorElements((a) {
+            if (a.widget is CorridorRow) {
+              rowElement = a;
+              return false;
+            }
+            return true;
+          });
+          final stationId = rowElement == null ? null : stationOf(rowElement!);
+          final stationName = stationId == null
+              ? 'NO STATION'
+              : corridorStations.firstWhere((st) => st.id == stationId).name;
+          if (stationId != null) {
+            readingsOn[stationId] = (readingsOn[stationId] ?? 0) + 1;
+          }
+          final expected =
+              stationId == null || !_answered.containsKey(stationId)
+              ? null
+              : _readingsOf(stationId);
+          final want = expected == null || under.length != 1
+              ? null
+              : expected[under.single];
 
           // ignore: avoid_print
           print(
@@ -340,10 +424,12 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
             '${laidOut.toStringAsFixed(1)} of ${natural.toStringAsFixed(1)}, '
             'drawn ${drawnPx.toStringAsFixed(2)} px (text '
             '${textScale.toStringAsFixed(3)} x geometric '
-            '${geometric.toStringAsFixed(3)}), announced with '
+            '${geometric.toStringAsFixed(3)}, the smaller of horizontal '
+            '${horizontal.toStringAsFixed(3)} and vertical '
+            '${vertical.toStringAsFixed(3)}), announced with '
             '${said.isEmpty ? 'NO UNIT' : said.join('/')}, under the head of '
-            '${under.isEmpty ? 'NO UNIT' : under.join('/')}, measured as '
-            '${measuredAs ?? 'NOT A FIXTURE VALUE'}',
+            '${under.isEmpty ? 'NO UNIT' : under.join('/')}, on the row of '
+            '$stationName, whose reading there is ${want ?? 'NONE'}',
           );
           if (said.length != 1) {
             problems.add(
@@ -362,13 +448,13 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
               'and the ear are told different things',
             );
           }
-          if (measuredAs == null ||
-              under.length != 1 ||
-              under.single != measuredAs) {
+          if (want != text) {
             problems.add(
-              '「$text」 is the station\'s ${measuredAs ?? 'unknown'} reading '
-              'but is drawn under the head of '
-              '${under.isEmpty ? 'no unit' : under.join('/')}',
+              '「$text」 is drawn under the head of '
+              '${under.isEmpty ? 'no unit' : under.join('/')} on the row of '
+              '$stationName, whose reading there is '
+              '${want ?? 'not in the fixture'}: it is not that station\'s '
+              'measurement of that quantity',
             );
           }
         }
@@ -377,6 +463,27 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
           9,
           reason: 'precondition: three answered rows, three values each',
         );
+
+        // Clause 6, across rows: each answered station is on exactly one row,
+        // and that row carries all three of its readings.
+        final rowsOf = <String, int>{};
+        for (final id in stationOfRow.values.whereType<String>()) {
+          rowsOf[id] = (rowsOf[id] ?? 0) + 1;
+        }
+        for (final id in _answered.keys) {
+          final name = corridorStations.firstWhere((st) => st.id == id).name;
+          if (rowsOf[id] != 1) {
+            problems.add(
+              '$name answered, but its name is on ${rowsOf[id] ?? 0} rows '
+              'with numbers; it must be on exactly one',
+            );
+          } else if (readingsOn[id] != 3) {
+            problems.add(
+              'the row of $name draws ${readingsOn[id] ?? 0} of its three '
+              'readings',
+            );
+          }
+        }
         semantics.dispose();
         expect(problems, isEmpty, reason: problems.join('\n'));
       }, _jmaNetwork);
@@ -397,12 +504,13 @@ RenderBox? _cellOf(RenderObject r) {
   return null;
 }
 
-/// How long a horizontal segment becomes under [m], as a ratio. Translation
-/// cancels out, so margins and padding do not count as scale.
-double _xScale(Matrix4 m) {
-  final a = MatrixUtils.transformPoint(m, Offset.zero);
-  final b = MatrixUtils.transformPoint(m, const Offset(100, 0));
-  return (b - a).distance / 100;
+/// How long a horizontal and a vertical segment become under [m], as ratios.
+/// Translation cancels out, so margins and padding do not count as scale.
+(double, double) _scales(Matrix4 m) {
+  final o = MatrixUtils.transformPoint(m, Offset.zero);
+  final x = MatrixUtils.transformPoint(m, const Offset(100, 0));
+  final y = MatrixUtils.transformPoint(m, const Offset(0, 100));
+  return ((x - o).distance / 100, (y - o).distance / 100);
 }
 
 /// Whether [all] says [value] immediately followed by [unit], with [value]
