@@ -25,8 +25,15 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:navigation_safety_core/navigation_safety_core.dart'
+    show AlertSeverity;
 import 'package:navigation_safety_enums/navigation_safety_enums.dart'
     show HapticCuePattern;
+
+import 'package:sngnav_app/actuators/alert_actuators.dart'
+    show hapticCueForCoreSeverity;
+import 'package:sngnav_app/actuators/hardened_haptic_channel.dart'
+    show waveformFor;
 
 import 'package:sngnav_app/main.dart';
 import 'package:sngnav_app/services/drive_diary.dart';
@@ -87,9 +94,30 @@ void main() {
         reason: 'the cue must SAY it is a test, so a warning heard from the '
             'next room is never mistaken for a real hazard');
     expect(acts.haptics, isNotEmpty, reason: 'the tactile arm must fire');
-    expect(acts.haptics.last, HapticCuePattern.critical,
-        reason: 'the strongest cue we can send — what she checks must be '
-            'what she would get');
+    // The WEAKEST cue a real warning reaches her with: of every severity the
+    // announcer delivers (warning and above), the one whose waveform is on
+    // for the least time. Derived from the mapping and the waveforms, so it
+    // follows them if either changes.
+    int onMs(HapticCuePattern p) {
+      final w = waveformFor(p);
+      var t = 0;
+      for (var i = 1; i < w.length; i += 2) {
+        t += w[i];
+      }
+      return t;
+    }
+
+    final delivered = [
+      for (final s in AlertSeverity.values)
+        if (s.index >= AlertSeverity.warning.index) hapticCueForCoreSeverity(s),
+    ];
+    final weakest = delivered.reduce((a, b) => onMs(a) <= onMs(b) ? a : b);
+    expect(acts.haptics.last, weakest,
+        reason: 'the check must fire the weakest cue a real warning uses '
+            '(${weakest.name}, ${onMs(weakest)} ms on). For a deaf or '
+            'hard-of-hearing driver it is the only signal for most of her '
+            'warnings, and a "felt it" on the strongest cue says nothing '
+            'about it');
   });
 
   testWidgets('no answer is preselected: unanswered must never read as answered',
@@ -137,6 +165,8 @@ void main() {
     expect(text, contains('heard=yes'));
     expect(text, contains('felt=no'));
     expect(text, contains('端末の申告:'));
+    expect(text, contains('haptic-pattern=warning 2x200ms'),
+        reason: 'the record names the cue the "felt" answer is about');
     expect(text, contains('haptic=accepted-by-platform'),
         reason: 'THE POINT. The platform said it delivered the cue and the '
             'person felt nothing. That contradiction is the finding, and it '

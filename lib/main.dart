@@ -78,6 +78,7 @@ import 'package:localization_fallback/localization_fallback.dart'
 
 import 'actuators/alert_actuators.dart';
 import 'actuators/alert_announcer.dart';
+import 'actuators/hardened_haptic_channel.dart' show waveformFor;
 import 'actuators/mobile_alert_actuators.dart';
 import 'akita_map.dart';
 import 'her_map_follow.dart';
@@ -176,6 +177,23 @@ AlertSeverity severityForCondition(RoadSurfaceCondition condition) {
       return AlertSeverity.info;
   }
 }
+
+/// The severity the warning-channel check fires at.
+///
+/// It is the LOWEST severity the announcer delivers at all
+/// ([AlertAnnouncer.announce] drops anything below warning), so the check's
+/// tactile cue is the weakest one a real warning reaches her with: two pulses
+/// of 200 ms ([waveformFor]), where critical is three of 350 ms. Snow, slush,
+/// wet and loose gravel ([severityForCondition]), the heightened-caution rung
+/// and several other call sites all warn at this level.
+///
+/// Every pattern plays at the same device strength (the driver passes no
+/// intensities), and the stronger pattern only has longer and more pulses. So
+/// "felt it" on this cue is evidence she feels every stronger one, and "felt
+/// it" on the strongest cue alone says nothing about this one. For a deaf or
+/// hard-of-hearing driver this cue is the only signal for most of her
+/// warnings. The check fires the weakest, never the strongest alone.
+const AlertSeverity kChannelCheckSeverity = AlertSeverity.warning;
 
 /// The result the app synthesizes when [AdvisoryService.fetchAtPoint] THROWS.
 ///
@@ -4209,6 +4227,12 @@ class _HomePageState extends State<HomePage> {
     final vibrator = _hapticAvailable;
     parts.add(
         'vibrator-probe=${vibrator == null ? 'unknown' : (vibrator ? 'reported' : 'none')}');
+    // Which cue a "felt" answer is about, read from the same mapping and
+    // waveform the check fires, so the record cannot name a different one.
+    final cue = hapticCueForCoreSeverity(kChannelCheckSeverity);
+    final wave = waveformFor(cue);
+    final pulses = [for (var i = 1; i < wave.length; i += 2) wave[i]];
+    parts.add('haptic-pattern=${cue.name} ${pulses.length}x${pulses.first}ms');
     final audio = _audioReadiness;
     if (audio == null) {
       parts.add('audio-readiness=unknown');
@@ -4221,8 +4245,9 @@ class _HomePageState extends State<HomePage> {
     return parts.join(' ');
   }
 
-  /// Fires the REAL announce path once, at critical severity — the same
-  /// call site a genuine hazard takes, so what she checks is what she gets.
+  /// Fires the REAL announce path once, at [kChannelCheckSeverity]: the same
+  /// call a genuine hazard takes, with the weakest cue a real warning reaches
+  /// her with, so a "felt it" covers the cue most of her warnings use.
   Future<void> _fireChannelCheck() async {
     if (_ccFiring) return;
     setState(() {
@@ -4232,7 +4257,7 @@ class _HomePageState extends State<HomePage> {
     final l = AppL10n.of(context);
     try {
       await _announcer.announce(
-        severity: AlertSeverity.critical,
+        severity: kChannelCheckSeverity,
         text: l.channelCheckSpokenLine,
         localeTag: _spokenJa ? 'ja-JP' : 'en-US',
       );
