@@ -143,12 +143,34 @@ class DriveHudLocalizer {
 
   /// One-line honesty label for the position estimate's mode — the truth about
   /// how much to believe the dot.
-  String modeLabel(LocalizationMode mode, String localeTag) {
+  ///
+  /// [isMock] — the estimate came from the Akita mock position, not from the
+  /// device. AAA R58 W1, produced by FSE at R106: the trusted and suspect
+  /// labels then say the position is a test, because those are exactly the
+  /// modes in which the card's 理由 row carries no `positionUncertain` and so
+  /// the card-wide test-value line is not drawn. `deadReckoning` and `lost`
+  /// are deliberately unchanged: in those modes `positionUncertain` IS on the
+  /// card by construction, so the line carries the statement and the label is
+  /// already honest about the dot.
+  ///
+  /// THREE callers in the app, and only two take [isMock] (FSE R114): the
+  /// drive card's trust row and the turn-preview panel's. The third, inside
+  /// `_herStatusLine`, is unreachable under a mock — that method returns at
+  /// its own `if (_isMockPosition)` branch first — and the only mode it ever
+  /// renders is `deadReckoning`, which this method leaves unchanged anyway.
+  /// Threading it there would guard nothing. Verified by FSE and by AAA.
+  String modeLabel(
+    LocalizationMode mode,
+    String localeTag, {
+    bool isMock = false,
+  }) {
     final ja = _isJa(localeTag);
     switch (mode) {
       case LocalizationMode.gpsTrusted:
+        if (isMock) return ja ? 'テスト位置（GPS ではありません）' : 'Test position (not GPS)';
         return ja ? 'GPS 良好' : 'GPS good';
       case LocalizationMode.gpsSuspect:
+        if (isMock) return ja ? 'テスト位置（GPS ではありません）' : 'Test position (not GPS)';
         return ja ? 'GPS 不確か' : 'GPS suspect';
       case LocalizationMode.deadReckoning:
         return ja ? 'GPS 途絶（推測航法）' : 'GPS lost — dead reckoning';
@@ -201,12 +223,23 @@ class DriveHudLocalizer {
   }
 
   /// Localized "the dot could be anywhere within ~X m" line for a radius.
-  String radiusLabel(double radiusMeters, String localeTag) {
+  ///
+  /// [isMock] — AAA R58 W1 (FSE R106): the radius of a mock fix is a figure
+  /// nobody measured, so it says so. The non-finite 誤差 不明 form is left
+  /// unchanged: AAA's ruling named only the finite form, and "unknown" claims
+  /// nothing to correct. Named to AAA rather than extended by this seat.
+  String radiusLabel(
+    double radiusMeters,
+    String localeTag, {
+    bool isMock = false,
+  }) {
+    final ja = _isJa(localeTag);
     if (!radiusMeters.isFinite) {
-      return _isJa(localeTag) ? '誤差 不明' : 'Uncertainty unknown';
+      return ja ? '誤差 不明' : 'Uncertainty unknown';
     }
     final m = radiusMeters.round();
-    return _isJa(localeTag) ? '誤差 約 $m m' : 'within ~$m m';
+    if (isMock) return ja ? '誤差 約 $m m（テスト値）' : 'within ~$m m (test value)';
+    return ja ? '誤差 約 $m m' : 'within ~$m m';
   }
 
   /// Localized sight-stopping-speed hint — "a speed at which you could stop

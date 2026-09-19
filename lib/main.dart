@@ -14,6 +14,7 @@ library;
 
 import 'package:compound_failure_advisor/compound_failure_advisor.dart'
     show
+        CautionReason,
         DriveAction,
         DriveAdvice,
         DriveSituation,
@@ -2269,11 +2270,24 @@ class _HomePageState extends State<HomePage> {
     required DriveAction? effective,
     required bool brainIsThisShares,
     required bool noShareWhiteout,
+    required bool positionUncertainOnCard,
   }) {
     if (effective == null) return false;
     final visibilityIsTest = _visibilityForCaution.isTestValue &&
         (brainIsThisShares || noShareWhiteout);
-    final mockWithBrain = _isMockPosition && brainIsThisShares;
+    // AAA R58 W1 (FSE R106). A mock at a trusted fix adds no reason, so it
+    // cannot have raised the rung — the card-wide line would then be claiming
+    // the card shows a test value while its rung came from a measurement. The
+    // mock draws it only where the 理由 row carries positionUncertain.
+    //
+    // This narrowing is only honest BECAUSE the mock's own position rows now
+    // say the position is a test ([DriveHudLocalizer.modeLabel] isMock). A
+    // trusted mock can never reach positionUncertain — taking the mock cancels
+    // the position watchdog, so nothing polls the estimate down — so without
+    // those rows this branch would not shrink the mock case, it would empty
+    // it, and her card would read GPS 良好 about a position nobody measured.
+    final mockWithBrain =
+        _isMockPosition && brainIsThisShares && positionUncertainOnCard;
     return visibilityIsTest || mockWithBrain;
   }
 
@@ -2350,6 +2364,8 @@ class _HomePageState extends State<HomePage> {
       effective: effective,
       brainIsThisShares: brainIsThisShares,
       noShareWhiteout: noShareWhiteout != null,
+      positionUncertainOnCard:
+          advice?.reasons.contains(CautionReason.positionUncertain) ?? false,
     );
 
     final (Color bannerColor, Color textColor) = switch (effective) {
@@ -2536,12 +2552,20 @@ class _HomePageState extends State<HomePage> {
           // The honest position line. The whole panel follows the app's
           // resolved locale (2026-09-13; every value was 'ja' and every label
           // a Japanese literal): the same locale as the line under the map.
-          _kv(l.driveHudPositionTrustLabel,
-              _driveHudText.modeLabel(estimate.mode, l.locale.languageCode)),
+          // AAA R58 W1 (FSE R106): mock only. The card-wide test-value line is
+          // no longer drawn for a trusted mock, so these rows carry the
+          // statement — a fabricated fix never wears the words of a measured
+          // one. GPS 途絶 / 現在地 不明 are unchanged; there the 理由 row
+          // carries positionUncertain and the line is drawn.
+          _kv(
+              l.driveHudPositionTrustLabel,
+              _driveHudText.modeLabel(estimate.mode, l.locale.languageCode,
+                  isMock: _isMockPosition)),
           _kv(
               l.driveHudUncertaintyLabel,
               _driveHudText.radiusLabel(
-                  estimate.confidenceRadiusMeters, l.locale.languageCode)),
+                  estimate.confidenceRadiusMeters, l.locale.languageCode,
+                  isMock: _isMockPosition)),
         ],
         // A test value is what the card shows (2026-09-16): drawn only where
         // the rung on the card was computed from it (AAA R52, P2) — a demo
@@ -5504,8 +5528,18 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (mode != null)
-          _kv(l.driveHudPositionTrustLabel,
-              _driveHudText.modeLabel(mode, l.locale.languageCode)),
+          // AAA R58 W1 re-audit (FSE R114): the THIRD modeLabel site, and the
+          // one R106 missed. It carries the SAME 現在地の信頼度 label as the
+          // drive card's trust row, and nothing about a route depends on the
+          // position being real — _fetchRoute (:3351) returns only on a missing
+          // tapped origin or destination, then on her routing consent; it never
+          // reads the position. Until this line took isMock, a route set with the
+          // mock in force put two honesty labels for one fabricated fix on one
+          // screen: the card said テスト位置, this panel said GPS 良好.
+          _kv(
+              l.driveHudPositionTrustLabel,
+              _driveHudText.modeLabel(mode, l.locale.languageCode,
+                  isMock: _isMockPosition)),
         // NOTE: the raw ENGLISH engine instruction is deliberately NOT rendered
         // to HER — it would both leak English to a JA driver (D4) and show a
         // confident "turn" string even when the position gate suppresses it.

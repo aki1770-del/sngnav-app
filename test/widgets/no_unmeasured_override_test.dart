@@ -24,6 +24,21 @@
 ///      card says a test value is in force (a keyed line; its words are not
 ///      ruled here).
 ///
+/// (e) narrowed 2026-09-18 (AAA R58 W1, produced by FSE at R106) for the mock
+/// position ONLY, and only because the same ruling moved the statement to a
+/// place that never goes quiet. The card-wide line claimed the CARD shows a
+/// test value; under a measured visibility the rung came from the measurement,
+/// so the claim was wrong about the rung. It is now drawn for the mock only
+/// where the 理由 row carries `positionUncertain` — and, in the same ruling,
+/// the mock's own trust and uncertainty rows say the position is a test.
+/// Measured at R106 and the reason these are one change and not two: a trusted
+/// mock can NEVER reach `positionUncertain` (taking the mock cancels the
+/// position watchdog, so nothing polls the estimate down), so the narrowing
+/// alone does not shrink the mock case — it empties it. The two halves are
+/// complementary: where the trust row is GPS 良好/GPS 不確か the rows carry it,
+/// and where the mode is GPS 途絶/現在地 不明 the 理由 row carries
+/// `positionUncertain` and the line carries it. Neither half stands alone.
+///
 /// Cut to bite before and after the demo controls leave her page: each control
 /// is found by its key on her page, and if it is not there, on the development
 /// page (`SngnavApp(developerPageEntry: true)`), then her page is read again.
@@ -141,6 +156,11 @@ Future<FakeAlertActuators> _boot(
   List<int?> visibilities = const [80],
   List<bool> failing = const [false],
   bool route = false,
+  // AAA R58 W1 re-audit (FSE R114). Defaults to ja so every existing call site
+  // is byte-unchanged; the en case exists because AppL10n.supportedLocales is
+  // [ja, en] and the app follows the DEVICE, so an English-locale driver reads
+  // these same rows. The ja default is this harness's, never the app's.
+  Locale locale = const Locale('ja'),
 }) async {
   final a = FakeAlertActuators();
   _now = _start;
@@ -153,7 +173,7 @@ Future<FakeAlertActuators> _boot(
     SngnavApp(
       key: UniqueKey(),
       actuators: a,
-      locale: const Locale('ja'),
+      locale: locale,
       clock: () => _now,
       jmaFetch: _jma,
       positionSource: source,
@@ -386,6 +406,20 @@ const _lowVis = CautionReason.lowVisibility;
 const _cardWordsJa = 'テスト値を使った表示です（測定ではありません）';
 const _iceWordsJa = '凍結の表示はテスト値です（路面は測定していません）';
 const _prefixJa = 'テスト値です。';
+
+// AAA R58 W1, the half that carries the honesty when the card-wide line is
+// narrowed away: the mock's own position rows. Mock only — GPS 途絶 and
+// 現在地 不明 are unchanged, because a card in those modes already carries the
+// card-wide line (positionUncertain is in its 理由 row by construction).
+const _mockTrustWordsJa = 'テスト位置（GPS ではありません）';
+const _mockRadiusWordsJa = '誤差 約 35 m（テスト値）';
+
+// The SAME two rows on an English device. AppL10n.supportedLocales is
+// [ja, en] and the app follows the DEVICE, so these rows ship to an
+// English-locale driver exactly as the ja pair ships to hers. Until FSE R114
+// they were asserted in ja only: shipped and unasserted in en.
+const _mockTrustWordsEn = 'Test position (not GPS)';
+const _mockRadiusWordsEn = 'within ~35 m (test value)';
 
 /// [line] was spoken with the test-value prefix as the utterance before it.
 bool _toldAsTest(FakeAlertActuators a, String line) {
@@ -713,22 +747,131 @@ void main() {
       },
     );
 
-    testWidgets('the Akita mock position in force: the line', (tester) async {
-      await _boot(tester, visibilities: const [1500]);
-      await _advance(tester, const Duration(seconds: 1));
-      expect(
-        await _tapMockIfOffered(tester),
-        isTrue,
-        reason: 'control: the mock is offered with no share running',
-      );
-      await _advance(tester, const Duration(seconds: 1));
-      expect(
-        find.byKey(_testValueOnCard),
-        findsOneWidget,
-        reason: 'a position nobody measured is on her card as a trusted fix',
-      );
-      expect(_textOf(tester, _testValueOnCard), _cardWordsJa, reason: 'AQ3');
-    });
+    // W1 (AAA R58, produced by FSE at R106). The card-wide line said the card
+    // shows a test value; under a measured 1500 m the RUNG came from the
+    // measurement, so the line was wrong about the rung. AAA narrowed it to the
+    // 理由 row carrying positionUncertain, and in the SAME ruling moved the
+    // honesty into the position rows themselves, mock only. The two halves are
+    // complementary and neither stands alone: measured at R106, a trusted mock
+    // can NEVER reach positionUncertain (the mock cancels the position
+    // watchdog, so nothing polls the estimate down), so the condition alone
+    // does not narrow the mock case — it empties it, leaving her card reading
+    // GPS 良好 · 誤差 約 35 m about a position nobody measured. AAA R52 AQ3
+    // already ruled the separate モック位置 banner "not enough".
+    //
+    // These two assertions are NOT of equal strength and the difference is
+    // recorded on purpose: the ABSENT one below discriminates (red before W1,
+    // green after); the PRESENT one cannot tell the two trees apart and is a
+    // regression guard only. Its failability is proven by mutation, never
+    // assumed.
+
+    testWidgets(
+      'W1: the Akita mock position under a measured 1500 m, nothing uncertain: '
+      'no card-wide test-value line, and the position rows say it is a test',
+      (tester) async {
+        await _boot(tester, visibilities: const [1500]);
+        await _advance(tester, const Duration(seconds: 1));
+        expect(
+          await _tapMockIfOffered(tester),
+          isTrue,
+          reason: 'control: the mock is offered with no share running',
+        );
+        await _advance(tester, const Duration(seconds: 1));
+        expect(
+          _shown(_reason(CautionReason.positionUncertain)),
+          isFalse,
+          reason: 'control: a trusted mock puts no positionUncertain on the card',
+        );
+        expect(
+          find.byKey(_testValueOnCard),
+          findsNothing,
+          reason:
+              'the card-wide line says the card shows a test value while its '
+              'rung came from the measured 1500 m',
+        );
+        // The other half of AAA R58, without which the narrowing above just
+        // removes what she was told: the card's own trust row must not dress a
+        // fabricated fix in the words of a measured one.
+        expect(
+          find.textContaining('GPS 良好'),
+          findsNothing,
+          reason: 'a position nobody measured is on her card as a good GPS fix',
+        );
+        expect(
+          _shown(_mockTrustWordsJa),
+          isTrue,
+          reason: 'the trust row does not say the position is a test',
+        );
+        expect(
+          _shown(_mockRadiusWordsJa),
+          isTrue,
+          reason: 'the uncertainty row does not say the radius is a test value',
+        );
+      },
+    );
+
+    testWidgets(
+      'W1: ten minutes with the mock in force reaches no positionUncertain of '
+      'its own, so the position rows are the only thing telling her',
+      (tester) async {
+        await _boot(tester, visibilities: const [1500]);
+        await _advance(tester, const Duration(seconds: 1));
+        expect(await _tapMockIfOffered(tester), isTrue, reason: 'control');
+        await _advance(tester, const Duration(minutes: 10));
+        // The measurement the W1 ruling rests on, kept as an assertion so it
+        // cannot quietly stop being true: taking the mock cancels the position
+        // watchdog (`main.dart`, N8 — "the mock dot is a static dev tool"), so
+        // no clock degrades the estimate and positionUncertain never arrives.
+        // The card-wide line is therefore NEVER drawn for a trusted mock, and
+        // the rows below are the whole of what she is told.
+        expect(
+          _shown(_reason(CautionReason.positionUncertain)),
+          isFalse,
+          reason: 'control: ten minutes did not make the mock uncertain',
+        );
+        expect(find.byKey(_testValueOnCard), findsNothing);
+        expect(
+          find.textContaining('GPS 良好'),
+          findsNothing,
+          reason: 'ten minutes on, a fabricated fix still reads as good GPS',
+        );
+        expect(
+          _shown(_mockTrustWordsJa),
+          isTrue,
+          reason: 'the only line telling her this is a test has gone quiet',
+        );
+      },
+    );
+
+    testWidgets(
+      'W1: the Akita mock position with an uncertain position on the card: the '
+      'card-wide line (regression guard; does not discriminate W1)',
+      (tester) async {
+        await _boot(tester, visibilities: const [1500]);
+        await _advance(tester, const Duration(seconds: 1));
+        expect(await _tapMockIfOffered(tester), isTrue, reason: 'control');
+        await _advance(tester, const Duration(seconds: 1));
+        // The ONLY reach to positionUncertain while a mock is in force,
+        // measured at R106: the simulated blackout polls the estimate down.
+        // The card has no blackout check of its own (AAA R55 5(a)), so the
+        // line below is drawn by the mock branch and by nothing else.
+        for (var i = 0; i < 3; i++) {
+          await _pressBlackout(tester);
+          await _advance(tester, const Duration(seconds: 1));
+        }
+        expect(
+          _shown(_reason(CautionReason.positionUncertain)),
+          isTrue,
+          reason: 'control: the card carries positionUncertain',
+        );
+        expect(
+          find.byKey(_testValueOnCard),
+          findsOneWidget,
+          reason: 'a rung a position nobody measured raised, with no line',
+        );
+        expect(_textOf(tester, _testValueOnCard), _cardWordsJa, reason: 'AQ3');
+      },
+    );
 
     testWidgets(
       'AQ4: the Akita mock position under measured 700 m: the caution it '
@@ -942,44 +1085,10 @@ void main() {
   // ============================================ (O4) the road condition ====
 
   group('(Q3) a simulated road condition on her next-turn card', () {
-    Future<void> routeWithOneTurn(WidgetTester tester) async {
-      final open = find.byKey(const Key('route-act-open'));
-      await tester.ensureVisible(open);
-      await tester.pump();
-      await tester.tap(open);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      final actMap = find.descendant(
-        of: find.byType(Dialog),
-        matching: find.byType(AkitaMap),
-      );
-      final r = tester.getRect(actMap);
-      await tester.tapAt(r.center + const Offset(-80, -30));
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.tapAt(r.center + const Offset(80, 30));
-      await tester.pump(const Duration(milliseconds: 350));
-      await tester.tap(find.byKey(const Key('route-act-get-route')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(find.byKey(const Key('route-consent-accept')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-      await tester.pump(const Duration(seconds: 3));
-      expect(
-        find.byKey(const Key('maneuver-narration-banner')),
-        findsOneWidget,
-        reason: 'control: the route has a next maneuver',
-      );
-    }
-
-    Finder turnCard() => find
-        .ancestor(
-          of: find.byKey(const Key('maneuver-narration-banner')),
-          matching: find.byType(Card),
-        )
-        .first;
+    // Hoisted to _routeWithOneTurn/_turnCard (FSE R114) so the (Q5) group runs
+    // the SAME route recipe this group runs; these keep the local names.
+    Future<void> routeWithOneTurn(WidgetTester t) => _routeWithOneTurn(t);
+    Finder turnCard() => _turnCard();
 
     for (final (condition, marked) in const [
       ('unknown', false),
@@ -1056,4 +1165,232 @@ void main() {
       );
     }
   });
+
+  // ================= (Q5) AAA R58 W1 re-audit: the THIRD modeLabel site ====
+  //
+  // WHY, written before the act. FSE R106 measured `GPS 良好` exactly once
+  // under a trusted mock and read that as no reachable defect left open. AAA
+  // refuted the measurement at the genba: it is true only of a session with NO
+  // ROUTE SET. With a route set, the turn-preview panel draws its own
+  // 現在地の信頼度 row — the SAME label as the drive card's trust row — from a
+  // third modeLabel call that never received isMock. The card then said the
+  // position was a test while the turn panel called it GPS 良好: two honesty
+  // labels for one fabricated fix, disagreeing, on one screen.
+  //
+  // _fetchRoute is gated on tapped origin and destination only. Nothing about
+  // a route depends on the position being real, so this is reachable whenever
+  // she sets a route with the mock in force.
+  group('(Q5) the turn-preview panel under the Akita mock position', () {
+    testWidgets(
+      'a route set and the mock taken, ten minutes on: the turn panel says the '
+      'position is a test, and GPS 良好 is nowhere on her screen',
+      (tester) async {
+        await _boot(tester, route: true);
+        await _routeWithOneTurn(tester);
+        expect(
+          await _tapMockIfOffered(tester),
+          isTrue,
+          reason: 'control: the mock position was taken',
+        );
+        await _advance(tester, const Duration(minutes: 10));
+
+        final card = _turnCard();
+        expect(
+          _drawn(find.descendant(
+            of: card,
+            matching: find.textContaining('現在地の信頼度'),
+          )),
+          isTrue,
+          reason: 'control: the turn panel draws a position-trust row at all',
+        );
+        // Scoped first, so a failure names WHICH surface lied.
+        expect(
+          _drawn(find.descendant(
+            of: card,
+            matching: find.textContaining('GPS 良好'),
+          )),
+          isFalse,
+          reason: 'the turn panel calls a fabricated fix a good GPS fix',
+        );
+        expect(
+          _drawn(find.descendant(
+            of: card,
+            matching: find.textContaining(_mockTrustWordsJa),
+          )),
+          isTrue,
+          reason: 'the turn panel trust row does not say the position is a test',
+        );
+        // And the whole screen, which is what she actually looks at: the R106
+        // assertion that held only because no route was set.
+        expect(
+          find.textContaining('GPS 良好'),
+          findsNothing,
+          reason: 'a position nobody measured is somewhere on her screen as a '
+              'good GPS fix',
+        );
+      },
+    );
+
+    // The OTHER direction, on AAA's published re-audit bar. Without this, the
+    // test above is satisfied by a panel that calls EVERY fix a test position
+    // — honest about the mock by being dishonest about hers. Proven failable
+    // by mutation M2 (isMock: true at the site): this test goes red, the one
+    // above stays green.
+    testWidgets(
+      'a route set and a REAL share: the turn panel still reads GPS 良好 — the '
+      'marker is for a fabricated fix, never for the position she is driving on',
+      (tester) async {
+        final p = _Positioned();
+        await _boot(
+          tester,
+          source: p.source,
+          visibilities: const [1500],
+          route: true,
+        );
+        await _routeWithOneTurn(tester);
+        await _tapShare(tester);
+        p.fix();
+        await _advance(tester, const Duration(seconds: 1), each: p.fix);
+
+        final card = _turnCard();
+        expect(
+          _drawn(find.descendant(
+            of: card,
+            matching: find.textContaining('現在地の信頼度'),
+          )),
+          isTrue,
+          reason: 'control: the turn panel draws a position-trust row at all',
+        );
+        expect(
+          _drawn(find.descendant(
+            of: card,
+            matching: find.textContaining('GPS 良好'),
+          )),
+          isTrue,
+          reason: 'her measured fix lost its honest label to the mock marker',
+        );
+        expect(
+          _drawn(find.descendant(
+            of: card,
+            matching: find.textContaining(_mockTrustWordsJa),
+          )),
+          isFalse,
+          reason: 'the position she is actually driving on is labelled a test',
+        );
+      },
+    );
+  });
+
+  // ======================= (Q6) the same two rows on an English device ====
+  //
+  // WHY, written before the act. The ja harness above is this FILE's default,
+  // never the app's: AppL10n.supportedLocales is [ja, en] and the app follows
+  // the device. The mock position rows were asserted in ja only, so the
+  // English words they ship to an English-locale driver were unasserted. This
+  // is the parity assertion, and it fails on a tree without the W1 pair.
+  group('(Q6) the Akita mock position rows on an English device', () {
+    testWidgets(
+      'en: the position rows say the position is a test and the radius is a '
+      'test value, and never GPS good',
+      (tester) async {
+        await _boot(
+          tester,
+          visibilities: const [1500],
+          locale: const Locale('en'),
+        );
+        await _advance(tester, const Duration(seconds: 1));
+        expect(
+          await _tapMockIfOffered(tester),
+          isTrue,
+          reason: 'control: the mock is offered with no share running',
+        );
+        await _advance(tester, const Duration(seconds: 1));
+        expect(
+          _shown('Position trust'),
+          isTrue,
+          reason: 'control: the drive card is in English and draws the row',
+        );
+        expect(
+          find.textContaining('GPS good'),
+          findsNothing,
+          reason: 'an English driver is shown a fabricated fix as a good GPS fix',
+        );
+        expect(
+          _shown(_mockTrustWordsEn),
+          isTrue,
+          reason: 'the English trust row does not say the position is a test',
+        );
+        expect(
+          _shown(_mockRadiusWordsEn),
+          isTrue,
+          reason: 'the English uncertainty row does not say the radius is a '
+              'test value',
+        );
+
+        // AAA R114 bar: her_position_locale_test.dart:138 sweeps the English
+        // drive panel for CJK, but never in the mock state. Same range, now
+        // reaching it — an English driver must not meet Japanese here just
+        // because the position is a test one.
+        final cjk = RegExp(r'[\u3040-\u30ff\u3400-\u9fff]');
+        for (final label in const ['Position trust:', 'Uncertainty:']) {
+          final l = find.text(label);
+          expect(l, findsOneWidget, reason: 'control: $label row is drawn');
+          final row = find.ancestor(of: l, matching: find.byType(Row)).first;
+          final texts = [
+            for (final e in find
+                .descendant(of: row, matching: find.byType(Text))
+                .evaluate())
+              (e.widget as Text).data ?? '',
+          ];
+          expect(texts.where((t) => t.isNotEmpty), isNotEmpty,
+              reason: 'control: $label row has text');
+          expect(texts.where(cjk.hasMatch), isEmpty,
+              reason: 'Japanese reached an English driver in $label: $texts');
+        }
+      },
+    );
+  });
 }
+
+// ------------------------------------------------- the route recipe, hoisted ----
+// One recipe, used by (Q3) and (Q5). Moved out of the (Q3) group unchanged
+// (FSE R114) so the turn-panel assertions run exactly the route this file
+// already proved sets a next maneuver.
+Future<void> _routeWithOneTurn(WidgetTester tester) async {
+  final open = find.byKey(const Key('route-act-open'));
+  await tester.ensureVisible(open);
+  await tester.pump();
+  await tester.tap(open);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+  final actMap = find.descendant(
+    of: find.byType(Dialog),
+    matching: find.byType(AkitaMap),
+  );
+  final r = tester.getRect(actMap);
+  await tester.tapAt(r.center + const Offset(-80, -30));
+  await tester.pump(const Duration(milliseconds: 350));
+  await tester.tapAt(r.center + const Offset(80, 30));
+  await tester.pump(const Duration(milliseconds: 350));
+  await tester.tap(find.byKey(const Key('route-act-get-route')));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.pump(const Duration(seconds: 3));
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.tap(find.byKey(const Key('route-consent-accept')));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+  await tester.pump(const Duration(seconds: 3));
+  expect(
+    find.byKey(const Key('maneuver-narration-banner')),
+    findsOneWidget,
+    reason: 'control: the route has a next maneuver',
+  );
+}
+
+Finder _turnCard() => find
+    .ancestor(
+      of: find.byKey(const Key('maneuver-narration-banner')),
+      matching: find.byType(Card),
+    )
+    .first;
