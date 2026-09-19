@@ -4302,9 +4302,15 @@ class _HomePageState extends State<HomePage> {
           style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
         ),
         const SizedBox(height: 8),
+        // Outlined, not filled. A live warning's card can sit on the same
+        // screen as this button, and a filled button was the darkest thing on
+        // that screen once colour and fine detail were taken away: darker than
+        // the warning itself. A check she runs once, parked, must never be
+        // louder than a warning in force. Same place, same words, same 48 px
+        // target and the same button semantics; only the fill changed.
         Align(
           alignment: AlignmentDirectional.centerStart,
-          child: FilledButton(
+          child: OutlinedButton(
             key: const Key('channel-check-fire'),
             onPressed: _ccFiring ? null : _fireChannelCheck,
             child: Text(
