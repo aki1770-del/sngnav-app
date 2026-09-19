@@ -23,7 +23,11 @@ description: >-
 # check (C3 heard/felt), the never-gated tactile cue and the mid-drive mute fix.
 # The NAME stays 0.0.2: same release, a build that can answer a question the
 # previous one structurally could not.
-version: 0.0.2+4
+# 2026-09-19 (AAE, R115-1): +4 -> +5. A +4 APK already exists, built from
+# eedd04e and held at /home/komada/work/r114-release-hold-0.0.2+4/. This build
+# is a different artifact: it adds HIE's W3, L2 and severity words and FSE's
+# W1 triple. Two different artifacts must never share a versionCode.
+version: 0.0.2+5
 publish_to: 'none'
 
 environment:
