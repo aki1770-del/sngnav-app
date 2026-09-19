@@ -30,7 +30,6 @@
 library;
 
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -216,6 +215,3 @@ void main() {
     });
   }
 }
-
-// Kept so the analyzer does not drop the import that types the raw buffer.
-typedef _Unused = Uint32List;
