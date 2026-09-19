@@ -2,29 +2,47 @@
 /// station failure line and the descriptors against the floor, and each value
 /// readable, with the scale it is drawn at printed.
 ///
-/// ⚑⚑ R7 IN THIS FILE WAS AMENDED ON 2026-09-18 AND THE AMENDMENT IS A
-/// PROPOSAL, NOT A SETTLED CHANGE. This is an audited check; the seat that
-/// amended it does not own it and is not clearing it.
+/// ⚑⚑ R7 IN THIS FILE IS A PROPOSAL, NOT A SETTLED CHANGE. It was amended on
+/// 2026-09-18 (7f6928a) and strengthened on 2026-09-19. An independent audit
+/// had found that the amendment's WORDS claimed more than its assertions held.
+/// In this version the assertions reach the words, and the words claim no more
+/// than the assertions. It goes back to that audit before it leaves PROPOSED.
+/// Until 2026-09-19 it was called an audited check in several places, but no
+/// audit had read it before that day.
 ///
 /// WHY it had to move: R7 asserted that every value is drawn WITH ITS UNIT on
 /// one line. The unit no longer sits beside the value — it does not fit a 43 px
 /// cell at 393 px, where the cell shrank "-12.1 °C" to 7.93 px with a Japanese
 /// face, under this card's own 11 px floor — so it is drawn once in the column
-/// head instead. R7's premise is therefore gone, and it fails 4 of 4 with
-/// `Expected: <9> Actual: <0>`. It could not be left as it was and it could not
-/// be deleted.
+/// head instead. R7's premise is gone, and the old check fails 4 of 4 with
+/// `Expected: <9> Actual: <0>`. It could not stay as written, and it could not
+/// be deleted, because its purpose stands: a driver never reads a value cut
+/// off from what it measures.
 ///
-/// WHAT it became, and the direction matters: STRICTER. The amendment adds
-/// three assertions the old R7 did not make — a drawn-size floor (which the old
-/// check computed, PRINTED, and never held, so it passed the very defect this
-/// change fixes), the unit's presence in a column head, and the unit's presence
-/// in what a screen reader says. It is proven capable of failing on four
-/// independent paths, each mutated alone: units back in the cells, a head's
-/// unit removed, the unit dropped from the cell semantics, and a value scaled
-/// under the floor. Logs in the amending seat's record for 2026-09-18.
-///
-/// WHAT IS OWED: this file's owner and its auditor must accept or refuse the
-/// amendment. Until they do, R7 is a proposal that happens to be green.
+/// WHAT R7 ASSERTS, on the 393 px frame, ja and en, one face per file, three
+/// answered stations:
+///   1. each of the nine values is bare, on one line, and not truncated;
+///   2. each is drawn at >= 11 px, measured through its own text scaler and
+///      every transform between it and its row (a FittedBox, a Transform);
+///   3. each of cm, °C and m/s is drawn exactly once, as exact text, in a
+///      cell of a row of columns: a column head;
+///   4. each value's own semantics node says it followed by exactly one unit,
+///      and a longer value cannot stand in for it;
+///   5. THE BINDING: the unit a value is announced with is the unit of the
+///      head over the column it is drawn in. After the units moved to the
+///      heads, a bare number takes its meaning only from the head above it. A
+///      head over the wrong column would tell her 7.5 °C where the air is
+///      -2.1 °C. Before this clause, only pixel goldens of other features stood
+///      against that, and those are re-cut in bulk whenever the heads change on
+///      purpose;
+///   6. the number under each head is the station's measurement OF that head's
+///      quantity in this test's fixture, so a wind reading moved into the snow
+///      column together with its label is caught too.
+/// WHAT IT DOES NOT ASSERT: a scale applied ABOVE the row; a device text scale,
+/// which this 1.0-scale test never sets; anything about the heads' own words
+/// (積雪深 / 気温 / 風速); any face other than the one each file loads; a phone.
+/// On 2026-09-19 each clause was proven able to fail: its defect was planted
+/// and the check went red.
 library;
 
 import 'dart:io';
@@ -43,6 +61,24 @@ import '../render_see/render_see_env.dart';
 import 'fake_alert_actuators.dart';
 import 'painted_text_contrast.dart';
 
+/// The three stations that answer, and what each reports: (temperature °C,
+/// snow depth cm, wind m/s). The other two stations fail.
+const _answered = {
+  '32286': (-2.1, 30, 7.5),
+  '32402': (-1.0, 12, 6.0),
+  '32551': (-4.3, 58, 2.1),
+};
+
+/// Each number the card should draw for [_answered], with the unit of the
+/// quantity the station measured it as (clause 6). The nine are distinct.
+final Map<String, String> _measuredAs = {
+  for (final v in _answered.values) ...{
+    v.$1.toStringAsFixed(1): '°C',
+    v.$2.toStringAsFixed(0): 'cm',
+    v.$3.toStringAsFixed(1): 'm/s',
+  },
+};
+
 /// Three stations answer, two fail.
 http.Client _jmaNetwork() => MockClient((req) async {
   final u = req.url.toString();
@@ -51,12 +87,7 @@ http.Client _jmaNetwork() => MockClient((req) async {
   }
   final m = RegExp(r'/point/(\d+)/').firstMatch(u);
   if (m != null) {
-    const ok = {
-      '32286': (-2.1, 30, 7.5),
-      '32402': (-1.0, 12, 6.0),
-      '32551': (-4.3, 58, 2.1),
-    };
-    final v = ok[m.group(1)];
+    final v = _answered[m.group(1)];
     if (v == null) return http.Response('', 500);
     return http.Response(
       '{"20260115060000":{"temp":[${v.$1},0],"snow":[${v.$2},0],'
@@ -77,34 +108,18 @@ Future<void> _settleReal(WidgetTester tester, [int n = 30]) async {
   }
 }
 
-// PROPOSED (2026-09-18) — the successor to `_valueWithUnit`.
-//
-// R7 was written when a value carried its own unit, and its purpose was that
-// the unit must never be separated from its value: at 393 px "7.5 m/s" had
-// broken across two lines with the unit on the second. That purpose is intact.
-// What changed is where the unit lives. It does not fit a 43 px cell — the
-// cell's FittedBox shrank "-12.1 °C" to 7.93 px with a Japanese face, under
-// this card's own 11 px floor — so the unit is now drawn once in the column
-// head and the cells carry bare numbers.
-//
-// This is deliberately a STRICTER check than the one it replaces, not a looser
-// one, because a check that is relaxed to let a change through has been bought
-// rather than moved. It adds three assertions the old R7 did not make:
-//   * a DRAWN-SIZE FLOOR. The old check computed each value's drawn scale and
-//     PRINTED it, and asserted nothing about it — so it passed a temperature
-//     drawn at 0.744 of 12 px, which is the defect this change exists to fix.
-//   * the unit must be present, exactly once, in a column head. A unit taken
-//     out of the cells that never arrived in a head has been deleted, and bare
-//     numbers with no statement of what they measure would satisfy a regex.
-//   * each data cell's SEMANTICS must still carry value AND unit, so a reader
-//     who cannot see the column head has not silently lost it.
+// PROPOSED — the successor to `_valueWithUnit`. What each clause asserts is in
+// the banner at the head of this file. What is kept from the 2026-09-18
+// amendment is its direction, a check made STRICTER rather than looser. A check
+// relaxed to let a change through has been bought, not moved.
 final _bareValue = RegExp(r'^-?\d+(\.\d+)?$');
 
 /// The unit each data column is drawn in, expected once each in the heads.
 const _headUnits = ['cm', '°C', 'm/s'];
 
-/// The smallest a value may be DRAWN, after any scale-down. The card already
-/// holds its failure line to 11 px.
+/// The smallest a value may be DRAWN: its font size through its own text
+/// scaler, times every transform between it and its row (clause 2). The card
+/// already holds its failure line to 11 px.
 const double _valueFloorPx = 11.0;
 
 /// Registers the card's tests with [face] loaded as the app's default family,
@@ -129,8 +144,9 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
 
   for (final lang in const ['ja', 'en']) {
     testWidgets('$lang, $face, 393 px, two stations failed: the failure '
-        'line and the descriptors are above the floor, and every value keeps '
-        'its unit on one line', (tester) async {
+        'line and the descriptors are above the floor, and every value is on '
+        'one line, at or above the floor, under the head of the unit it is '
+        'announced with', (tester) async {
       final fontsLoaded =
           await tester.runAsync(() => loadDiscoveredFace('Roboto', search)) ??
               false;
@@ -170,13 +186,6 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
           reason: 'precondition: two stations failed',
         );
 
-        final inRows = <RenderObject>{
-          for (final e
-              in find
-                  .descendant(of: rows, matching: find.byType(RichText))
-                  .evaluate())
-            e.renderObject!,
-        };
         final painted = paintedTextOutsideMap(tester);
         final problems = <String>[];
 
@@ -214,17 +223,53 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
           print('$lang $face descriptor: ${p.describe()}');
         }
 
-        // R7 (proposed): every value bare and on one line, drawn at or above
-        // the floor, with its unit in the column head and in its semantics.
+        // R7 (PROPOSED): six clauses, stated in the banner at the head of this
+        // file. Semantics are turned ON before the values are read, because
+        // clause 4 reads each value's own node. The first draft of this check
+        // found two corrections by running it: the tree stays empty until
+        // semantics are enabled and a frame is pumped, and a cell's label is
+        // merged into its row's node rather than becoming a node of its own.
+        final semantics = tester.ensureSemantics();
+        await tester.pump();
+
+        // Clause 3: each unit drawn exactly once, in a cell of a row of
+        // columns. That cell's horizontal span is the unit's column.
+        final column = <String, (double, double)>{};
+        for (final unit in _headUnits) {
+          final drawn = find.text(unit).evaluate().toList();
+          // ignore: avoid_print
+          print('$lang $face unit in head 「$unit」 x${drawn.length}');
+          if (drawn.length != 1) {
+            problems.add(
+              '「$unit」 is drawn ${drawn.length} times; it must be drawn '
+              'exactly once, as the head of its column',
+            );
+            continue;
+          }
+          final cell = _cellOf(drawn.single.renderObject!);
+          if (cell == null) {
+            problems.add('「$unit」 is not in a cell of a row of columns');
+            continue;
+          }
+          final left = cell.localToGlobal(Offset.zero).dx;
+          column[unit] = (left, left + cell.size.width);
+        }
+
+        // Clauses 1, 2, 4, 5 and 6, value by value.
+        final rowBoxes = <RenderObject>{
+          for (final e in rows.evaluate()) e.renderObject!,
+        };
         var values = 0;
-        final drawnValues = <String>[];
-        for (final ro
-            in tester.allRenderObjects.whereType<RenderParagraph>().toSet()) {
-          if (!inRows.contains(ro)) continue;
+        for (final el
+            in find
+                .descendant(of: rows, matching: find.byType(RichText))
+                .evaluate()) {
+          final ro = el.renderObject! as RenderParagraph;
           final text = ro.text.toPlainText();
           if (!_bareValue.hasMatch(text)) continue;
           values++;
-          drawnValues.add(text);
+
+          // 1: one line, not truncated.
           final tp =
               TextPainter(
                 text: ro.text,
@@ -240,40 +285,90 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
           tp.dispose();
           final laidOut = ro.size.width;
           final natural = ro.getMaxIntrinsicWidth(double.infinity);
-          // The scale it is drawn at: the fitting box's width over the
-          // paragraph's, 1 where no fitting box holds it.
-          RenderFittedBox? fit;
-          for (
-            RenderObject? a = ro.parent;
-            a != null && a is! RenderFlex;
-            a = a.parent
-          ) {
-            if (a is RenderFittedBox) {
-              fit = a;
-              break;
-            }
-          }
-          final scale = fit == null
-              ? 1.0
-              : (fit.size.width / laidOut).clamp(0.0, 1.0);
-          // ignore: avoid_print
-          print(
-            '$lang $face 「$text」 lines $lines, width ${laidOut.toStringAsFixed(1)}'
-            ' of ${natural.toStringAsFixed(1)}, drawn at scale '
-            '${scale.toStringAsFixed(3)}',
-          );
           if (lines != 1 || laidOut + 0.5 < natural) {
             problems.add(
               '「$text」: $lines lines, laid out '
               '${laidOut.toStringAsFixed(1)} of ${natural.toStringAsFixed(1)}',
             );
           }
-          // The floor the old check printed and never held.
-          final drawnPx = (ro.text.style?.fontSize ?? 0) * scale;
+
+          // 2: the size it is drawn at. The 2026-09-18 version took only a
+          // FittedBox's width ratio, so a value shrunk by its text scaler or by
+          // a Transform passed while the check printed "scale 1.000".
+          RenderObject? row;
+          for (RenderObject? a = ro.parent; a != null; a = a.parent) {
+            if (rowBoxes.contains(a)) {
+              row = a;
+              break;
+            }
+          }
+          final geometric = row == null ? 1.0 : _xScale(ro.getTransformTo(row));
+          final textScale = ro.textScaler.scale(1);
+          final drawnPx =
+              ro.textScaler.scale(ro.text.style?.fontSize ?? 0) * geometric;
           if (drawnPx + 0.001 < _valueFloorPx) {
             problems.add(
               '「$text」: drawn at ${drawnPx.toStringAsFixed(2)} px, under the '
               '${_valueFloorPx.toStringAsFixed(0)} px floor',
+            );
+          }
+
+          // 4: the unit its own semantics node says it with. Boundary-checked:
+          // 「2.1」 must not be cleared by the 「-2.1 °C」 of another column.
+          final label = tester
+              .getSemantics(find.byElementPredicate((e) => identical(e, el)))
+              .getSemanticsData()
+              .label;
+          final said = [
+            for (final u in _headUnits)
+              if (_saidWithUnit(label, text, u)) u,
+          ];
+
+          // 5: the head whose column it is drawn in.
+          final cx = ro.localToGlobal(ro.size.center(Offset.zero)).dx;
+          final under = [
+            for (final c in column.entries)
+              if (cx >= c.value.$1 && cx <= c.value.$2) c.key,
+          ];
+
+          // 6: what the station measured it as.
+          final measuredAs = _measuredAs[text];
+
+          // ignore: avoid_print
+          print(
+            '$lang $face 「$text」 lines $lines, width '
+            '${laidOut.toStringAsFixed(1)} of ${natural.toStringAsFixed(1)}, '
+            'drawn ${drawnPx.toStringAsFixed(2)} px (text '
+            '${textScale.toStringAsFixed(3)} x geometric '
+            '${geometric.toStringAsFixed(3)}), announced with '
+            '${said.isEmpty ? 'NO UNIT' : said.join('/')}, under the head of '
+            '${under.isEmpty ? 'NO UNIT' : under.join('/')}, measured as '
+            '${measuredAs ?? 'NOT A FIXTURE VALUE'}',
+          );
+          if (said.length != 1) {
+            problems.add(
+              said.isEmpty
+                  ? 'the value 「$text」 is drawn in a cell but its '
+                        'screen-reader label says it with no unit; the unit '
+                        'is in the column head, which a reader who cannot see '
+                        'it never reaches'
+                  : 'the value 「$text」 is announced with more than one unit '
+                        '(${said.join('/')})',
+            );
+          } else if (under.length != 1 || under.single != said.single) {
+            problems.add(
+              '「$text」 is announced in ${said.single} but drawn under the '
+              'head of ${under.isEmpty ? 'no unit' : under.join('/')}: the eye '
+              'and the ear are told different things',
+            );
+          }
+          if (measuredAs == null ||
+              under.length != 1 ||
+              under.single != measuredAs) {
+            problems.add(
+              '「$text」 is the station\'s ${measuredAs ?? 'unknown'} reading '
+              'but is drawn under the head of '
+              '${under.isEmpty ? 'no unit' : under.join('/')}',
             );
           }
         }
@@ -282,62 +377,6 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
           9,
           reason: 'precondition: three answered rows, three values each',
         );
-
-        // The unit must be in the head — exactly once each.
-        for (final unit in _headUnits) {
-          final n = find.text(unit).evaluate().length;
-          // ignore: avoid_print
-          print('$lang $face unit in head 「$unit」 x$n');
-          if (n != 1) {
-            problems.add(
-              '「$unit」 is drawn $n times; it must appear exactly once, in its '
-              'column head',
-            );
-          }
-        }
-
-        // …and it must still reach a reader who cannot see the head.
-        //
-        // ⚑ Two corrections this rule needed before it measured anything, both
-        // found by running it rather than by reading it:
-        //  1. Semantics must be turned ON and a frame pumped, or the tree is
-        //     empty. The first draft read the owner without enabling it and
-        //     threw on a null. A version that had caught the null and counted
-        //     zero would have been worse — it would have condemned correct code.
-        //  2. A cell's label does NOT become its own node. Flutter merges it
-        //     into the row's node, so the row announces
-        //     "…130 cm -2.1 °C, coldest in corridor 7.5 m/s 06:00 JST" as one
-        //     string. A rule matching labels that END with a unit found zero of
-        //     them and was about to fail a card that announces every unit
-        //     correctly. The rule now asks the question it actually means:
-        //     for every value drawn in a cell, is that value followed by its
-        //     unit SOMEWHERE in what a screen reader would say?
-        final semantics = tester.ensureSemantics();
-        await tester.pump();
-        final spoken = <String>[];
-        _collectLabels(
-          tester.binding.pipelineOwner.semanticsOwner!.rootSemanticsNode!,
-          spoken,
-        );
-        final allSpoken = spoken.join(' \u0000 ');
-        for (final v in drawnValues) {
-          // ⚑ Boundary-checked, not a bare substring. The first version asked
-          // `contains('$v $u')`, so 「2.1」 passed on the 「-2.1 °C」 of another
-          // column: a value that was never announced would have been cleared by
-          // a different value that was. A check with a path that cannot fail is
-          // not a check.
-          final heard = _headUnits.where((u) => _saidWithUnit(allSpoken, v, u));
-          // ignore: avoid_print
-          print('$lang $face announces 「$v」 with '
-              '${heard.isEmpty ? 'NO UNIT' : heard.join('/')}');
-          if (heard.isEmpty) {
-            problems.add(
-              'the value 「$v」 is drawn in a cell but no screen-reader label '
-              'says it with a unit; the unit is in the column head, which a '
-              'reader who cannot see it never reaches',
-            );
-          }
-        }
         semantics.dispose();
         expect(problems, isEmpty, reason: problems.join('\n'));
       }, _jmaNetwork);
@@ -345,13 +384,25 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
   }
 }
 
-/// Every semantics label in the subtree, in order.
-void _collectLabels(SemanticsNode n, List<String> out) {
-  if (n.label.isNotEmpty) out.add(n.label);
-  n.visitChildren((c) {
-    _collectLabels(c, out);
-    return true;
-  });
+/// The cell of a row of columns that holds [r]: the child of the nearest
+/// horizontal Flex above it, or null when there is none.
+RenderBox? _cellOf(RenderObject r) {
+  var child = r;
+  for (RenderObject? a = r.parent; a != null; a = a.parent) {
+    if (a is RenderFlex && a.direction == Axis.horizontal) {
+      return child is RenderBox ? child : null;
+    }
+    child = a;
+  }
+  return null;
+}
+
+/// How long a horizontal segment becomes under [m], as a ratio. Translation
+/// cancels out, so margins and padding do not count as scale.
+double _xScale(Matrix4 m) {
+  final a = MatrixUtils.transformPoint(m, Offset.zero);
+  final b = MatrixUtils.transformPoint(m, const Offset(100, 0));
+  return (b - a).distance / 100;
 }
 
 /// Whether [all] says [value] immediately followed by [unit], with [value]
