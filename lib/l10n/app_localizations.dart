@@ -1111,6 +1111,67 @@ class AppL10n {
   // the explicit share tap.
 
   /// Section title for the drive-diary card.
+  // ---- WARNING-CHANNEL CHECK (AAE 2026-09-19) -------------------------
+  // Why these are HER strings and not developer chrome: for a deaf or
+  // hard-of-hearing driver the tactile cue is the ONLY warning channel
+  // (OPS-RULE-059). Confirming it works BEFORE the pass shuts is a safety
+  // affordance she is owed, not a debug button — which is also why this
+  // surface must survive in a release build, unlike the development page.
+
+  /// What the test warning SAYS. It states that it is a test, in her own
+  /// tongue, so a cue heard from the next room is never mistaken for a real
+  /// hazard — and it names both channels, so she knows what to listen and
+  /// feel for.
+  String get channelCheckSpokenLine => _ja
+      ? 'これはテストです。警報の音と振動を確認しています。'
+      : 'This is a test. Checking the warning sound and vibration.';
+
+  String get channelCheckSectionTitle => _ja
+      ? '警報チャンネルの確認 — 音と振動'
+      : 'Warning channel check — sound and vibration';
+
+  String get channelCheckIntro => _ja
+      ? '本番と同じ警報を一度だけ出します。停車中に行ってください。'
+      : 'Plays the real warning once. Do this while parked.';
+
+  String get channelCheckFireButton =>
+      _ja ? 'テスト警報を出す' : 'Play the test warning';
+
+  String get channelCheckFiring => _ja ? '再生中…' : 'Playing…';
+
+  String get channelCheckHeardQuestion =>
+      _ja ? '音は聞こえましたか？' : 'Did you HEAR it?';
+
+  String get channelCheckFeltQuestion =>
+      _ja ? '振動は感じましたか？' : 'Did you FEEL it?';
+
+  String get channelCheckYes => _ja ? 'はい' : 'Yes';
+  String get channelCheckNo => _ja ? 'いいえ' : 'No';
+  String get channelCheckUnsure => _ja ? 'わからない' : 'Not sure';
+
+  String get channelCheckSaveButton =>
+      _ja ? 'この結果を日記に残す' : 'Save this result to the diary';
+
+  String get channelCheckSaved => _ja
+      ? '保存しました。「日記を共有」で送れます。'
+      : 'Saved. You can send it with "Share the diary".';
+
+  String get channelCheckSaveFailed =>
+      _ja ? '保存できませんでした。' : 'Could not save.';
+
+  String get channelCheckUnavailable => _ja
+      ? '日記が使えないため、結果を残せません。'
+      : 'The diary is unavailable, so the result cannot be saved.';
+
+  /// The honest bound, shown BESIDE the buttons — never after the fact.
+  /// The app cannot detect the vibrator motor: `hasVibrator()` reports
+  /// whether this is a physical device, and the native vibrate call answers
+  /// success unconditionally. Only a person can close this.
+  String get channelCheckHonestBound => _ja
+      ? '端末は「出した」としか答えられません。実際に届いたかは、あなたの答えだけが決められます。'
+      : 'The phone can only report that it sent the cue. Whether it actually '
+          'arrived is something only your answer can decide.';
+
   String get diarySectionTitle =>
       _ja ? '運転日記 — 走った後にひとこと' : 'Drive diary — a note after the drive';
 

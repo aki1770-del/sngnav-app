@@ -66,6 +66,30 @@ final class AudioReadiness {
   /// True when no spoken alert can be heard: the index is at zero, OR the
   /// platform reports the stream muted at any index.
   bool get mediaMuted => mediaVolume <= 0 || (streamMuted ?? false);
+
+  /// Value equality over EVERY field.
+  ///
+  /// AAE 2026-09-02, re-landed on `0bc7351` 2026-09-19. This exists because
+  /// the 45 s poll-dedup in `main.dart` compared three fields BY HAND and
+  /// omitted [streamMuted] — the field added 2026-08-22 for the one case the
+  /// volume index cannot express. A STREAM_MUSIC that went MUTED at an
+  /// UNCHANGED index therefore returned early and never reached HER screen:
+  /// she drove on believing the spoken ja warning would sound. The symptom
+  /// was one missing field; the root is that a hand-written field list
+  /// silently omits the NEXT field too. Comparing the value closes the class,
+  /// not just this instance.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AudioReadiness &&
+          other.mediaVolume == mediaVolume &&
+          other.mediaVolumeMax == mediaVolumeMax &&
+          other.ttsServiceVisible == ttsServiceVisible &&
+          other.streamMuted == streamMuted;
+
+  @override
+  int get hashCode =>
+      Object.hash(mediaVolume, mediaVolumeMax, ttsServiceVisible, streamMuted);
 }
 
 /// Injectable probe seam. `null` = probe unavailable (non-Android, test

@@ -17,7 +17,13 @@ description: >-
 # monotonicity on versionCode, never on the name, and the Chair's phone holds an
 # install at 2 — an update must exceed it. Play has never seen 2, but Play is not
 # who we are updating.
-version: 0.0.2+3
+# 2026-09-19 (AAE): +3 -> +4. A SECOND installable artifact exists, so it needs
+# a versionCode above the one already built. +3 is the laptop build held at
+# /home/komada/work/r104-release-hold-0bc7351/; +4 carries the warning-channel
+# check (C3 heard/felt), the never-gated tactile cue and the mid-drive mute fix.
+# The NAME stays 0.0.2: same release, a build that can answer a question the
+# previous one structurally could not.
+version: 0.0.2+4
 publish_to: 'none'
 
 environment:

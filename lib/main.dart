@@ -944,6 +944,28 @@ class _HomePageState extends State<HomePage> {
   // asymmetry comes back.
   bool? _hapticAvailable;
 
+  // ---- WARNING-CHANNEL CHECK (AAE 2026-09-19) -------------------------
+  // C3 — seen / heard / felt — is the definition of the first build that
+  // reaches HER. `seen` was met on a real phone 2026-09-17. `heard` and
+  // `felt` were met by nobody, and on 2026-09-15 the demo controls that
+  // could fire a cue moved to the development page, which `_developerPageOffered`
+  // hard-gates on `!kReleaseMode`. So the SIGNED build had no way for any
+  // person to make the app speak or buzz: the instrument left the shipping
+  // build four days before the build was signed.
+  //
+  // This panel is the replacement, and it is HER affordance rather than a
+  // debug one: for a deaf or hard-of-hearing driver the tactile cue is the
+  // only channel there is, and checking it before a mountain pass is a
+  // safety act. It fires the REAL announce path — what she tests is what
+  // she will get — and records a THREE-VALUED answer beside the platform's
+  // own claim, because their disagreement is the measurement.
+  bool _ccFired = false;
+  bool _ccFiring = false;
+  DiaryPerception? _ccHeard;
+  DiaryPerception? _ccFelt;
+  String? _ccMachineClaim;
+  String? _ccSaveMessage;
+
   // True once HER has tapped 承知しました on the media-muted caution: the
   // strong row collapses to the compact acknowledged line. Informed
   // acknowledgment only — NO behavior gating, haptics stay unconditional,
@@ -1559,10 +1581,15 @@ class _HomePageState extends State<HomePage> {
           .then((reading) {
         if (!mounted || reading == null) return;
         final prior = _audioReadiness;
-        if (prior != null &&
-            prior.mediaVolume == reading.mediaVolume &&
-            prior.mediaVolumeMax == reading.mediaVolumeMax &&
-            prior.ttsServiceVisible == reading.ttsServiceVisible) {
+        // AAE 2026-09-02, re-landed 2026-09-19 — compare the VALUE, never a
+        // hand-written field list. This block named mediaVolume /
+        // mediaVolumeMax / ttsServiceVisible and OMITTED streamMuted, so a
+        // STREAM_MUSIC that went MUTED at an unchanged volume index — the
+        // exact case streamMuted was added for on 2026-08-22 — returned here
+        // and never reached her screen. AudioReadiness now carries `==` over
+        // every field, so the next field added is covered without editing
+        // this line.
+        if (prior == reading) {
           return; // unchanged — no rebuild churn on the 45 s tick
         }
         final wasMuted = prior?.mediaMuted ?? false;
@@ -3672,6 +3699,11 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
+              title: AppL10n.of(context).channelCheckSectionTitle,
+              child: _channelCheckPanel(),
+            ),
+            const SizedBox(height: 16),
+            _section(
               title: AppL10n.of(context).diarySectionTitle,
               child: _diaryPanel(),
             ),
@@ -4133,6 +4165,193 @@ class _HomePageState extends State<HomePage> {
   /// Consent-preserving by construction: entries persist only to a local
   /// file (services/drive_diary.dart), no coordinates are recorded, and the
   /// diary leaves the device only via the explicit 日記を共有 tap.
+  /// Composes what the PLATFORM claims about the cue it just fired.
+  ///
+  /// Deliberately not a verdict. On Android `hasVibrator()` reports
+  /// `androidInfo.isPhysicalDevice` and the native vibrate handler answers
+  /// `result.success(null)` unconditionally, so "haptic=accepted" on a real
+  /// handset means only that the call returned. Recorded so that a later
+  /// reader can see the claim standing next to what a person perceived.
+  String _composeChannelCheckClaim() {
+    final parts = <String>[];
+    parts.add(_hapticUnverified.value
+        ? 'haptic=unverified'
+        : 'haptic=accepted-by-platform');
+    parts.add(_speechUnverified.value
+        ? 'speech=unverified'
+        : 'speech=accepted-by-platform');
+    final vibrator = _hapticAvailable;
+    parts.add(
+        'vibrator-probe=${vibrator == null ? 'unknown' : (vibrator ? 'reported' : 'none')}');
+    final audio = _audioReadiness;
+    if (audio == null) {
+      parts.add('audio-readiness=unknown');
+    } else {
+      parts.add('media-volume=${audio.mediaVolume}/${audio.mediaVolumeMax}');
+      parts.add(
+          'stream-muted=${audio.streamMuted == null ? 'unknown' : (audio.streamMuted! ? 'yes' : 'no')}');
+      parts.add('tts-engine=${audio.ttsServiceVisible ? 'present' : 'absent'}');
+    }
+    return parts.join(' ');
+  }
+
+  /// Fires the REAL announce path once, at critical severity — the same
+  /// call site a genuine hazard takes, so what she checks is what she gets.
+  Future<void> _fireChannelCheck() async {
+    if (_ccFiring) return;
+    setState(() {
+      _ccFiring = true;
+      _ccSaveMessage = null;
+    });
+    final l = AppL10n.of(context);
+    try {
+      await _announcer.announce(
+        severity: AlertSeverity.critical,
+        text: l.channelCheckSpokenLine,
+        localeTag: _spokenJa ? 'ja-JP' : 'en-US',
+      );
+    } catch (_) {
+      // An announce that throws is still a fired check: the person's answer
+      // is the measurement, and a swallowed fault must not hide the panel.
+    }
+    if (!mounted) return;
+    setState(() {
+      _ccFiring = false;
+      _ccFired = true;
+      _ccMachineClaim = _composeChannelCheckClaim();
+    });
+  }
+
+  /// One three-valued question row. No default is preselected: an unanswered
+  /// question must never read as an answer.
+  Widget _channelCheckQuestion({
+    required String keyPrefix,
+    required String question,
+    required DiaryPerception? value,
+    required ValueChanged<DiaryPerception> onChanged,
+  }) {
+    final l = AppL10n.of(context);
+    String label(DiaryPerception p) => switch (p) {
+          DiaryPerception.perceived => l.channelCheckYes,
+          DiaryPerception.notPerceived => l.channelCheckNo,
+          DiaryPerception.unsure => l.channelCheckUnsure,
+        };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(question,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Wrap(
+          spacing: 8,
+          children: [
+            for (final p in DiaryPerception.values)
+              ChoiceChip(
+                key: Key('$keyPrefix-${p.token}'),
+                label: Text(label(p)),
+                selected: value == p,
+                onSelected: (_) => onChanged(p),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// The warning-channel check — see the field block above for why it ships.
+  Widget _channelCheckPanel() {
+    final l = AppL10n.of(context);
+    final answered = _ccHeard != null && _ccFelt != null;
+    return Column(
+      key: const Key('channel-check-panel'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l.channelCheckIntro, style: const TextStyle(fontSize: 12)),
+        const SizedBox(height: 4),
+        // The honest bound rides the instrument, beside the buttons — never
+        // discovered afterwards.
+        Text(
+          key: const Key('channel-check-bound'),
+          l.channelCheckHonestBound,
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: FilledButton(
+            key: const Key('channel-check-fire'),
+            onPressed: _ccFiring ? null : _fireChannelCheck,
+            child: Text(
+                _ccFiring ? l.channelCheckFiring : l.channelCheckFireButton),
+          ),
+        ),
+        if (_ccFired) ...[
+          const SizedBox(height: 12),
+          _channelCheckQuestion(
+            keyPrefix: 'channel-check-heard',
+            question: l.channelCheckHeardQuestion,
+            value: _ccHeard,
+            onChanged: (p) => setState(() {
+              _ccHeard = p;
+              _ccSaveMessage = null;
+            }),
+          ),
+          const SizedBox(height: 8),
+          _channelCheckQuestion(
+            keyPrefix: 'channel-check-felt',
+            question: l.channelCheckFeltQuestion,
+            value: _ccFelt,
+            onChanged: (p) => setState(() {
+              _ccFelt = p;
+              _ccSaveMessage = null;
+            }),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: OutlinedButton(
+              key: const Key('channel-check-save'),
+              onPressed: answered ? _saveChannelCheck : null,
+              child: Text(l.channelCheckSaveButton),
+            ),
+          ),
+        ],
+        if (_ccSaveMessage != null) ...[
+          const SizedBox(height: 6),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              key: const Key('channel-check-save-message'),
+              _ccSaveMessage!,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Writes the answer beside the platform's claim into the diary she
+  /// already shares. Never fabricates a result: with no diary, it says so.
+  void _saveChannelCheck() {
+    final l = AppL10n.of(context);
+    final diary = widget.diary;
+    final heard = _ccHeard;
+    final felt = _ccFelt;
+    if (heard == null || felt == null) return;
+    if (diary == null) {
+      setState(() => _ccSaveMessage = l.channelCheckUnavailable);
+      return;
+    }
+    final ok = diary.recordChannelCheck(
+      heard: heard,
+      felt: felt,
+      machineClaim: _ccMachineClaim ?? 'unknown',
+    );
+    setState(() => _ccSaveMessage =
+        ok ? l.channelCheckSaved : l.channelCheckSaveFailed);
+  }
+
   Widget _diaryPanel() {
     final l = AppL10n.of(context);
     final diary = widget.diary;

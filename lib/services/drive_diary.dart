@@ -79,6 +79,26 @@ enum DiaryAdvisoryExperience {
   final String token;
 }
 
+/// A THREE-VALUED answer to "did you perceive it?" — AAE 2026-09-19.
+///
+/// Three-valued on purpose. 「わからない」 must survive into the record and
+/// BLOCK any reading that depends on it: a channel check whose answer is
+/// unsure is not a pass and is not a failure, and collapsing it to either is
+/// the same defect this whole instrument exists to catch. C3 (seen · heard ·
+/// felt) is met ONLY by [perceived]; nothing else may be read as met.
+enum DiaryPerception {
+  perceived('はい', 'yes'),
+  notPerceived('いいえ', 'no'),
+  unsure('わからない', 'unsure');
+
+  const DiaryPerception(this.ja, this.token);
+  final String ja;
+  final String token;
+
+  /// Only an explicit yes is evidence the channel reached a person.
+  bool get isMet => this == DiaryPerception.perceived;
+}
+
 /// Injectable exit door for the composed payload. Production uses
 /// [shareDiaryViaShareSheet]; tests inject a recording fake so no platform
 /// channel is ever touched in the test binding.
@@ -141,6 +161,56 @@ class DriveDiary {
     // The entry IS persisted at this point: a rotation failure must not
     // report the save as failed (a false 「保存できませんでした」 invites a
     // retry that duplicates the entry). _trimIfNeeded never throws.
+    _trimIfNeeded();
+    return true;
+  }
+
+  /// Appends one WARNING-CHANNEL CHECK entry — AAE 2026-09-19.
+  ///
+  /// **Why this is a separate entry kind, and why it carries two columns.**
+  /// The app cannot tell whether a warning reached a person. On Android it
+  /// cannot even tell whether the motor moved: `hasVibrator()` returns
+  /// `androidInfo.isPhysicalDevice` (vibration_platform_interface-0.1.2,
+  /// `method_channel_vibration.dart:21-30`) and the native `vibrate` handler
+  /// answers `result.success(null)` unconditionally (vibration 3.2.0,
+  /// `VibrationMethodChannelHandler.java:52`). So on any real handset the
+  /// platform reports success whether or not anything happened — which is
+  /// exactly what the Chair met on 2026-08-31 ("buzz does not work so far")
+  /// while the app's own fault chip stayed clear.
+  ///
+  /// This entry therefore records BOTH columns on one line:
+  ///   - [machineClaim]: what the platform said it did.
+  ///   - [heard] / [felt]: what a person actually perceived.
+  ///
+  /// **Their DISAGREEMENT is the measurement.** `haptic=delivered` beside
+  /// 「感じた: いいえ」 is the defect captured in a single shareable line, and
+  /// no test on any host can produce it.
+  ///
+  /// Records no position, no coordinate and no route — same contract as
+  /// [record]; the only free text is [note], which is her words.
+  bool recordChannelCheck({
+    required DiaryPerception heard,
+    required DiaryPerception felt,
+    required String machineClaim,
+    String note = '',
+  }) {
+    try {
+      final now = (clock ?? DateTime.now)();
+      final buf = StringBuffer()
+        ..writeln('$kDiaryEntryMarker${_localIso8601(now)} ---')
+        ..writeln('種別: 警報チャンネル確認 (channel-check)')
+        ..writeln('聞こえた: ${heard.ja} (heard=${heard.token})')
+        ..writeln('感じた: ${felt.ja} (felt=${felt.token})')
+        ..writeln('端末の申告: ${_sanitize(machineClaim)}')
+        ..writeln('アプリ版: $appVersion');
+      final cleanNote = _sanitize(note);
+      if (cleanNote.isNotEmpty) buf.writeln('メモ: $cleanNote');
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(buf.toString(),
+          mode: FileMode.append, flush: true);
+    } catch (_) {
+      return false;
+    }
     _trimIfNeeded();
     return true;
   }

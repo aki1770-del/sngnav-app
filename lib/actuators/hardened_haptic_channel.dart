@@ -90,7 +90,10 @@ enum HapticDelivery {
   /// crying wolf on every info-class advisory.
   notOwed,
 
-  /// The device reports no vibrator. The cue was owed and cannot be given.
+  /// The probe reports no vibrator. The cue was owed, was ATTEMPTED anyway
+  /// (the probe is a heuristic that cannot fail open — see `fire`), and is
+  /// unverified. Never read this as "no sensation occurred": read it as "we
+  /// could not establish that one did".
   noVibrator,
 
   /// The platform channel threw.
@@ -168,6 +171,33 @@ class HardenedHapticChannel implements HapticChannel {
     try {
       final present = await _driver.hasVibrator().timeout(callTimeout);
       if (!present) {
+        // RECORD, NEVER GATE (AAE 2026-09-02, re-landed 2026-09-19).
+        //
+        // [HapticDriver.hasVibrator] DOES NOT ASK THE VIBRATOR. Read from
+        // source this turn at the version this app resolves:
+        // vibration_platform_interface-0.1.2
+        // lib/src/method_channel_vibration.dart:21-30 returns
+        // `androidInfo.isPhysicalDevice`, and its catch falls through to
+        // `false` on any PlatformException and on any non-Android/iOS
+        // platform. It is a heuristic that CANNOT FAIL OPEN — so every device
+        // it misreads used to get NO TACTILE CUE AT ALL.
+        //
+        // For a deaf or hard-of-hearing driver that is not the second channel,
+        // it is the ONLY one (OPS-RULE-059: an accessibility channel is never
+        // gated), and at ten metres' visibility the screen is no substitute.
+        // So the waveform is ATTEMPTED anyway and the hardware answers.
+        //
+        // The REPORT is deliberately unchanged: the outcome stays
+        // [HapticDelivery.noVibrator] and stays `isUnverified`, so her
+        // tactile-unverified chip still raises. We attempt more; we claim
+        // nothing more. A throw here is swallowed — the probe already told us
+        // this path is unverified, and a failed attempt must not downgrade
+        // that to the less informative `faulted`.
+        try {
+          await _driver.vibrate(waveformFor(pattern)).timeout(callTimeout);
+        } catch (_) {
+          // Best-effort: the outcome below already says "unverified".
+        }
         outcome = HapticDelivery.noVibrator;
       } else {
         await _driver.vibrate(waveformFor(pattern)).timeout(callTimeout);
