@@ -170,7 +170,7 @@ void main() {
       expect(turmoilSpokenText(eval(p: 0.0, w: 11.0), ja: false),
           contains('wind'));
       expect(turmoilSpokenText(eval(p: 4.0, w: 11.0), ja: false),
-          contains('Heavy rain and strong wind'));
+          contains('Heavy rain and fairly strong wind'));
     });
   });
 }

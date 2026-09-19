@@ -132,8 +132,8 @@ TurmoilWatchState evaluateTurmoilWatch(JmaObservation obs) {
 /// English ([ja] false) says the same thing in the same order, for a page in
 /// English: "cannot judge" wherever the ja says 判定不能, never "None" for a
 /// channel nobody measured. 強めの風 is "fairly strong wind", keeping the ja
-/// row's step down from JMA's 強い風; the spoken English line says "Strong
-/// wind" (turmoilSpokenText) and is not changed here.
+/// row's step down from JMA's 強い風, and the spoken English lines
+/// (turmoilSpokenText) say the same.
 String turmoilRowText(TurmoilWatchState s, {bool ja = true}) {
   final rainCaution = s.rain == TurmoilChannel.caution;
   final windCaution = s.wind == TurmoilChannel.caution;
@@ -177,6 +177,11 @@ String turmoilRowText(TurmoilWatchState s, {bool ja = true}) {
 /// concrete driver action, mirroring the catalog announcement grammar.
 ///
 /// Returns null when no channel is in caution (nothing to announce).
+///
+/// The English wind is "fairly strong", as 強めの風 is in the Japanese: the
+/// watch fires at JMA's やや強い風 band (10 m/s), and "strong wind" is the
+/// plain English of 強い風, the band above it (15 m/s). Until 2026-09-20 the
+/// English voice said "strong wind" while the row said "fairly strong wind".
 String? turmoilSpokenText(TurmoilWatchState s, {required bool ja}) {
   final rainCaution = s.rain == TurmoilChannel.caution;
   final windCaution = s.wind == TurmoilChannel.caution;
@@ -184,7 +189,7 @@ String? turmoilSpokenText(TurmoilWatchState s, {required bool ja}) {
     return ja
         ? '強い雨と強めの風を観測しています。視界の悪化と横風のおそれがあります。'
             '速度を落とし、車間距離をとって慎重に運転してください。'
-        : 'Heavy rain and strong wind observed. Visibility may drop and '
+        : 'Heavy rain and fairly strong wind observed. Visibility may drop and '
             'crosswind may push the vehicle. Reduce speed, keep extra '
             'distance, and drive with caution.';
   }
@@ -199,8 +204,8 @@ String? turmoilSpokenText(TurmoilWatchState s, {required bool ja}) {
     return ja
         ? '強めの風を観測しています。横風に流されるおそれがあります。'
             'ハンドルをしっかり握り、速度を落としてください。'
-        : 'Strong wind observed. Crosswind may push the vehicle. Grip the '
-            'wheel firmly and reduce speed.';
+        : 'Fairly strong wind observed. Crosswind may push the vehicle. Grip '
+            'the wheel firmly and reduce speed.';
   }
   return null;
 }

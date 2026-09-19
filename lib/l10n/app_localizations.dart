@@ -862,7 +862,11 @@ class AppL10n {
   // driver reading English saw 該当なし and 判定不能 side by side and could not
   // tell "none" from "cannot judge" — the one distinction these rows exist to
   // make. The English says "cannot judge" wherever the Japanese says 判定不能,
-  // and "None" only where the Japanese says 該当なし. The Japanese is unchanged.
+  // and "None" only where the Japanese says 該当なし — on the turmoil row. On the
+  // black-ice row 該当なし reads "No radiative cooling window" (2026-09-20): a
+  // bare "None" under "Road-ice watch" can be read as a road with no ice, and
+  // this watch only ever says whether it found the window it looks for. The
+  // Japanese is unchanged.
   // "Road-ice" and "turmoil" are the words the card's own feed lines already
   // use for these watches (measuredWatchNotYetRead, measuredWatchFeedLost).
 
@@ -875,7 +879,11 @@ class AppL10n {
         InvisibleIceWatchResult.watch => _ja
             ? '⚠ ブラックアイスバーンのおそれ（放射冷却の窓）'
             : '⚠ Black ice possible (radiative cooling window)',
-        InvisibleIceWatchResult.clear => _ja ? '該当なし' : 'None',
+        // The window this watch looks for is not in the station's readings.
+        // Not "None": that can read as a road with no ice, which the watch
+        // never measures. The same words as the warning's parenthetical.
+        InvisibleIceWatchResult.clear =>
+          _ja ? '該当なし' : 'No radiative cooling window',
         // The classifier DECLINED to judge this reading — every field was
         // measured and in range, and it still produced no verdict.
         // Deliberately distinguishable from `outOfScope`'s wording: that one

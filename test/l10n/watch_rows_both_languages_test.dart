@@ -10,9 +10,12 @@
 /// For every verdict of each watch: the Japanese is exactly what the page drew
 /// before (a driver who reads Japanese sees no change); the English has no
 /// Japanese in it; and the English keeps the Japanese's distinctions, so that
-/// ⚠ stays ⚠, 判定不能 is "cannot judge", 該当なし is "None", 判定していません is
-/// "not judged", and two different Japanese verdicts are never one English
-/// one.
+/// ⚠ stays ⚠, 判定不能 is "cannot judge", 判定していません is "not judged", and
+/// two different Japanese verdicts are never one English one. 該当なし is "None"
+/// on the turmoil row, where rain and wind are what the station measured. On the
+/// black-ice row it is "No radiative cooling window" (ruled 2026-09-20): the
+/// watch looks for that window, and a bare "None" under "Road-ice watch" can
+/// be read as a road with no ice, which this watch never says.
 library;
 
 import 'package:flutter/widgets.dart';
@@ -55,24 +58,26 @@ const _turmoilJa = <(TurmoilChannel, TurmoilChannel), String>{
 
 const _turmoilNothingJudgedJa = '判定不能（降水・風の観測値が不足）';
 
-/// What must carry over from a Japanese verdict to its English one.
-List<String> _distinctionsLost(String ja, String en) => [
+/// What must carry over from a Japanese verdict to its English one. [clear] is
+/// the row's English for 該当なし.
+List<String> _distinctionsLost(String ja, String en, String clear) => [
       if (_cjk.hasMatch(en)) 'the English has Japanese in it',
       if (ja.startsWith('⚠') != en.startsWith('⚠'))
         'the warning sign is on one and not the other',
       if (ja.contains('判定不能') !=
           en.toLowerCase().contains('cannot judge'))
         '判定不能 and "cannot judge" do not go together',
-      if (ja.startsWith('該当なし') != en.startsWith('None'))
-        '該当なし and "None" do not go together',
+      if (ja.startsWith('該当なし') != en.startsWith(clear))
+        '該当なし and "$clear" do not go together',
       if (ja.contains('判定していません') != en.contains('not judged'))
         '判定していません and "not judged" do not go together',
     ];
 
-void _holdTheSpace(String what, Map<Object?, String> ja, Map<Object?, String> en) {
+void _holdTheSpace(String what, Map<Object?, String> ja, Map<Object?, String> en,
+    {required String clear}) {
   final problems = <String>[];
   for (final k in ja.keys) {
-    for (final p in _distinctionsLost(ja[k]!, en[k]!)) {
+    for (final p in _distinctionsLost(ja[k]!, en[k]!, clear)) {
       problems.add('$what $k: 「${ja[k]}」 / "${en[k]}": $p');
     }
   }
@@ -123,7 +128,13 @@ void main() {
     expect(en[null], en[InvisibleIceWatchResult.unknown],
         reason: 'no verdict yet is drawn as unknown in English too');
     // null and unknown are one verdict by design; hold the rest pairwise.
-    _holdTheSpace('black-ice', {...ja}..remove(null), {...en}..remove(null));
+    _holdTheSpace('black-ice', {...ja}..remove(null), {...en}..remove(null),
+        clear: 'No radiative cooling window');
+    for (final v in en.values) {
+      expect(v.startsWith('None'), isFalse,
+          reason: 'a bare "None" under "Road-ice watch" reads as a road '
+              'with no ice: "$v"');
+    }
   });
 
   test('turmoil watch: every pair of channel verdicts, and nothing judged, '
@@ -154,6 +165,6 @@ void main() {
         en[(TurmoilChannel.unknown, TurmoilChannel.unknown)],
         reason: 'nothing judged reads as both channels unknown in English '
             'too');
-    _holdTheSpace('turmoil', ja, en);
+    _holdTheSpace('turmoil', ja, en, clear: 'None');
   });
 }

@@ -3,6 +3,14 @@
 /// responsibility banner and the low-visibility reason. Literals, so a change
 /// of words is a red, not a silent pass. Generated from the decided table; the
 /// consent body is pinned in route_consent_withdraw_test.dart.
+///
+/// Ruled on 2026-09-20: the Akita card's two watch rows in both languages,
+/// every verdict; the spoken turmoil lines; the station names, places and
+/// map label on the English page. On the black-ice row the Japanese 該当なし
+/// reads "No radiative cooling window" in English: the condition the watch
+/// looks for was not found, which is not a road with no ice. The spoken wind
+/// is "fairly strong", as on the row: the watch fires at JMA's やや強い風
+/// band, and "strong wind" would name the band above it.
 library;
 
 import 'dart:io';
@@ -12,6 +20,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 import 'package:compound_failure_advisor/compound_failure_advisor.dart' show CautionReason;
+import 'package:sngnav_app/services/invisible_ice_watch.dart'
+    show InvisibleIceWatchResult;
+import 'package:sngnav_app/services/turmoil_watch.dart';
 
 void main() {
   const ja = AppL10n(Locale('ja'));
@@ -62,6 +73,161 @@ void main() {
     expect(en.responsibilityBanner, 'Alpha software. Not for production navigation. The driver remains responsible for all driving decisions. This app surfaces information; it does not control the vehicle.', reason: 'row 48');
     expect(en.driveHudNoPositionFed, '(no position received yet)', reason: 'row 6');
     expect(en.driveHudAnnounceRaisedNotSpoken, 'Raised to caution (shown in colour). This level is not read aloud.', reason: 'row 44');
+  });
+
+  // Ruled 2026-09-20. Each group collects every mismatch before it fails, so one
+  // red names every word that moved, not only the first.
+  void same(List<String> problems, String what, String? got, String want) {
+    if (got != want) problems.add('$what: 「$got」, ruled 「$want」');
+  }
+
+  TurmoilWatchState at(TurmoilChannel rain, TurmoilChannel wind) =>
+      TurmoilWatchState(
+        rain: rain,
+        wind: wind,
+        precipitation10mMm: null,
+        windMetersPerSecond: null,
+      );
+  const c = TurmoilChannel.caution;
+  const k = TurmoilChannel.clear;
+  const u = TurmoilChannel.unknown;
+
+  test('the two watch rows\' labels and every black-ice verdict, whole, in '
+      'both languages', () {
+    final problems = <String>[];
+    same(problems, 'road-ice label ja', ja.roadIceWatchLabel, '路面凍結ウォッチ');
+    same(problems, 'road-ice label en', en.roadIceWatchLabel, 'Road-ice watch');
+    same(problems, 'turmoil label ja', ja.turmoilWatchLabel, '荒天ウォッチ');
+    same(problems, 'turmoil label en', en.turmoilWatchLabel, 'Turmoil watch');
+    same(problems, 'precipitation label ja', ja.observationPrecipitation10mLabel,
+        '降水量（10分間）');
+    same(problems, 'precipitation label en', en.observationPrecipitation10mLabel,
+        'Precipitation (10 min)');
+    const ice = <InvisibleIceWatchResult?, (String, String)>{
+      InvisibleIceWatchResult.watch: (
+        '⚠ ブラックアイスバーンのおそれ（放射冷却の窓）',
+        '⚠ Black ice possible (radiative cooling window)',
+      ),
+      InvisibleIceWatchResult.clear: ('該当なし', 'No radiative cooling window'),
+      InvisibleIceWatchResult.outsideModelEnvelope: (
+        '判定範囲外（この気象条件は判定していません）',
+        'Outside its range (these weather conditions are not judged)',
+      ),
+      InvisibleIceWatchResult.subZeroFrozen: (
+        '⚠ 路面凍結のおそれ（気温0°C以下）',
+        '⚠ Road may be frozen (air temperature 0 °C or below)',
+      ),
+      InvisibleIceWatchResult.outOfScope: (
+        '本ウォッチの対象外（この条件は判定していません）',
+        'Not covered by this watch (this condition is not judged)',
+      ),
+      InvisibleIceWatchResult.unknown: (
+        '判定不能（気温・湿度・降水の観測値が不足）',
+        'Cannot judge (temperature, humidity or precipitation not reported)',
+      ),
+      null: (
+        '判定不能（気温・湿度・降水の観測値が不足）',
+        'Cannot judge (temperature, humidity or precipitation not reported)',
+      ),
+    };
+    for (final e in ice.entries) {
+      same(problems, 'road-ice ${e.key} ja', ja.roadIceWatchVerdict(e.key),
+          e.value.$1);
+      same(problems, 'road-ice ${e.key} en', en.roadIceWatchVerdict(e.key),
+          e.value.$2);
+    }
+    expect(problems, isEmpty, reason: problems.join('\n'));
+  });
+
+  test('every turmoil verdict, whole, in both languages', () {
+    final problems = <String>[];
+    const turmoil = <(TurmoilChannel, TurmoilChannel), (String, String)>{
+      (c, c): ('⚠ 強い雨・強めの風を観測中', '⚠ Heavy rain and fairly strong wind observed'),
+      (c, k): ('⚠ 強い雨を観測中', '⚠ Heavy rain observed'),
+      (c, u): ('⚠ 強い雨を観測中（風は判定不能）', '⚠ Heavy rain observed (cannot judge wind)'),
+      (k, c): ('⚠ 強めの風を観測中', '⚠ Fairly strong wind observed'),
+      (u, c): (
+        '⚠ 強めの風を観測中（降水は判定不能）',
+        '⚠ Fairly strong wind observed (cannot judge precipitation)',
+      ),
+      (k, k): ('該当なし', 'None'),
+      (u, k): ('該当なし（降水は判定不能）', 'None (cannot judge precipitation)'),
+      (k, u): ('該当なし（風は判定不能）', 'None (cannot judge wind)'),
+      (u, u): (
+        '判定不能（降水・風の観測値が不足）',
+        'Cannot judge (precipitation and wind not reported)',
+      ),
+    };
+    for (final e in turmoil.entries) {
+      final s = at(e.key.$1, e.key.$2);
+      same(problems, 'turmoil ${e.key} ja', ja.turmoilWatchVerdict(s), e.value.$1);
+      same(problems, 'turmoil ${e.key} en', en.turmoilWatchVerdict(s), e.value.$2);
+    }
+    same(problems, 'turmoil, nothing judged, ja', ja.turmoilWatchVerdict(null),
+        '判定不能（降水・風の観測値が不足）');
+    same(problems, 'turmoil, nothing judged, en', en.turmoilWatchVerdict(null),
+        'Cannot judge (precipitation and wind not reported)');
+    expect(problems, isEmpty, reason: problems.join('\n'));
+  });
+
+  test('the spoken turmoil lines, whole, in both languages: the wind is '
+      '"fairly strong", as on the row', () {
+    final problems = <String>[];
+    const spoken = <(TurmoilChannel, TurmoilChannel), (String, String)>{
+      (c, c): (
+        '強い雨と強めの風を観測しています。視界の悪化と横風のおそれがあります。'
+            '速度を落とし、車間距離をとって慎重に運転してください。',
+        'Heavy rain and fairly strong wind observed. Visibility may drop and '
+            'crosswind may push the vehicle. Reduce speed, keep extra '
+            'distance, and drive with caution.',
+      ),
+      (c, k): (
+        '強い雨を観測しています。視界の悪化や、水たまりによるスリップの'
+            'おそれがあります。速度を落とし、車間距離をとってください。',
+        'Heavy rain observed. Visibility may drop and standing water may '
+            'cause slipping. Reduce speed and keep extra distance.',
+      ),
+      (k, c): (
+        '強めの風を観測しています。横風に流されるおそれがあります。'
+            'ハンドルをしっかり握り、速度を落としてください。',
+        'Fairly strong wind observed. Crosswind may push the vehicle. Grip '
+            'the wheel firmly and reduce speed.',
+      ),
+    };
+    for (final e in spoken.entries) {
+      final s = at(e.key.$1, e.key.$2);
+      same(problems, 'spoken ${e.key} ja', turmoilSpokenText(s, ja: true),
+          e.value.$1);
+      same(problems, 'spoken ${e.key} en', turmoilSpokenText(s, ja: false),
+          e.value.$2);
+    }
+    if (turmoilSpokenText(at(k, k), ja: false) != null) {
+      problems.add('something is announced below the caution lines');
+    }
+    expect(problems, isEmpty, reason: problems.join('\n'));
+  });
+
+  test('the station names, places and map label on both pages', () {
+    final problems = <String>[];
+    const stations = <String, (String, String, String, String)>{
+      '32286': ('男鹿', 'Oga', '北・海沿い', 'North coast'),
+      '32402': ('秋田', 'Akita', '市街地', 'City'),
+      '32551': ('大曲', 'Omagari', '中央内陸', 'Central inland'),
+      '32596': ('横手', 'Yokote', '南・内陸', 'South inland'),
+      '32691': ('湯沢', 'Yuzawa', '南・山間', 'South mountains'),
+    };
+    for (final e in stations.entries) {
+      final (jaName, enName, jaPlace, enPlace) = e.value;
+      same(problems, 'station ${e.key} ja', ja.stationName(e.key, jaName), jaName);
+      same(problems, 'station ${e.key} en', en.stationName(e.key, jaName), enName);
+      same(problems, 'place ${e.key} ja', ja.stationDescriptor(e.key, jaPlace),
+          jaPlace);
+      same(problems, 'place ${e.key} en', en.stationDescriptor(e.key, jaPlace),
+          enPlace);
+    }
+    same(problems, 'map label ja', ja.akitaStationMapLabel, '秋田');
+    same(problems, 'map label en', en.akitaStationMapLabel, 'Akita');
+    expect(problems, isEmpty, reason: problems.join('\n'));
   });
 
   test('the low-visibility reason reads very poor in English, Japanese unchanged', () {
