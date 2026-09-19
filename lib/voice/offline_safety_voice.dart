@@ -25,6 +25,8 @@
 ///   main.dart:1161  invisibleBlackIceAnnouncement.jaSpokenText           (1)
 ///   main.dart:1172  turmoilSpokenText(...)                               (3)
 ///   main.dart:1218  kConditionsUnknownJaSpokenText                       (1)
+///   main.dart _fireChannelCheck  AppL10n.channelCheckSpokenLine (ja)      (1)
+///                   the warning-channel check's own line, added 2026-09-19
 /// `test/voice/runtime_voice_coverage_test.dart` RE-DERIVES that list on every
 /// run and FAILS if any emittable safety line is not in this map — so the mouth
 /// can never again drift from what the app says.
@@ -177,6 +179,17 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   // zone — every predictive competitor is server-side.
   'forecast_snow_valid':
       '出発前に取得した気象庁の予報では、この時間帯は雪の予報です。これは観測ではなく予報です。速度を落とし、車間距離をとってください。',
+
+  // --- THE WARNING-CHANNEL CHECK (main.dart _fireChannelCheck). The line she
+  // hears when she tests her warning channels, parked. It plays from this
+  // mouth like every real warning, so a "not heard" means what it says. With
+  // no clip it went to the phone's own voice: measured 2026-09-19 with a voice
+  // that never reports completion, the check was silent, a real warning
+  // announced just after it waited 17.5 s behind it, and the unverified chip
+  // rose on her page. The value is AppL10n's ja channelCheckSpokenLine
+  // exactly; test/voice/runtime_emissions.dart step (7) reads it from there.
+  'channel_check_test':
+      'これはテストです。警報の音と振動を確認しています。',
 };
 
 /// RENDER overrides — id -> the text the WAV is actually synthesised FROM,

@@ -27,10 +27,12 @@
 /// recorded, measured remainder — see `kNavClassRemainder` below.
 library;
 
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:navigation_safety_core/navigation_safety_core.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
 import 'package:routing_engine/routing_engine.dart' show RouteManeuver;
 import 'package:snow_rendering/snow_rendering.dart' as snow_rendering;
+import 'package:sngnav_app/l10n/app_localizations.dart' show AppL10n;
 import 'package:sngnav_app/main.dart' show severityForCondition;
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 import 'package:sngnav_app/services/invisible_ice_watch.dart'
@@ -132,6 +134,16 @@ Set<String> emittableSafetyStaticJa() {
   );
   final forecastLine = memory.speakableJaAt(now);
   if (forecastLine != null) out.add(forecastLine);
+
+  // (7) main.dart _fireChannelCheck — the warning-channel check's own line. It
+  // is not a hazard line, but it goes through the same announcer as every real
+  // warning, and it must come from the same mouth: otherwise the check tests a
+  // different mouth from the one her warnings use. Produced by CALLING the
+  // app's localizations, the exact string the check passes to announce().
+  // Missing from this set until 2026-09-19, which is why this test could not
+  // see that the line had no clip; announce_call_site_census_test.dart now
+  // fails when a new announce() call site is not registered here.
+  out.add(const AppL10n(Locale('ja')).channelCheckSpokenLine);
 
   return out;
 }
