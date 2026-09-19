@@ -6,15 +6,15 @@
 /// verbatim with attribution.
 ///
 /// The 一station + verbatim-only constraint is deliberate Slice-0 scope per the
-/// SPA Actuator unit's smallest-correct-first-try discipline. Future slices
+/// project's smallest-correct-first-try discipline. Future slices
 /// may add additional permitted operations (b) present-tense single-point
-/// arithmetic and (e) geographic aggregation when AAA's safety-boundary
+/// arithmetic and (e) geographic aggregation when the project's safety-boundary
 /// review extends to those operations.
 ///
-/// HER-trace: the named first customer for this fetch is HER's mother in
-/// Akita; station 32402 is her local AMeDAS observation point. Per V21
-/// substance — Sakichi began with his mother at the hand loom; we begin
-/// with HER's mother at her local weather station.
+/// Why: the first user this fetch is built for is an older driver in
+/// Akita; station 32402 is her local AMeDAS observation point. Sakichi
+/// Toyoda began with his mother at the hand loom; we begin with one
+/// driver at her local weather station.
 library;
 
 import 'dart:convert';
@@ -26,10 +26,9 @@ const String akitaStationId = '32402';
 /// Curated AMeDAS station list along Akita prefecture's main inhabited
 /// corridor (north coast → city → central inland → south mountain).
 /// IDs + lat/lon verified against JMA's amedastable.json via Explore
-/// agent 2026-04-29 (research artifact:
-/// outputs/research/jma_amedas_akita_corridor_stations_2026_04_29.md).
+/// agent 2026-04-29 (a research note kept outside this repository).
 ///
-/// Each entry carries (stationId, name-JA, lat, lon, descriptor) so HER
+/// Each entry carries (stationId, name-JA, lat, lon, descriptor) so the driver
 /// has geographic context per row. Slice-3 update orders by latitude
 /// descending (north → south) for geographic intuition.
 ///
@@ -221,10 +220,11 @@ Future<JmaResult> fetchLatestObservation({
 /// Fetch the latest observation for every station in [corridorStations]
 /// in parallel. Returns one result per station, in the same order.
 ///
-/// AAA Article 17 (β) classification: this is op-(e) geographic
+/// Article 17 (β) classification (Japan's Meteorological Service Act, the
+/// forecast-licence boundary): this is op-(e) geographic
 /// aggregation (presenting N stations' verbatim observations
 /// side-by-side; not combining them into a fused metric and not
-/// time-shifting them). Permit-free under the unit's safety boundary.
+/// time-shifting them). Permit-free under the project's safety boundary.
 ///
 /// Failures are per-station: one station's network failure does not
 /// invalidate the others — staleness is honest per row.

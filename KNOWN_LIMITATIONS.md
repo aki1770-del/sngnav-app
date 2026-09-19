@@ -14,7 +14,7 @@ still held. What did not: four `main.dart:NNN` citations had rotted to
 unrelated code (replaced with file+symbol anchors, which do not rot), and two
 bounds were missing entirely — the public branch lagging this tree, and the
 safety-recall dependency pin. Both are now stated below.
-<!-- OPS-062 fix 062-1 (scout_full_3 §062 candidates); W3 entry gate -->
+<!-- Fix 1 from a check of every claim against the code; part of the beta entry gate -->
 
 ## Alpha state — advisory ceiling
 
@@ -45,7 +45,7 @@ Beta verification targets one (N=1) physical device plus an emulator
 API-level spread (30/34/36). As of 2026-07-10 the API-30 emulator has run a
 full walk (consent → live JMA fetch → watch row → alerts → airplane mode;
 `ladder_out/FINDINGS.md`); API 34/36 are honestly skipped so far; the
-physical-device hours are still ahead. "Works on HER cohort's phones" is
+physical-device hours are still ahead. "Works on the target drivers' phones" is
 not claimable from this matrix, and no text in this repo claims it.
 <!-- BETA_PLAN.md:30-32,127-134 -->
 
@@ -71,7 +71,7 @@ and the bare 該当なし is reserved for a reading the classifier actually judg
 - a field the station did not report → **判定不能** ("cannot judge");
 - a reading whose every field was present and in range, which the model still
   declined to judge → **判定範囲外** ("outside the judged range");
-- measured precipitation → **本ウォッチの対象外** (a visible-hazard lane owns a
+- measured precipitation → **本ウォッチの対象外** (a visible-hazard watch owns a
   wet or snowy road — a scope exclusion, never an all-clear);
 - below 0 °C, a dropped precipitation leaf still raises 路面凍結のおそれ rather
   than falling silent — the AMeDAS precip gauge ices over in exactly those
@@ -88,7 +88,7 @@ the model's +3.0 °C ceiling, every humidity from 5 % to 100 % declines
 published branch lags this tree" below.
 
 The boundary: geographic aggregation and clearly-labeled derivation from
-current observations are operation-class (e)/(β) under the AAA Article 17
+current observations are operation-class (e)/(β) under the Article 17
 check. Time-shifted derivation ("may freeze in 2 hours") and
 cross-source-fused prediction would require a forecasting permit
 (予報業務許可) under 気象業務法 第十七条 and are **not in scope** until that
@@ -174,7 +174,7 @@ device locale. This is a scoped bound, not a blanket "Japanese-only" app.
 
 The consent, advisory, and watch surfaces are Japanese-first
 (locale-following). App chrome outside those surfaces is still partially
-English; the ja floor (C5) is in progress and is not rescope currency.
+English; the ja floor (BETA_PLAN C5) is in progress and is not rescope currency.
 <!-- README.md:25; BETA_PLAN.md:92-94,218 -->
 
 ## GPS honesty; no background location

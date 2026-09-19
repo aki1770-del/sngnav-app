@@ -1,9 +1,9 @@
-/// OPS-066 render-SEE capture harness for the (e) confidence-gated maneuver
+/// Render-and-look capture harness for the (e) confidence-gated maneuver
 /// narration panel (session-scope; NOT a CI assertion).
 ///
 /// Produces fresh render PNGs of the `_maneuverNarrationPanel` banner
 /// (`Key('maneuver-narration-banner')` in `lib/main.dart`) in each
-/// confidence-gate state, so VAA can LOOK at them:
+/// confidence-gate state, so a reviewer can LOOK at them:
 ///   07 — SPEAK    (gpsTrusted, a right turn)   → the JA turn line
 ///   08 — SUPPRESS (lost / dead-reckoning)      → the honest 保留 silence line
 ///   09 — HEDGE    (gpsSuspect, DRY road)       → the softened line, NO icy coupling
@@ -58,11 +58,11 @@ import '../support/fake_alert_actuators.dart';
 
 
 
-/// The driver-facing localizer, exactly as the panel uses it (JA for HER).
+/// The driver-facing localizer, exactly as the panel uses it (JA by default).
 const _text = DriveHudLocalizer();
 
 /// A single right-turn maneuver (the same shape `capture_test`'s siblings use).
-/// Its ENGLISH `instruction` is the string that MUST NOT reach HER's surface.
+/// Its ENGLISH `instruction` is the string that MUST NOT reach the driver's surface.
 const _rightTurn = RouteManeuver(
   index: 1,
   instruction: 'Right onto Main St',
@@ -224,9 +224,9 @@ void main() {
       ),
     );
     await tester.pump();
-    // The raw English engine instruction must NEVER reach HER's surface.
+    // The raw English engine instruction must NEVER reach the driver's surface.
     expect(find.text('Right onto Main St'), findsNothing,
-        reason: 'raw English maneuver instruction must not be rendered to HER');
+        reason: 'raw English maneuver instruction must not be rendered to the driver');
     await expectLater(find.byType(MaterialApp), matchesGoldenFile(out));
   }
 

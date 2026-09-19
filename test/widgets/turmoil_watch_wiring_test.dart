@@ -1,11 +1,11 @@
-/// W3 turmoil surface — WIRING tests over the injected JMA fetch.
+/// Turmoil surface — WIRING tests over the injected JMA fetch.
 ///
 /// Max honest in-env verification (same bound as fake_alert_actuators.dart):
 /// proves the app EVALUATES the measured watch from a fetched observation,
 /// RENDERS the verdict row with honest per-channel bounds, and FIRES the
 /// transition-gated announce exactly once in the resolved spoken locale.
 /// It does NOT prove the driver hears anything — on-device HEAR is the
-/// device hour's job (OPS-066 DEFERRED-honest).
+/// device hour's job (DEFERRED, honestly).
 library;
 
 import 'package:flutter/material.dart';
@@ -93,7 +93,7 @@ void main() {
     );
   });
 
-  testWidgets('spoken lane follows the resolved locale (en)', (tester) async {
+  testWidgets('spoken channel follows the resolved locale (en)', (tester) async {
     final fake = FakeAlertActuators();
     await tester.pumpWidget(SngnavApp(
       actuators: fake,
@@ -111,7 +111,7 @@ void main() {
 
   testWidgets(
       'fetch failure (no cache) → honest failure card (no watch rows) + '
-      'the W0 absence-line speaks, no turmoil line',
+      'the absence-line speaks, no turmoil line',
       (tester) async {
     final fake = FakeAlertActuators();
     await tester.pumpWidget(SngnavApp(
@@ -127,9 +127,9 @@ void main() {
     // discipline as the existing 路面凍結ウォッチ behavior.
     expect(find.byKey(const Key('jma-fetch-failed')), findsOneWidget);
     expect(find.text('荒天ウォッチ:'), findsNothing);
-    // W0 detection-survival: with NO cached observation the honest absence-line
+    // Detection survival: with NO cached observation the honest absence-line
     // speaks (GAP-2 wiring) — silence-as-all-clear is the defect this removes.
-    // The turmoil (fast-hazard) lane stays silent.
+    // The turmoil (fast-hazard) path stays silent.
     expect(fake.spoken.where((s) => s.text.contains('路面状況を取得できていません')),
         hasLength(1));
     expect(fake.spoken.where((s) => s.text.contains('強い雨') || s.text.contains('風')),

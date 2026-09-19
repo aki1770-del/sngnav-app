@@ -1,9 +1,9 @@
-/// OPS-066 render-SEE captures for the W2 ladder fix-list (session-scope;
-/// NOT a CI assertion) — produces PNGs into `ladder_out/api30_fixed/` so VAA
+/// Render-and-look captures for the emulator-ladder fix list (session-scope;
+/// NOT a CI assertion) — produces PNGs into `ladder_out/api30_fixed/` so a reviewer
 /// can LOOK at the fixed surfaces beside the 2026-07-09 ladder evidence:
 ///
 ///   ladder_out/api30/02b_location_consent.png  → w2a_consent_card_en.png
-///   (+ the same card on HER ja surface         → w2a_consent_card_ja.png)
+///   (+ the same card on the ja surface         → w2a_consent_card_ja.png)
 ///   ladder_out/api30/05b_airplane_top.png      → w2c_threshold_preview.png
 ///
 /// Run with:
@@ -87,7 +87,7 @@ void main() {
     );
   });
 
-  testWidgets('w2a — consent card reflowed (ja, HER surface)', (tester) async {
+  testWidgets('w2a — consent card reflowed (ja surface)', (tester) async {
     await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
     await tester.pump();
     await captureApp(

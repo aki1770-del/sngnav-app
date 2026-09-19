@@ -23,13 +23,14 @@
 ///      1h`) in MET Norway, null in JMA and OWM. To express our
 ///      publisher-declared validity as an `Advisory.expires`, we would pour a
 ///      guarantee into the same field that carries a fabrication, and no
-///      consumer downstream could ever tell them apart again. That is NDI's
-///      Andon, walked straight into.
+///      consumer downstream could ever tell them apart again. That is the open
+///      flag on the adapter package, walked straight into.
 ///
 /// So the smaller honest change is the one taken: this source lives in the APP,
 /// keeps its own typed [ValidityWindow] with an explicit [ValidityProvenance],
 /// and never touches `Advisory`. The published package interface is UNCHANGED.
-/// NDI's Andon on `Advisory.expires` remains OPEN and is not claimed as fixed.
+/// The open flag on `Advisory.expires` in the adapter package remains OPEN and
+/// is not claimed as fixed.
 ///
 /// ── WHAT THIS IS NOT ────────────────────────────────────────────────────────
 /// It is NOT "announce a stale observation". Honest-absence and the cry-wolf

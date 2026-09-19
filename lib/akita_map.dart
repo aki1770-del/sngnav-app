@@ -6,7 +6,7 @@
 /// parent can drive an OSRM call. The widget itself stays presentational —
 /// no routing state lives here.
 ///
-/// HER-trace: HER's mother in Akita needs to SEE WHERE SHE IS, then SEE
+/// Why: a driver in Akita needs to SEE WHERE SHE IS, then SEE
 /// WHETHER A ROAD EXISTS to where she wants to go. Slice 1 answered the
 /// first; Slice 2b answers the second. Snow-aware routing is a later slice.
 library;
@@ -89,7 +89,7 @@ class AkitaMap extends StatelessWidget {
   /// She is sharing and no position event has arrived within 60 s of the
   /// position stream's subscription (with [positionLost] set). The words are
   /// the lost words, 現在地不明, and a screen reader hears their arrival once,
-  /// as a live region, never through the alert announcer (ruled 2026-09-14).
+  /// as a live region, never through the alert announcer (decided 2026-09-14).
   final bool positionNoneYet;
 
   /// Optional offline-first basemap provider (offline_tiles'
@@ -134,8 +134,8 @@ class AkitaMap extends StatelessWidget {
                 onTouchDown == null ? null : (_, _) => onTouchDown!(),
           ),
           children: [
-            // KNOWN_LIMITATION (WS5 / BOD-17 ruling 2 → offline PoC 2026-07-01):
-            // the basemap is a NETWORK tile layer. In HER worst-case —
+            // KNOWN_LIMITATION (offline proof of concept, 2026-07-01):
+            // the basemap is a NETWORK tile layer. In the worst case —
             // unexpected snow with Maps AND GPS down and no cell signal —
             // network tiles will not load, so the basemap goes blank. The
             // OFFLINE basemap fix (bundled MBTiles via the offline_tiles
@@ -341,7 +341,7 @@ class _EndpointMarker extends StatelessWidget {
   }
 }
 
-/// HER position dot. Its three states must stay distinct when colour is gone:
+/// The driver's position dot. Its three states must stay distinct when colour is gone:
 /// colour is the first channel glare, peripheral vision and colour-vision
 /// deficiency take away.
 ///
@@ -459,7 +459,7 @@ class _PositionWords extends StatelessWidget {
     Key? key;
     var liveRegion = false;
     if (positionRefused) {
-      // Location is off for this app: its own words, not 現在地不明 (ruled
+      // Location is off for this app: its own words, not 現在地不明 (decided
       // 2026-09-13). A permission result is the platform's exact answer, and
       // her decision is shown as a setting, not as a machine fault. Not gated
       // on positionLost: a refusal does not reach the drive brain, so lost is
@@ -497,7 +497,7 @@ class _PositionWords extends StatelessWidget {
       alignment: Alignment.topCenter,
       child: Padding(
         padding: const EdgeInsets.only(top: 8),
-        // A node of its own (ruled 2026-09-14): without `container`, the flag
+        // A node of its own (decided 2026-09-14): without `container`, the flag
         // merged into the map card's node, and a screen reader was read the
         // whole card instead of these words.
         child: liveRegion

@@ -1,4 +1,4 @@
-/// What HER map SAYS about her position, wherever the camera is.
+/// What the map SAYS about the driver's position, wherever the camera is.
 ///
 /// WHY, written before the act. Measured 2026-09-13 in the real app: 8.2 km
 /// out along Route 13 the map held no mark of her in any mode, while the line

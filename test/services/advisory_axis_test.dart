@@ -26,7 +26,7 @@
 ///
 /// The direction is settled and it is NOT "raise the rung": an outage is an
 /// unknown, not a hazard. Manufacturing a warning from a feed failure is the
-/// cry-wolf the Chair ruled against on 2026-07-23. We WITHHOLD THE
+/// cry-wolf the project decided against on 2026-07-23. We WITHHOLD THE
 /// REASSURANCE; we never manufacture the warning.
 library;
 
@@ -71,7 +71,7 @@ void main() {
         sourcesQueried: 0,
       ));
       expect(axis.level, isNull, reason: 'an outage is NOT a hazard — the '
-          'rung must not rise (no cry-wolf, Chair 2026-07-23)');
+          'rung must not rise (no cry-wolf, decided 2026-07-23)');
       expect(axis.completenessProven, isFalse,
           reason: 'nobody was asked, so we cannot claim the sky is quiet');
     });

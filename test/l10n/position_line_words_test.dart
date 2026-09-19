@@ -20,7 +20,7 @@
 /// * The type `MissingPluginException`, at any of the stream's platform calls,
 ///   is known as this device's absence of location, and gets the no-location-on-this-device line.
 /// * Reasons the app writes on a path it measured keep their words.
-/// * The route-panel sentence follows route setting, and the two ruled lines
+/// * The route-panel sentence follows route setting, and the two agreed lines
 ///   never carry it.
 library;
 
@@ -63,7 +63,7 @@ MissingPluginException _missing(String method) => MissingPluginException(
 
 void main() {
   group('no refusal from text', () {
-    test('a refusal\'s words with no typed cause get the ruled line', () {
+    test('a refusal\'s words with no typed cause get the agreed line', () {
       for (final reason in const [
         'Location permission denied',
         'Location permission permanently denied — change in OS settings',
@@ -123,7 +123,7 @@ void main() {
           _noPositionEn);
     });
 
-    test('the typed absence\'s line is the ruled bytes', () {
+    test('the typed absence\'s line is the agreed bytes', () {
       expect(ja.noLocationOnThisDeviceStatus, _noLocationHereJa);
       expect(en.noLocationOnThisDeviceStatus, _noLocationHereEn);
     });
@@ -162,7 +162,7 @@ void main() {
       }
     });
 
-    test('the two ruled lines never carry it', () {
+    test('the two agreed lines never carry it', () {
       for (final l in const [ja, en]) {
         expect(l.noLocationOnThisDeviceStatus, isNot(contains('ルート欄')));
         expect(l.noLocationOnThisDeviceStatus, isNot(contains('route panel')));

@@ -1,9 +1,9 @@
-# The Oct 31 route — what only the Chair can do, in order
+# The Oct 31 route — what only the project owner can do, in order
 
-Measured 2026-08-10 by AAE. Every Play figure below was read live from Google's own pages
+Measured 2026-08-10. Every Play figure below was read live from Google's own pages
 on that date, not recalled. **Today is 82 days from Oct 31, and 92 from first ice (Nov 10–25).**
 
-> **Independently re-measured the same day, second AAE pass.** Every Play figure in this
+> **Independently re-measured the same day, in a second pass.** Every Play figure in this
 > document was re-read from Google's own pages by a second turn that did not take the first
 > turn's word for any of them, and **every one held**: the 12-tester / 14-continuous-day /
 > closed-track rule and its "7 days or less" review, targetSdk 36 on 2026-08-31, 16 KB from
@@ -25,7 +25,7 @@ gates (`tool/preflight_play_upload.sh` → PASS: signed `CN=SNGNav Upload` valid
 targetSdk 36, every 64-bit library 16 KB-aligned, versionCode 2 unspent, and the permissions
 we declare identical to the five the app ships), so from an
 artifact standpoint we could upload this afternoon. What does not exist is a Google Play
-Console account, and nothing but the Chair's own legal identity and payment card can create
+Console account, and nothing but the owner's own legal identity and payment card can create
 one; it was due 2026-07-15 in our own plan and is 26 days late. So, in order:
 **(1) register a Play Console account as a PERSONAL account, not an organization** — an
 organization account needs a D-U-N-S number, which Google says "can take up to 30 days",
@@ -64,7 +64,7 @@ is the deadline actually worth putting in the calendar today.
 | Personal account registration | one-time fee; email + phone verified by OTP | — |
 | Identity / payment verification | "Verification can take up to 5 days" | ~Oct 20 for Oct 31 |
 | *(organization account instead)* | D-U-N-S "can take up to 30 days" | **avoid — do not choose this** |
-| App content declarations | Chair-hours, not days | with step 4 |
+| App content declarations | owner-hours, not days | with step 4 |
 | *(targetSdk 36 deadline)* | 2026-08-31, **extendable to 2026-11-01** on request | **n/a — we already target 36** |
 | First test link visible | "may take a few hours" on first publish | — |
 | Later builds to testers | "available to testers within minutes" | — |
@@ -107,13 +107,13 @@ is the deadline actually worth putting in the calendar today.
    that URL is registered with Play**, because a data-safety declaration that contradicts the
    app is a policy violation, and this one would have contradicted it on day one.
 2. **There are two divergent working trees of this app**, and only one should ever be built
-   for a tester. `/home/komada/tmp/sngnav-app` is on `main`; the copy under the masterplan
+   for a tester. `~/tmp/sngnav-app` is on `main`; the copy inside the project's planning
    directory sits on `feat/measured-hazard-rung-fusion` at 2026-07-27. Building from the
    wrong one hands a tester an older app while everyone believes otherwise. The preflight
    prints the commit and warns when the tree is dirty, but it cannot know which tree you
    meant.
 
-   *Re-measured 2026-08-15 (AAE), and the ahead-count that used to sit in this sentence is
+   *Re-measured 2026-08-15, and the ahead-count that used to sit in this sentence is
    removed rather than updated. It read "dated 2026-08-09, and is **8 commits ahead of the
    pushed remote**"; `git rev-list --left-right --count origin/main...HEAD` now returns
    `0 0`, because those commits were pushed on 2026-08-15. A hard-coded divergence count in
@@ -125,12 +125,12 @@ is the deadline actually worth putting in the calendar today.
    sideloaded apps begins **2026-09-30 in Brazil, Indonesia, Singapore and Thailand only**,
    expanding globally in 2027 — **Japan is not in the first wave**, so a Japanese tester can
    install our APK directly this autumn with no Play involvement at all. Two honest costs:
-   it does **not** satisfy our own criterion C3 ("release-signed build on Play internal
+   it does **not** satisfy our own BETA_PLAN criterion C3 ("release-signed build on Play internal
    testing; ≥1 tester installed via the track"), and it gives no update channel — every
    mid-season fix would be hand-delivered to every tester. Play is the better road. Sideload
    is the road that cannot be closed by a verification queue.
 
-## What changed on the second pass (2026-08-10, AAE)
+## What changed on the second pass (2026-08-10)
 
 **One figure moved, and it moves in our favour without helping us.** Play's target-API page
 also offers an **extension to 2026-11-01** for developers who need more time past Aug 31.

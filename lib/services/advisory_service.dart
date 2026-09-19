@@ -8,10 +8,10 @@
 /// providers whose publisher covers the query point.
 ///
 /// **Why region-gating (the defect this closes).** The raw aggregator
-/// fans a point query across EVERY provider. For HER Akita point
+/// fans a point query across EVERY provider. For the Akita point
 /// (39.7167, 140.0983) that called the US NWS endpoint — which has no
 /// Japan data, answered HTTP 400 every time (a useless error card), and
-/// leaked HER coordinate to a US service that cannot help her (a D4
+/// leaked the driver's coordinate to a US service that cannot help her (a
 /// dignity / privacy boundary). Coverage-gating means a Japan point is
 /// sent ONLY to JMA and NWS is never contacted; a US point is sent ONLY
 /// to NWS. A point covered by neither is sent to no one (honest: no

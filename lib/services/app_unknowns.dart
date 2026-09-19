@@ -13,13 +13,13 @@
 /// STATED rather than inferred from an absence.
 ///
 /// They never raise the caution rung. An outage is an unknown, not a hazard;
-/// manufacturing a warning from a feed failure is the cry-wolf the Chair ruled
-/// against on 2026-07-23. These rows withhold the reassurance instead.
+/// manufacturing a warning from a feed failure is the cry-wolf the project
+/// decided against on 2026-07-23. These rows withhold the reassurance instead.
 library;
 
 import '../l10n/app_localizations.dart';
 
-/// Liveness of the measured-weather (JMA observation) lane.
+/// Liveness of the measured-weather (JMA observation) feed.
 ///
 /// The two failure shapes are DISTINCT facts about the world and must not
 /// collapse: before this existed, a feed LOSS and a cold START both left the

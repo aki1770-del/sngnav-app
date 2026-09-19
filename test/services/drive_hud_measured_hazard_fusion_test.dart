@@ -1,11 +1,11 @@
 /// WS6+ — the measured-weather fusion into the compound caution rung.
 ///
-/// HER-trace: a MEASURED black-ice / turmoil watch (from live JMA) must RAISE
+/// Why: a MEASURED black-ice / turmoil watch (from live JMA) must RAISE
 /// the eyes-off rung she reacts to — so the banner cannot read 「走行を継続」while
 /// a measured hazard is firing on-screen — AND, when the hazard cannot even be
 /// located (untrusted position), compound to 「停車の検討」. The rung must NOT
-/// double-speak the specific hazard line (the watch lane already speaks it), and
-/// must NOT cry wolf. On-device HEAR/FEEL is DEFERRED (OPS-066 / AAE-1).
+/// double-speak the specific hazard line (the watch channel already speaks it), and
+/// must NOT cry wolf. On-device HEAR/FEEL is DEFERRED.
 library;
 
 import 'package:compound_failure_advisor/compound_failure_advisor.dart';
@@ -38,7 +38,7 @@ void main() {
 
   test(
       'a firing measured watch RAISES the banner (continue → heightened) but is '
-      'NOT spoken by the rung — the watch lane owns that line (no double-speak)',
+      'NOT spoken by the rung — the watch channel owns that line (no double-speak)',
       () async {
     final fake = FakeAlertActuators();
     final c = controllerWith(fake);
@@ -60,7 +60,7 @@ void main() {
     expect(c.effectiveAction, DriveAction.heightenedCaution);
     expect(c.currentSeverity, AlertSeverity.warning);
 
-    // The rung did NOT speak (the invisible-ice watch lane already speaks its
+    // The rung did NOT speak (the invisible-ice watch channel already speaks its
     // own specific line) and did NOT double-buzz.
     expect(fake.spoken, isEmpty,
         reason: 'no generic rung line over the watch\'s specific hazard line');
@@ -162,12 +162,12 @@ void main() {
   });
 
   test(
-      'MUST (OPS-068): a MUTED floor-only rise does NOT swallow a later GROUNDED '
+      'MUST: a MUTED floor-only rise does NOT swallow a later GROUNDED '
       'caution at the same rung — it still speaks + buzzes', () async {
     final fake = FakeAlertActuators();
     final c = controllerWith(fake);
     // Cycle 1: firing black-ice, trusted, clear → effective heightened, MUTED
-    // (advisor alone = continue; the watch lane owns the spoken line).
+    // (advisor alone = continue; the watch channel owns the spoken line).
     c.updateEnvironment(
       visibilityMeters: 1500,
       visibilityAgeSeconds: 0,
@@ -183,7 +183,7 @@ void main() {
 
     // Cycle 2: a real MODERATE area advisory now GROUNDS the same heightened
     // rung. Before the fix the muted rise had advanced the announce tracker, so
-    // this reached neither audio nor the OPS-059 haptic. It MUST speak now.
+    // this reached neither audio nor the accessibility haptic. It MUST speak now.
     c.updateEnvironment(
       visibilityMeters: 1500,
       visibilityAgeSeconds: 0,

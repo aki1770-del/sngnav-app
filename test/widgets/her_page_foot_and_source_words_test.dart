@@ -1,14 +1,14 @@
 /// The page foot and the prefecture weather card's source line keep what she
-/// needs, in her language, and nothing of the team's.
+/// needs, in her language, and none of the project's internal words.
 ///
 /// WHY, written before the act (2026-09-15). On 6d530fc the foot of her home
-/// page was one English paragraph in every language: "Akita station chosen
-/// because HER's mother lives there (V21)", "honest accuracy", "mock dot is
+/// page was one English paragraph in every language: why the Akita station was
+/// chosen, in the project's internal shorthand, "honest accuracy", "mock dot is
 /// amber (dev)", "5-station JMA verbatim (op-(e) aggregation only)" and seven
 /// package names. Beside them sat the one thing she needs from it, that routes
 /// do not consider snow, and where routes and weather come from. The
-/// prefecture weather card's source line cited one of the team's own rulings
-/// by its article number. Ruled 2026-09-15: the team's words and the package
+/// prefecture weather card's source line cited one of the project's internal
+/// decisions by its article number. Decided 2026-09-15: those words and the package
 /// names go; the foot keeps that routing does not consider snow and the
 /// attribution; the card keeps its data source.
 library;
@@ -23,7 +23,7 @@ import '../support/fake_alert_actuators.dart';
 final _cjk = RegExp(r'[぀-ヿ㐀-鿿]');
 
 /// The team's words and code names seen on these lines on 6d530fc, and the
-/// words the team uses for its own disciplines.
+/// words the project uses for its own disciplines.
 final _teamWords = RegExp(r'\bHER\b|\bV\d+\b|op-\(|Article|verbatim|'
     r'[Hh]onest|\(dev\)|[Cc]orridor|derivation');
 
@@ -92,7 +92,7 @@ void main() {
   });
 
   testWidgets('the prefecture weather card keeps its source, in her language, '
-      'and cites no ruling of the team', (tester) async {
+      'and cites no internal decision of the project', (tester) async {
     for (final lang in const ['ja', 'en']) {
       final l = AppL10n(Locale(lang));
       await _launch(tester, lang);

@@ -2,7 +2,7 @@
 // + voice-pace + AlertExplainerExpandableSheet (navigation_safety
 // 0.9.0 / voice_guidance 0.6.0).
 //
-// AAA Article 17 (β): tests verify behaviour at the integrator surface;
+// Article 17 (β): tests verify behaviour at the integrator surface;
 // driver-facing wording is package-owned and not exercised here.
 
 import 'package:flutter/widgets.dart' show Locale;

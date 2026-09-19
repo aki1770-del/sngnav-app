@@ -1,17 +1,17 @@
 /// C2 — OFFLINE SURVIVAL. The red test.
 ///
-/// BETA_PLAN.md:24
+/// BETA_PLAN.md, criteria scoreboard:
 ///   | C2 | Offline survival: map + alerts through airplane-mode mid-drive,
 ///          device-verified | ⬜ | — |
 ///
 /// C2 has been written since 2026-07-08 and has bound NOTHING: no CI job, no
 /// hook, no test ever consumed its ⬜. Nobody attempted it — and that is what
 /// concealed that it is currently UNSATISFIABLE BY CONSTRUCTION. This file makes
-/// C2 cross a tool boundary for the first time (L34: a guard is not INSERTED
+/// C2 cross a tool boundary for the first time (a guard is not INSERTED
 /// until it has been PROVEN to FAIL; §11 WHY-9: a verdict that crosses no tool
 /// boundary is optional exactly when it is most needed).
 ///
-/// THE GENBA (measured 2026-07-12, not designed). HER phone, 90 minutes into the
+/// THE REAL SITUATION (measured 2026-07-12, not designed). The driver's phone, 90 minutes into the
 /// drive to her mother in Akita, network gone, GPS degraded:
 ///
 ///   MAP      present — assets/tiles/akita_offline.mbtiles (16 MB, bundled)
@@ -30,7 +30,7 @@
 /// can actually emit, and 8 of its 10 WAVs matched no emittable string at all. It
 /// could not say a single hazard line. RE-DERIVED from the runtime emissions:
 /// 37/37 covered, 0 dead, proven present in the built APK. NOBODY HAS HEARD IT
-/// PLAY ON HER PHONE YET — that is still owed.
+/// PLAY ON A REAL PHONE YET — that is still owed.
 ///
 /// WHAT THIS TEST DOES NOT ASK FOR. It does NOT ask us to announce a stale
 /// reading as if it were live. Honest-absence and the cry-wolf discipline stand
@@ -67,7 +67,7 @@
 /// plan time (and, later, what the phone genuinely senses: clock, last fix,
 /// dead-reckoned motion, the on-device bridge/elevation asset). RED-2 closes
 /// when the finite ja SAFETY vocabulary is pre-rendered into bundled audio with
-/// zero TTS and zero network dependency (Chair-ruled 2026-07-12: synth now,
+/// zero TTS and zero network dependency (decided 2026-07-12: synth now,
 /// human-record the safety core before winter). RED-2 is GREEN as of the
 /// re-derived 37-phrase mouth; RED-1 remains RED and is left RED deliberately.
 ///
@@ -139,7 +139,7 @@ void main() {
           isTrue,
           reason: 'The stale OBSERVATION must STILL expire at T+90. If this '
               'ever flips, someone widened the retain window to make a test '
-              'pass, and HER phone is now announcing a 90-minute-old reading '
+              'pass, and the phone is now announcing a 90-minute-old reading '
               'as though it were the road in front of her.',
         );
         expect(kSlowHazardRetainWindow, const Duration(minutes: 60));
@@ -227,7 +227,7 @@ silent-then-hung offline on her phone — there is no offline ja voice on it.
 
 HONEST BOUND (not closed by this test): these bytes are proven to be in the APK
 (unzip -l | grep audio/ja) and proven to match the emitted strings. NOBODY HAS
-YET HEARD THEM PLAY ON HER PHONE. On-device hearing verification is still owed
+YET HEARD THEM PLAY ON A REAL PHONE. On-device hearing verification is still owed
 and is NOT claimed here.
 ''',
         );

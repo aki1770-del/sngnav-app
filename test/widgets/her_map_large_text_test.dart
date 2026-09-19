@@ -11,7 +11,7 @@
 /// The rule tested here: no exception while her first screen lays out at
 /// scale 1.5 or 2.0, at launch and after a refusal for good. The positions of
 /// the map, the line under it and 閉じる against the fold are printed as
-/// MEASURES, not asserted: where they should sit at large text is not ruled.
+/// MEASURES, not asserted: where they should sit at large text is not decided.
 ///
 /// Real glyph metrics matter here: with the default test font the marker
 /// fits, so this test loads a real CJK face first and refuses to pass without

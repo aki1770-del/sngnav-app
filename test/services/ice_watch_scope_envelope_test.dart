@@ -19,10 +19,10 @@
 ///   cal:163  RH outside [5,105]        -> false   DECLINE (rejected input, cal:146-151)
 ///   cal:174  fires only when est <= 0  -> false   DECLINE (documented non-coverage)
 ///
-/// N3 is documented verbatim (cal:112-115): "near-zero SATURATED FREEZING FOG
+/// The cal:174 non-coverage is documented verbatim (cal:112-115): "near-zero SATURATED FREEZING FOG
 /// above ~+1 C (dew point >= 0) is therefore NOT detected by this model — a
 /// genuine hazard this function does not cover."
-/// N2 is the cleaner instance: the package calls sub-5% RH "almost certainly a
+/// The cal:163 rejection is the cleaner instance: the package calls sub-5% RH "almost certainly a
 /// mis-wired FRACTION" (cal:146-151) and REJECTS it — and the app renders that
 /// rejection to her as an all-clear.
 ///
@@ -38,22 +38,23 @@
 ///     A term inside the fire condition is part of the determination.
 ///   * cal:135-153 enumerates EVERY rejected input class — null/NaN/inf RH,
 ///     (100,105], >105, <5, non-finite ambient. The ceiling is NOT among them.
-/// Contrast the three speech acts: N1 asserts about the world, N3 confesses a
-/// hole, N2 refuses an input. "The model equally cannot fire above the ceiling"
+/// Contrast the three speech acts: the ceiling (cal:159) asserts about the world,
+/// the non-coverage (cal:174) confesses a hole, the rejection (cal:163) refuses an
+/// input. "The model equally cannot fire above the ceiling"
 /// proves too much — EVERY negative determination is a region where a model
 /// cannot fire; that is what a negative determination looks like.
 /// HONEST BOUND: ground 3 rests on prose that is itself internally
 /// inconsistent — the (100,105] bullet sits under "EVERY rejected input class
 /// returns false" and measurably does not (isRadiativeFrostBlackIce(-1.0, 102)
-/// returns TRUE). Grounds 1 and 2 carry the ruling alone. FALSIFIER: if
+/// returns TRUE). Grounds 1 and 2 carry the decision alone. FALSIFIER: if
 /// upstream moves the ceiling into the decline list or ships a tri-state, this
-/// ruling flips. Cheap to re-check on every version bump.
+/// decision flips. Cheap to re-check on every version bump.
 /// The DISCONTINUITY at the ceiling is real and is GUARD 3's, not this
 /// predicate's.
 ///
-/// ── WHAT THIS FILE IS (OPS-070(B): the reason, written before the act) ──
+/// ── WHAT THIS FILE IS (the reason, written before the act) ──
 /// It measures the boundary and guards it. Authored in Stage 1 with all three
-/// guards PROVEN RED against the unfixed app (L34 — a guard is not INSERTED
+/// guards PROVEN RED against the unfixed app (a guard is not INSERTED
 /// until it has been proven to fail), then UNSKIPPED in Stage 2 when the
 /// countermeasure landed and turned them green.
 ///
@@ -66,7 +67,7 @@
 /// ── SCOPE OF THE GUARDS, AND WHY THEY ARE BOUNDED ──
 /// The FIRST draft selected on `t > 0 && dewPoint >= 0` with NO upper bound.
 /// Five review lenses measured that forbidding 該当なし up to +35 C, across
-/// ~66% of every above-zero all-clear — the Chair's 2026-07-23 cry-wolf
+/// ~66% of every above-zero all-clear — the 2026-07-23 cry-wolf
 /// calibration inverted into over-abstention. Its apparent narrowness was an
 /// artifact of the fixture list stopping at +3.0. Bounding it cost ZERO
 /// offenders on this fixture and removed the entire unbounded reach.
@@ -74,12 +75,12 @@
 /// ── A COMMITTED TEST THIS CONTRADICTS ──
 /// test/services/invisible_ice_watch_test.dart:141-145 asserts
 /// `temp 2.0 / humidity 90 / precip 0 == clear` (measured estimate +0.5320 ->
-/// an N3 decline). That is GUARD 1 offender #8, and CI actively defends it.
+/// a cal:174 decline). That is GUARD 1 offender #8, and CI actively defends it.
 /// Stage 2 rewrites it; Stage 1 annotates it in place. Its sibling at :136-139
 /// (8.0 C / 70 %, above the ceiling) must SURVIVE unchanged — it is the proof
 /// that Stage 2 did not re-import over-abstention.
 ///
-/// ── HONEST BOUND ON PRIORITY (OPS-070(C)) ──
+/// ── HONEST BOUND ON PRIORITY ──
 /// Live JMA reads on 2026-08-01 confirmed the app's five `corridorStations` at
 /// 96-100 % RH — but at 21.7-25.6 C. An August reading establishes a humid
 /// corridor; it does NOT establish that saturated air within a degree of
@@ -100,7 +101,7 @@ import 'package:sngnav_app/services/invisible_ice_watch.dart';
 /// DELIBERATELY A SECOND, INDEPENDENT LITERAL. Production owns
 /// `kJmaTemperatureStepCelsius` in lib/services/invisible_ice_watch.dart, and
 /// this guard does NOT import it: a guard that reads its bound from the code it
-/// audits cannot catch that bound being widened (OPS-065(A), advocate ≠
+/// audits cannot catch that bound being widened (advocate ≠
 /// verifier).
 ///
 /// CORRECTED 2026-08-01 (review MUST-10, CONFIRMED). An earlier version of this
@@ -140,10 +141,10 @@ bool classifierDeclinedToJudge({
   required double? rhPercent,
 }) {
   if (!t.isFinite) return true; // cal:158 — rejected input
-  if (t > radiativeFrostAmbientCeilingCelsius) return false; // cal:159 — N1
+  if (t > radiativeFrostAmbientCeilingCelsius) return false; // cal:159 — the ceiling
   final rh = rhPercent;
   if (rh == null || !rh.isFinite) return true; // cal:162
-  if (rh < 5.0 || rh > 105.0) return true; // cal:163 — N2
+  if (rh < 5.0 || rh > 105.0) return true; // cal:163 — rejected humidity
   // cal:165 — the >100 clamp. NOT optional: computeEffectiveTemperatureCelsius
   // THROWS ArgumentError on any humidityRH > 1.0 (cal:65-71), so omitting this
   // line makes the guard CRASH across (100,105], not merely disagree.
@@ -152,7 +153,7 @@ bool classifierDeclinedToJudge({
     ambientCelsius: t,
     humidityRH: fraction,
   );
-  return dew > radiativeFrostSurfaceTempCelsius; // cal:174 — N3
+  return dew > radiativeFrostSurfaceTempCelsius; // cal:174 — documented non-coverage
 }
 
 /// Dew point via the calibration primitive, or null OUTSIDE the classifier's
@@ -241,7 +242,7 @@ void main() {
     'IN-BAND SIGN PIN (permanent, must stay GREEN) — inside the band, a cell '
     'declines regardless of the estimate\'s sign',
     () {
-      // ADDED 2026-08-01 (build-track review, SDE MUST). The in-band branch
+      // ADDED 2026-08-01 (build review, required). The in-band branch
       // originally abstained only when the estimate was <= 0, which left 20
       // reachable cells at 3.1 C / RH 81-100 printing a bare 該当なし with the
       // estimate ABOVE freezing — cal:112-115's non-coverage band verbatim.
@@ -268,7 +269,7 @@ void main() {
         isTrue,
       );
       // CLASS B — the out-of-domain humidities. Added after the build-track
-      // review (SDE SHOULD, CT MUST): the first version of this pin looped
+      // review (required): the first version of this pin looped
       // rh 5..105 only, so it covered the 20 in-domain cells (Class A) and was
       // BLIND to a second, disjoint class of 98 cells.
       //

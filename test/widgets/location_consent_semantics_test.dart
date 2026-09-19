@@ -1,6 +1,6 @@
-// W2 ladder fixes (a) + (b) — the location-consent card.
+// Emulator-ladder fixes (a) + (b) — the location-consent card.
 //
-// (b) OPS-059 correction-class: the emulator ladder flagged the consent
+// (b) accessibility correction: the emulator ladder flagged the consent
 // actions' semantics (ladder_out/api30/ui_dump_06.xml showed
 // bounds=[0,0][0,0]; FINDINGS.md item 2). This test pins the assistive-tech
 // floor: both consent actions must expose BUTTON semantics with a TAP

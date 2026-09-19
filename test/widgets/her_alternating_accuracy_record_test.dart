@@ -15,7 +15,7 @@
 /// Whether any platform alternates like this is UNVERIFIED: Android decides
 /// per fix whether to send an accuracy, iOS and Windows always send one, web
 /// and Linux never do. Whether this is acceptable is not decided here. This
-/// file pins what the app does, so a ruling that changes it changes a named
+/// file pins what the app does, so a decision that changes it changes a named
 /// test. Nothing here adds or removes a sound.
 library;
 
@@ -118,7 +118,7 @@ Future<(int, int, int)> _minute(WidgetTester tester,
 
 void main() {
   testWidgets(
-      'recorded, not ruled: in a measured clear 1,500 m, samples alternating '
+      'recorded, not decided: in a measured clear 1,500 m, samples alternating '
       'measured and unmeasured once a second give 30 spoken cautions, 30 '
       'warning haptics and 59 changes of her mark in 60 s', (tester) async {
     final allMeasured = await _minute(tester, alternate: false);

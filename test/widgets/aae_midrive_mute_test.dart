@@ -1,9 +1,9 @@
-// AAE 2026-09-02, re-landed on `0bc7351` 2026-09-19 — the LAST HOP:
+// Added 2026-09-02, re-landed on `0bc7351` 2026-09-19 — the LAST HOP:
 // a mid-drive mute at a NON-ZERO volume index.
 //
 // `streamMuted` exists precisely because index and mute are two different
 // Android facts (audio_readiness.dart, MainActivity.kt `sngnav/audio_readiness`).
-// This test asks the only question that matters for HER: when the platform
+// This test asks the only question that matters for the driver: when the platform
 // flips STREAM_MUSIC to muted WITHOUT moving the volume index, does the
 // caution reach her screen?
 //
@@ -55,7 +55,7 @@ void main() {
     streamMuted: true,
   );
 
-  testWidgets('MID-DRIVE mute at an UNCHANGED index reaches HER screen',
+  testWidgets('MID-DRIVE mute at an UNCHANGED index reaches the driver\'s screen',
       (tester) async {
     final probe = _SequenceProbe([audibleAtIndex5, mutedAtIndex5]);
     await tester.pumpWidget(SngnavApp(
@@ -78,7 +78,7 @@ void main() {
     expect(probe.reads, greaterThanOrEqualTo(2),
         reason: 'the ticker must actually have re-polled');
 
-    // HER screen must now say the spoken lane is silent.
+    // The driver's screen must now say the spoken channel is silent.
     expect(find.byKey(cautionKey), findsOneWidget,
         reason: 'STREAM_MUSIC went MUTED at an unchanged volume index — the '
             'exact case streamMuted was added for. She is driving toward a '

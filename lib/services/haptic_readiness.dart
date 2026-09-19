@@ -1,9 +1,8 @@
 /// Pre-drive readiness of the TACTILE channel — the probe the audio channel
 /// always had and this one did not.
 ///
-/// **Why this exists.** AAA's 2026-08-22 verdict
-/// (`outputs/operational-records/aaa_verdict_eyes_off_channel_boundary_2026_08_22.md`)
-/// ruled PUSHBACK, load-bearing, on a measured asymmetry: `_probeAudioCautions()`
+/// **Why this exists.** A safety review on 2026-08-22 pushed back,
+/// load-bearing, on a measured asymmetry: `_probeAudioCautions()`
 /// fired at four triggers — app open, a 45 s ticker, real drive start, mock
 /// drive start — under this app's own comment *"the drive is when a mute
 /// matters"*. The tactile channel had none of them. Its only readiness call
@@ -13,8 +12,8 @@
 /// had not — on the channel that, for a deaf or hard-of-hearing driver, is not
 /// the second one.
 ///
-/// AAA named the remedy and did not build it (its bylaws forbid authoring
-/// code); this file is AAE's build of it, on the same cadence as the audio
+/// The review named the remedy without building it; this file builds it,
+/// on the same cadence as the audio
 /// probe by construction — see `_probeAlertChannelReadiness` in `main.dart`
 /// and the anti-drift test in `test/actuators/haptic_report_wiring_test.dart`.
 library;
@@ -62,7 +61,7 @@ final class DriverHapticReadinessProbe implements HapticReadinessProbe {
     } catch (_) {
       // TimeoutException / PlatformException / MissingPluginException /
       // anything: unreadable is UNKNOWN, never "no vibrator". Reporting a
-      // fault as an absence would put a caution on HER screen about a device
+      // fault as an absence would put a caution on the driver's screen about a device
       // we never actually asked.
       return null;
     }

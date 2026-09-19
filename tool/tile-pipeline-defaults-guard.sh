@@ -40,7 +40,7 @@ command -v sqlite3 >/dev/null || { echo "SUBSTRATE ERROR: sqlite3 absent"; exit 
 # touches the renderer or the shipped archive.
 if [[ "$SELFTEST" == "1" ]]; then
   SELF="$(readlink -f "$0")"
-  # FBR FINDING F4, 2026-08-16 — HARDENED. `T=$(mktemp -d)` was unchecked: with
+  # REPRODUCTION-REVIEW FINDING F4, 2026-08-16 — HARDENED. `T=$(mktemp -d)` was unchecked: with
   # TMPDIR unwritable, T is empty, every "$T/..." becomes an absolute path at /,
   # and the fixtures silently do not exist. A self-test that cannot make its own
   # fixtures must say so, not test nothing.
@@ -65,10 +65,10 @@ if [[ "$SELFTEST" == "1" ]]; then
     echo "  FAIL  fail-open: guard PASSED having compared nothing"; st_fail=1
   else echo "  PASS  fail-open correctly REJECTED (compared nothing => RED)"; fi
 
-  # ADVERSARIAL-REVIEW C2: REQUIRED_FIELDS is half the Defect-1 fix and had no case —
+  # ADVERSARIAL REVIEW finding 2: REQUIRED_FIELDS is half the Defect-1 fix and had no case —
   # deleting it left --self-test still reporting OK. An archive keeping the
   # incidental fields but missing name/bounds/center must be REJECTED.
-  # ⚑ FBR FINDING F4, 2026-08-16 — THIS CASE FAILED OPEN AND IT IS THE WORST
+  # ⚑ REPRODUCTION-REVIEW FINDING F4, 2026-08-16 — THIS CASE FAILED OPEN AND IT IS THE WORST
   # PLACE IN THIS FILE FOR THAT, because it is the case that exists to prove
   # REQUIRED_FIELDS is alive. Measured: with `cp` shimmed to exit 1 AND
   # REQUIRED_FIELDS deliberately blanked, this printed `self-test 5/5 OK`,
@@ -82,7 +82,7 @@ if [[ "$SELFTEST" == "1" ]]; then
   #   1. the copy actually happened,
   #   2. the fixture is a real, readable archive that HAS the fields, and
   #   3. the DELETE actually removed them.
-  # This is the same discipline the sibling guard learned as FBR defect-2 last
+  # This is the same discipline the sibling guard learned as reproduction-review defect 2 last
   # round; carrying it into this file is the whole point — "a countermeasure
   # preserved in one file and not carried into the next is the defect this
   # commit is about" (tile-archive-identity-guard.sh:103).
@@ -100,8 +100,8 @@ if [[ "$SELFTEST" == "1" ]]; then
       if [ "${_post:-1}" -ne 0 ]; then
         echo "  FAIL  DELETE did not remove the identity fields (pre=$_pre post=${_post:-unreadable}) — mutation never took"; st_fail=1
       else
-        # ⚑ FBR ROUND-3: `pre>0 && post==0` proves THE DELETE RAN. It does not
-        # prove REQUIRED_FIELDS did the rejecting. FBR demonstrated the gap with
+        # ⚑ REPRODUCTION-REVIEW ROUND 3: `pre>0 && post==0` proves THE DELETE RAN. It does not
+        # prove REQUIRED_FIELDS did the rejecting. The reproduction review demonstrated the gap with
         # two coordinated edits — blank REQUIRED_FIELDS plus one unrelated
         # fail-closed assertion of exactly the kind this file gains every round
         # — and got `self-test 5/5 OK`, exit 0, printing "mutation proven".
@@ -161,7 +161,7 @@ if grep -q '^LOAD_ERROR|' <<<"$DEFAULTS"; then
 fi
 
 fail=0
-compared=0        # CT-CERT defect 1: a guard that PASSES having compared NOTHING
+compared=0        # certification defect 1: a guard that PASSES having compared NOTHING
                   # is a permanently green guard. With SNGNAV_PY=/bin/true the
                   # default block emitted nothing, the loop never ran, and this
                   # script printed PASS. "A gate that skips when it cannot check
@@ -204,7 +204,7 @@ while IFS='|' read -r k v; do
 done <<<"$DEFAULTS"
 
 echo
-# FAIL-CLOSED ASSERTION (CT-CERT defect 1). Silence is not success: if nothing
+# FAIL-CLOSED ASSERTION (certification defect 1). Silence is not success: if nothing
 # was compared, this guard has measured nothing and must say so rather than
 # print PASS. Falsifier, re-runnable by anyone:
 #     SNGNAV_PY=/bin/true ./scripts/tile-pipeline-defaults-guard.sh; echo $?

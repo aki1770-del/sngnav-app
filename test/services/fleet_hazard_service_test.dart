@@ -67,7 +67,7 @@ void main() {
       final zones = svc.currentZones(now: now);
       expect(zones, hasLength(1));
       // fleet_hazard 0.5.0 anonymizes the aggregate: the retained observations
-      // no longer carry vehicleId (the D4 re-identification key was removed), so
+      // no longer carry vehicleId (the re-identification key was removed for privacy), so
       // verify the stale report aged out via the non-re-identifying surface —
       // exactly one observation remains, contributed by exactly one vehicle, and
       // it is the FRESH one (V-new's timestamp), not the stale V-old.

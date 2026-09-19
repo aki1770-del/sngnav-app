@@ -98,6 +98,6 @@ The case this app exists for is the one where Google Maps has failed **and** GPS
 
 ---
 
-*Written by AAE against the criteria at `outputs/plans/sngnav_app_0_0_2_criteria_2026_09_18.md`.
+*Written against the 0.0.2 release criteria (2026-09-18; kept outside this repository).
 Anything above that is a measurement carries the date it was measured. Where a thing was not
 observed, this file says so rather than leaving the space blank.*

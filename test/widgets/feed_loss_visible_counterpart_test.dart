@@ -1,4 +1,4 @@
-/// N15 — every feed-loss SPOKEN line has a VISIBLE counterpart, and the panel
+/// Every feed-loss SPOKEN line has a VISIBLE counterpart, and the panel
 /// never contradicts the speaker.
 ///
 /// Founding defect: during feed loss the JMA panel said 'Cached data is NOT
@@ -16,7 +16,7 @@
 ///       green if both channels drifted together; comparing across the two
 ///       real channels cannot).
 ///
-/// Honest bound (OPS-066): widget-level code verification only — on-device
+/// Honest bound: widget-level code verification only — on-device
 /// rendering, real feed-loss timing, and audibility are DEFERRED to the next
 /// APK pass.
 library;
@@ -375,7 +375,7 @@ void main() {
     // the load-bearing clauses are 出発前 + 観測ではありません).
     expect(find.textContaining('出発前'), findsWidgets);
     expect(find.textContaining('観測ではありません'), findsOneWidget);
-    // And the observation lane is honestly empty — the card is never dressed
+    // And the observation feed is honestly empty — the card is never dressed
     // as an observation.
     expect(find.byKey(const Key('jma-no-valid-observation')), findsOneWidget);
     expect(find.byKey(const Key('conditions-unknown-visible')), findsNothing);

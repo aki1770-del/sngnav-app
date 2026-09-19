@@ -1,13 +1,13 @@
-# On-Device OPS-066 Verify — Published JA Narration + Voice (the 10-minute act)
+# On-Device Verify — Published JA Narration + Voice (the 10-minute act)
 
-**Owner**: AAE (android-app-engineer). **Status**: **DEFERRED — no PHYSICAL
+**Owner**: the app maintainer. **Status**: **DEFERRED — no PHYSICAL
 Android device. An emulator exists and has been walked.** Everything below is
 PREPARED; the moment a phone is plugged in, this is a ~10-minute verification,
 not a build session.
 
-> **Corrected 2026-08-09 (AAE, OPS-RULE-002).** This line read *"no Android
+> **Corrected 2026-08-09.** This line read *"no Android
 > device in the build environment"* and was **false as written**, contradicted
-> ~32 lines below in this same file (`SDK /home/komada/android-sdk`, registered
+> ~32 lines below in this same file (`SDK ~/android-sdk`, registered
 > via `flutter config`) and by **71 files tracked in git** at `ladder_out/` — a
 > full API-30 emulator walk dated **2026-07-09**, with a 2026-07-10 airplane-mode
 > pass appended. The stale sentence was mine and stood for a month; a later
@@ -46,8 +46,8 @@ speak as `危険。…` (critical) / `注意。…` (warning); off-route as
   **no ACCESS_BACKGROUND_LOCATION** (dignity floor intact).
 - `flutter analyze` clean; `flutter test` all 198 pass on the bumped deps.
 - Toolchain persists (no scratch rebuild needed next time):
-  SDK `/home/komada/android-sdk` (platform 34+36, build-tools 36.0.0,
-  cmake 3.22.1), JDK `/home/komada/android-sdk/jdk-21.0.11+10`, both registered
+  SDK `~/android-sdk` (platform 34+36, build-tools 36.0.0,
+  cmake 3.22.1), JDK `~/android-sdk/jdk-21.0.11+10`, both registered
   via `flutter config --android-sdk … --jdk-dir …`.
 
 ## Rebuild-if-stale (only if the tree changed since the APK's mtime)
@@ -79,7 +79,7 @@ the app's JA strings directly (the l10n keys are locale-driven).
 
 - [ ] Before any grant: the JA deny-by-default line shows —
       `位置情報はまだ共有されていません。` — and NO permission dialog has
-      appeared uninvited (deny-by-default: nothing touches GPS until HER act).
+      appeared uninvited (deny-by-default: nothing touches GPS until her own act).
 - [ ] Tap `現在地を共有` (Share my location) → the **OS** permission dialog
       appears, in Japanese, offering while-in-use only.
 - [ ] Deny once → the app degrades honestly (JA permission-state message, e.g.
@@ -88,7 +88,7 @@ the app's JA strings directly (the l10n keys are locale-driven).
 
 ### 3. Live location dot (1 min)
 
-- [ ] Grant while-in-use → HER position dot renders on the map (real GPS; or
+- [ ] Grant while-in-use → the driver's position dot renders on the map (real GPS; or
       `adb emu geo fix <lon> <lat>` on the emulator).
 - [ ] Revoke mid-session (Settings → Apps → sngnav_app → Permissions) → the dot
       degrades toward `lost` honestly; no stale confident dot.
@@ -124,19 +124,19 @@ needs network; INTERNET permission is in the APK.
 ### 6. Whiteout modality — eyes-off (2 min)
 
 - [ ] Drive the caution rung to `considerStopping` (WS6 panel) → **audio AND
-      haptic fire together** (OPS-059 floor: the deaf/HoH driver gets the
+      haptic fire together** (accessibility floor: the deaf/HoH driver gets the
       haptic; the whiteout-blinded driver gets the audio).
 - [ ] Screen is HELD LIT (wakelock) — a glance never finds a dark screen.
 - [ ] De-dup: a steady rung does not re-announce every tick; a re-RISE does.
 
-### 7. Record per OPS-066 (1 min)
+### 7. Record what you saw (1 min)
 
 - [ ] Screenshots: `adb exec-out screencap -p > run_out/verify_<step>_<date>.png`
       for steps 2, 3, 4 (consent JA / dot / JA maneuvers).
 - [ ] Log: `adb logcat -d -s flutter > run_out/verify_<date>.log`.
 - [ ] Append PASS/FAIL + device model + Android version + date per item to
-      this file (a FAIL is an Andon, not a footnote — OPS-066 clause B: a
-      caught overstatement fires the cord same turn).
+      this file (a FAIL is a stop, not a footnote: a caught overstatement is
+      corrected on the record the same day).
 - [ ] Only after every box above is checked on a REAL device may any surface
       claim "JA narration + voice verified on-device". Until then the claim
       stays: *code-complete, analyze-clean, 198 tests green, APK built —

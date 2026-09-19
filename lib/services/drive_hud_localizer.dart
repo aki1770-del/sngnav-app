@@ -1,18 +1,19 @@
 /// WS6 — driver-facing localization for the in-drive caution surface.
 ///
 /// `compound_failure_advisor` deliberately returns ENUMS, not prose, so the
-/// integrator localizes for HER — the Chair's Japanese-reading mother in Akita.
+/// integrator localizes for the driver it is built for: a Japanese-reading
+/// older driver in Akita.
 /// This class is that localization: honest, calm, and faithful to the package's
 /// doctrine.
 ///
-/// Faithfulness that matters for HER safety:
+/// Faithfulness that matters for the driver's safety:
 ///  - The ceiling rung is *consider stopping* — an INVITATION she owns, never a
 ///    command, and NEVER "turn back" (the package structurally has no turn-back
 ///    rung; the worst case demotes the MAP, never the JOURNEY to her mother).
 ///  - The lowest rung (`continueDriving`) HEADLINE is CHOICE-NEUTRAL — it states
 ///    the honest STATE («no elevated caution» / 「特段の注意なし」), it does NOT tell
 ///    her to continue/proceed/go and it does NOT reassure ("safe"/"clear"). This
-///    is Design-Floor Refusal #1 (Chair, 2026-07-19): the instrument serves the
+///    is Design-Floor Refusal #1 (decided 2026-07-19): the instrument serves the
 ///    WHEEL — honest information so the DRIVER decides — never a confidence-to-
 ///    continue. The visual headline once read 「走行を継続」/"Continue", which
 ///    ADVOCATED GO; that breach is removed here. Firing basis: this rung fires
@@ -32,7 +33,7 @@
 ///    is retired. The countermeasure is [actionHeadline]'s scoping flags —
 ///    when an input could not be confirmed the caller qualifies the claim
 ///    rather than raising the rung, because an outage is an unknown and not a
-///    hazard (no cry-wolf; Chair 2026-07-23). See
+///    hazard (no cry-wolf; decided 2026-07-23). See
 ///    `services/advisory_axis.dart` for the measured asymmetry.
 ///  - The voice channel already honours this: `spokenGuidance(continueDriving)`
 ///    returns "" (say nothing). This headline is the visual parity of that
@@ -42,11 +43,11 @@ library;
 import 'package:compound_failure_advisor/compound_failure_advisor.dart';
 import 'package:localization_fallback/localization_fallback.dart';
 
-/// The ja words spoken before a line raised by a test value (AAA R52, AQ4).
+/// The ja words spoken before a line raised by a test value.
 /// Bundled offline as its own clip (`test_value_prefix`).
 const String kTestValueSpokenPrefixJa = 'テスト値です。';
 
-/// Localizes the advisory-only in-drive vocabulary into HER language.
+/// Localizes the advisory-only in-drive vocabulary into the driver's language.
 class DriveHudLocalizer {
   const DriveHudLocalizer();
 
@@ -64,7 +65,7 @@ class DriveHudLocalizer {
   /// 「特段の注意なし」 is a claim about the WHOLE picture, so it may only be
   /// printed unscoped when the whole picture was measured. The three flags let
   /// the caller qualify it — they NEVER raise the rung, because an outage is
-  /// an unknown and not a hazard (no cry-wolf; Chair 2026-07-23). We withhold
+  /// an unknown and not a hazard (no cry-wolf; decided 2026-07-23). We withhold
   /// the reassurance; we never manufacture the warning.
   ///
   ///  - [advisoryUnconfirmed] — the advisory lookup could not prove it was
@@ -73,7 +74,7 @@ class DriveHudLocalizer {
   ///    (cold start) or could not be read (feed loss).
   ///  - [calmNoteInForce] — everything WAS read, and a calm note is in force
   ///    that deliberately does not raise the rung (the sub-zero
-  ///    frozen-surface chip, Chair 2026-07-23). A chip reading 路面凍結のおそれ
+  ///    frozen-surface chip, decided 2026-07-23). A chip reading 路面凍結のおそれ
   ///    directly above an unscoped 「特段の注意なし」 is a glance-level
   ///    contradiction; the chip is correct, so the headline is what yields.
   ///
@@ -137,7 +138,7 @@ class DriveHudLocalizer {
   }
 
   /// Spoken, as its own utterance, before any line a value nobody measured
-  /// raised (AAA R52, AQ4): the voice says what the card line says.
+  /// raised: the voice says what the card line says.
   String testValueSpokenPrefix(String localeTag) =>
       _isJa(localeTag) ? kTestValueSpokenPrefixJa : 'Test value.';
 
@@ -145,7 +146,7 @@ class DriveHudLocalizer {
   /// how much to believe the dot.
   ///
   /// [isMock] — the estimate came from the Akita mock position, not from the
-  /// device. AAA R58 W1, produced by FSE at R106: the trusted and suspect
+  /// device. Then the trusted and suspect
   /// labels then say the position is a test, because those are exactly the
   /// modes in which the card's 理由 row carries no `positionUncertain` and so
   /// the card-wide test-value line is not drawn. `deadReckoning` and `lost`
@@ -153,12 +154,12 @@ class DriveHudLocalizer {
   /// card by construction, so the line carries the statement and the label is
   /// already honest about the dot.
   ///
-  /// THREE callers in the app, and only two take [isMock] (FSE R114): the
+  /// THREE callers in the app, and only two take [isMock]: the
   /// drive card's trust row and the turn-preview panel's. The third, inside
   /// `_herStatusLine`, is unreachable under a mock — that method returns at
   /// its own `if (_isMockPosition)` branch first — and the only mode it ever
   /// renders is `deadReckoning`, which this method leaves unchanged anyway.
-  /// Threading it there would guard nothing. Verified by FSE and by AAA.
+  /// Threading it there would guard nothing. Checked in two separate reviews.
   String modeLabel(
     LocalizationMode mode,
     String localeTag, {
@@ -224,10 +225,10 @@ class DriveHudLocalizer {
 
   /// Localized "the dot could be anywhere within ~X m" line for a radius.
   ///
-  /// [isMock] — AAA R58 W1 (FSE R106): the radius of a mock fix is a figure
+  /// [isMock] — the radius of a mock fix is a figure
   /// nobody measured, so it says so. The non-finite 誤差 不明 form is left
-  /// unchanged: AAA's ruling named only the finite form, and "unknown" claims
-  /// nothing to correct. Named to AAA rather than extended by this seat.
+  /// unchanged: the decision covered only the finite form, and "unknown" claims
+  /// nothing to correct. Left for review rather than extended here.
   String radiusLabel(
     double radiusMeters,
     String localeTag, {
@@ -243,7 +244,7 @@ class DriveHudLocalizer {
   }
 
   /// Localized sight-stopping-speed hint — "a speed at which you could stop
-  /// within what you can see" (km/h, from the package's m/s). English ruled
+  /// within what you can see" (km/h, from the package's m/s). English decided
   /// 2026-09-14 (was "Stop-within-sight guide ~N km/h"): the basis, with the
   /// speed left to her. Japanese unchanged.
   String sightHintLabel(double mps, String localeTag) {
@@ -255,9 +256,10 @@ class DriveHudLocalizer {
 
   // --- (e) maneuver narration text — localized by engine-agnostic TYPE ---
   //
-  // `OsrmRoutingEngine` emits ENGLISH instruction strings; passing those to HER
-  // is a D4 breach, so the app narrates from the engine-agnostic maneuver TYPE
-  // token instead, localized here (JA for HER). Kept faithful + calm: a plain
+  // `OsrmRoutingEngine` emits ENGLISH instruction strings; passing those to a
+  // Japanese-reading driver would leave her out, so the app narrates from the
+  // engine-agnostic maneuver TYPE token instead, localized here (JA by
+  // default). Kept faithful + calm: a plain
   // upcoming-turn statement, never a barked command.
 
   /// The short maneuver noun for [type] (e.g. `right` → 右折 / "a right turn"),
@@ -281,7 +283,7 @@ class DriveHudLocalizer {
         _ => ja ? '次の案内' : 'the next maneuver',
       };
 
-  /// A CONFIDENT (trusted-GPS) maneuver line for HER, localized by [type].
+  /// A CONFIDENT (trusted-GPS) maneuver line for the driver, localized by [type].
   ///
   /// Plain and calm — " this ahead " not "TURN NOW". `depart`/`arrive` get their
   /// own sentences; everything else composes from [_maneuverNoun].
@@ -301,7 +303,7 @@ class DriveHudLocalizer {
   }
 
   /// A HEDGED (suspect-GPS) maneuver line: it names the same [type] but softens
-  /// it to a possibility and tells HER to confirm before acting — because the
+  /// it to a possibility and tells the driver to confirm before acting — because the
   /// position is not trusted, the app must NOT assert the turn as fact.
   String hedgedManeuverInstruction(String type, String localeTag) {
     final ja = _isJa(localeTag);

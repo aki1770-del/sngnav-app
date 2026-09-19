@@ -6,7 +6,7 @@
 /// and lets the `RouteForecastService` test them against route
 /// segments.
 ///
-/// Privacy / consent posture (D4 + PHIL-001 boundary): this service
+/// Privacy / consent posture: this service
 /// never originates fleet reports. It only ingests reports the
 /// integrator app has already explicitly opted-in to share. We do not
 /// implement a crash-data-harvester here; the surface is consent-

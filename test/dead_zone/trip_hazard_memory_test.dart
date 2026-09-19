@@ -77,7 +77,7 @@ void main() {
         2,
         reason: 'THREE snow forecasts, TWO publisher-bounded intervals. The '
             'third has no declared end. MET Norway invented one (effective + '
-            '1h) and that is exactly the fabrication NDI fired the Andon on. '
+            '1h) and that is exactly the fabrication the adapter package flagged. '
             'We drop it.',
       );
       for (final h in r.hazards) {
@@ -200,7 +200,7 @@ void main() {
       expect(memory.activeAt(beforeWindow), isEmpty);
     });
 
-    test('A SYNTHESISED VALIDITY IS NEVER SPOKEN — NDI\'s Andon, enforced', () {
+    test('A SYNTHESISED VALIDITY IS NEVER SPOKEN — the adapter package flag, enforced', () {
       // The MET Norway shape: expires = effective + 1h, invented by the adapter.
       // Same hazard, same window, covering NOW — and it must NOT be spoken.
       final synthesised = TripHazardMemory(
@@ -225,7 +225,7 @@ void main() {
         isEmpty,
         reason: 'A window whose END WE INVENTED must never be spoken to a '
             'driver as though a meteorological service had promised it. This '
-            'is the whole substance of NDI\'s SC-26 Andon.',
+            'is the whole substance of the open flag on the adapter package.',
       );
       expect(synthesised.speakableJaAt(tPlus90), isNull);
     });

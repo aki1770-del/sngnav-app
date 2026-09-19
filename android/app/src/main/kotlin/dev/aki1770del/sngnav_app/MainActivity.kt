@@ -9,20 +9,20 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 /// Tier-2 AudioReadinessProbe — the unit's first first-party Kotlin
-/// (Chair-ratified 2026-07-11; proposal §Tier-2).
+/// (decided 2026-07-11; proposal §Tier-2).
 ///
 /// WHY this exists: media-volume-zero silences every spoken safety alert,
 /// and no plugin in our set can read the media volume — the ONE
-/// Dart-unreachable gap on the voice lane. Without this read the app drives
-/// HER into an Akita whiteout believing its ja warning will sound, while the
+/// Dart-unreachable gap on the voice channel. Without this read the app sends
+/// the driver into an Akita whiteout believing its ja warning will sound, while the
 /// platform plays it into silence.
 ///
-/// WHY it is READ-ONLY BY DESIGN (the Tier-3 dignity boundary the Chair
-/// holds): we inform HER that her spoken lane is silent and let HER decide;
+/// WHY it is READ-ONLY BY DESIGN (the Tier-3 dignity boundary the project
+/// holds): we inform the driver that her spoken channel is silent and let her decide;
 /// we NEVER touch her volume, request audio focus here, or override her
 /// settings. A volume-raising actuator (USAGE_ALARM critical alert) is
 /// Tier-3 — post-beta, evidence-gated, and a dignity question for the
-/// Chair, never an engineering default. No permissions, no state, no
+/// project owner, never an engineering default. No permissions, no state, no
 /// coroutines: a synchronous main-thread read, answered inline.
 class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -55,7 +55,7 @@ class MainActivity : FlutterActivity() {
                             // dumpsys audio said "STREAM_MUSIC: Muted: true"
                             // while getStreamVolume returned 5 of 15 — so the
                             // index alone read a silent device as audible and
-                            // HER media-muted caution never rendered.
+                            // the media-muted caution never rendered.
                             "streamMuted" to
                                 audioManager.isStreamMute(AudioManager.STREAM_MUSIC),
                             "ttsServiceVisible" to ttsServiceVisible,
@@ -112,17 +112,17 @@ class MainActivity : FlutterActivity() {
                         if (replied.compareAndSet(false, true)) result.success(ok)
                     }
 
-                    // DUCKING (Chair-lifted ③, 2026-07-23): the bundled offline
+                    // DUCKING (lifted ③, decided 2026-07-23): the bundled offline
                     // safety voice — the one that works in a dead zone — asks
-                    // HER music/podcast to DUCK for the phrase, so a black-ice
+                    // the driver's music/podcast to DUCK for the phrase, so a black-ice
                     // warning is heard OVER her audio instead of buried under
                     // it. TRANSIENT_MAY_DUCK only (never TRANSIENT_EXCLUSIVE,
-                    // never USAGE_ALARM — those remain a deferred Chair-gated
+                    // never USAGE_ALARM — those remain a deferred owner-decided
                     // Tier-3; this stays within the ducking she authorized). A
                     // no-op focus-change listener: a STARTED safety phrase runs
                     // to completion — we asked music to yield, we never drop a
                     // half-spoken warning to yield back. On-device ducking is
-                    // OPS-066-DEFERRED (no device here); a car-speaker FM/AM
+                    // on-device verification DEFERRED (no device here); a car-speaker FM/AM
                     // radio cannot be ducked by the phone (VOICE_MISSION.md).
                     val audioManager: AudioManager =
                         getSystemService(Context.AUDIO_SERVICE) as AudioManager

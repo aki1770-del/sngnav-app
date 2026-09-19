@@ -1,6 +1,6 @@
 /// Region-gating tests for AdvisoryService + provider_coverage.
 ///
-/// Proves the load-bearing HER-relevant fix: for HER Akita point
+/// Proves the load-bearing driver-relevant fix: for the Akita point
 /// (39.7167, 140.0983) the US NWS provider is NEVER queried (no HTTP
 /// request, no error card, no coordinate sent to a service that cannot
 /// help her), while JMA IS queried; symmetrically a US point queries NWS
@@ -92,14 +92,14 @@ Advisory _adv(AdvisorySource source, String evt) => Advisory(
     );
 
 void main() {
-  // HER point.
+  // The Akita point.
   const akitaLat = 39.7167;
   const akitaLon = 140.0983;
   // A representative US point (Grand Forks, North Dakota).
   const usLat = 47.9;
   const usLon = -97.0;
 
-  group('AdvisoryService region-gating (the HER fix)', () {
+  group('AdvisoryService region-gating (the Akita fix)', () {
     test(
         'Akita (JP) point → queries JMA, does NOT query NWS '
         '(no request sent to the US service)', () async {
@@ -117,7 +117,7 @@ void main() {
       final result =
           await svc.fetchAtPoint(latitude: akitaLat, longitude: akitaLon);
 
-      // The load-bearing assertion: NWS fetch was NEVER called for HER point.
+      // The load-bearing assertion: NWS fetch was NEVER called for the Akita point.
       expect(nws.fetchCount, 0,
           reason: 'NWS must not be queried for a Japan coordinate');
       // JMA WAS queried and its advisory reached the driver.
@@ -234,7 +234,7 @@ void main() {
     });
 
     test(
-        'B04-2 contrast: HER Akita point IS catalogued — JMA is queried and '
+        'B04-2 contrast: the Akita point IS catalogued — JMA is queried and '
         'a clean answer still yields a real all-clear', () async {
       final nws = _InstrumentedProvider(src: AdvisorySource.nwsUnitedStates);
       final jma = _InstrumentedProvider(src: AdvisorySource.jmaJapan);
@@ -248,7 +248,7 @@ void main() {
       final result =
           await svc.fetchAtPoint(latitude: akitaLat, longitude: akitaLon);
 
-      expect(jma.fetchCount, 1, reason: 'HER prefecture is in the catalog');
+      expect(jma.fetchCount, 1, reason: 'Akita prefecture is in the catalog');
       expect(nws.fetchCount, 0);
       // Asked and answered — she may honestly be told nothing is in force.
       expect(result.canAssertNoAdvisory, isTrue);
@@ -298,14 +298,14 @@ void main() {
       expect(nwsCoverage(40.7, -74.0), isTrue); // New York
       expect(nwsCoverage(64.8, -147.7), isTrue); // Fairbanks, Alaska
       expect(nwsCoverage(21.3, -157.8), isTrue); // Honolulu, Hawaii
-      expect(nwsCoverage(akitaLat, akitaLon), isFalse); // HER Akita point
+      expect(nwsCoverage(akitaLat, akitaLon), isFalse); // the Akita point
       expect(nwsCoverage(35.68, 139.69), isFalse); // Tokyo
     });
 
     test(
         'jmaCoverage covers the prefectures the adapter ACTUALLY catalogs, '
         'and disclaims the Japanese points it cannot answer for', () {
-      // HER Akita point, and the rest of the snow-zone catalog.
+      // The Akita point, and the rest of the snow-zone catalog.
       expect(jmaCoverage(akitaLat, akitaLon), isTrue); // Akita  (050000)
       expect(jmaCoverage(43.06, 141.35), isTrue); // Sapporo    (010000)
       expect(jmaCoverage(40.82, 140.74), isTrue); // Aomori     (020000)

@@ -1,4 +1,4 @@
-/// W0 DETECTION-SURVIVAL — unit tests for the staleness policy helpers
+/// DETECTION-SURVIVAL — unit tests for the staleness policy helpers
 /// (design §7 host-verifiable set: observedAtJstAsLocal parse/malformed;
 /// observedAtJstInstant tz-correct bound; spokenHourJst FLOOR / no roll-forward).
 library;

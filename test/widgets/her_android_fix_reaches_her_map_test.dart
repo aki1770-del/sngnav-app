@@ -183,7 +183,7 @@ void main() {
     });
 
     test(
-        'what Android did not measure is still not read (ruled 2026-09-14): '
+        'what Android did not measure is still not read (decided 2026-09-14): '
         'no accuracy, no speed floor, motion unknown', () async {
       final fix = await _onlyFixThroughAndroid(_androidLocation(
         latitude: 39.7186,

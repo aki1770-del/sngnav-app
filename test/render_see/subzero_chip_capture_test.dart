@@ -1,5 +1,5 @@
-/// OPS-066 render-SEE capture for the sub-zero frozen-surface GLANCE CHIP
-/// (session-scope; NOT a CI pixel assertion) — Chair ruling 2026-07-23.
+/// Render-and-look capture for the sub-zero frozen-surface GLANCE CHIP
+/// (session-scope; NOT a CI pixel assertion) — decided 2026-07-23.
 ///
 /// Produces `ladder_out/subzero_chip/subzero_frozen_chip_ja.png` so a human
 /// LOOKS at the actual chip the deaf/whiteout driver would see on the glance
@@ -18,8 +18,8 @@
 /// load-bearing WORDS 「路面凍結のおそれ」 render legibly; the icon is device-
 /// deferred but low-risk (an established, shipped glyph).
 ///
-/// On-device render remains the emulator ladder / device hour's job (OPS-066 /
-/// AAE-1): nobody affirms this PNG as HER-phone evidence, and on a fontless
+/// On-device render remains the emulator ladder / device hour's job (on-device
+/// verification): nobody affirms this PNG as phone evidence, and on a fontless
 /// host the comparator is a no-op.
 library;
 

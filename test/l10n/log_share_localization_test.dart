@@ -1,11 +1,11 @@
-// C6 ログを共有 — ja/en localization of the beta-feedback share-log surface.
+// ログを共有 (share log) — ja/en localization of the beta-feedback share-log surface.
 //
-// Proves the share-log card renders in HER language (ja) with the
+// Proves the share-log card renders in the driver's language (ja) with the
 // consent-framing disclosure (user-initiated only, no auto-telemetry, no
 // accounts, error-records-only / no location history), and that the en
 // surface carries the same honesty facts.
 //
-// HONESTY (OPS-066 / AAE env-bound): this verifies the WIDGET TREE renders
+// HONESTY (no device here): this verifies the WIDGET TREE renders
 // localized text in the test binding. It does NOT verify the OS share sheet
 // on-device — there is no Android device/emulator in this env. On-device
 // observation is DEFERRED.
@@ -53,7 +53,7 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('share-log-button')));
       await tester.pump();
 
-      // The one-tap action is HER language (BETA_PLAN's ログを共有, verbatim).
+      // The one-tap action is in the driver's language (BETA_PLAN's ログを共有, verbatim).
       expect(find.text('ログを共有'), findsOneWidget);
       expect(find.text('Share log'), findsNothing);
       // Records-present status in ja.
@@ -118,7 +118,7 @@ void main() {
       expect(enL10n.shareLog, 'Share log');
       // Unknown locale falls back to English (honest default).
       expect(const AppL10n(Locale('fr')).shareLog, 'Share log');
-      // Section title is localized too (the card is HER-facing).
+      // Section title is localized too (the card is driver-facing).
       expect(jaL10n.logShareSectionTitle, contains('ログを共有'));
       expect(enL10n.logShareSectionTitle, contains('share log'));
     });

@@ -1,6 +1,6 @@
-/// C6 ログを共有 — one-tap share of the local error log (BETA_PLAN fix #8).
+/// ログを共有 (share log) — one-tap share of the local error log (BETA_PLAN fix #8).
 ///
-/// HER-trace: the beta feedback path shaped for HER cohort — a tester sends
+/// Why: the beta feedback path shaped for its testers — a tester sends
 /// the on-device error log the way she sends a photo: one tap, the OS share
 /// sheet, a receiver of her own choice. Without this action, tester-found
 /// defects die on the device and never reach the loom.
@@ -18,7 +18,7 @@
 ///   idiom as LocalErrorLog._trimIfNeeded) behind an honest truncation note,
 ///   because some share receivers truncate very large ACTION_SEND text.
 /// - The OS share sheet itself is on-device behaviour: HEAR/SEE of the real
-///   chooser is OPS-066 DEFERRED until a device pass (AAE env-bound).
+///   chooser is DEFERRED until a device pass (no device here).
 library;
 
 import 'dart:io' show Platform;
@@ -40,7 +40,7 @@ typedef LogShareSink = Future<void> Function(String payload);
 const int kLogShareMaxChars = 100 * 1024;
 
 /// Honest empty-log payload line (BETA_PLAN fix #8 — never fabricate
-/// content; the ja line is HER cohort's tongue, the parenthetical keeps it
+/// content; the ja line is the testers' language, the parenthetical keeps it
 /// readable to an en-reading triager).
 const String kLogShareEmptyLine = 'ログは空です（クラッシュ・エラーの記録はありません）';
 

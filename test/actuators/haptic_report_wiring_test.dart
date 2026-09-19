@@ -4,7 +4,7 @@
 // alert_actuators_test.dart), and `MobileAlertActuators` hands its reporting
 // callbacks to the channel it BUILDS — so no runtime test in this suite can
 // observe whether the production app actually connects
-// HardenedHapticChannel -> HER screen. That link was missing on 2026-08-21
+// HardenedHapticChannel -> the driver's screen. That link was missing on 2026-08-21
 // and nothing failed: the channel was unit-tested, the chip was widget-tested
 // with an injected flag, and between them sat an unwired factory parameter.
 //
@@ -40,7 +40,7 @@ void main() {
       File('lib/actuators/mobile_alert_actuators.dart').readAsStringSync();
   final main_ = File('lib/main.dart').readAsStringSync();
 
-  group('the tactile report reaches HER screen in the PRODUCTION build', () {
+  group('the tactile report reaches the driver\'s screen in the PRODUCTION build', () {
     test('defaultAlertActuators accepts both haptic reporting callbacks', () {
       final decl = _callSpan(actuators, 'AlertActuators defaultAlertActuators');
       expect(decl, isNotNull,
@@ -73,7 +73,7 @@ void main() {
               'state measured on device 2026-08-21');
       expect(call, contains('onHapticVerified:'),
           reason: 'without the clear path a transient fault pins the chip for '
-              'the rest of HER drive');
+              'the rest of the drive');
       expect(call, contains('onSpeechUnverified:'));
       expect(call, contains('onSpeechVerified:'));
     });
@@ -96,9 +96,9 @@ void main() {
     });
   });
 
-  // ⚑ ANTI-DRIFT, per AAA's 2026-08-22 verdict §2.1.
+  // ⚑ ANTI-DRIFT, per a 2026-08-22 safety-review verdict.
   //
-  // The defect AAA found was not a missing feature — it was two channels on
+  // The defect that review found was not a missing feature — it was two channels on
   // two different cadences. Audio was re-probed at FOUR triggers (app open, a
   // 45 s ticker, real drive start, mock drive start); the tactile channel was
   // probed only when a warning was already owed. Adding a haptic probe at
@@ -121,7 +121,7 @@ void main() {
           reason: 'the audio probe left the shared cadence');
       expect(method.contains('hapticReadinessProbe'), isTrue,
           reason: 'the tactile probe left the shared cadence — this is the '
-              'exact asymmetry AAA ruled PUSHBACK load-bearing');
+              'exact asymmetry the safety review pushed back on as load-bearing');
     });
 
     test('every trigger calls the shared method, and there are still four',
@@ -131,12 +131,12 @@ void main() {
       // drive start, mock drive start. The declaration itself is not a call.
       expect(calls, 5,
           reason: 'four call sites plus the declaration itself. Audio had four '
-              'triggers when AAA measured it; if a fifth is added, change this '
+              'triggers when the review measured it; if a fifth is added, change this '
               'number deliberately — do not let the tactile channel silently '
               'keep four');
     });
 
-    test('the caution the probe raises reaches HER pre-drive surface', () {
+    test('the caution the probe raises reaches the pre-drive surface', () {
       void has(String needle, String why) =>
           expect(main_.contains(needle), isTrue, reason: '$needle missing: $why');
       has('_hapticAvailable', 'the page holds no tactile readiness state');

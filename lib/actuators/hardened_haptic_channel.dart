@@ -13,15 +13,15 @@
 ///
 /// Both exits are silent. A device that reports no vibrator took the `if`
 /// and did nothing; a platform fault or a wedged channel took the `catch` and
-/// did nothing; and in **neither** case was anyone told — not HER, not the
+/// did nothing; and in **neither** case was anyone told — not the driver, not the
 /// app, not the on-device log. The audio channel had all three of the things
 /// this one lacked: an injectable seam ([TtsEngine]), an error log, and
 /// verified/unverified reporting ([HardenedTtsEngine.onSpeechUnverified]).
 /// That asymmetry was visible in `MobileAlertActuators`'s own constructor
-/// parameter list, and it meant the channel the OPS-059 accessibility floor
+/// parameter list, and it meant the channel the accessibility floor
 /// exists to protect was the one channel with no delivery verification.
 ///   this channel reports a silent haptic -> the app can say the tactile cue
-///   did not land -> HER is not left believing a warning was felt when none
+///   did not land -> the driver is not left believing a warning was felt when none
 ///   was -> she is not relying on a channel that is not there.
 ///
 /// **Measured, 2026-08-21, on AVD `sngnav_api30` (API 30, vibrator HAL
@@ -29,8 +29,7 @@
 /// `critical` dispatched Japanese TTS (`ja-jp-x-jab-lstm-embedded`, audio
 /// focus `req=3`) and registered **zero** vibrations in `dumpsys vibrator`,
 /// whose `Previous vibrations:` block was proven capable of recording one by a
-/// negative control (`cmd vibrator vibrate 800`). Record:
-/// `outputs/operational-records/aae_ondevice_verification_2026_08_21.md`.
+/// negative control (`cmd vibrator vibrate 800`), recorded on 2026-08-21.
 ///
 /// **What "verified" means here, precisely.** [HapticDelivery.delivered] means
 /// *the platform accepted the waveform* — the same bound `vibrate()` itself
@@ -156,7 +155,7 @@ class HardenedHapticChannel implements HapticChannel {
   /// drive.
   final void Function()? onHapticVerified;
 
-  /// Cap on each raw plugin await. N9's rationale, unchanged: the announcer
+  /// Cap on each raw plugin await. The original rationale, unchanged: the announcer
   /// awaits haptic BEFORE speak, so a platform channel that never answers
   /// would hold the SPOKEN warning hostage forever. 2 s is generous for a
   /// query/enqueue call and short enough that a wedged haptic delays the voice
@@ -171,7 +170,7 @@ class HardenedHapticChannel implements HapticChannel {
     try {
       final present = await _driver.hasVibrator().timeout(callTimeout);
       if (!present) {
-        // RECORD, NEVER GATE (AAE 2026-09-02, re-landed 2026-09-19).
+        // RECORD, NEVER GATE (added 2026-09-02, re-landed 2026-09-19).
         //
         // [HapticDriver.hasVibrator] DOES NOT ASK THE VIBRATOR. Read from
         // source this turn at the version this app resolves:
@@ -183,7 +182,7 @@ class HardenedHapticChannel implements HapticChannel {
         // it misreads used to get NO TACTILE CUE AT ALL.
         //
         // For a deaf or hard-of-hearing driver that is not the second channel,
-        // it is the ONLY one (OPS-RULE-059: an accessibility channel is never
+        // it is the ONLY one (the accessibility rule: an accessibility channel is never
         // gated), and at ten metres' visibility the screen is no substitute.
         // So the waveform is ATTEMPTED anyway and the hardware answers.
         //

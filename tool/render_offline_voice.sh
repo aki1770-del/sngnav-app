@@ -5,8 +5,8 @@
 # This script does NOT author phrases; it renders the ones already in the app.
 #
 # Engine: open_jtalk + the nitech-jp-atr503-m001 HTS voice (fully offline, on
-# this workstation only — HER phone plays the resulting WAVs and needs no engine
-# at all). Chair ruling 2026-07-12: synth now, human-record the safety core
+# this workstation only — the phone plays the resulting WAVs and needs no engine
+# at all). Decided 2026-07-12: synth now, human-record the safety core
 # before winter. When the human recordings land they replace these files at the
 # SAME ids and nothing else in the app changes.
 #

@@ -1,4 +1,4 @@
-/// THE STANDING TEST: if HER app has no live warning source, this file is RED.
+/// THE STANDING TEST: if the app has no live warning source, this file is RED.
 ///
 /// ## Why it exists
 ///
@@ -18,7 +18,7 @@
 /// **It cannot tell you JMA is up.** It runs on a host with no network and
 /// must keep doing so: a suite that reaches the internet is a suite that goes
 /// red on a train, and a flaky guard gets deleted, which is how a repository
-/// ends up with no guard at all. It cannot see HER device, HER network, or a
+/// ends up with no guard at all. It cannot see the driver's device, her network, or a
 /// publisher outage this morning.
 ///
 /// A live-endpoint probe is a different instrument and is genuinely owed. This
@@ -31,7 +31,7 @@
 ///    constant, not assumed from a version number. If a future resolve, a
 ///    revert or a range widening puts the app back on the retired path, this
 ///    is red on the next run.
-/// 2. **A document past the freshness bound reaches HER as a NAMED STATE.**
+/// 2. **A document past the freshness bound reaches the driver as a NAMED STATE.**
 ///    Not a blank panel, not a quiet all-clear: a banner she can read and a
 ///    notice card in her own language.
 /// 3. **The same document reaches the DEVELOPER as a FAILURE.**
@@ -87,7 +87,7 @@ Widget _wrapJa(Widget child) => MaterialApp(
     );
 
 void main() {
-  group('HER app must have a live warning source', () {
+  group('the app must have a live warning source', () {
     test(
         '1. THE POINTING TEST — the app fetches the LIVE path, and the retired '
         'one is never requested', () async {
@@ -133,7 +133,7 @@ void main() {
     });
 
     testWidgets(
-        '2. HER HALF — a document past the freshness bound reaches her as a '
+        '2. DRIVER HALF — a document past the freshness bound reaches her as a '
         'NAMED STATE, never as a quiet screen', (tester) async {
       final provider = buildJmaAdvisoryProvider(
         userAgent: 'sngnav-app test',
@@ -169,7 +169,7 @@ void main() {
       expect(
         find.textContaining('更新が止まっています'),
         findsWidgets,
-        reason: 'and in words she reads, not a class name or a code. HER is '
+        reason: 'and in words she reads, not a class name or a code. She is '
             'the driver, not an integrator.',
       );
     });

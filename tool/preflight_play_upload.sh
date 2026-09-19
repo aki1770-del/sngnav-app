@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# PLAY-UPLOAD PREFLIGHT LOOM (AAE, 2026-08-10)
+# PLAY-UPLOAD PREFLIGHT LOOM (2026-08-10)
 #
-# WHY THIS EXISTS (OPS-RULE-070(B): the reason is written before the act).
+# WHY THIS EXISTS (the reason is written before the act).
 #
 #   The Oct 31 in-hands date has one narrow, non-repeating window. Every Play
 #   rejection costs a cycle out of it, and the four things Play rejects an upload
@@ -21,7 +21,7 @@
 #   So this gate reads the BUILT ARTIFACT, not our intentions about it.
 #
 # THE FIVE GATES, and why each is a real rejection and not hygiene.
-# (Gate 5 added 2026-08-10 after a second AAE pass found the defect it catches
+# (Gate 5 added 2026-08-10 after a second pass found the defect it catches
 #  was ALREADY LIVE in this repo and had been for a month — see its own header.)
 #
 #   1. SIGNATURE — android/app/build.gradle.kts:65-69 falls back to DEBUG keys
@@ -48,11 +48,11 @@
 #      because a plugin injects VIBRATE at manifest-merge time where no human
 #      reads it. Rejection here is a suspension risk, not a bounced upload.
 #
-# HONEST BOUNDS (OPS-RULE-066(A); AAE-1 — reach is verified on the device, and
+# HONEST BOUNDS (reach is verified on the device, and
 # this is NOT that):
 #   - This gate proves the ARTIFACT IS ACCEPTABLE TO UPLOAD. It proves nothing
 #     about whether the app works, renders, speaks, or helps anyone. A bundle can
-#     pass all five gates and be dead on HER phone.
+#     pass all five gates and be dead on the driver's phone.
 #   - targetSdk/minSdk are read from the release APK built from the same tree in
 #     the same run, because no bundletool is present in this environment to read
 #     the bundle's own protobuf manifest. If you build the AAB and the APK from
@@ -69,13 +69,13 @@
 #     BUILT. Under --skip-build those can be different trees, and then the gate
 #     describes neither honestly. The default path (build both here) closes it.
 #
-# ⚑ ARGUMENT DEFECT — FOUND 2026-09-16, REPAIRED 2026-09-18 (AAE).
+# ⚑ ARGUMENT DEFECT — FOUND 2026-09-16, REPAIRED 2026-09-18.
 #
 #   Until 2026-09-18 this line read
 #       AAB="$REPO_ROOT/build/app/outputs/bundle/release/app-release.aab"
 #   with no way to override it, and the script accepted only --self-test and
 #   --skip-build. Handed the held release bundle as an argument:
-#       tool/preflight_play_upload.sh /home/komada/work/r67-.../sngnav-app-...aab
+#       tool/preflight_play_upload.sh $HOME/work/r67-.../sngnav-app-...aab
 #   it IGNORED THE ARGUMENT IN SILENCE, read a stale DEBUG-SIGNED bundle sitting
 #   in the build directory under the same name, and returned
 #       PREFLIGHT FAIL — DEBUG-SIGNED: Owner: C=US, O=Android, CN=Android Debug
@@ -92,7 +92,7 @@
 #   the AAB, an UNRECOGNISED argument is a hard error instead of being dropped,
 #   and the resolved absolute path + sha256 of both artifacts is PRINTED BEFORE
 #   THE FIRST GATE RUNS. You can now always see what it read.
-#   Recorded at outputs/operational-records/preflight_play_upload_defect_2026_09_16.md.
+#   Recorded outside this repository on 2026-09-16.
 #
 # USAGE
 #   tool/preflight_play_upload.sh                     # build both here, then gate
@@ -153,7 +153,7 @@ check_so_align() {
 
 # $1 = readelf -lW output. Echoes the NUMERIC minimum LOAD alignment.
 #
-# EXTRACTION DEFECT, found + fixed 2026-08-24 (AAE). This was inline in gate 3 as
+# EXTRACTION DEFECT, found + fixed 2026-08-24. This was inline in gate 3 as
 #   awk '/LOAD/{print $NF}' | sort -u | head -1
 # which sorts the hex STRINGS lexically. "0x10000" sorts BEFORE "0x2000", so a .so
 # carrying an 8 KB segment beside a 64 KB one reported 0x10000 and PASSED — the gate
@@ -183,7 +183,7 @@ check_version_code() {
 # $1 = permissions DECLARED in the manifest we author (newline-separated)
 # $2 = permissions actually SHIPPED in the built artifact (newline-separated)
 #
-# GATE 5 — why this exists, and it is not hygiene (AAE, 2026-08-10).
+# GATE 5 — why this exists, and it is not hygiene (2026-08-10).
 #
 #   The privacy policy published at
 #   raw.githubusercontent.com/aki1770-del/sngnav-app/main/docs/store/privacy_policy_ja.md
@@ -331,7 +331,7 @@ if [ "${1:-}" = "--self-test" ]; then
   # nothing exercised it: the script gated a hard-coded path and dropped the
   # argument it was given, in silence. The specific token that was dropped is the
   # first case below.
-  t "a bare .aab path is an ARTIFACT"    0 test "$(classify_arg /home/komada/work/r67-release-hold-4d591cf/sngnav-app-0.0.5+2-4d591cf-release.aab)" = "aab-path"
+  t "a bare .aab path is an ARTIFACT"    0 test "$(classify_arg "$HOME/work/r67-release-hold-4d591cf/sngnav-app-0.0.5+2-4d591cf-release.aab")" = "aab-path"
   t "a bare .apk path is an ARTIFACT"    0 test "$(classify_arg build/app/outputs/flutter-apk/app-release.apk)" = "apk-path"
   t "--aab is an option"                 0 test "$(classify_arg --aab)" = "aab-opt"
   t "--apk is an option"                 0 test "$(classify_arg --apk)" = "apk-opt"
@@ -495,7 +495,7 @@ MANIFEST="$REPO_ROOT/android/app/src/main/AndroidManifest.xml"
 PKG="$(printf '%s\n' "${badging:-}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -1)"
 # DECLARED: parsed as XML, not grepped — a commented-out <uses-permission> is not a
 # declaration, and a regex cannot tell the difference. Same discipline (and the same
-# reason) as tool/assert_manifest_perms.sh, which DIA falsified in its regex form.
+# reason) as tool/assert_manifest_perms.sh, which an audit falsified in its regex form.
 declared_perms="$(python3 - "$MANIFEST" <<'PY' 2>/dev/null
 import sys, xml.etree.ElementTree as ET
 NS = '{http://schemas.android.com/apk/res/android}'

@@ -1,4 +1,4 @@
-/// WS5 — the announcer that enforces the OPS-059 accessibility floor.
+/// The announcer that enforces the accessibility floor.
 ///
 /// A surfaced hazard has a severity and a driver-facing guidance string (the
 /// catalog's action-coupled [AlertExplainer] text). This class delivers it on
@@ -44,10 +44,10 @@ class AlertAnnouncer {
   ///   cannot receive.
   ///
   /// [text] is passed through VERBATIM — it is the catalog's publisher-owned
-  /// action string (AAA Article 17 β); the announcer must not paraphrase.
+  /// action string (Article 17 β, verbatim relay); the announcer must not paraphrase.
   /// [localeTag] is normalized to a full BCP-47 TTS tag ([ttsLocaleTagFor]).
   ///
-  /// **OPS-059 channel independence (load-bearing).** The two channels are
+  /// **Channel independence (load-bearing, accessibility floor).** The two channels are
   /// fired INDEPENDENTLY, each in its own guard: a fault on one MUST NOT
   /// suppress the other. The haptic cue — the channel the deaf / HoH /
   /// can't-hear-over-the-wind driver depends on — is fired FIRST and is
@@ -98,7 +98,7 @@ class AlertAnnouncer {
     } catch (_) {
       // A haptic fault must not suppress the audio channel fired below.
     }
-    // [spokenPrefix] (AAA R52, AQ4 — e.g. テスト値です。) is its own utterance,
+    // [spokenPrefix] (e.g. テスト値です。) is its own utterance,
     // spoken before [text] and guarded on its own: [text] stays the exact
     // string the offline audio is looked up by, and a fault on the prefix
     // never silences the line.

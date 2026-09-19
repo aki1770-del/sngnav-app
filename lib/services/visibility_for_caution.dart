@@ -1,5 +1,5 @@
 /// Which visibility her caution reads, when a test value may be set beside the
-/// station's reading (ruled 2026-09-15; invariant 2026-09-16).
+/// station's reading (decided 2026-09-15; invariant 2026-09-16).
 ///
 /// A value that is not a measurement may ADD caution and may never take any
 /// away. Each candidate is ranked on the advisor's own bands, where a missing

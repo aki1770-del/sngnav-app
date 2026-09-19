@@ -1,7 +1,7 @@
 # Re-cutting `assets/fonts/SnGNavSymbols.ttf`
 
 The bundled symbols subset backstops the symbol-class glyphs (⚠ ❄ ※ → ° …)
-in HER-facing strings — glyphs the ja system font stack does not guarantee
+in driver-facing strings — glyphs the ja system font stack does not guarantee
 (measured 2026-07-30: Noto Sans CJK JP lacks U+2744 ❄; the render-see
 harness fonts lack U+26A0 ⚠). It is wired app-wide via
 `ThemeData.fontFamilyFallback` in `lib/main.dart`.

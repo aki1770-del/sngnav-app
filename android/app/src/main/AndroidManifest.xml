@@ -3,7 +3,7 @@
          (debug/profile manifests declare INTERNET separately and merge it
          into those variants; release uses only this main manifest.) -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Foreground-only location: shows HER live position dot on the snow map
+    <!-- Foreground-only location: shows the driver's live position dot on the snow map
          while driving. NO ACCESS_BACKGROUND_LOCATION by design (the app is
          foreground-only; background tracking would be a dignity over-reach). -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -13,10 +13,10 @@
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <!-- VIBRATE: the haptic cue she feels WITHOUT LOOKING — the one alert
          channel that survives a whiteout and a screen she cannot glance at
-         (AAE-2). Driven by the `vibration` plugin at
+         (the alert must reach a sense she has free). Driven by the `vibration` plugin at
          lib/actuators/mobile_alert_actuators.dart:191-192.
 
-         DECLARED HERE 2026-08-10 (AAE). It was ALREADY SHIPPING — the plugin
+         DECLARED HERE 2026-08-10. It was ALREADY SHIPPING — the plugin
          injected it at manifest-merge time — but it was absent from this file,
          the file humans read when they write declarations. That gap is not
          cosmetic: the public privacy policy was written from this manifest,
@@ -27,7 +27,7 @@
          tool/preflight_play_upload.sh now compares this list against the built
          artifact so the drift cannot recur silently. -->
     <uses-permission android:name="android.permission.VIBRATE"/>
-    <!-- Foreground-service perms REMOVED 2026-07-10 (W3 OPS-062 entry gate):
+    <!-- Foreground-service perms REMOVED 2026-07-10 (beta entry gate, claims checked against the code):
          they were DECLARED ONLY — no Service exists — and a manifest that
          requests location-class capabilities it does not use is a false
          claim to both the store review and the privacy page. When the
@@ -81,7 +81,7 @@
         <!-- flutter_tts package-visibility requirement (Android 11+ /
              targetSdk >= 30): without this, the engine cannot see the
              system TTS service and speak() fails SILENTLY — the ja voice
-             channel HER relies on dies with no error surfaced (our speak
+             channel the driver relies on dies with no error surfaced (our speak
              call is inside a catch). Mandated by the flutter_tts README. -->
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE"/>

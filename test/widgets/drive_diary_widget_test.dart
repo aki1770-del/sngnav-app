@@ -5,10 +5,10 @@
 // drives the real form (chips + fields + save), then taps the real share
 // button and asserts the REAL payload the production composer produced.
 //
-// HONESTY (OPS-066 / AAE env-bound): this verifies the WIDGET TREE and the
+// HONESTY (no device here): this verifies the WIDGET TREE and the
 // payload handed to the sink. It does NOT verify the OS share sheet — there
 // is no Android device/emulator in this env. On-device observation is
-// DEFERRED (docs/on_device_verify_checklist.md lane).
+// DEFERRED (see docs/on_device_verify_checklist.md).
 
 import 'dart:io';
 

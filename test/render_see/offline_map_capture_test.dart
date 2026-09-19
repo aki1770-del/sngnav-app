@@ -1,6 +1,6 @@
-/// OPS-066 render-SEE capture — OFFLINE basemap proof (2026-07-01).
+/// Render-and-look capture — OFFLINE basemap proof (2026-07-01).
 ///
-/// Produces `render_out/05_offline_map_akita.png` so VAA can LOOK at the Akita
+/// Produces `render_out/05_offline_map_akita.png` so a reviewer can LOOK at the Akita
 /// map rendering tiles from the bundled MBTiles archive with NO network — the
 /// proof that the offline_tiles OfflineTileProvider wiring works and the
 /// basemap is NOT blank offline. Run with:
@@ -86,7 +86,7 @@ void main() {
 
     final app = MaterialApp(
       theme: ThemeData(fontFamily: 'Roboto'),
-      // HER's page: the map's station label is localized, so this frame
+      // The driver's page: the map's station label is localized, so this frame
       // draws it as her app does, in Japanese.
       locale: const Locale('ja'),
       localizationsDelegates: const [

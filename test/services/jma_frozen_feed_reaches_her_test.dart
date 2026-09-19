@@ -1,9 +1,9 @@
-/// What HER screen shows when the JMA warning feed has STOPPED BEING REWRITTEN.
+/// What the driver's screen shows when the JMA warning feed has STOPPED BEING REWRITTEN.
 ///
 /// The condition is not hypothetical and it is not history. Measured live
 /// 2026-08-24 against the endpoint the shipped app reads:
 ///
-///   GET bosai/warning/data/warning/050000.json  (Akita — HER mother's
+///   GET bosai/warning/data/warning/050000.json  (Akita — the driver's
 ///     prefecture) -> reportDatetime 2026-05-28T06:11+09:00, EIGHTY-EIGHT AND
 ///     A HALF DAYS old, every warning still carrying `status: 発表` (in force).
 ///   GET bosai/warning/data/r8/050000.json       (the successor path)
@@ -22,7 +22,7 @@
 /// that sentence. In-band only means the fact is IN THE LIST; it does not mean
 /// it reaches a driver. An app is free to filter `minor`, to render only the
 /// highest severity, or to show the first card and collapse the rest — and any
-/// of those would put HER back in front of a 雷注意報 about "the 28th" with
+/// of those would put the driver back in front of a 雷注意報 about "the 28th" with
 /// nothing to tell her which 28th. Before this file, `grep -rn
 /// 'StaleFeed|更新停止|kJmaStaleFeedEventClass' lib/ test/` returned ZERO: the
 /// app neither referenced the notice nor was tested against a frozen feed.
@@ -170,7 +170,7 @@ Future<AdvisoryAggregateResult> _aggregateAt(DateTime now) async {
   );
 }
 
-/// HER reads Japanese. A banner proven only in English is not proven for her,
+/// The driver reads Japanese. A banner proven only in English is not proven for her,
 /// and the widget branches on locale — so the wrapper pins `ja` rather than
 /// inheriting whatever the harness defaults to.
 Widget _wrap(Widget child) => MaterialApp(
@@ -187,7 +187,7 @@ Widget _wrap(Widget child) => MaterialApp(
 
 void main() {
   _fabricatedAllClearGroup();
-  group('a frozen JMA feed, at HER mother\'s prefecture', () {
+  group('a frozen JMA feed, at the driver\'s prefecture', () {
     test('the dead warning still arrives, and it does not arrive alone',
         () async {
       final now = kFrozenReportedAt.add(const Duration(days: 88));

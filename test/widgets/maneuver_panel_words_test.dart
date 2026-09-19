@@ -16,7 +16,7 @@
 /// in KNOWN_LIMITATIONS.md: hearing on a device is unverified, and there is no
 /// deviation detection.
 ///
-/// The bytes below are candidates for a look on a render; none is ruled.
+/// The bytes below are candidates for a look on a render; none is decided.
 library;
 
 import 'dart:async';

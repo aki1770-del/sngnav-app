@@ -1,5 +1,5 @@
 // Pins lib/build_info.dart's appVersion to pubspec.yaml so the UI can
-// never display a stale app version (the OPS-062 rot this replaces:
+// never display a stale app version (the rot this replaces:
 // three UI strings hardcoding package versions that silently diverged
 // from the resolved tree on upgrade).
 import 'dart:io';

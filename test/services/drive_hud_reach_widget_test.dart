@@ -1,13 +1,12 @@
 /// WS6 — end-to-end reach: the live drive-caution panel renders in the REAL app
-/// tree (render-SEE, OPS-066) AND a real compound-failure hazard AUTO-announces
+/// tree (render-and-look) AND a real compound-failure hazard AUTO-announces
 /// on the app's single injected actuator — no manual button.
 ///
-/// HER-trace: this is the in-env proof that the WS6 brain is WIRED into
+/// Why: this is the in-env proof that the WS6 brain is WIRED into
 /// SngnavApp — sharing a (mock) position then losing GPS drives the honest dot
 /// to `lost`, the on-screen JA caution banner rises to 停車の検討, and the same
 /// rung auto-fires audio + haptic through the injected actuator. It does NOT
-/// prove she HEARS / FEELS it on a phone (DEFERRED — docs/DEVICE_VERIFICATION.md,
-/// OPS-066 / AAE-1).
+/// prove she HEARS / FEELS it on a phone (DEFERRED — docs/DEVICE_VERIFICATION.md).
 library;
 
 import 'package:flutter/material.dart';
@@ -21,7 +20,7 @@ import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
 // A clear-conditions JMA observation: no ice, no turmoil, no feed loss — so the
-// W0 detection-survival lane stays deterministically SILENT and this WS6
+// detection-survival path stays deterministically SILENT and this WS6
 // drive-HUD reach test is isolated from the JMA announce path. (Without an
 // injected fetch the real AMeDAS call fails under the test binding and the
 // no-cache feed-loss absence-line would speak, which is correct app behavior
@@ -101,7 +100,7 @@ void main() {
       );
 
       // REACH: the same rung auto-fired audio + haptic on the app's single
-      // injected actuator — the caution reached HER eyes-off, no manual button.
+      // injected actuator — the caution reached the driver eyes-off, no manual button.
       expect(fake.spoken, isNotEmpty);
       expect(fake.spoken.last.localeTag, 'ja-JP');
       expect(fake.spoken.last.text, contains('停車'));

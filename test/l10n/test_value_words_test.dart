@@ -1,4 +1,4 @@
-/// AAA R52 AQ3: the whole rendered words of the two test-value lines, per
+/// The whole rendered words of the two test-value lines, per
 /// locale. Literals, so a change of words is a red, not a silent pass.
 library;
 

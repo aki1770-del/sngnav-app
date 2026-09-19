@@ -1,4 +1,4 @@
-/// OPS-066 render-SEE capture for B04-2 — the fabricated-clear gate.
+/// Render-and-look capture for B04-2 — the fabricated-clear gate.
 ///
 /// The defect this capture exists to make VISIBLE: a total advisory-feed
 /// outage and a genuinely clear sky both arrive at [AdvisoryCards] as the
@@ -15,7 +15,7 @@
 ///   18d — un-catalogued Japanese point       → blue-grey coverage note (※)
 ///
 /// 18c is the anti-cry-wolf half of the evidence: an instrument that can
-/// never say "clear" is as useless to HER as one that always does. The
+/// never say "clear" is as useless to the driver as one that always does. The
 /// capture is only honest if it shows BOTH that the false clear is gone and
 /// that the true clear survives.
 ///
@@ -45,7 +45,7 @@
 ///   flutter test --update-goldens \
 ///     test/render_see/advisory_fabricated_clear_capture_test.dart
 /// On a host without CJK fonts the pixel claim is withdrawn (the render
-/// pipeline is still exercised); NOBODY affirms CI PNGs as HER-phone
+/// pipeline is still exercised); NOBODY affirms CI PNGs as phone
 /// evidence — that affirmation only happens from a human-viewed desktop run,
 /// and on-device verification stays DEFERRED to the device-hour.
 library;
@@ -69,8 +69,8 @@ void main() {
     // These banners now carry ⚠ / ※ leading glyphs. Without the app's own
     // bundled subset the capture renders them as TOFU (□) — measured here on
     // 2026-07-31, exactly the failure `assets/fonts/SnGNavSymbols.ttf` exists
-    // to prevent. A capture that tofus a glyph HER device renders correctly is
-    // not evidence about HER device, so this suite loads the SAME bytes the
+    // to prevent. A capture that tofus a glyph the phone renders correctly is
+    // not evidence about the phone, so this suite loads the SAME bytes the
     // APK ships and mirrors the app's real fallback chain below.
     final symbolsLoaded = await loadBundledSymbolsFont();
     if (!cjkLoaded || !symbolsLoaded || !goldenPixelsComparableHere()) {
@@ -82,8 +82,8 @@ void main() {
       MaterialApp(
         locale: const Locale('ja'),
         // Mirrors main.dart's ThemeData.fontFamilyFallback (const
-        // ['SnGNavSymbols']) so the glyphs resolve through the same chain HER
-        // device uses: system fonts first, the bundled subset filling holes.
+        // ['SnGNavSymbols']) so the glyphs resolve through the same chain the
+        // phone uses: system fonts first, the bundled subset filling holes.
         theme: ThemeData(fontFamilyFallback: const ['SnGNavSymbols']),
         localizationsDelegates: const [
           AppL10n.delegate,

@@ -1,9 +1,9 @@
 /// Regression test for the finite-coordinate ingest guard in
 /// [fixFromSample] (lib/her_position.dart).
 ///
-/// HER-trace: a degraded / NaN / Inf GPS fix must surface as the honest
+/// Why: a degraded / NaN / Inf GPS fix must surface as the honest
 /// "position unavailable" state, NEVER as a confidently-wrong dot. On the
-/// pinned flutter_map 8.3.0, a non-finite `LatLng` would also crash HER
+/// pinned flutter_map 8.3.0, a non-finite `LatLng` would also crash the driver's
 /// entire map subtree via `Crs.checkLatLng` (throws "LatLng is not finite",
 /// flutter_map issue #2178). This is the #161 NaN-GPS class the sibling
 /// SNGNav repo guards at its LocationBloc chokepoint (fixed 2026-06-27).

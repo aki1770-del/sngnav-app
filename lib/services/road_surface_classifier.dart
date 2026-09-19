@@ -32,7 +32,7 @@
 /// `driving_weather ^0.4.0` that `snow_rendering` 0.3.0 leaves behind). The
 /// exact caps and the catalog-side republish they need are recorded in
 /// `pubspec.yaml`. Forcing the constraint past the resolver is forbidden
-/// (AAE-3); so the guarantee is enforced HERE instead — which is exactly what
+/// here; so the guarantee is enforced in this file instead — which is exactly what
 /// `snow_rendering` 0.2.9's own dartdoc instructs, verbatim:
 ///
 /// > Never call this with fields you did not measure; gate absence at your call

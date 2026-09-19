@@ -1,4 +1,4 @@
-/// OPS-066 render-SEE capture for HER-POV #3 — a null-expires JMA warning
+/// Render-and-look capture for driver's-view finding #3 — a null-expires JMA warning
 /// (`condition_aggregator_jma` emits `expires: null` as its ONLY value) now
 /// SURVIVES a failed refresh inside the bounded synthetic window and renders
 /// as a RETAINED card under the visible stale-age banner — instead of
@@ -18,7 +18,7 @@
 ///   flutter test --update-goldens \
 ///     test/render_see/advisory_retained_null_expires_capture_test.dart
 /// On a host without CJK fonts the pixel claim is withdrawn (the render
-/// pipeline is still exercised); NOBODY affirms CI PNGs as HER-phone evidence.
+/// pipeline is still exercised); NOBODY affirms CI PNGs as phone evidence.
 library;
 
 import 'package:condition_aggregator/condition_aggregator.dart';

@@ -1,21 +1,21 @@
 /// WS6 — the live drive controller: honest position + compound caution,
 /// auto-announced on the app's WS5 actuators the moment the caution rung rises.
 ///
-/// **Mission trace (<=4 hops).** HER is in unexpected snow with Maps + GPS
+/// **Why this exists.** The driver is in unexpected snow with Maps + GPS
 /// failing. This controller is the live brain of her drive HUD: it feeds every
 /// position sample into `localization_fallback` (honest dot), fuses the result
 /// with visibility/advisory/speed via `compound_failure_advisor` (honest
 /// caution rung), and — the moment the caution RISES — announces it on audio +
-/// haptic through the WS5 [AlertAnnouncer]. So the caution reaches HER even
+/// haptic through the WS5 [AlertAnnouncer]. So the caution reaches the driver even
 /// when her eyes are on the invisible road and the basemap has gone blank.
-///   controller (this file) → caution reaches HER eyes-off → she eases / pauses
-///   → HER survives the whiteout.
+///   controller (this file) → caution reaches the driver eyes-off → she eases
+///   off or pauses → she gets through the whiteout.
 ///
-/// **Reach status (OPS-066 / AAE-1 — honest bounds).** This controller is
+/// **Reach status (honest bounds).** This controller is
 /// WIRED into `SngnavApp`'s live flow (`main.dart`): the app's GPS listener
 /// calls [onPositionFix] / [poll], the visibility + area-advisory it already
 /// holds feed [updateEnvironment], and a rising rung fires the app's SINGLE
-/// [AlertAnnouncer] (audio + haptic). The **code-path reaches HER**; the
+/// [AlertAnnouncer] (audio + haptic). The **code path reaches the driver**; the
 /// on-device HEAR / FEEL is DEFERRED (no Android device in this env — see
 /// `docs/DEVICE_VERIFICATION.md`). It is never claimed as "works on Android".
 ///
@@ -42,7 +42,7 @@ import 'maneuver_narration.dart';
 import 'measured_hazard_floor.dart';
 
 /// Where the caution rung comes from before a share's first trusted fix
-/// (ruled 2026-09-15).
+/// (decided 2026-09-15).
 enum StartRung {
   /// The brain's own estimate sets the rung: a trusted fix came in this share,
   /// or no share is being judged by these rules.
@@ -108,7 +108,7 @@ class DriveHudController extends ChangeNotifier {
   final DriveHudLocalizer _text;
   final ManeuverNarrator _narrator;
 
-  /// BCP-47-ish tag for the driver-facing surface (defaults to `ja` — HER).
+  /// BCP-47-ish tag for the driver-facing surface (defaults to `ja`).
   final String localeTag;
 
   // --- environment inputs the app feeds alongside position ---
@@ -145,7 +145,7 @@ class DriveHudController extends ChangeNotifier {
   DriveAdvice? _advice;
   DriveAction? _effectiveAction;
 
-  /// Where the rung comes from before this share's first trusted fix (ruled
+  /// Where the rung comes from before this share's first trusted fix (decided
   /// 2026-09-15). Set by the app, which alone knows where a share begins and
   /// whether an event has come.
   StartRung _startRung = StartRung.none;
@@ -164,7 +164,7 @@ class DriveHudController extends ChangeNotifier {
   }
 
   /// A share she starts herself begins with nothing told and no rung held
-  /// (ruled 2026-09-15). The estimate is kept: reset, a replayed fix from
+  /// (decided 2026-09-15). The estimate is kept: reset, a replayed fix from
   /// another place became a trusted position.
   void startShare() {
     _lastSpokenRung = null;
@@ -203,10 +203,11 @@ class DriveHudController extends ChangeNotifier {
   /// The highest rung the controller has actually SPOKEN, for rise-gating the
   /// announce. Tracked SEPARATELY from the effective rung on purpose: a rung
   /// that RISES but is deliberately muted (a measured-hazard floor the watch
-  /// lane already voiced, or an unknown-visibility-only heightened) must NOT
+  /// channel already voiced, or an unknown-visibility-only heightened) must NOT
   /// advance this — otherwise it would swallow the announce slot and a LATER
   /// genuinely-grounded caution at the same rung would reach neither the voice
-  /// NOR the OPS-059 haptic (the safety regression OPS-068 caught). It is
+  /// NOR the haptic that deaf and hard-of-hearing drivers rely on (a safety
+  /// regression found in review). It is
   /// clamped DOWN on a genuine downgrade so a drop-then-re-rise re-announces.
   DriveAction? _lastSpokenRung;
 
@@ -277,7 +278,7 @@ class DriveHudController extends ChangeNotifier {
       fix,
       t,
       // Her ring grows at least as fast as the platform measured her moving
-      // at this fix (ruled 2026-09-14), read from the fix itself. At a default
+      // at this fix (decided 2026-09-14), read from the fix itself. At a default
       // 2.0 m/s, 30 s into a blackout at 25 m/s, the map was told 70 m while
       // she could be 775 m away. [speedMetersPerSecond] stays the advisor's
       // alone, and the app gives it none.
@@ -312,8 +313,8 @@ class DriveHudController extends ChangeNotifier {
     // driver reacts to (caution-add-only), and compounds to the ceiling when the
     // hazard cannot even be LOCATED. "Unlocatable" is the STRICT honest condition
     // — dead-reckoning or lost — NOT advice.positionUncertain (which also covers
-    // a fresh, still-locatable suspect fix that stays at the heightened floor;
-    // OPS-068). See measured_hazard_floor.dart.
+    // a fresh, still-locatable suspect fix that stays at the heightened
+    // floor). See measured_hazard_floor.dart.
     final positionUnlocatable = estimate.mode == LocalizationMode.deadReckoning ||
         estimate.mode == LocalizationMode.lost;
     switch (_startRung) {
@@ -376,7 +377,7 @@ class DriveHudController extends ChangeNotifier {
   ///
   /// Whether the rung's own SPOKEN guidance line fires is gated by
   /// [_shouldSpeakRise] — two kinds of rise are shown+coloured but NOT spoken
-  /// here: a rise driven solely by the measured-hazard floor (the watch lane
+  /// here: a rise driven solely by the measured-hazard floor (the watch channel
   /// already speaks the specific hazard), and a heightened rise whose only
   /// advisor reason is unknown/stale visibility (an honest displayed state,
   /// never an alarm to blare on every sensorless drive).
@@ -384,7 +385,7 @@ class DriveHudController extends ChangeNotifier {
   /// The speak-gate rises off [_lastSpokenRung] — the last rung actually SPOKEN
   /// — NOT off the effective rung. A muted rise therefore does not consume the
   /// announce slot: a later grounded caution at the same rung still speaks +
-  /// buzzes (OPS-068 fix). [_lastSpokenRung] is clamped DOWN whenever the
+  /// buzzes. [_lastSpokenRung] is clamped DOWN whenever the
   /// effective rung genuinely downgrades, so a drop-then-re-rise re-announces
   /// (the documented behaviour).
   void _maybeAnnounce(DriveAdvice advice) {
@@ -426,7 +427,7 @@ class DriveHudController extends ChangeNotifier {
   ///    reach her eyes-off.
   ///  - a rise to `heightenedCaution` caused SOLELY by the measured-hazard floor
   ///    (the advisor itself is still below heightened) does NOT speak — the
-  ///    watch lane already spoke the specific hazard; a second generic caution
+  ///    watch channel already spoke the specific hazard; a second generic caution
   ///    line would be double-speak.
   ///  - a rise to `heightenedCaution` grounded by the advisor speaks ONLY when a
   ///    reason OTHER than unknown/stale visibility raised it. "We have no
@@ -436,7 +437,7 @@ class DriveHudController extends ChangeNotifier {
   bool _shouldSpeakRise(DriveAdvice advice, DriveAction effective) {
     if (effective == DriveAction.considerStopping) return true;
     // effective == heightenedCaution here (continueDriving never reaches speak).
-    // Rose solely from the measured floor → the watch lane already spoke it.
+    // Rose solely from the measured floor → the watch channel already spoke it.
     if (advice.action.index < DriveAction.heightenedCaution.index) return false;
     // Advisor grounded it: speak only if something other than unknown/stale
     // visibility raised it.
@@ -450,7 +451,7 @@ class DriveHudController extends ChangeNotifier {
   /// Narrate the NEXT [maneuver] through the SAME announcer as the caution,
   /// GATED on the live honest position mode.
   ///
-  /// This is the HER differentiator: a turn is spoken ONLY when the dot is
+  /// This is what sets the app apart: a turn is spoken ONLY when the dot is
   /// trustworthy.
   ///  - `gpsTrusted` → SPEAK the JA turn plainly.
   ///  - `gpsSuspect` → HEDGE (softened, "please confirm").
@@ -487,7 +488,7 @@ class DriveHudController extends ChangeNotifier {
         text: decision.text,
         localeTag: localeTag,
         // The caller alone knows where [icyTurn] came from; when it is a value
-        // nobody measured, the icy line is spoken as a test value (AAA R52, AQ4).
+        // nobody measured, the icy line is spoken as a test value.
         spokenPrefix: decision.icyCoupled && icyTurnFromTestValue
             ? _text.testValueSpokenPrefix(localeTag)
             : null,
@@ -528,7 +529,7 @@ class DriveHudController extends ChangeNotifier {
   /// continueDriving → info (not announced); heightenedCaution → warning;
   /// considerStopping → critical. The announcer gates BOTH audio + haptic on
   /// `>= warning`, so a rung at or above heightened reaches the eyes-off AND
-  /// the deaf / can't-hear-over-the-wind driver (OPS-059 floor).
+  /// the deaf / can't-hear-over-the-wind driver (accessibility floor).
   static AlertSeverity _severityFor(DriveAction action) => switch (action) {
         DriveAction.continueDriving => AlertSeverity.info,
         DriveAction.heightenedCaution => AlertSeverity.warning,
@@ -542,11 +543,11 @@ class DriveHudController extends ChangeNotifier {
   AlertSeverity? get currentSeverity =>
       _effectiveAction == null ? null : _severityFor(_effectiveAction!);
 
-  /// Whether the current EFFECTIVE rung is one the rung lane itself SPEAKS (vs
-  /// one that is shown+coloured only while a watch lane speaks the specific
+  /// Whether the current EFFECTIVE rung is one the rung channel itself SPEAKS
+  /// (vs one that is shown+coloured only while a watch channel speaks the specific
   /// hazard, or an unknown-visibility-only display). For an HONEST HUD status
-  /// line: a floor-only heightened must NOT claim it auto-fired audio+haptic
-  /// (OPS-068). `false` before any advice and for `continueDriving`.
+  /// line: a floor-only heightened must NOT claim it auto-fired audio+haptic.
+  /// `false` before any advice and for `continueDriving`.
   bool get effectiveRungIsSpokenByRung {
     final effective = _effectiveAction;
     final advice = _advice;

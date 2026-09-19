@@ -1,7 +1,7 @@
 /// 1b tofu drift-guard (plan 2026-07-25 §1) — the bundled symbols subset
 /// must cover every symbol-class character the app's string literals carry.
 ///
-/// WHY THIS EXISTS: HER-facing safety strings carry symbols (⚠ ❄ ※ → …)
+/// WHY THIS EXISTS: driver-facing safety strings carry symbols (⚠ ❄ ※ → …)
 /// that the ja system font stack does not guarantee — measured 2026-07-30:
 /// Noto Sans CJK JP lacks U+2744 ❄, and the render-see harness fonts lack
 /// U+26A0 ⚠ (memory: RENDER-SEE BLIND TO NON-CJK SYMBOLS). A warning row
@@ -12,12 +12,12 @@
 /// THE LOOM: this test re-derives the symbol inventory from lib/ string
 /// literals ON EVERY RUN and parses the shipped font's cmap directly. Adding
 /// a new symbol to any UI string WITHOUT re-cutting the subset fails the
-/// suite — the break stops the line instead of shipping tofu to HER device.
+/// suite — the break stops the line instead of shipping tofu to the driver's device.
 /// Re-cut procedure: tool/subset_symbols_font.md.
 ///
 /// HONEST BOUNDS: this proves the SHIPPED FONT BYTES cover the inventory and
 /// the theme names the family. It does NOT prove on-device glyph rendering
-/// (OPS-066 — device leg DEFERRED, no device in this env); the render-see
+/// (device leg DEFERRED, no device in this env); the render-see
 /// capture (test/render_see/symbol_glyphs_capture_test.dart) is the
 /// host-level render evidence.
 library;

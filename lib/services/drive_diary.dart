@@ -1,12 +1,12 @@
 /// RING-2 DRIVE DIARY — the season's consented evidence instrument.
 ///
-/// The three-month plan (outputs/plans/three_month_plan_2026_08_10.md §2,
-/// Ring 2) binds the remote-beta evidence path: a consented in-app ja
+/// The project's three-month plan (2026-08-10) binds the remote-beta evidence
+/// path: a consented in-app ja
 /// post-drive diary → local file → share sheet. Ten active diary-writers in
 /// real snow = a successful season; dated entries are cross-checked against
 /// AMeDAS / あきたのみち情報 by the reader — never by the app.
 ///
-/// HER-trace: after the drive, parked, she writes three taps and a line —
+/// Why: after the drive, parked, the driver writes three taps and a line —
 /// what the road was, whether the warning helped, in her own words. That
 /// entry is the only instrument that can prove the season's falsifier #1
 /// (real people, real snow, real use) without surveillance.
@@ -28,8 +28,8 @@
 ///   practice nothing is ever dropped.
 /// - A diary failure must never take the app down: every file op is
 ///   wrapped; a broken write is dropped, not thrown.
-/// - The OS share sheet itself is on-device behaviour: OPS-066 DEFERRED
-///   until a device pass (AAE env-bound), same bound as log_share.dart.
+/// - The OS share sheet itself is on-device behaviour: verification is
+///   DEFERRED until a device pass (no device here), same bound as log_share.dart.
 library;
 
 import 'dart:convert' show utf8;
@@ -79,13 +79,13 @@ enum DiaryAdvisoryExperience {
   final String token;
 }
 
-/// A THREE-VALUED answer to "did you perceive it?" — AAE 2026-09-19.
+/// A THREE-VALUED answer to "did you perceive it?" — added 2026-09-19.
 ///
 /// Three-valued on purpose. 「わからない」 must survive into the record and
 /// BLOCK any reading that depends on it: a channel check whose answer is
 /// unsure is not a pass and is not a failure, and collapsing it to either is
-/// the same defect this whole instrument exists to catch. C3 (seen · heard ·
-/// felt) is met ONLY by [perceived]; nothing else may be read as met.
+/// the same defect this whole instrument exists to catch. The release criterion
+/// "seen · heard · felt" is met ONLY by [perceived]; nothing else may be read as met.
 enum DiaryPerception {
   perceived('はい', 'yes'),
   notPerceived('いいえ', 'no'),
@@ -165,7 +165,7 @@ class DriveDiary {
     return true;
   }
 
-  /// Appends one WARNING-CHANNEL CHECK entry — AAE 2026-09-19.
+  /// Appends one WARNING-CHANNEL CHECK entry — added 2026-09-19.
   ///
   /// **Why this is a separate entry kind, and why it carries two columns.**
   /// The app cannot tell whether a warning reached a person. On Android it
@@ -175,7 +175,7 @@ class DriveDiary {
   /// answers `result.success(null)` unconditionally (vibration 3.2.0,
   /// `VibrationMethodChannelHandler.java:52`). So on any real handset the
   /// platform reports success whether or not anything happened — which is
-  /// exactly what the Chair met on 2026-08-31 ("buzz does not work so far")
+  /// exactly what a tester met on 2026-08-31 ("buzz does not work so far")
   /// while the app's own fault chip stayed clear.
   ///
   /// This entry therefore records BOTH columns on one line:
@@ -309,7 +309,7 @@ class DriveDiary {
     return -1;
   }
 
-  /// ISO8601 local wall-clock WITH UTC offset (+09:00 in HER geography) —
+  /// ISO8601 local wall-clock WITH UTC offset (+09:00 in Japan) —
   /// Dart's toIso8601String() on a local DateTime omits the offset, which
   /// would make the entry's day ambiguous to the AMeDAS cross-checker.
   static String _localIso8601(DateTime t) {

@@ -1,6 +1,6 @@
 /// THE MOUTH — the finite ja SAFETY vocabulary, pre-rendered to bundled audio.
 ///
-/// WHY THIS EXISTS (C2 RED-2). HER phone's only voice path was `flutter_tts` —
+/// WHY THIS EXISTS (offline-survival finding). The phone's only voice path was `flutter_tts` —
 /// the system TTS — measured SILENT-THEN-HUNG offline on her device: no offline
 /// ja voice is installed on it, and the plugin's error callback never resolves
 /// the Future. So on the one night the network dies in Akita, every warning we
@@ -37,7 +37,7 @@
 ///    — it interpolates the observation hour. It routes to TTS; offline the
 ///    AUDIO is SILENT. Since 2026-07-15 the SAME stamped line renders as a
 ///    VISIBLE card in the JMA feed-loss panel (main.dart `_staleIceVisibleCard`
-///    via the shared `feedLossVerdict`), so the content now reaches HER
+///    via the shared `feedLossVerdict`), so the content now reaches the driver
 ///    through the SCREEN even when the mouth cannot say it. The VOICE gap
 ///    itself remains: an eyes-on-road driver still does not HEAR this line
 ///    offline. Recorded bound, not a claim.
@@ -48,7 +48,7 @@
 ///    goes offline, these 58 must be rendered too.
 ///
 /// RENDERING: `bash tool/render_offline_voice.sh` (open_jtalk + nitech-jp HTS,
-/// 16 kHz mono) writes `assets/audio/ja/<id>.wav`. Chair ruling 2026-07-12:
+/// 16 kHz mono) writes `assets/audio/ja/<id>.wav`. Decided 2026-07-12:
 /// synth now, human-record the safety core before winter — when the human
 /// recordings land they replace these files at the SAME ids and nothing else
 /// changes.
@@ -62,7 +62,7 @@ library;
 // ignore_for_file: lines_longer_than_80_chars
 const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   // --- Road-surface alerts, spoken VERBATIM from the catalog explainer
-  // (main.dart:1419). 6 conditions x 5 ja profiles. These are the lines HER
+  // (main.dart:1419). 6 conditions x 5 ja profiles. These are the lines the driver
   // actually hears about the road she cannot see.
   'alert_wet_ageing_rural':
       '路面が濡れています。気温が0°Cより高くても路面は先に冷えて凍り、ブラックアイスバーンになることがあります。橋やトンネル出口で速度を落としてください',
@@ -163,7 +163,7 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   'conditions_unknown':
       '路面状況を取得できていません。見える範囲で運転してください。',
 
-  // --- The test-value prefix (AAA R52, AQ4). Spoken as its OWN utterance
+  // --- The test-value prefix. Spoken as its OWN utterance
   // before a line a value nobody measured raised (AlertAnnouncer spokenPrefix),
   // so the line after it still matches its own clip by exact string. Bundled so
   // the words that say "this is a test" do not go silent offline while the line

@@ -8,7 +8,7 @@
 // - Profile-switch changes throttle cap AND explainer action AND
 //   telemetry record's profileClass.
 //
-// AAA Article 17 (β) discipline: these tests verify behavior; they
+// Article 17 (β) discipline: these tests verify behavior; they
 // do NOT exercise driver-facing wording. Wording-class verification
 // lives in navigation_safety_core's own test suite.
 

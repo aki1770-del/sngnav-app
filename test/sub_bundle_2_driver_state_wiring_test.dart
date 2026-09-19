@@ -5,7 +5,7 @@
 // Verifies sngnav-app's wiring of the four new optional inputs to
 // NavigationSafetyConfig.forDriverContext + the cap-override-with-
 // confirmation pattern. Tests verify behaviour at the API boundary
-// per AAA Article 17 (β); no driver-facing wording exercised.
+// per Article 17 (β); no driver-facing wording exercised.
 
 import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';

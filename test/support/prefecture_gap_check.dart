@@ -1,8 +1,8 @@
 /// The prefecture observations table at 393 px, read with one face: every
 /// value is drawn at 11 px or more, and between the painted extents of two
-/// neighbouring columns there are at least 4 px (HIE R57, L2).
+/// neighbouring columns there are at least 4 px (display review, 2026-09-16).
 ///
-/// Why, written before the act (2026-09-16). HIE's second look at 12bdd13, in
+/// Why, written before the act (2026-09-16). The display review's second look at 12bdd13, in
 /// IPAGothic: the temperature was drawn at 0.744 of 12 px (~8.9 px), the
 /// smallest text on her page, and its pill touched the wind value; the wind
 /// value ran into the observed time with no gap. The existing check
@@ -32,7 +32,7 @@ import 'package:sngnav_app/main.dart' show SngnavApp;
 import '../render_see/render_see_env.dart';
 import 'fake_alert_actuators.dart';
 
-/// Three stations answer (the widest values the card shows in HIE's frames),
+/// Three stations answer (the widest values the card shows in the review's frames),
 /// two fail.
 http.Client _jmaNetwork() => MockClient((req) async {
       final u = req.url.toString();

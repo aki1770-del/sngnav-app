@@ -20,7 +20,7 @@
 #
 # ⚑ This paragraph said "and not on the authoring machine either. It exists
 # nowhere." until 2026-08-16, when that was measured FALSE: the file is present
-# at /home/komada/tmp/sngnav-app/assets/tiles/gunma_offline.mbtiles, 11,034,624
+# at $HOME/tmp/sngnav-app/assets/tiles/gunma_offline.mbtiles, 11,034,624
 # bytes. It is absent only from the OTHER clone of this repository, which is
 # where the sentence was written — a claim about "the machine" made from one
 # tree. Corrected rather than deleted, because a wrong-tree measurement is the
@@ -92,7 +92,7 @@
 #     clean PATH or a clean HOME. A self-test depending on an installed
 #     interpreter or a system package is out of scope here and shows up as
 #     UNDETERMINED, not as a hermeticity verdict.
-#   - ⚑ THE OTHER HALF OF THE CLASS — ADDED 2026-08-16 ON FBR FINDING F2, and
+#   - ⚑ THE OTHER HALF OF THE CLASS — ADDED 2026-08-16 ON REPRODUCTION-REVIEW FINDING F2, and
 #     the bounds below are the corrected ones. This file previously claimed to
 #     cover "the class"; it covered ONE SHAPE of it. Divergence detects a
 #     dependence on an UNTRACKED PATH INSIDE the repo, and is structurally BLIND
@@ -101,20 +101,20 @@
 #     2026-08-11 defect's OWN shape (guards resolved through a private
 #     $HOME/Documents/… path no runner checks out), so the file was blind to its
 #     own founding incident. The OUTSIDE-REPO check now traces what each
-#     self-test actually touches. ITS bounds, REWRITTEN after FBR round-3
+#     self-test actually touches. ITS bounds, REWRITTEN after reproduction-review round 3
 #     returned CONFIRMED-DOWNGRADED on the first version of this list, which
 #     overclaimed in two specific places and omitted the exclusion that mattered
 #     most:
 #       * it needs `strace`. Where strace is absent, cannot ptrace, is killed by
 #         the timeout, or produces no usable trace, the answer is COULD-NOT-LOOK
 #         and it is printed per guard as `trace-UNCHECKED`. ⚑ By default that
-#         still exits 0, which is NOT good enough on its own — FBR: "UNVERIFIED
+#         still exits 0, which is NOT good enough on its own — The reproduction review: "UNVERIFIED
 #         that clears the gate is cleared." Set SELFTEST_HERMETIC_REQUIRE_TRACE=1
 #         (CI does) to make an unchecked class a fail-closed 3.
 #       * it excludes system prefixes, the two worktrees, the git common dir,
 #         the run's own fresh TMPDIR, dot-paths under $HOME, and ANY PATH UNDER
 #         A DIRECTORY ON $PATH. That last rule exists because the dot rule alone
-#         cried wolf on this machine's own Flutter SDK at /home/komada/flutter —
+#         cried wolf on this machine's own Flutter SDK at $HOME/flutter —
 #         a hard RED on a healthy guard, which is how a check gets deleted.
 #         A fixture parked in a dot-directory under $HOME, or inside a $PATH
 #         directory, is therefore MISSED.
@@ -127,7 +127,7 @@
 #         DIRECTORY merely existing is MISSED;
 #       * it only traces self-tests that PASS here, because that is the shape
 #         this class takes.
-#   - ⚑ AND THE ONE THAT DECIDES HOW TO READ A GREEN FROM CI, measured by FBR:
+#   - ⚑ AND THE ONE THAT DECIDES HOW TO READ A GREEN FROM CI, measured by the reproduction review:
 #     A RUNNER CHECKOUT HAS ZERO UNTRACKED-NOT-IGNORED PATHS. PRISTINE and
 #     SEEDED are then byte-identical, so NON-HERMETIC and DIVERGENT are
 #     STRUCTURALLY UNREACHABLE IN CI — they are developer-machine verdicts. The
@@ -171,9 +171,9 @@ check_repo() {
     echo "SUBSTRATE ERROR: cannot resolve ref '$REF' in $REPO"; return 2; }
 
   local T PRISTINE
-  # ADVERSARIAL-REVIEW C1, 2026-08-16. This carried `|| return 2` but NOT the emptiness
+  # ADVERSARIAL REVIEW finding 1, 2026-08-16. This carried `|| return 2` but NOT the emptiness
   # check — the very countermeasure this repo already owned one file over
-  # (tile-archive-identity-guard.sh, "ADVERSARIAL-REVIEW C2 PRESERVED"). Under
+  # (tile-archive-identity-guard.sh, "ADVERSARIAL REVIEW finding 2 PRESERVED"). Under
   # `set -uo pipefail` with no `-e`, a `mktemp` that exits 0 while printing
   # nothing leaves T SET but EMPTY, so PRISTINE becomes "/pristine" and every
   # path below is an absolute path at the filesystem root. As an unprivileged
@@ -192,7 +192,7 @@ check_repo() {
     echo "SUBSTRATE ERROR: could not materialise $REF as a worktree"
     rm -rf "$T"; return 2
   fi
-  # ADVERSARIAL-REVIEW C2, 2026-08-16. This trap body was DOUBLE-quoted, so $REPO and
+  # ADVERSARIAL REVIEW finding 2, 2026-08-16. This trap body was DOUBLE-quoted, so $REPO and
   # $PRISTINE were interpolated into the trap string at set-time and re-parsed
   # by the shell at fire-time. The reviewer measured both consequences: a repo path
   # containing an apostrophe (`O'Brien`) broke the quoting, cleanup never ran,
@@ -259,7 +259,7 @@ check_repo() {
   # SELFTEST_HERMETIC_SEED_IGNORED=1 to include those too, slowly.
   local seed_args="--others --exclude-standard"
   [ "${SELFTEST_HERMETIC_SEED_IGNORED:-0}" = "1" ] && seed_args="--others"
-  # ⚑ FBR FINDING F1, 2026-08-16 — THIS LOOP FAILED OPEN, and it is the single
+  # ⚑ REPRODUCTION-REVIEW FINDING F1, 2026-08-16 — THIS LOOP FAILED OPEN, and it is the single
   # worst place in this file for that. The SEEDED overlay is the ONLY thing that
   # makes the two trees differ; if it silently seeds nothing, PRISTINE and SEEDED
   # are IDENTICAL, every comparison is vacuously equal, and the guard reports
@@ -278,12 +278,12 @@ check_repo() {
   # refuses to render a verdict. `mkdir` and `cp` are both checked; `|| continue`
   # was how a failed mkdir skipped a path without anyone noticing.
   #
-  # ⚑ TWO FBR ROUND-3 CORRECTIONS, both in the fix above rather than the
+  # ⚑ TWO REPRODUCTION-REVIEW ROUND 3 CORRECTIONS, both in the fix above rather than the
   # original defect — a fix is not exempt from the discipline it enforces.
   #
   # (1) `git ls-files` ITSELF WAS UNCHECKED. want_n and seeded_n both derived
   #     from the same command, so a failure reconciled vacuously at `0 = 0`.
-  #     FBR shimmed git so only `ls-files --others` fails (a locked or corrupt
+  #     The reproduction review shimmed git so only `ls-files --others` fails (a locked or corrupt
   #     index): "0 of 0 untracked path(s)" -> HERMETIC 1/1, exit 0, against a
   #     control that correctly said DIVERGENT. `0 of 0` is indistinguishable
   #     from "there genuinely are none", and the process-substitution exit
@@ -292,7 +292,7 @@ check_repo() {
   #
   # (2) `-z`, BECAUSE THIS IS A REPOSITORY ABOUT AKITA. `git ls-files` C-quotes
   #     any path containing non-ASCII, a quote, a backslash or a newline, and
-  #     the loop fed that raw to `cp`. FBR: one file named 秋田.txt turned this
+  #     the loop fed that raw to `cp`. The reproduction review: one file named 秋田.txt turned this
   #     guard SUBSTRATE ERROR exit 2 with a message pointing at disk or
   #     permissions — a red nobody would ever find the cause of. The fix I had
   #     written turned a silent skip into a misdirecting hard failure; -z emits
@@ -343,7 +343,7 @@ check_repo() {
   # the mktemp shape is collapsed now, because that is the only one that
   # legitimately varies per run.
   #
-  # ⚑ FBR FINDING F1 (second, independent fail-open), 2026-08-16. The tree paths
+  # ⚑ REPRODUCTION-REVIEW FINDING F1 (second, independent fail-open), 2026-08-16. The tree paths
   # were interpolated RAW into `s|…|…|`. A `|` or `\` or `&` in a tmpdir path
   # makes sed exit non-zero, norm_out emits NOTHING — and it does so for BOTH
   # sides, so the two normalised outputs are equal and the comparison silently
@@ -377,7 +377,7 @@ check_repo() {
     return 2
   fi
 
-  # ── FBR FINDING F2, 2026-08-16 — THE OTHER HALF OF THE CLASS ────────────────
+  # ── REPRODUCTION-REVIEW FINDING F2, 2026-08-16 — THE OTHER HALF OF THE CLASS ────────────────
   # Divergence between the two trees detects a self-test that depends on an
   # UNTRACKED PATH INSIDE the repository. It is structurally blind to one that
   # depends on an ABSOLUTE PATH OUTSIDE it — the shape of the 2026-08-11 defect
@@ -420,13 +420,13 @@ check_repo() {
   local _GITCOMMON; _GITCOMMON="$(git -C "$PRISTINE" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
   # The machine's own declaration of where its tools live. See rule (b) below.
   local _PATHDIRS; _PATHDIRS="$(printf '%s' "${PATH:-}" | tr ':' ' ')"
-  # ⚑ REWRITTEN 2026-08-16 ON FBR ROUND-3, WHICH RETURNED CONFIRMED-DOWNGRADED
+  # ⚑ REWRITTEN 2026-08-16 ON REPRODUCTION-REVIEW ROUND 3, WHICH RETURNED CONFIRMED-DOWNGRADED
   # ON THIS FUNCTION. The first cut of this check was fail-open in FOUR
-  # independent ways, and every one was silent and green. FBR named the root in
+  # independent ways, and every one was silent and green. The reproduction review named the root in
   # one sentence: it reported "no offending paths" and "I could not look"
   # THROUGH THE SAME CHANNEL — empty stdout. That is the exact defect this whole
   # file exists to condemn, written into the detector that closes it.
-  # Measured by FBR against a committed outside-reading decoy:
+  # Measured by the reproduction review against a committed outside-reading decoy:
   #   (i)   strace present but ptrace denied (container without CAP_SYS_PTRACE,
   #         yama/ptrace_scope>=2) -> `HERMETIC 2/2`, exit 0, no note at all.
   #   (ii)  `mkdir -p "$rt" || return 0` on ENOSPC/EROFS  -> `HERMETIC 2/2`, exit 0.
@@ -445,7 +445,7 @@ check_repo() {
     [ -d "$rt" ] && [ -w "$rt" ] || return 2
     # BOUNDED, like the other two invocations — the first version had no timeout
     # and broke case [9] (10/10 -> 9/10, 69s). But a bound that fires is
-    # COULD-NOT-LOOK, not clean: FBR proved a truncated trace read green twice.
+    # COULD-NOT-LOOK, not clean: The reproduction review proved a truncated trace read green twice.
     local _TO="" _tmo=0
     if command -v timeout >/dev/null; then _TO="timeout ${SELFTEST_HERMETIC_TIMEOUT:-300}"; else _tmo=1; fi
     ( cd "$PRISTINE" && TMPDIR="$rt" $_TO strace -f -qq -e trace=file -o "$tf" \
@@ -470,7 +470,7 @@ check_repo() {
               "$SEEDED"|"$SEEDED"/*)     continue ;;
               "$T"|"$T"/*)               continue ;;
             esac
-            # ⚑ `"$REPO"/*` USED TO BE EXCLUDED HERE AND IS NOT ANY MORE. FBR:
+            # ⚑ `"$REPO"/*` USED TO BE EXCLUDED HERE AND IS NOT ANY MORE. The reproduction review:
             # that exclusion covered the LIVE CHECKOUT, which is exactly where
             # untracked fixtures live — so a self-test reading
             # `/abs/path/to/repo/assets/tiles/gunma_offline.mbtiles` was
@@ -483,12 +483,12 @@ check_repo() {
               case "$p" in "$_GITCOMMON"|"$_GITCOMMON"/*) continue ;; esac
             fi
             # TOOLCHAIN, by a MECHANICAL rule and not a name list. Two rules,
-            # because FBR broke the first one on this very machine:
+            # because the reproduction review broke the first one on this very machine:
             #   (a) dot-paths under $HOME — ~/.local/lib/python*/site-packages,
             #       ~/.gitconfig, ~/.pub-cache: the toolchain being itself.
             #   (b) ⚑ ANY PATH UNDER A DIRECTORY ON $PATH. The dot rule assumed
             #       toolchains install into dot-directories. This machine's
-            #       Flutter SDK is /home/komada/flutter/bin/flutter — NO DOT —
+            #       Flutter SDK is $HOME/flutter/bin/flutter — NO DOT —
             #       so an entirely honest self-test that shells out to the real
             #       SDK was reported OUTSIDE-REPO, a hard RED on a healthy
             #       guard, on the developer's machine, green in CI. That
@@ -519,7 +519,7 @@ check_repo() {
     local base; base="$(basename "$g")"
     [ "$base" = "$SELF_BASENAME" ] && continue
 
-    # ADVERSARIAL-REVIEW C6, 2026-08-16. Discovery was `grep -q -- '--self-test'`, a
+    # ADVERSARIAL REVIEW finding 6, 2026-08-16. Discovery was `grep -q -- '--self-test'`, a
     # TEXT match that also hits comments and usage strings. The reviewer built a guard
     # whose only mention of --self-test was a usage comment and whose main path
     # had a side effect: this script RAN THE MAIN PATH with --self-test as a
@@ -579,7 +579,7 @@ check_repo() {
     fi
     found=$((found + 1))
 
-    # ADVERSARIAL-REVIEW C10, 2026-08-16: a hung self-test hung the whole CI job, since
+    # ADVERSARIAL REVIEW finding 10, 2026-08-16: a hung self-test hung the whole CI job, since
     # nothing bounded these two invocations. `timeout` where available.
     local TO=""; command -v timeout >/dev/null && TO="timeout ${SELFTEST_HERMETIC_TIMEOUT:-300}"
     local p_exit s_exit p_out s_out p_out2 p_exit2
@@ -624,7 +624,7 @@ check_repo() {
     fi
 
     if [ "$p_exit" -eq 0 ] && [ "$s_exit" = "0" ]; then
-      # ADVERSARIAL-REVIEW C5, 2026-08-16. Exit codes alone cannot tell "ran and passed"
+      # ADVERSARIAL REVIEW finding 5, 2026-08-16. Exit codes alone cannot tell "ran and passed"
       # from "SKIPPED because its fixture was absent, and exited 0". The reviewer built
       # exactly that guard — `[ -f fixture ] || { echo skipping; exit 0; }` with
       # an untracked fixture — and this script called it `hermetic`, exit 0.
@@ -736,14 +736,14 @@ MSG
   }
   echo "HERMETIC: $hermetic/$found self-test(s) run from a clean checkout."
   # The outside-repo sub-class is NOT folded into this green when it could not
-  # be checked. UNVERIFIED, never *cleared* (OPS-069(A)).
+  # be checked. UNVERIFIED, never *cleared*.
   if [ "$outside_unchecked" -gt 0 ]; then
     echo "   NOTE: the OUTSIDE-REPO sub-class was UNCHECKED for $outside_unchecked self-test(s)"
     echo "         (\`strace\` absent, or the trace could not be taken). Divergence cannot"
     echo "         see that class, so this verdict covers untracked-INSIDE-the-repo only."
-    # ⚑ FBR ROUND-3: "UNVERIFIED that clears the gate is cleared." The note above
+    # ⚑ REPRODUCTION-REVIEW ROUND 3: "UNVERIFIED that clears the gate is cleared." The note above
     # is prose scrolling past in a log, and ci.yml reads the EXIT CODE. Worse,
-    # FBR measured that on a real runner checkout there are ZERO
+    # The reproduction review measured that on a real runner checkout there are ZERO
     # untracked-not-ignored paths, so PRISTINE and SEEDED are byte-identical and
     # NON-HERMETIC and DIVERGENT are STRUCTURALLY UNREACHABLE in CI — this check
     # is the only one in this file that can fire there at all.
@@ -768,7 +768,7 @@ MSG
 # that exists on the author's disk and is not in the repository.
 if [[ "${1:-}" == "--self-test" ]]; then
   command -v git >/dev/null || { echo "SELF-TEST SUBSTRATE ERROR: git absent"; exit 2; }
-  # ADVERSARIAL-REVIEW C1, 2026-08-16 — the same emptiness check as check_repo(). With
+  # ADVERSARIAL REVIEW finding 1, 2026-08-16 — the same emptiness check as check_repo(). With
   # `mktemp` shimmed to a bare `exit 0`, this proceeded to `mkdir -p /repo/tool`
   # and `git init -q /repo`, and its EXIT trap became `rm -rf ""`.
   T=$(mktemp -d) || { echo "SELF-TEST SUBSTRATE ERROR: mktemp failed"; exit 2; }
@@ -798,7 +798,7 @@ GUARD
 
   pass=0; total=12
 
-  # ADVERSARIAL-REVIEW C7, 2026-08-16. This self-test had THREE cases against SEVEN
+  # ADVERSARIAL REVIEW finding 7, 2026-08-16. This self-test had THREE cases against SEVEN
   # verdicts, and the reviewer proved the gap by mutation: neutering the `found==0`
   # branch, the discovery predicate, or the live-exit check each left the
   # self-test reporting 3/3, exit 0. Three surviving mutants in the guard whose
@@ -893,7 +893,7 @@ GUARD
   #     ADVERTISED gate can produce the exit, and the assertion names the
   #     ADVERTISED summary line rather than any exit-1.
   #
-  #     The usage string is deliberate and is the reviewer's C6(a) repro: the
+  #     The usage string is deliberate and is the reviewer's finding-6(a) repro: the
   #     bracket in `[--self-test]` matched the old predicate's `\[` alternative,
   #     so this script was classified as branching and its main path ran in
   #     BOTH trees, landing two side-effect files, verdict `hermetic`, exit 0.
@@ -1054,18 +1054,18 @@ GUARD
     echo "       => reported a flake as a verdict. exit=$e10"
   fi
 
-  # [11] FBR FINDING F2 — THE OUTSIDE-THE-REPO CLASS, which divergence is
+  # [11] REPRODUCTION-REVIEW FINDING F2 — THE OUTSIDE-THE-REPO CLASS, which divergence is
   #      structurally blind to. A self-test reading an ABSOLUTE path outside the
   #      checkout behaves IDENTICALLY in both trees on this machine, so the old
   #      verdict was `hermetic`, exit 0. This is the 2026-08-11 defect's own
   #      shape. Two halves, because a detector that only ever fires is a
   #      cry-wolf: the outside-reader must be CAUGHT, and a guard that builds
   #      its OWN fixture in a tmpdir must NOT be.
-  # ⚑ FBR ROUND-3 caught TWO defects in this one line, both written THIS round,
+  # ⚑ REPRODUCTION-REVIEW ROUND 3 caught TWO defects in this one line, both written THIS round,
   # in the file that carries a paragraph about carrying countermeasures forward.
   # It was `local OUTDIR; OUTDIR="$(mktemp -d)"` — `local` outside a function,
   # which bash reports on stderr on EVERY run; and an UNCHECKED `mktemp -d`,
-  # which is FBR's own round-1 finding reintroduced by the seat that fixed it.
+  # which is the reproduction review's own round-1 finding reintroduced by the change that fixed it.
   # Unchecked, `OUTDIR` is empty, the fixture is written to `/fx.txt` and the
   # cleanup becomes `rm -rf ""`.
   OUTDIR="$(mktemp -d 2>/dev/null)" || { echo "   [11] SUBSTRATE: mktemp -d failed; cannot build the fixture."; exit 2; }
@@ -1111,13 +1111,13 @@ GUARD
   rm -rf "$OUTDIR"
   rm -f "$R/tool/honest-tmp-guard.sh"
 
-  # [12] FBR ROUND-3 — THE COULD-NOT-LOOK STATE. Every one of the four
-  #      fail-opens FBR found reported "no offending paths" and "I could not
+  # [12] REPRODUCTION-REVIEW ROUND 3 — THE COULD-NOT-LOOK STATE. Every one of the four
+  #      fail-opens the reproduction review found reported "no offending paths" and "I could not
   #      look" through the same channel. The third state has to have a case of
   #      its own, or the next author collapses it back to two. `strace` is
   #      shimmed to write the empty -o file it opens before attaching, then
   #      fail — the ptrace-denied shape (container without CAP_SYS_PTRACE,
-  #      yama/ptrace_scope>=2), which FBR measured as HERMETIC 2/2 exit 0.
+  #      yama/ptrace_scope>=2), which the reproduction review measured as HERMETIC 2/2 exit 0.
   if ! command -v strace >/dev/null 2>&1; then
     echo "   [12] SKIPPED: strace absent, so the could-not-look state cannot be exercised."
     total=$((total - 1))

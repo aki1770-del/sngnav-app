@@ -10,25 +10,26 @@ description: >-
 # been released: 1 tag in this repo's life, and tool/play_uploaded_version_codes.txt
 # holds zero consumed versionCodes. 0.0.5 was a build counter, not a release
 # sequence. 0.0.2 is the second build ever to reach a real person's phone and the
-# first to reach HERS; the Chair's hand-install is 0.0.1. The release sequence
+# first to reach a tester's; the maintainer's hand-install is 0.0.1. The release sequence
 # starts where REACH starts, not where the counter happened to stand.
 #
 # versionCode goes 2 -> 3 and that direction is NOT optional. Android enforces
-# monotonicity on versionCode, never on the name, and the Chair's phone holds an
+# monotonicity on versionCode, never on the name, and the maintainer's phone holds an
 # install at 2 — an update must exceed it. Play has never seen 2, but Play is not
 # who we are updating.
-# 2026-09-19 (AAE): +3 -> +4. A SECOND installable artifact exists, so it needs
-# a versionCode above the one already built. +3 is the laptop build held at
-# /home/komada/work/r104-release-hold-0bc7351/; +4 carries the warning-channel
-# check (C3 heard/felt), the never-gated tactile cue and the mid-drive mute fix.
+# 2026-09-19: +3 -> +4. A SECOND installable artifact exists, so it needs
+# a versionCode above the one already built. +3 is the laptop build held in a
+# local release-hold folder; +4 carries the warning-channel
+# check (heard/felt), the never-gated tactile cue and the mid-drive mute fix.
 # The NAME stays 0.0.2: same release, a build that can answer a question the
 # previous one structurally could not.
-# 2026-09-19 (AAE, R115-1): +4 -> +5. A +4 APK already exists, built from
-# eedd04e and held at /home/komada/work/r114-release-hold-0.0.2+4/. This build
-# is a different artifact: it adds HIE's W3, L2 and severity words and FSE's
-# W1 triple. Two different artifacts must never share a versionCode.
-# 2026-09-19 (AAE, R115): +5 -> +6. The +5 APK exists (e7e21af, held at
-# /home/komada/work/r115-release-hold-0.0.2+5/). This build adds the outlined
+# 2026-09-19: +4 -> +5. A +4 APK already exists, built from
+# eedd04e and held in a local release-hold folder. This build
+# is a different artifact: it adds the advisory card's publisher name, the table's
+# column gaps and severity words, and the three mock-position labels. Two different
+# artifacts must never share a versionCode.
+# 2026-09-19: +5 -> +6. The +5 APK exists (e7e21af, held in a
+# local release-hold folder). This build adds the outlined
 # check button (cf796cb), the weakest real cue (9cfa2e0) and the bundled check
 # line (52edb1d): a different artifact, so a different versionCode.
 # 2026-09-19: +6 -> +7. The 0.0.2+6 APK exists. This build changes one thing:
@@ -90,21 +91,21 @@ dependencies:
   # symbols unchanged but for one comment line.
   # Taken so the app is not sitting on a range that excludes a published safety
   # fix. It buys her nothing today, and saying otherwise would be the
-  # built-capability-not-reach claim this seat exists to catch.
+  # claim that something reached her because it was built.
   driving_conditions: '>=0.6.0 <0.8.0'
   driving_weather: ^0.5.0
   adaptive_reroute: ^0.2.0
   route_condition_forecast: ^0.2.0
   # CAP RELEASED (2026-07-05): route_condition_forecast 0.1.5 widened its
   # routing_engine range, unblocking 0.5.0 — the language-honoring
-  # turn-by-turn line (Japanese by default; the instruction the voice lane
-  # speaks verbatim). On-device OPS-066 verification still owed before any
-  # "reaches HER" claim (docs/on_device_verify_checklist.md).
+  # turn-by-turn line (Japanese by default; the instruction the voice channel
+  # speaks verbatim). On-device verification still owed before any
+  # "reaches the driver" claim (docs/on_device_verify_checklist.md).
   routing_engine: ^0.6.0
   fleet_hazard: ^0.6.0
   snow_rendering: ^0.3.0
   # WIDENED 2026-07-25: ^0.0.3 (= >=0.0.3 <0.0.4) excluded the locked+live
-  # 0.0.8, so a clean `pub get` silently DOWNGRADED the aggregator in HER
+  # 0.0.8, so a clean `pub get` silently DOWNGRADED the aggregator in the app's
   # build and `--enforce-lockfile` hard-failed. >=0.0.3 <0.1.0 admits all
   # 0.0.x (measured live 2026-07-25: latest 0.0.8). Same for noaa_nws_adapter.
   condition_aggregator: '>=0.0.3 <0.1.0'
@@ -151,14 +152,14 @@ dependencies:
   intl: ^0.20.2
   geolocator: ^13.0.0
   cupertino_icons: ^1.0.8
-# Direct dependency (Tier-1 voice-lane hardening, 2026-07-11): imported by
+# Direct dependency (Tier-1 voice-channel hardening, 2026-07-11): imported by
 # lib/actuators/hardened_tts_engine.dart (awaitSpeakCompletion + nav audio
 # attributes + focus-duck + read-the-1/0-result) and
 # lib/services/voice_lane_readiness.dart (getVoices ja/network_required
 # read). Also floor-pins the version so a voice_guidance range change can
-# never silently downgrade HER voice lane.
-# Maintainer watch (FEM 2026-07-11): flutter_tts idle since 2026-01; if it
-# breaks on a future targetSdk, the lane is fork-or-vendor via voice_guidance.
+# never silently downgrade the voice channel.
+# Maintainer watch (ecosystem review 2026-07-11): flutter_tts idle since 2026-01; if it
+# breaks on a future targetSdk, the path is fork-or-vendor via voice_guidance.
   flutter_tts: ^4.2.5
   # NOTE: the bundled ja safety audio deliberately has NO third-party player.
   # `audioplayers` was tried and REMOVED: audioplayers_android 5.3.0 (the latest)
@@ -192,7 +193,7 @@ dependencies:
     sdk: flutter
   compound_failure_advisor: ^0.1.1
   localization_fallback: ^0.1.1
-  # Offline-basemap PoC wiring (Chair Option A, 2026-07-01): read the bundled
+  # Offline-basemap PoC wiring (option A, decided 2026-07-01): read the bundled
   # placeholder MBTiles archive + write it to a temp file for sqlite3 to open.
   # Both are already transitively present via offline_tiles; declared directly
   # so app code may import them (depend_on_referenced_packages).
@@ -208,9 +209,9 @@ dependencies:
   # 0.6.0+eol is a deprecated NO-OP (the .so moves to package:sqlite3 build
   # hooks, which did NOT deliver on our 2026-07-10 build). ^0.5.24 cannot
   # float to 0.6.0 (caret-on-0.x), so only a manual bump can re-open the
-  # blank-offline-map failure. FEM ecosystem read 2026-07-11.
+  # blank-offline-map failure. Ecosystem review 2026-07-11.
   sqlite3_flutter_libs: ^0.5.24
-  # C6 ログを共有 — user-initiated share-sheet export of the local error
+  # ログを共有 (share log) — user-initiated share-sheet export of the local error
   # log (text share; no FileProvider, no manifest change).
   share_plus: ^13.2.0
 

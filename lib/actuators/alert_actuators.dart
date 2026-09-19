@@ -1,6 +1,6 @@
 /// WS5 — the actuator layer that makes a hazard alert *reach* the driver.
 ///
-/// **Why this exists (mission trace, <=4 hops).** HER — the Chair's mother in
+/// **Why this exists.** The driver — an older driver in
 /// Akita — is driving in unexpected snow. Maps and GPS have failed; she cannot
 /// see where the road is. A hazard *rendered on screen* does not reach her:
 /// her eyes are on the invisible road, not the phone. The alert that reaches
@@ -8,14 +8,14 @@
 /// `voice_guidance` reached her as SILENCE — the app never spoke. This layer
 /// is the seam where a surfaced alert becomes something a driver can act on
 /// without looking.
-///   review (this file) -> alert reaches HER on audio+haptic -> she slows /
-///   eases / considers stopping -> HER survives the whiteout.
+///   review (this file) -> alert reaches the driver on audio+haptic -> she slows /
+///   eases / considers stopping -> she gets through the whiteout.
 ///
 /// (Never "turns back": the advisory ceiling is *consider stopping*; the
 /// worst case demotes the MAP, never the JOURNEY to her mother — faithful to
 /// the WS6 advisor doctrine in `drive_hud_localizer.dart`.)
 ///
-/// **The accessibility floor (OPS-059).** The audio channel is not universal:
+/// **The accessibility floor.** The audio channel is not universal:
 /// a deaf or hard-of-hearing driver hears nothing, and *no one* hears speech
 /// inside a roaring-wind whiteout. So the haptic channel must carry the SAME
 /// warning set as audio, off the SAME severity gate — never a reduced subset.
@@ -23,7 +23,7 @@
 /// seam that lets it drive real hardware on a phone and a NO-OP everywhere
 /// else (desktop / tests / web), so the render-SEE ceiling stays intact.
 ///
-/// **Honesty (OPS-066 / AAE-1).** Nothing in this file has been verified on an
+/// **Honesty.** Nothing in this file has been verified on an
 /// Android device in this environment. It is code-complete; the "she HEARS /
 /// FEELS it" claim is DEFERRED to on-device verification (see the checklist at
 /// `docs/DEVICE_VERIFICATION.md`).

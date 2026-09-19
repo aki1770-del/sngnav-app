@@ -1,6 +1,6 @@
-/// Where HER map's camera goes, decided in one place.
+/// Where the map's camera goes, decided in one place.
 ///
-/// HER-trace: the map is the surface her eyes snap to. Measured 2026-09-13 in
+/// Why: the map is the surface the driver's eyes snap to. Measured 2026-09-13 in
 /// the real app, driving 144 fixes along Route 13 out of Akita city: the
 /// camera never left the station. Her point left the phone map at 7.6 km, and
 /// from 8.2 km to 19.9 km the map held no mark of her in any mode.
@@ -13,13 +13,13 @@
 ///   until GPS died, the ring stays in view. An unclear position never moves
 ///   the camera toward a place we do not trust.
 /// * A hand on the map pauses follow: the moment a finger lands (the app's
-///   pointer-down handler, before any gesture resolves; ruled 2026-09-13), and
+///   pointer-down handler, before any gesture resolves; decided 2026-09-13), and
 ///   on any camera move a hand makes ([isHandMovingMap]), such as a wheel. The
 ///   machine yields to the person. Only her return-to-position control resumes
 ///   it. The words at the top of the map are what make the pause safe: a mark
 ///   the edge cuts says so.
 /// * Zoom stays inside the bundled offline archive ([followZoom]).
-/// * No look-ahead: the camera centres her (ruled 2026-09-13). The fix carries
+/// * No look-ahead: the camera centres her (decided 2026-09-13). The fix carries
 ///   no heading, and on a north-up map an offset toward a guessed direction
 ///   would show more of north and call it ahead.
 ///

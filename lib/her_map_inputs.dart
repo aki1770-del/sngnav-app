@@ -1,12 +1,12 @@
-/// What HER map is told about her position, decided in one place.
+/// What the map is told about the driver's position, decided in one place.
 ///
-/// HER-trace: in unexpected snow, with GPS failing, the map is the surface her
-/// eyes snap to. When the app does not know where she is, the map must say so
+/// Why: in unexpected snow, with GPS failing, the map is the surface the
+/// driver's eyes snap to. When the app does not know where she is, the map must say so
 /// in words, and it must never go blank because the GPS stream died.
 ///
 /// Before 2026-09-13 `main.dart` handed the map the raw last event (`_herFix`).
-/// HIE rendered what that drew, from states the real position controller
-/// produces (`outputs/hie/r2_her_position_surface_2026_09_13/`):
+/// A render review drew what that showed, from states the real position
+/// controller produces:
 ///
 /// * `lost` was pixel-identical to dead reckoning: after 90 minutes the only
 ///   loud mark on the map spanned 500 m while the controller said ±10.8 km.
@@ -15,12 +15,12 @@
 /// * With no trusted fix ever, the ring was drawn at a sample the controller
 ///   had refused.
 ///
-/// The rule here is HIE's candidate mapping, landed. In dead-reckoning or
+/// The rule here is the mapping that review proposed, landed. In dead-reckoning or
 /// `lost` the map draws from the CONTROLLER's estimate, the only position the
 /// loom still vouches for, and never from the raw event. Pure and synchronous,
-/// so the mapping the app runs is the mapping the tests check. HIE's render
-/// harness replicates it rather than calling it, so
-/// `test/her_map_inputs_test.dart` pins this function to HIE's rule, scenario
+/// so the mapping the app runs is the mapping the tests check. The review's
+/// render harness replicates it rather than calling it, so
+/// `test/her_map_inputs_test.dart` pins this function to that rule, scenario
 /// by scenario.
 library;
 
@@ -60,7 +60,7 @@ class HerMapInputs {
   /// The last event says location is off for this app: permission denied,
   /// now or for good ([isLocationRefusal], read from the typed cause only).
   /// The map then says 位置情報オフ / "No location access", not 現在地不明, and
-  /// draws no mark of her, whatever [lost] is (ruled 2026-09-13). `_PositionWords`
+  /// draws no mark of her, whatever [lost] is (decided 2026-09-13). `_PositionWords`
   /// in akita_map.dart is the one place that decides the words.
   ///
   /// Corrected 2026-09-14: this comment said the flag "changes nothing" on the
@@ -72,7 +72,7 @@ class HerMapInputs {
   /// any kind has arrived within `kFirstPositionWait` (60 s) of the
   /// subscription. Set together with [lost], so the map says 現在地不明 with
   /// no mark; the map also announces the words once to a screen reader, as a
-  /// live region (ruled 2026-09-14).
+  /// live region (decided 2026-09-14).
   final bool noPositionYet;
 }
 
@@ -103,7 +103,7 @@ bool anchorsThisSession({
 ///
 /// * [fix] `null` and [noPositionYet] → the words 現在地不明 and no ring. She
 ///   is sharing, the position stream subscribed after the permission answer,
-///   and no event has arrived for 60 s since (`kFirstPositionWait`, ruled
+///   and no event has arrived for 60 s since (`kFirstPositionWait`, decided
 ///   2026-09-14). Before this, a map with no words read the same as a driver
 ///   who never shared (measured 2026-09-13: 10 minutes, 0.000% different).
 /// * [fix] `null` → nothing. No event has arrived in this sharing session: she
@@ -153,7 +153,7 @@ HerMapInputs herMapInputs({
   final refused = isLocationRefusal(fix);
 
   // With no trusted fix this session, an unavailability that is not a refusal
-  // says 現在地不明, whatever the drive brain holds or does not hold (ruled
+  // says 現在地不明, whatever the drive brain holds or does not hold (decided
   // 2026-09-13). Before this the words depended on the controller reporting
   // dead reckoning or lost; an unavailability that did not reach it, or found
   // it holding nothing, would leave the map with no mark and no words.
@@ -161,7 +161,7 @@ HerMapInputs herMapInputs({
     return const HerMapInputs(degraded: true, lost: true);
   }
 
-  // An event the drive brain was not given (ruled 2026-09-14): before this
+  // An event the drive brain was not given (decided 2026-09-14): before this
   // session's first trusted fix, one that would not become that fix is held
   // back from the drive brain. It is not a position the loom vouches for, so
   // the map draws no mark of it and says 現在地不明, whatever [estimate] still
@@ -176,7 +176,7 @@ HerMapInputs herMapInputs({
       mode == LocalizationMode.deadReckoning || mode == LocalizationMode.lost;
   if (isMock || estimate == null || !unlocatable) {
     // A sample with no measured accuracy is never drawn from its own
-    // coordinates, whatever the drive brain holds (ruled 2026-09-14): not a
+    // coordinates, whatever the drive brain holds (decided 2026-09-14): not a
     // mark, not a ring. Given to the brain, it degrades from the anchor, and
     // the branch below draws that anchor's ring, not confident.
     if (!isMock && fix is PositionAvailable && fix.accuracyMeters == null) {

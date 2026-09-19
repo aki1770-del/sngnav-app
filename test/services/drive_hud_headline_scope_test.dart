@@ -7,12 +7,12 @@
 ///
 /// The countermeasure is to WITHHOLD THE REASSURANCE, never to manufacture a
 /// warning: the rung is untouched (an outage is an unknown, not a hazard —
-/// raising it is the cry-wolf the Chair ruled against on 2026-07-23). Only the
+/// raising it is the cry-wolf the project decided against on 2026-07-23). Only the
 /// lowest rung is scoped, because only the lowest rung REASSURES; 注意して走行
 /// and 停車の検討 assert nothing that an unknown could falsify.
 ///
 /// The same wording contradiction is what a firing calm chip creates: the
-/// sub-zero frozen-surface chip (Chair ruling 2026-07-23 — a calm glance chip
+/// sub-zero frozen-surface chip (decided 2026-07-23 — a calm glance chip
 /// that deliberately does NOT raise the caution rung, under a named cry-wolf
 /// contract) renders directly ABOVE this banner. A chip saying 路面凍結のおそれ
 /// beside an unscoped 「特段の注意なし」 is a glance-level contradiction. The
@@ -97,7 +97,7 @@ void main() {
           calmNoteInForce: true);
       expect(ja, isNot('特段の注意なし'));
       expect(ja, contains('特段の注意なし'));
-      expect(ja, contains('下記'), reason: 'it points HER at the chip below');
+      expect(ja, contains('下記'), reason: 'it points the driver at the chip below');
     });
 
     test('an UNCONFIRMED input outranks a confirmed calm note', () {

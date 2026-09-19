@@ -1,7 +1,7 @@
 /// B20 — position-pipeline liveness: a hang is not a throw.
 ///
 /// herPositionStream's error paths were guarded by try/catch, but a platform
-/// call that never ANSWERS threw nothing — it just left HER staring at a
+/// call that never ANSWERS threw nothing — it just left the driver staring at a
 /// screen that silently never got a dot. These tests pin the recovery: every
 /// raw platform await is timeout-bounded and resolves to an honest
 /// [PositionUnavailable], and a platform stream that terminates (onDone)

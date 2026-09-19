@@ -1,15 +1,15 @@
-// C6 ログを共有 — the share-log button wired end-to-end in the widget tree.
+// ログを共有 (share log) — the share-log button wired end-to-end in the widget tree.
 //
 // A recording fake LogShareSink is injected (SngnavApp.logShareSink), so the
 // platform share channel is NEVER touched in the test binding: the test taps
 // the real button and asserts the REAL payload the production composer
-// produced. Semantics are pinned to the same OPS-059 floor as the consent
+// produced. Semantics are pinned to the same accessibility floor as the consent
 // buttons (label + button + tap action + focusable + >=48px tap target).
 //
-// HONESTY (OPS-066 / AAE env-bound): this verifies the WIDGET TREE and the
+// HONESTY (no device here): this verifies the WIDGET TREE and the
 // payload handed to the sink. It does NOT verify the OS share sheet — there
 // is no Android device/emulator in this env. On-device observation is
-// DEFERRED (docs/on_device_verify_checklist.md lane).
+// DEFERRED (see docs/on_device_verify_checklist.md).
 
 import 'dart:io';
 
@@ -127,7 +127,7 @@ void main() {
     expect(paintBounds.isEmpty, isFalse,
         reason: 'semantics rect must not be zero-size when visible');
     expect(paintBounds.height, greaterThanOrEqualTo(48.0),
-        reason: 'tap target must be at least 48 logical px tall (OPS-059)');
+        reason: 'tap target must be at least 48 logical px tall (accessibility floor)');
     expect(paintBounds.width, greaterThan(0));
 
     semantics.dispose();

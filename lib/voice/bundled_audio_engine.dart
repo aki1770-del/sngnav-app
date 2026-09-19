@@ -86,7 +86,7 @@ class BundledAudioEngine implements TtsEngine {
   final void Function(String assetPath)? _onBundledSpoken;
   final void Function(String text)? _onDelegatedToTts;
 
-  /// N9 — cap on the raw platform-channel await in the default [_play]. The
+  /// Cap on the raw platform-channel await in the default [_play]. The
   /// channel resolves on playback COMPLETION (MainActivity.kt), so a wedged
   /// player — or a channel that never answers — would otherwise hang every
   /// later sequential announce behind it; a timeout is the only recovery
@@ -106,9 +106,9 @@ class BundledAudioEngine implements TtsEngine {
   PlayAsset get _play =>
       _injectedPlay ??
       (String assetKey, double volume) async {
-        // N9 — the ONE raw platform await on the bundled path, capped (see
+        // The ONE raw platform await on the bundled path, capped (see
         // [playTimeout]). Un-timeouted, a wedged MediaPlayer would hang this
-        // Future — and with completion-resolved play (N14) that hang would
+        // Future — and with completion-resolved play that hang would
         // also queue-starve every subsequent sequential announce.
         final ok = await kBundledAudioChannel.invokeMethod<bool>(
           'play',

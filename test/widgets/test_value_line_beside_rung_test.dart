@@ -1,6 +1,6 @@
-/// The test-value line sits directly above the rung banner (HIE R57, L1).
+/// The test-value line sits directly above the rung banner (display review, 2026-09-16).
 ///
-/// Why, written before the act. At 12bdd13 HIE's frame SHARED_E/F14 drew the
+/// Why, written before the act. At 12bdd13 the display review's frame SHARED_E/F14 drew the
 /// line at y 189 and the rung banner from y 280, with two position rows
 /// between them. Someone who looks at the red banner and its cause does not
 /// see that a test value set the step. The line qualifies the step, so it is

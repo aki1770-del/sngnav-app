@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
-# WS8 perm-assert loom (BOD-17) — the WS1 dead-HER-dot blocker can never re-ship.
+# WS8 perm-assert guard — the WS1 dead-location-dot blocker can never re-ship.
 #
 # Why this exists: the 2026-06-30 Android review found sngnav-app was 100% dead
-# for HER because the release AndroidManifest was missing INTERNET and
+# for the driver because the release AndroidManifest was missing INTERNET and
 # ACCESS_FINE_LOCATION — so a release build silently fetched nothing and the
 # location dot never came alive. WS1 added the perms; this loom asserts they
 # stay declared, so a future edit that drops them FAILS CI instead of shipping a
-# dead app to HER.
+# dead app to the driver.
 #
-# PERM SCOPE (re-authored 2026-07-11, BOD-19 — pending DIA re-certification).
+# PERM SCOPE (re-authored 2026-07-11 — pending re-certification by an independent audit).
 #
-#   The prior "DIA-certified SOUND PARTIAL, 2026-07-01" stamp is RETIRED: DIA's own
+#   The prior audit stamp ("SOUND PARTIAL, 2026-07-01") is RETIRED: the audit's own
 #   round-3 attacks FALSIFIED it. The certified regex passed a manifest that stripped
 #   ACCESS_FINE_LOCATION via tools:node="removeAll" — printing "3 WS1-blocker
-#   permissions effectively declared" over HER DEAD LOCATION DOT, which is the very
+#   permissions effectively declared" over a DEAD LOCATION DOT, which is the very
 #   regression of 2026-06-30 that this script was written to make impossible. It also
 #   blessed a <uses-permission> misplaced inside <application> or <queries>, where it
 #   grants nothing. A stamp that certifies a loom against the failure it then admits
 #   is worse than no stamp: it is false comfort with a signature on it.
 #
-#   CATCHES (now, via the same parser as the voice lane): a deleted perm; a
+#   CATCHES (now, via the same parser as the voice check): a deleted perm; a
 #   COMMENTED-OUT perm; a perm neutralised by tools:node="remove" OR "removeAll"; a
 #   perm misplaced so it is not a direct child of <manifest>; and any multi-line /
 #   quote-style / attribute-order formatting (free, from the parser).
@@ -29,27 +29,27 @@
 #   as disqualifying too — a FAIL-SAFE, because the manifest merger cannot be executed
 #   here to settle what it really strips. Both cost nothing on the real manifest.
 #   DOES NOT CATCH: the MERGED manifest (post-build), the debug/profile variants, or
-#   runtime behaviour — those are on-device concerns (docs/DEVICE_VERIFICATION.md,
-#   OPS-066). See tripwire S2.
+#   runtime behaviour — those are on-device concerns (docs/DEVICE_VERIFICATION.md).
+#   See tripwire S2.
 #
-# VOICE-LANE SCOPE (added 2026-07-11, BOD-19 — AAE Andon; the 2026-07-01 stamp
+# VOICE-CHECK SCOPE (added 2026-07-11 after a flagged defect; the 2026-07-01 stamp
 # above does NOT cover it, and extending a stale certification over uncertified
-# code would itself be a false provenance claim — DIA finding):
+# code would itself be a false provenance claim — an audit finding):
 #   CATCHES: the TTS_SERVICE intent absent, commented-out, declared outside
 #   <queries>, wrongly nested (a <queries> block misplaced inside <application>, or
 #   nested inside a removed one, grants nothing — only DIRECT children of <manifest>
 #   count), or neutralised by tools:node="remove"/"removeAll" on the <queries> /
-#   <intent> / <action>. Containment is checked by XML PARSE, not regex — DIA REFUSED
-#   a regex version that blessed a dead voice lane (greedy span across two <queries>
+#   <intent> / <action>. Containment is checked by XML PARSE, not regex — the audit REFUSED
+#   a regex version that blessed a dead voice channel (greedy span across two <queries>
 #   blocks), then caught FOUR more false PASSes in the parser version (recursive
 #   iter(); an unknown "removeAll"). The attacks are the fixtures below.
 #   DOES NOT CATCH: the merged manifest (a plugin could strip <queries> at merge);
-#   the debug/profile variants; whether a TTS engine is installed on HER device;
+#   the debug/profile variants; whether a TTS engine is installed on the driver's device;
 #   whether ja voice DATA is present; whether speak() is AUDIBLE. Those are
-#   OPS-066 on-device concerns. And the deeper root — our speak() call sits inside
+#   on-device concerns. And the deeper root — our speak() call sits inside
 #   a catch that swallows the error — is NOT asserted here. The manifest is only
-#   ONE of several ways this lane can die quietly. This loom is a SOUND PARTIAL and
-#   must never be sold as proof that HER voice lane works.
+#   ONE of several ways this channel can die quietly. This guard is a SOUND PARTIAL and
+#   must never be sold as proof that the voice channel works.
 #
 # Usage:
 #   tool/assert_manifest_perms.sh            # assert the app manifest
@@ -60,17 +60,17 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# The WS1-blocker set: without these a release build is silently dead for HER.
+# The WS1-blocker set: without these a release build is silently dead for the driver.
 #
-# EXTENDED 2026-08-10 (AAE, AAE-2) with the two EYES-OFF ACTUATOR perms. The
+# EXTENDED 2026-08-10 with the two EYES-OFF ACTUATOR perms. The
 # WS1 set guards the lanes that carry DATA (network, position). It did not guard
-# the lanes that carry the ALERT TO HER BODY, and those are the ones that matter
+# the channels that carry the ALERT TO THE DRIVER'S BODY, and those are the ones that matter
 # at ten metres' visibility: WAKE_LOCK keeps the screen lit so a glance finds
 # something, VIBRATE is the cue she feels WITHOUT LOOKING. Both are genuinely
 # used (wakelock_plus; vibration at lib/actuators/mobile_alert_actuators.dart:191).
 # Unguarded, a plugin or manifest edit could drop either and this script would
 # print PASS over an app whose whiteout alert channel is dead — the same shape as
-# the founding dead-location-dot Andon, one lane over.
+# the founding dead-location-dot defect, one check over.
 REQUIRED_PERMS=(
   "android.permission.INTERNET"
   "android.permission.ACCESS_FINE_LOCATION"
@@ -79,11 +79,11 @@ REQUIRED_PERMS=(
   "android.permission.VIBRATE"
 )
 
-# The VOICE-LANE blocker set (BOD-19, 2026-07-11 — AAE Andon).
+# The VOICE-CHANNEL blocker set (2026-07-11).
 #
 # Android 11+ package visibility: without a <queries> declaration for
 # TTS_SERVICE, the engine cannot SEE the system text-to-speech service and
-# flutter_tts's speak() fails SILENTLY into our catch block — HER ja black-ice
+# flutter_tts's speak() fails SILENTLY into our catch block — the driver's ja black-ice
 # warning dies with NO error surfaced. We hit this, fixed the manifest (9aad0d5),
 # and did NOT teach the loom to catch it: a regression deleting the block shipped
 # silently while this script printed PASS. A green verdict over defective cloth is
@@ -105,18 +105,18 @@ assert_manifest() {
   # ---------------------------------------------------------------------------
   # ONE PARSER, BOTH LANES.
   #
-  # The perms lane used to be a regex, and it carried the SAME half-closed seam
-  # twice over (DIA round 3, 2026-07-11):
+  # The perms check used to be a regex, and it carried the SAME half-closed seam
+  # twice over (audit round 3, 2026-07-11):
   #   - value set: `tools:node *= *["']remove["']` CANNOT match `removeAll` — after
   #     `remove` it demands a quote and finds `A`. A manifest stripping
   #     ACCESS_FINE_LOCATION via tools:node="removeAll" therefore PASSED, and the
-  #     guard printed "3 WS1-blocker permissions effectively declared" over HER DEAD
+  #     guard printed "3 WS1-blocker permissions effectively declared" over a DEAD
   #     LOCATION DOT — the exact 2026-06-30 failure this whole script exists to stop.
   #   - position: not checked at all — a <uses-permission> pasted inside
   #     <application> or <queries> grants nothing, and was blessed.
   #
   # The lesson is the seam, not the typo: the element set was closed and the value
-  # set left open — first in the voice lane, then again in the perms lane beside it.
+  # set left open — first in the voice check, then again in the perms check beside it.
   # So there is now exactly ONE engine, with one removal set and one positional rule,
   # and no second place for the seam to hide. The parser strictly dominates the regex:
   # it drops comments natively, and handles multiline / quote-style / attribute-order
@@ -149,14 +149,14 @@ def kept(el):
 # one carrying it. I cannot execute the manifest merger here (no Android SDK), so I
 # do not model that as certainly-true — I FAIL SAFE on it. The real manifest carries
 # no tools:node at all, so this costs nothing and closes a class I cannot verify.
-# (DIA round-4, Y1/Y2 — its own reading, which it honestly declined to upgrade into
+# (audit round 4, Y1/Y2 — its own reading, which it honestly declined to upgrade into
 # a finding. An unverified risk is disqualifying, never dismissable.)
 perm_type_removeall = any((e.get(T) or '').strip().lower() == 'removeall'
                           for e in root.iter('uses-permission'))
 queries_type_removeall = any((e.get(T) or '').strip().lower() == 'removeall'
                              for e in root.iter('queries'))
 
-# --- PERMS lane: <uses-permission> must be a LIVE DIRECT CHILD of <manifest>. ---
+# --- PERMS check: <uses-permission> must be a LIVE DIRECT CHILD of <manifest>. ---
 for perm in perms:
     declared = [e for e in root.iter('uses-permission') if e.get(A) == perm]
     removed = [e for e in declared if not kept(e)]
@@ -180,9 +180,9 @@ for perm in perms:
         print(f'{perm} (declared, but NOT a direct child of <manifest> — misplaced '
               f'inside another element; the permission is NOT granted)')
 
-# --- VOICE lane: the intent must live in a LIVE queries > intent > action. ---
+# --- VOICE check: the intent must live in a LIVE queries > intent > action. ---
 # Android package visibility (API 30+): without this, the engine cannot see the TTS
-# service and flutter_tts speak() fails SILENTLY — HER ja warning dies unheard.
+# service and flutter_tts speak() fails SILENTLY — the driver's ja warning dies unheard.
 blocks = root.findall('queries')     # direct children of <manifest> ONLY; iter() would
                                      # bless a block misplaced inside <application>
 live_blocks = [] if queries_type_removeall else [q for q in blocks if kept(q)]
@@ -234,7 +234,7 @@ PY
 if [[ "${1:-}" == "--self-test" ]]; then
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT
-  # Shared tail: the perms + the voice-lane <queries> block a healthy manifest has.
+  # Shared tail: the perms + the voice-channel <queries> block a healthy manifest has.
   # Every fixture must declare the namespaces a real AndroidManifest declares,
   # or the parser fail-safes on an unbound prefix and the test proves nothing.
   MF='<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">'
@@ -277,7 +277,7 @@ $MF
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 $QUERIES_OK</manifest>
 EOF
-  # Two actuator perms appended 2026-08-10 (AAE): this fixture hand-rolls its perm
+  # Two actuator perms appended 2026-08-10: this fixture hand-rolls its perm
   # block rather than using $PERMS_OK, so the expanded REQUIRED_PERMS made it an
   # unhealthy manifest and it was correctly rejected. What it exists to test is
   # multi-line / spaced / mixed-quote FORMATTING, so the block is completed rather
@@ -294,8 +294,8 @@ $MF
 <queries><intent><action
     android:name = 'android.intent.action.TTS_SERVICE' /></intent></queries></manifest>
 EOF
-  # --- voice-lane fixtures (BOD-19): each of these ships a SILENTLY dead ja voice
-  # lane, and every one of them PASSED the pre-BOD-19 guard. ---
+  # --- voice-channel fixtures (2026-07-11): each of these ships a SILENTLY dead ja voice
+  # channel, and every one of them PASSED the earlier guard. ---
   cat > "$tmp/tts_no_queries.xml" <<EOF
 $MF
 $PERMS_OK</manifest>
@@ -316,11 +316,11 @@ $MF
 $PERMS_OK
 <queries tools:node="remove"><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries></manifest>
 EOF
-  # --- DIA attack fixtures (certification REFUSED 2026-07-11; every one of these
+  # --- Audit attack fixtures (certification REFUSED 2026-07-11; every one of these
   # produced a FALSE verdict from the regex version). They are permanent now: the
   # attacks that broke the loom become the tests that keep it honest. ---
   # A1 — THE GREEDY TRAP. The intent is outside <queries>, sandwiched between two
-  # blocks. A greedy `<queries>.*</queries>` span swallows it and PASSES a dead lane.
+  # blocks. A greedy `<queries>.*</queries>` span swallows it and PASSES a dead channel.
   cat > "$tmp/a1_greedy_trap.xml" <<EOF
 $MF
 $PERMS_OK
@@ -340,7 +340,7 @@ $MF
 $PERMS_OK
 <queries><intent><action android:name="android.intent.action.TTS_SERVICE" tools:node="remove"/></intent></queries></manifest>
 EOF
-  # A6 — healthy lane + an UNRELATED later removed block. Must PASS (the regex
+  # A6 — healthy channel + an UNRELATED later removed block. Must PASS (the regex
   # version threw a FALSE FAIL here — a confusing CI red on a healthy manifest).
   cat > "$tmp/a6_unrelated_removed.xml" <<EOF
 $MF
@@ -362,7 +362,7 @@ $MF
 $PERMS_OK
 <queries><action android:name="android.intent.action.TTS_SERVICE"/></queries></manifest>
 EOF
-  # --- DIA round-2 attacks (certification CONDITIONED 2026-07-11): four more false
+  # --- Audit round-2 attacks (certification CONDITIONED 2026-07-11): four more false
   # PASSes, from two root causes — a RECURSIVE iter() that blessed <queries> anywhere
   # in the tree, and a removal set that had never heard of "removeAll". ---
   # P1 — <queries> misplaced INSIDE <application> (a realistic paste-slip). Android
@@ -398,8 +398,8 @@ $MF
 $PERMS_OK
 <queries><intent tools:node="replace"><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries></manifest>
 EOF
-  # --- DIA round-3 attacks: the PERMS lane carried the same half-closed seam. Every
-  # one of these PASSED while shipping a manifest that is dead for HER. X2 is the
+  # --- Audit round-3 attacks: the PERMS check carried the same half-closed seam. Every
+  # one of these PASSED while shipping a manifest that is dead for the driver. X2 is the
   # FOUNDING ANDON of this whole script — the dead location dot — walking straight
   # back in through a removal value the regex had never heard of. ---
   # X1 — INTERNET stripped by removeAll: dead network, guard said PASS.
@@ -410,7 +410,7 @@ $MF
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 $QUERIES_OK</manifest>
 EOF
-  # X2 — ACCESS_FINE_LOCATION stripped by removeAll: HER LOCATION DOT IS DEAD.
+  # X2 — ACCESS_FINE_LOCATION stripped by removeAll: THE LOCATION DOT IS DEAD.
   # This is the 2026-06-30 regression the loom was built to make impossible.
   cat > "$tmp/x2_location_removeall.xml" <<EOF
 $MF
@@ -434,8 +434,8 @@ $MF
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 <queries><uses-permission android:name="android.permission.INTERNET"/><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries></manifest>
 EOF
-  # X6 — perms lane must also honour non-removal 'replace' (no over-correction).
-  # Two actuator perms appended 2026-08-10 (AAE), same reason as multiline.xml: this
+  # X6 — perms check must also honour non-removal 'replace' (no over-correction).
+  # Two actuator perms appended 2026-08-10, same reason as multiline.xml: this
   # fixture hand-rolls its perm block. It exists to prove tools:node="replace" is
   # NOT read as a removal, so the block is completed, not the requirement relaxed.
   cat > "$tmp/x6_perm_replace_ok.xml" <<EOF
@@ -447,7 +447,7 @@ $MF
 <uses-permission android:name="android.permission.VIBRATE"/>
 $QUERIES_OK</manifest>
 EOF
-  # --- DIA round-4 (Y): a removal directive that coexists with a LIVE declaration.
+  # --- Audit round 4 (Y): a removal directive that coexists with a LIVE declaration.
   # The old code checked `if live: continue` FIRST, so it never reached the removal
   # branch — a contradictory manifest returned "effectively declared" with ZERO
   # signal. Whatever the merger does with the contradiction, we cannot honestly claim
@@ -462,11 +462,11 @@ $MF
 $QUERIES_OK</manifest>
 EOF
   # Y1 — removeAll on an UNGUARDED sibling perm. removeAll may be scoped to the NODE
-  # TYPE, which would strip our blockers too. DIA could not execute the merger to
-  # settle it, and neither can I — so we FAIL SAFE. An unverified risk aimed at HER
+  # TYPE, which would strip our blockers too. The audit could not execute the merger to
+  # settle it, and neither can we — so we FAIL SAFE. An unverified risk aimed at the driver
   # location dot is disqualifying, never dismissable.
   #
-  # SIBLING CHANGED 2026-08-10 (AAE): this fixture used WAKE_LOCK, which is now a
+  # SIBLING CHANGED 2026-08-10: this fixture used WAKE_LOCK, which is now a
   # GUARDED perm — the case would still have been rejected, but for the wrong
   # reason, and it would no longer test what its own comment says it tests. CAMERA
   # is a perm we do not request and do not guard, so the fixture again exercises
@@ -477,9 +477,9 @@ $PERMS_OK
 <uses-permission android:name="android.permission.CAMERA" tools:node="removeAll"/>
 $QUERIES_OK</manifest>
 EOF
-  # Z1/Z2 — the EYES-OFF ACTUATOR lane (AAE, 2026-08-10). Before this change both
+  # Z1/Z2 — the EYES-OFF ACTUATOR check (2026-08-10). Before this change both
   # of these PASSED: the guard had no opinion about the channels that carry the
-  # alert to HER BODY. Z2 is the one that matters most — a whiteout is exactly the
+  # alert to the driver's body. Z2 is the one that matters most — a whiteout is exactly the
   # condition in which she cannot look, so a dropped VIBRATE is a silent, total
   # loss of the only cue left, on the day the app exists for.
   cat > "$tmp/z1_wakelock_missing.xml" <<EOF
@@ -499,7 +499,7 @@ $MF
 <uses-permission android:name="android.permission.VIBRATE" tools:node="removeAll"/>
 $QUERIES_OK</manifest>
 EOF
-  # Y2 — the same, one lane over: a live TTS <queries> beside a removeAll'd <queries>.
+  # Y2 — the same, one check over: a live TTS <queries> beside a removeAll'd <queries>.
   cat > "$tmp/y2_queries_removeall_sibling.xml" <<EOF
 $MF
 $PERMS_OK
@@ -519,7 +519,7 @@ EOF
   check removed.xml 1
   check removed_sq.xml 1
   check multiline.xml 0
-  # voice-lane cases — all four PASSED the pre-BOD-19 guard while shipping a dead
+  # voice-channel cases — all four PASSED the earlier guard while shipping a dead
   # ja voice channel. tts_outside_queries is the load-bearing one: the intent is
   # PRESENT in the file, so a naive grep would accept it, but outside <queries> it
   # grants no package visibility and speak() still fails silently.
@@ -527,30 +527,30 @@ EOF
   check tts_commented.xml 1
   check tts_outside_queries.xml 1
   check tts_queries_removed.xml 1
-  # DIA's attack suite — the regex version returned the WRONG verdict on 5 of these 6.
+  # The audit's attack suite — the regex version returned the WRONG verdict on 5 of these 6.
   check a1_greedy_trap.xml 1
   check a2_intent_removed.xml 1
   check a3_action_removed.xml 1
   check a6_unrelated_removed.xml 0
   check a5_two_blocks_ok.xml 0
   check a8_bare_action.xml 1
-  # DIA round-2: each of these blessed a DEAD voice lane in the parser version.
+  # Audit round 2: each of these blessed a DEAD voice channel in the parser version.
   check p1_queries_in_application.xml 1
   check p2_removeall_queries.xml 1
   check p3_removeall_intent.xml 1
   check p4_nested_in_removed.xml 1
   check p9_replace_not_removal.xml 0
-  # DIA round-3: the perms lane. X2 is the founding dead-dot Andon.
+  # Audit round 3: the perms check. X2 is the founding dead-dot defect.
   check x1_perm_removeall.xml 1
   check x2_location_removeall.xml 1
   check x3_perm_in_application.xml 1
   check x5_perm_in_queries.xml 1
   check x6_perm_replace_ok.xml 0
-  # DIA round-4: contradiction and node-type removeAll. Fail-safe, both lanes.
+  # Audit round 4: contradiction and node-type removeAll. Fail-safe, both checks.
   check y3_live_and_removed.xml 1
   check y1_removeall_sibling.xml 1
   check y2_queries_removeall_sibling.xml 1
-  # AAE 2026-08-10: the eyes-off actuator lane. Both PASSED before this change.
+  # 2026-08-10: the eyes-off actuator check. Both PASSED before this change.
   check z1_wakelock_missing.xml 1
   check z2_vibrate_removeall.xml 1
   echo "SELF-TEST: $pass/$total PASS"

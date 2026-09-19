@@ -4,9 +4,9 @@
 /// concept of forecast VALIDITY. A JMA forecast fetched at 07:00 and covering
 /// 12:00–18:00 is not "stale" at 13:30. It is VALID. Age and validity are
 /// different questions, and answering the second with the first is why, at T+90
-/// in the dead zone, HER phone had a map and silence.
+/// in the dead zone, the driver's phone had a map and silence.
 ///
-/// ── NDI's ANDON (SC-26), HONOURED HERE ───────────────────────────────────────
+/// ── AN OPEN FLAG ON THE ADAPTER PACKAGE, HONOURED HERE ───────────────────────
 /// `condition_aggregator`'s `Advisory.expires` has NO PROVENANCE CONTRACT. This
 /// was MEASURED at the source on 2026-07-12, not assumed:
 ///
@@ -24,7 +24,7 @@
 ///
 /// Three incompatible meanings in one nullable field, and `Advisory.isExpired()`
 /// cannot tell a publisher's guarantee from a literal `+1h` an adapter invented.
-/// Building HER dead-zone memory on that field would let a synthesised expiry be
+/// Building the dead-zone memory on that field would let a synthesised expiry be
 /// spoken to her as though a meteorological service had promised it.
 ///
 /// SO WE DID NOT. Per the ratified precondition, option (b): this layer carries
@@ -40,8 +40,8 @@
 /// LIMITATION, RECORDED (not narrated away): we do not fix `Advisory.expires`.
 /// The published `condition_aggregator` interface is unchanged and its provenance
 /// hole is still open for every consumer of it. This layer simply does not walk
-/// through that hole. Closing it properly is a package-level change (NDI's Andon
-/// remains OPEN) and is not claimed here.
+/// through that hole. Closing it properly is a package-level change (that flag
+/// on the adapter package remains OPEN) and is not claimed here.
 library;
 
 /// WHERE a validity window's end came from. Required, never defaulted.

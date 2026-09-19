@@ -1,4 +1,4 @@
-/// Design-Floor Refusal #1 (Chair, 2026-07-19): the lowest-rung HUD headline is
+/// Design-Floor Refusal #1 (decided 2026-07-19): the lowest-rung HUD headline is
 /// CHOICE-NEUTRAL honest information — it may NOT advocate GO (継続/走行/continue/
 /// proceed/go/drive-on) and may NOT reassure (安全/安心/大丈夫/clear/OK/safe/fine).
 ///

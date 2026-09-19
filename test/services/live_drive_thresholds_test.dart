@@ -153,7 +153,7 @@ Map<String, List<String>> _measuredTables() => {
     };
 
 /// Measured on 2026-09-15 on the live drive of sngnav-app 6d530fc, whose drive
-/// brain this lane did not change, and pinned here.
+/// brain this change did not touch, and pinned here.
 ///
 /// Read in the tables, named and not changed here (the live drive's own logic
 /// is outside this change): a fix taken as trusted gives the lowest rung whatever its

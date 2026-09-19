@@ -335,7 +335,7 @@ class _FailureRow extends StatelessWidget {
   Widget build(BuildContext context) {
     // Preserve column structure: data cells become em-dashes; the failure
     // line sits under the descriptor on the second name-column line. The
-    // fetch's reason is not shown there (ruled 2026-09-14 for the route line, applied here 2026-09-15). This
+    // fetch's reason is not shown there (decided 2026-09-14 for the route line, applied here 2026-09-15). This
     // keeps the table's visual rhythm intact when one row fails.
     return Row(
       children: [

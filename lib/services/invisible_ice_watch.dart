@@ -1,6 +1,6 @@
 /// Invisible-ice (radiative-frost) watch over the live JMA observation.
 ///
-/// THE gap this closes (BETA_PLAN W1; bond #3 reach): the catalog's
+/// THE gap this closes (the beta plan's black-ice item): the catalog's
 /// shared classifier can detect the Akita pre-dawn black-ice window —
 /// clear sky, ambient a few degrees ABOVE zero, road surface frozen,
 /// road looking merely wet or dry — but this app never fed it the real
@@ -23,8 +23,8 @@
 ///   invisible-SURPRISE window, [watch]). Sub-zero ambient, no precipitation
 ///   → [subZeroFrozen], the EXPECTED-frozen regime, with its own honest
 ///   possibility-graded line — it warns, distinctly from [watch]. (Until
-///   2026-07-23 sub-zero was excluded under a cry-wolf contract; the Chair's
-///   calibration ruling addressed it. The anti-cry-wolf discipline survives in
+///   2026-07-23 sub-zero was excluded under a cry-wolf contract; a calibration
+///   decision that day addressed it. The anti-cry-wolf discipline survives in
 ///   the DELIVERY, not the exclusion: the sub-zero line is spoken ONCE on
 ///   entry, possibility-graded, and does not pin the eyes-off rung.)
 ///   Warning-tier (not critical): an ambient inference, not a surface reading.
@@ -78,8 +78,8 @@ enum InvisibleIceWatchResult {
   /// failure class this project corrected three times).
   ///
   /// SUB-ZERO NO LONGER LANDS HERE. Until 2026-07-23 sub-zero ambient was also
-  /// routed to [outOfScope] under a cry-wolf contract; on the Chair's
-  /// calibration ruling ("sub-zero warning yes do address it") it now returns
+  /// routed to [outOfScope] under a cry-wolf contract; after a calibration
+  /// decision ("sub-zero warning yes do address it") it now returns
   /// [subZeroFrozen] and warns. See that value.
   outOfScope,
 
@@ -136,7 +136,7 @@ enum InvisibleIceWatchResult {
   /// catalog's physics; (2) humidity is the most drop-prone JMA leaf, so
   /// gating on it would fail toward silence on the exact −2.4 °C Chuo morning
   /// (89% of slip accidents are on a frozen surface). Basis: Andon
-  /// 2026-07-20T13:40Z + Chair calibration ruling 2026-07-23.
+  /// 2026-07-20T13:40Z + the calibration decision of 2026-07-23.
   subZeroFrozen,
 
   /// A required field (temperature / precipitation) was not reported — the
@@ -157,7 +157,7 @@ enum InvisibleIceWatchResult {
 /// bridge-deck hazard). Leads with the MEASURED fact (気温が0°C以下です — matched
 /// to the temp ≤ 0 firing predicate, NOT 「氷点下」, which would over-state a
 /// reading of exactly 0.0 °C; impl-review honesty catch), possibility-graded
-/// (可能性があります), then the action. Chair calibration 2026-07-23. Every
+/// (可能性があります), then the action. Calibration decided 2026-07-23. Every
 /// fragment reuses vocabulary already in the rendered mouth
 /// (橋やトンネル出口 / 速度を落とし / 急ブレーキ・急ハンドル) to avoid a
 /// 濡路-class open_jtalk silence trap.
@@ -258,7 +258,7 @@ InvisibleIceWatchResult evaluateInvisibleIceWatch(JmaObservation obs) {
   return InvisibleIceWatchResult.clear;
 }
 
-/// Honest stale-framed black-ice line (W0 detection-survival). App-authored;
+/// Honest stale-framed black-ice line (detection that survives a lost feed). App-authored;
 /// NEVER spoken as live. [hourJst] is the FLOORED hour of the retained
 /// observation's observedAt (JST) — see `spokenHourJst`; floored so the spoken
 /// stamp never sounds fresher than the reading. See W0_DETECTION_SURVIVAL_DESIGN.md §4.
@@ -267,7 +267,7 @@ InvisibleIceWatchResult evaluateInvisibleIceWatch(JmaObservation obs) {
 /// - 「○時頃の観測では…おそれがあります」 — past-framed + possibility-graded; it is
 ///   unmistakably an observation from a PAST hour, never a live reading.
 /// - 「最新の情報は取得できていません」 — the explicit not-live disclaimer; it is the
-///   ONLY spoken guarantee HER is not hearing a current reading (review #1).
+///   ONLY spoken guarantee the driver is not hearing a current reading (review #1).
 String staleInvisibleBlackIceSpokenText({
   required int hourJst,
   required bool ja,

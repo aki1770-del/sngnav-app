@@ -1,4 +1,4 @@
-/// OPS-066 render-SEE captures for the Tier-1 voice-lane hardening surfaces
+/// Render-and-look captures for the Tier-1 voice-channel hardening surfaces
 /// (session-scope; NOT a CI pixel assertion) — produces PNGs into
 /// `ladder_out/voice_lane/` so the reviewer can LOOK before the change lands:
 ///
@@ -61,7 +61,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('voice-lane pre-drive caution render (ja)', (tester) async {
+  testWidgets('voice-channel pre-drive caution render (ja)', (tester) async {
     await pump(tester, verdict: VoiceLaneVerdict.jaNetworkOnly);
     await tester.ensureVisible(find.byKey(const Key('voice-lane-caution')));
     await tester.pump();

@@ -1,8 +1,8 @@
-/// #1≡#4 (HER-POV assessment 2026-07-18) — the silent-GPS-blackout bug.
+/// #1≡#4 (driver's-view assessment 2026-07-18) — the silent-GPS-blackout bug.
 ///
 /// On a silent drought (the raw geolocator stream stops emitting — no error,
 /// no done) the last `_herFix` in main.dart still holds a confident point, so
-/// the MAP DOT + 「現在地 ±Xm」 status line — the surface HER eyes snap to — kept
+/// the MAP DOT + 「現在地 ±Xm」 status line — the surface the driver's eyes snap to — kept
 /// painting a confident "you are here" on a road she passed minutes ago, while
 /// only the HUD *text* degraded. This is a false-confident wrong answer on the
 /// exact compound-failure design target (whiteout, GPS blind).

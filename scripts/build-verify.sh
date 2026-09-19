@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build-verify.sh — THE committed build lane for sngnav-app (P2, restructuring
+# build-verify.sh — THE committed build script for sngnav-app (P2, restructuring
 # plan 2026-07-26: "No green is claimable unless the exact invocation + image
 # digest + underlay is committed beside the code, same turn").
 #
@@ -15,15 +15,15 @@
 #      honestly on fontless hosts, see test/render_see/render_see_env.dart).
 #
 # Optional:
-#   --render-see   additionally regenerate the OPS-066 ladder_out/ PNGs
+#   --render-see   additionally regenerate the render-and-look ladder_out/ PNGs
 #                  (goldens updated). A green run of this phase is NOT
 #                  verification — a HUMAN must LOOK at the PNGs. The script
 #                  cannot and does not affirm them.
 #
 # Honest bounds:
-#   - This lane proves code correctness on the host, NOT feature correctness
+#   - This script proves code correctness on the host, NOT feature correctness
 #     on a device. On-device verification (share sheet, TTS, GNSS) is the
-#     device hour's job (OPS-066 / AAE lane) and is NOT claimed here.
+#     device hour's job (on-device verification) and is NOT claimed here.
 
 set -uo pipefail
 

@@ -29,7 +29,7 @@ import 'package:http/http.dart' as http;
 /// it was not: with no seam, the one condition that most needed a test —
 /// a JMA document that has stopped being rewritten, which serves a months-old
 /// warning as `status=発表` — could not be reached from a test at all. A
-/// factory that cannot be given a frozen feed cannot be asked what HER screen
+/// factory that cannot be given a frozen feed cannot be asked what the driver's screen
 /// shows when the feed freezes.
 /// ⚑ The clock parameter is named `clock` on the 0.3.x line and `now` from
 /// 0.5.x on. The rename is not in either CHANGELOG. This factory is the one
@@ -71,7 +71,7 @@ AdvisoryProvider buildJmaAdvisoryProvider({
     // around it. Only its closing sentence — "at 6 h it was off about a third
     // of the time, on healthy data" — was refuted; see below.
     //
-    // ⚑ CORRECTED 2026-08-24 BY RE-MEASUREMENT (AAE). The rationale that
+    // ⚑ CORRECTED 2026-08-24 BY RE-MEASUREMENT. The rationale that
     // stood here was refuted by the genba it cited. It read: "Measured live
     // 2026-08-24 across all 58 offices ... 16/58 = 27.6% exceeded 6 h", and
     // concluded "7 d clears the observed healthy maximum with margin".
@@ -105,7 +105,7 @@ AdvisoryProvider buildJmaAdvisoryProvider({
     //   * There is no healthy-cadence data to fit a threshold TO, because
     //     there is no healthy data on this path at all. Fitting a number to
     //     a corpse would be inventing a measurement.
-    //   * 7 d stays the value NDI staged for 0.5.1/0.3.3, so the app and the
+    //   * 7 d stays the value staged for the adapters' 0.5.1/0.3.3, so the app and the
     //     adapter family still agree when those publish.
     // ⚑ 2026-09-16 — THE BOUND ABOVE IS DISCHARGED. It read: "this number is
     // currently UNFALSIFIABLE against live data and must be re-derived from

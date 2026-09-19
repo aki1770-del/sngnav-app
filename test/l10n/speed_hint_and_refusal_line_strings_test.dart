@@ -1,4 +1,4 @@
-/// Two English strings, ruled 2026-09-14, byte-exact; the Japanese unchanged.
+/// Two English strings, decided 2026-09-14, byte-exact; the Japanese unchanged.
 ///
 /// 1. The refusal line under the map said the same thing twice in English:
 ///    "No location access — this app is not allowed to access location." The
@@ -80,7 +80,7 @@ void main() {
     });
     testWidgets(
         'in the app, English, whiteout band after a trusted fix: the row reads '
-        'the ruled label and value', (tester) async {
+        'the agreed label and value', (tester) async {
       final positions = StreamController<PositionFix>.broadcast();
       await tester.pumpWidget(SngnavApp(
         actuators: FakeAlertActuators(),

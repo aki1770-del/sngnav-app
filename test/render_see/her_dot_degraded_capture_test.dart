@@ -1,8 +1,8 @@
-/// OPS-066 render-SEE capture — #1≡#4 silent-GPS-blackout fix (2026-07-18).
+/// Render-and-look capture — #1≡#4 silent-GPS-blackout fix (2026-07-18).
 ///
-/// The bug: on a silent GPS drought the map dot — the surface HER eyes snap to
+/// The bug: on a silent GPS drought the map dot — the surface the driver's eyes snap to
 /// — kept painting a CONFIDENT blue "you are here" on a road she had passed,
-/// while only the HUD text degraded. These captures let VAA LOOK at the fix:
+/// while only the HUD text degraded. These captures let a reviewer LOOK at the fix:
 ///
 ///   render_out/14_her_dot_confident.png  — trusted GPS: solid BLUE dot, tight
 ///                                           blue accuracy circle (honest here).
@@ -56,12 +56,12 @@ void main() {
     );
   });
 
-  // HER last-known point (near Akita station) — the point `_herFix` freezes on.
+  // The driver's last-known point (near Akita station) — the point `_herFix` freezes on.
   const her = LatLng(39.7167, 140.0983);
 
   Widget frame(AkitaMap map) => MaterialApp(
         theme: ThemeData(fontFamily: 'Roboto'),
-        // HER's page: the map's station label is localized, so this frame
+        // The driver's page: the map's station label is localized, so this frame
         // draws it as her app does, in Japanese.
         locale: const Locale('ja'),
         localizationsDelegates: const [

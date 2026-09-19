@@ -1,4 +1,4 @@
-/// OPS-066 render-SEE capture for the STALE-FEED banner.
+/// Render-and-look capture for the STALE-FEED banner.
 ///
 /// The defect this capture exists to make VISIBLE: a publisher document that
 /// has stopped being rewritten fails in TWO directions, and neither is visible
@@ -31,7 +31,7 @@
 ///     test/render_see/advisory_stale_feed_banner_capture_test.dart
 ///
 /// On a host without CJK fonts the pixel claim is withdrawn (the render
-/// pipeline is still exercised); NOBODY affirms CI PNGs as HER-phone evidence.
+/// pipeline is still exercised); NOBODY affirms CI PNGs as phone evidence.
 library;
 
 import 'package:condition_aggregator/condition_aggregator.dart';

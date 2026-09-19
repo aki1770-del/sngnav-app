@@ -1,8 +1,8 @@
-// OPS-059 tactile lane — widget wiring:
+// Tactile (accessibility) channel — widget wiring:
 // (a) the in-drive HUD chip 「振動警告を確認できませんでした」 toggles with the
 //     injected haptic-verification flag (set when an OWED tactile cue does
 //     not land, cleared on the next cue the platform accepts);
-// (b) while the media-muted caution is up — the surface that tells HER
+// (b) while the media-muted caution is up — the surface that tells the driver
 //     「振動でお知らせします」 and asks her to continue in haptics-only mode —
 //     an unverified tactile channel WITHDRAWS that promise in the same row.
 //
@@ -15,7 +15,7 @@
 // app was simultaneously offering her a button that says
 // 「承知しました（音声なしで続行）」.
 //
-// HONESTY (OPS-066 / AAE-1): this verifies the WIDGET TREE against injected
+// HONESTY: this verifies the WIDGET TREE against injected
 // flags. Whether a real vibrator moves on a real phone is an on-device fact,
 // verified separately on the emulator and recorded there.
 

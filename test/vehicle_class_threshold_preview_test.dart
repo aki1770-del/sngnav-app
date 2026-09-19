@@ -14,7 +14,7 @@
 // - Widget test: vehicle-class dropdown change to 'kei-car' triggers
 //   state update + threshold preview displays the +50 / +1 delta.
 //
-// AAA Article 17 (β) discipline: tests verify integrator-side
+// Article 17 (β) discipline: tests verify integrator-side
 // caution-add-only behaviour at the NSC API boundary; do NOT exercise
 // driver-facing wording. Wording-class verification lives in
 // navigation_safety_core's own test suite.

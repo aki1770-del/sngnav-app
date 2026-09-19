@@ -7,7 +7,7 @@
 //     and the isMobileActuatorPlatform guard -> null WITHOUT invoking the
 //     channel.
 //
-// HONESTY (OPS-066 / AAE env-bound): this verifies the DART side against a
+// HONESTY (no device here): this verifies the DART side against a
 // mocked messenger. Whether the Kotlin side replies with the real device
 // volume is an on-device fact — verified separately on the emulator.
 
@@ -146,7 +146,7 @@ void main() {
   // ⚑ MEASURED ON A DEVICE 2026-08-22, AVD sngnav_api30 running -no-audio:
   //   `dumpsys audio` -> "STREAM_MUSIC: Muted: true"
   //   the app's probe   -> mediaVolume 5 of 15 -> mediaMuted FALSE
-  // Nothing came out of that device, and HER caution row said nothing. Index
+  // Nothing came out of that device, and the caution row said nothing. Index
   // and mute are two different platform facts and Android exposes them
   // through two different calls; reading only the index reports a muted
   // stream as audible. The same shape as every other defect in this tree:

@@ -32,7 +32,7 @@
 /// mapper emits null as its only value — so no publisher bound could retire
 /// it either.
 ///
-/// ## Why it reaches HER EARS, which is what makes it a safety defect
+/// ## Why it reaches the driver's EARS, which is what makes it a safety defect
 ///
 /// Measured against `compound_failure_advisor` on 2026-08-24, trusted
 /// position + clear fresh visibility (1500 m):
@@ -44,7 +44,7 @@
 /// A RISING rung fires `_announcer.announce` — audio AND haptic
 /// (main.dart:1070-1071). So the 88-day-dead 雷注意報 moves a calm drive to
 /// heightened caution and SPEAKS. The eyes-off channels — the ones she has in
-/// a whiteout, the ones this seat exists to protect — were being driven by a
+/// a whiteout, the ones this app exists to protect — were being driven by a
 /// document three months in its grave.
 ///
 /// ## Why suppressing is not the OTHER error

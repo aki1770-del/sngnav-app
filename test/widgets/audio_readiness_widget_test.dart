@@ -1,12 +1,12 @@
 // Tier-2 audio readiness — widget wiring:
 // (a) a proven-muted probe reading renders the media-muted caution row in
-//     the pre-drive voice-lane region (ja primary; en fallback);
+//     the pre-drive voice-channel region (ja primary; en fallback);
 // (b) tapping 承知しました collapses it to the compact acknowledged line
 //     (informed acknowledgment — never a block, never a volume touch);
 // (c) unmuted reading and null probe result render NOTHING (honest-unknown
 //     is never a guess).
 //
-// HONESTY (OPS-066 / AAE env-bound): verifies the WIDGET TREE against a
+// HONESTY (no device here): verifies the WIDGET TREE against a
 // fake probe. Whether the real Kotlin channel reports the device's actual
 // media volume is an on-device fact — verified separately on the emulator.
 

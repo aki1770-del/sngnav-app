@@ -2,7 +2,7 @@
 // + DataBudget + ViewportRenderBudgetBloc (offline_tiles 0.5.0 /
 // snow_rendering 0.2.0 / map_viewport_bloc 0.4.0).
 //
-// AAA Article 17 (β): tests verify behaviour at the integrator surface;
+// Article 17 (β): tests verify behaviour at the integrator surface;
 // driver-facing wording is unaffected at the rendering layer.
 
 import 'package:flutter/widgets.dart' show Locale;

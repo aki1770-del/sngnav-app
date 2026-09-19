@@ -1,15 +1,15 @@
-/// Audit vector for the unmeasured-accuracy ruling (2026-09-14).
+/// Audit vector for the unmeasured-accuracy decision (2026-09-14).
 ///
-/// Why, written before the act. The ruling reads a position's accuracy only
+/// Why, written before the act. The decision reads a position's accuracy only
 /// when the platform flags it, and says in the same clause: "A flagged 0.0 is
 /// believed." The only test of that clause binds a reading function that the
-/// ruling's own reference landing calls only for the stop reading, never on
+/// decision's own reference landing calls only for the stop reading, never on
 /// the path from the position stream to her map. A landing that writes "> 0"
-/// where the stream path needs ">= 0" passes every one of the ruling's tests
+/// where the stream path needs ">= 0" passes every one of the decision's tests
 /// (measured). This vector states the clause where it acts: through the app's
 /// own position stream, onto what her map is told.
 ///
-/// Audit instrument only: not the fix, and not a re-authoring of the ruling.
+/// Audit instrument only: not the fix, and not a re-authoring of the decision.
 library;
 
 import 'dart:async';

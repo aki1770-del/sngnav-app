@@ -1,7 +1,7 @@
-/// Setting a route, as ruled 2026-09-14: a route may not be set by touch while
+/// Setting a route, as decided 2026-09-14: a route may not be set by touch while
 /// the car moves, and a touch on her map sets nothing and clears nothing.
 ///
-/// HER-trace: the tap she uses to look around her map pauses follow and does
+/// Why: the tap the driver uses to look around her map pauses follow and does
 /// nothing else, so her route cannot be thrown away by it. A route is set only
 /// through a deliberate act she starts from a control, beside words saying it
 /// is for when the car is stopped.
@@ -32,7 +32,7 @@ import 'l10n/app_localizations.dart';
 /// How long a position event may be absent before the app treats the feed as
 /// in a drought: the blackout watchdog polls the drive brain after this long
 /// without an event, checking on a 15 s tick. A stop reading is current for
-/// no longer than this (ruled 2026-09-14), so the bound is the app's own
+/// no longer than this (decided 2026-09-14), so the bound is the app's own
 /// cadence and no new number. Provisional: no device reading of a platform's
 /// fix cadence at a stop exists.
 const Duration kPositionDrought = Duration(seconds: 30);
@@ -60,7 +60,7 @@ RouteSettingHost routeSettingHost() =>
         : RouteSettingHost.phone;
 
 /// What one sharing session has measured about the car's motion, for route
-/// setting on a phone (ruled 2026-09-14). A new session starts with [none].
+/// setting on a phone (decided 2026-09-14). A new session starts with [none].
 ///
 /// * With no motion reading in the session, route setting stays open, only
 ///   through the route act: a phone with no motion evidence is not known to
@@ -208,7 +208,7 @@ class BorrowedTileProvider extends TileProvider {
   void dispose() {}
 }
 
-/// The route act: a surface she opens from a control, with the ruled words at
+/// The route act: a surface she opens from a control, with the agreed words at
 /// its head, where a map that is not hers chooses start A and destination B.
 /// Her own map is not touched by it.
 ///
@@ -216,7 +216,7 @@ class BorrowedTileProvider extends TileProvider {
 /// any reason, keeps them, and she resumes where she left off. It pops `true`
 /// for its get-route control; nothing else asks for a route.
 ///
-/// When motion is measured while the act is open (ruled 2026-09-14), the act
+/// When motion is measured while the act is open (decided 2026-09-14), the act
 /// closes itself and asks for no route. Only measured motion closes it: a stop
 /// that ages out closes route setting on the page, not an act she is in.
 class RouteActDialog extends StatefulWidget {

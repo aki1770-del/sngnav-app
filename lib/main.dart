@@ -1,9 +1,9 @@
 /// sngnav-app — alpha-stage navigation companion for snow-zone commuting.
 ///
-/// Slice 0 of #67 from the SPA Actuator unit's HER-pivot 100-insights work.
-/// The unit's first edge-developer use of the navigation_safety packages.
+/// Slice 0 of #67 from the project's driver-first 100-insights work.
+/// The project's first edge-developer use of the navigation_safety packages.
 ///
-/// Default profile = ageingRural (per V21 substance — HER's mother in Akita
+/// Default profile = ageingRural (an older driver in Akita
 /// is the named first customer; the most-vulnerable cohort member shapes
 /// the default).
 ///
@@ -141,10 +141,10 @@ const bool kDeveloperPageFromEnvironment =
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // W2 — crash boundary + local error log (services/error_log.dart): every
+  // Crash boundary + local error log (services/error_log.dart): every
   // uncaught error is appended to a size-capped on-device file. NO network,
   // NO telemetry — the log leaves the device only via the user-initiated
-  // ログを共有 action (C6, the feedback card near the footer). Never blocks
+  // ログを共有 action (the feedback card near the footer). Never blocks
   // boot (best-effort install; a null log renders the action honestly
   // disabled).
   final errorLog = await installCrashBoundary();
@@ -158,7 +158,7 @@ Future<void> main() async {
 
 /// WS5 — app-level severity for a mocked road-surface condition, used to gate
 /// the audio+haptic announcement. ice / wet-ice (アイスバーン — the most
-/// slippery, HER's whiteout worst-case) are `critical`; snow / slush / wet /
+/// slippery, the whiteout worst case) are `critical`; snow / slush / wet /
 /// loose-gravel are `warning`; dry / unknown are `info` (announced on neither
 /// channel, matching the voice gate). Top-level + public so the WS5 tests can
 /// assert the mapping directly.
@@ -224,7 +224,7 @@ AdvisoryAggregateResult advisoryResultForThrownFetch(Object error) =>
 /// admit-bound and the stationary-cull-bound can never drift apart.
 ///
 ///   • expires-bearing (NWS/CAP, DigiTraffic, MET Norway) → the publisher's
-///     OWN declared bound (`now < expires`). Unchanged — the N10 core.
+///     OWN declared bound (`now < expires`). Unchanged — the core of the rule.
 ///   • null-expires (JMA warnings, OWM road-risk — no publisher bound) → a
 ///     BOUNDED SYNTHETIC window: `now < lastFreshAt + kSlowHazardRetainWindow`.
 ///     A null [lastFreshAt] means no anchor is available → NOT in force (so a
@@ -242,7 +242,7 @@ bool _advisoryInForce(Advisory a, DateTime now, DateTime? lastFreshAt) {
   return now.isBefore(lastFreshAt.add(kSlowHazardRetainWindow));
 }
 
-/// N10 — asymmetric overwrite: trust the hazard, expire the clear.
+/// Asymmetric overwrite: trust the hazard, expire the clear.
 ///
 /// A fetch that FAILED (provider errors, no advisories) must not silently
 /// erase hazards a publisher declared in force: [prior] advisories whose
@@ -259,12 +259,12 @@ bool _advisoryInForce(Advisory a, DateTime now, DateTime? lastFreshAt) {
 /// entirely, which meant an in-force JMA 大雪/暴風/特別警報 in Akita (where the
 /// region-gate leaves JMA the ONLY answering provider, so its failure is a
 /// TOTAL failure) vanished from the drive brain AND the card on the first
-/// errored refresh — a surface indistinguishable from a clear sky, on HER
+/// errored refresh — a surface indistinguishable from a clear sky, on the
 /// exact compound-failure target. They are now retained inside a BOUNDED
 /// SYNTHETIC window anchored to [lastFreshAt] (the last successful fetch) +
 /// [kSlowHazardRetainWindow] (60 min — the JMA reading's own decay bound).
-/// This is the same shape as the black-ice `FeedLossStaleIce` lane: a
-/// stale-stamped re-warning, never as live, DROPPED past the bound (N10 —
+/// This is the same shape as the black-ice `FeedLossStaleIce` path: a
+/// stale-stamped re-warning, never as live, DROPPED past the bound (the stationary-expiry rule —
 /// a parked driver never keeps a null-expires hazard forever). Without a
 /// [lastFreshAt] anchor there is no verifiable bound and a null-expires
 /// advisory is NOT retained (the prior behavior). We do NOT stamp the
@@ -319,7 +319,7 @@ bool _advisoryInForce(Advisory a, DateTime now, DateTime? lastFreshAt) {
   );
 }
 
-/// N10 (stationary-expiry) — the retain doc-comment promises "a retained
+/// Stationary expiry — the retain doc-comment promises "a retained
 /// advisory past its expires drops on every cycle", but cycles fire only on
 /// ~1 km movement or a manual tap. A driver PARKED in a dead zone would keep
 /// an expired retained hazard indefinitely. This is the time-based cull the
@@ -331,8 +331,8 @@ bool _advisoryInForce(Advisory a, DateTime now, DateTime? lastFreshAt) {
 /// [lastFreshAt] anchors the SYNTHETIC window for null-expires hazards (JMA
 /// warnings): once `lastFreshAt + kSlowHazardRetainWindow` passes, a
 /// synthetically-retained null-expires hazard drops here too — so a PARKED
-/// driver never keeps it forever (the N10 promise, extended to the
-/// null-expires lane that retention now admits). When [lastFreshAt] is null
+/// driver never keeps it forever (the stationary-expiry promise, extended to the
+/// null-expires path that retention now admits). When [lastFreshAt] is null
 /// (or absent) a null-expires advisory is KEPT: with no anchor it is treated
 /// as a FRESH publisher statement (a partial-retention survivor), and culling
 /// it would erase a live warning.
@@ -366,7 +366,7 @@ AdvisoryAggregateResult? cullExpiredRetainedAdvisories(
   );
 }
 
-/// N8 — the real-GPS-blackout watchdog decision: should the drive brain be
+/// The real-GPS-blackout watchdog decision: should the drive brain be
 /// [DriveHudController.poll]ed this tick, and with what clock?
 ///
 /// The degradation machine (trusted → dead-reckoning → lost) only progresses
@@ -400,13 +400,13 @@ DateTime? positionWatchdogPollTime({
 
 /// The time a simulated GPS blackout press polls the drive brain at: the later
 /// of the [simulated] clock and the real [now]. A regressing clock would
-/// un-degrade a dot a real drought degraded (AAA R52, S6).
+/// un-degrade a dot a real drought degraded (found in safety review).
 DateTime blackoutPollTime({required DateTime simulated, required DateTime now}) =>
     simulated.isAfter(now) ? simulated : now;
 
 /// How long after the platform position stream is subscribed, with no
 /// position event of any kind, the words for "locating" stop being said
-/// (ruled 2026-09-14). A GPS receiver with no network assistance waits on the
+/// (decided 2026-09-14). A GPS receiver with no network assistance waits on the
 /// satellites' navigation message, broadcast at 50 bit/s in 1500-bit frames,
 /// 30 s a frame; 60 s is two frames. Past that, 「現在地を取得しています…」 /
 /// "Locating you…" is a promise the app has no evidence for. The watchdog
@@ -437,7 +437,7 @@ bool positionFirstEventOverdue({
     subscribedAt != null &&
     now.difference(subscribedAt) >= wait;
 
-/// N15 — the FEED-LOSS decision (JmaFailure / no successful fetch this cycle),
+/// The FEED-LOSS decision (JmaFailure / no successful fetch this cycle),
 /// extracted to ONE function so the VOICE path (`_announceWatchTransitions`)
 /// and the VISIBLE panel (`_jmaPanel`) compute the SAME verdict from the same
 /// inputs. Everything spoken must have a visible counterpart, and the two
@@ -532,7 +532,7 @@ FeedLossVerdict feedLossVerdict({
       observedAt == null ||
       observedInstant == null ||
       now.toUtc().difference(observedInstant) > kSlowHazardRetainWindow) {
-    // The MEMORY, before the silence (C2 RED-1): a hazard the publisher
+    // The MEMORY, before the silence (the offline-survival fix): a hazard the publisher
     // declared valid for THIS hour, captured before she left. The VISIBLE
     // channel carries it regardless of locale — locale (or a mouth missing
     // its bytes) is not data, and must not delete a held hazard from the
@@ -577,7 +577,7 @@ class SngnavApp extends StatelessWidget {
   ///
   /// [locale] overrides the device locale (null = follow the device). It is a
   /// testability + future device-harness hook: the WS7 tests pump the consent
-  /// gate under `Locale('ja')` to prove HER surface renders in Japanese.
+  /// gate under `Locale('ja')` to prove the driver's surface renders in Japanese.
   ///
   /// [jmaFetch] overrides the live JMA observation fetch (null = the real
   /// AMeDAS fetch). Same idiom as [actuators]: it lets tests drive the
@@ -587,12 +587,12 @@ class SngnavApp extends StatelessWidget {
   ///
   /// [errorLog] is the crash-boundary log handle from [installCrashBoundary]
   /// (main() passes it in; tests inject a temp-dir-backed log). It feeds the
-  /// C6 ログを共有 action; null renders that action honestly disabled.
+  /// ログを共有 (share log) action; null renders that action honestly disabled.
   ///
   /// [logShareSink] overrides the share exit door (production null ->
   /// [shareLogViaShareSheet]; widget tests inject a recording fake so the
   /// platform share channel is never touched in the test binding).
-  /// [voiceLaneReader] overrides the A1 pre-drive voice-lane readiness read
+  /// [voiceLaneReader] overrides the pre-drive voice-channel readiness read
   /// (null = the real [readVoiceLaneReadiness], which is honestly `unknown`
   /// off-mobile/under-test). Same idiom as [jmaFetch]: tests drive the
   /// caution row with a canned verdict, no plugin, no device.
@@ -604,14 +604,14 @@ class SngnavApp extends StatelessWidget {
   /// [hapticUnverified] is the exact tactile twin, fed by
   /// [HardenedHapticChannel]'s callbacks. It exists because on 2026-08-21 the
   /// app was measured on a device firing a critical announce that dispatched
-  /// speech and produced zero vibrations, with nothing on HER screen saying
+  /// speech and produced zero vibrations, with nothing on the driver's screen saying
   /// so — the only channel a deaf or hard-of-hearing driver has was the one
   /// channel with no delivery report.
   ///
   /// [hapticReadinessProbe] overrides the pre-drive TACTILE readiness probe
   /// (null = the real [DriverHapticReadinessProbe], honestly `null` off-mobile
-  /// and under test — and `null` renders NOTHING). Built 2026-08-22 on AAA's
-  /// G-3 PUSHBACK: the audio channel was probed at four triggers and the
+  /// and under test — and `null` renders NOTHING). Built 2026-08-22 after a
+  /// safety review pushed back: the audio channel was probed at four triggers and the
   /// tactile channel at none, so the app could warn her before the drive that
   /// speech would not reach her and only after a lost warning that vibration
   /// had not.
@@ -651,7 +651,7 @@ class SngnavApp extends StatelessWidget {
   final Future<JmaResult> Function()? jmaFetch;
 
   /// Injectable JMA FORWARD-FORECAST fetch (null -> live forecast fetch). This
-  /// is the source of HER dead-zone memory; tests drive it with a real captured
+  /// is the source of the dead-zone memory; tests drive it with a real captured
   /// JMA payload, never a hand-written one.
   final Future<JmaForecastResult> Function()? jmaForecastFetch;
   final LocalErrorLog? errorLog;
@@ -668,10 +668,10 @@ class SngnavApp extends StatelessWidget {
   final AudioReadinessProbe? audioReadinessProbe;
   final HapticReadinessProbe? hapticReadinessProbe;
 
-  /// W0 detection-survival: injectable clock for host-deterministic staleness
+  /// Detection survival: injectable clock for host-deterministic staleness
   /// (null -> [DateTime.now]). Tests inject a fixed `now` consistent with the
   /// retained observation's observedAt so the feed-loss decision table is
-  /// verifiable without a device (OPS-066).
+  /// verifiable without a device.
   final DateTime Function()? clock;
 
   /// Injectable position source (null -> the real [herPositionStream]). Same
@@ -699,12 +699,12 @@ class SngnavApp extends StatelessWidget {
       title: 'sngnav-app (alpha)',
       // WS7 — force locale when supplied (tests / device harness); otherwise
       // follow the device. supportedLocales lists ja FIRST so a device set to
-      // neither ja nor en falls back to HER tongue, not English.
+      // neither ja nor en falls back to Japanese, the driver's tongue, not English.
       locale: locale,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
         useMaterial3: true,
-        // 1b tofu fix (plan 2026-07-25 §1): HER-facing strings carry a small
+        // Tofu fix (2026-07-25): driver-facing strings carry a small
         // symbol set (⚠ ❄ ※ → ° …) the ja system font stack does not
         // guarantee — measured 2026-07-30: Noto Sans CJK JP lacks U+2744 ❄,
         // and U+26A0 ⚠ coverage is fallback-dependent (the render-see
@@ -715,7 +715,7 @@ class SngnavApp extends StatelessWidget {
         // test/fonts/symbol_font_coverage_test.dart.
         fontFamilyFallback: const ['SnGNavSymbols'],
       ),
-      // HER reads Japanese. The Global*Localizations delegates localize the
+      // The driver reads Japanese. The Global*Localizations delegates localize the
       // Material/Cupertino/Widgets chrome (date pickers, tooltips, semantics)
       // for ja + en; AppL10n (WS7) localizes the app's own dignity-bearing
       // consent / status / disclosure strings. Catalog driver-facing prose
@@ -778,7 +778,7 @@ class HomePage extends StatefulWidget {
   final AlertActuators? actuators;
 
   /// The same locale override [SngnavApp] hands to MaterialApp, so the
-  /// SPOKEN lane resolves from the identical inputs as the screen (AAA F1:
+  /// SPOKEN channel resolves from the identical inputs as the screen (a safety-review finding:
   /// the eyes-off channel must never silently diverge from the eyes-on one).
   final Locale? locale;
 
@@ -786,11 +786,11 @@ class HomePage extends StatefulWidget {
   final Future<JmaResult> Function()? jmaFetch;
 
   /// Injectable JMA FORWARD-FORECAST fetch (null -> live forecast fetch). This
-  /// is the source of HER dead-zone memory; tests drive it with a real captured
+  /// is the source of the dead-zone memory; tests drive it with a real captured
   /// JMA payload, never a hand-written one.
   final Future<JmaForecastResult> Function()? jmaForecastFetch;
 
-  /// Crash-boundary log handle (C6 ログを共有; null -> action disabled).
+  /// Crash-boundary log handle (ログを共有 share-log action; null -> action disabled).
   final LocalErrorLog? errorLog;
 
   /// Injectable share exit door (null -> [shareLogViaShareSheet]).
@@ -802,7 +802,7 @@ class HomePage extends StatefulWidget {
   /// Injectable diary share exit door (null -> [shareDiaryViaShareSheet]).
   final DiaryShareSink? diaryShareSink;
 
-  /// Injectable A1 voice-lane readiness read (null ->
+  /// Injectable voice-channel readiness read (null ->
   /// [readVoiceLaneReadiness]).
   final Future<VoiceLaneVerdict> Function()? voiceLaneReader;
 
@@ -811,7 +811,7 @@ class HomePage extends StatefulWidget {
   final ValueNotifier<bool>? speechUnverified;
 
   /// Injectable tactile-verification flag (null -> page-owned notifier fed by
-  /// [HardenedHapticChannel]'s callbacks). The OPS-059 twin of
+  /// [HardenedHapticChannel]'s callbacks). The tactile (accessibility) twin of
   /// [speechUnverified].
   final ValueNotifier<bool>? hapticUnverified;
 
@@ -820,12 +820,12 @@ class HomePage extends StatefulWidget {
   final AudioReadinessProbe? audioReadinessProbe;
 
   /// Injectable pre-drive tactile readiness probe (null ->
-  /// [DriverHapticReadinessProbe]). The OPS-059 twin of the audio probe, on
+  /// [DriverHapticReadinessProbe]). The tactile (accessibility) twin of the audio probe, on
   /// the same cadence by construction — see [_probeAlertChannelReadiness].
   final HapticReadinessProbe? hapticReadinessProbe;
 
-  /// W0 detection-survival: injectable clock (null -> [DateTime.now]). Makes the
-  /// feed-loss staleness age computation host-deterministic (OPS-066).
+  /// Detection survival: injectable clock (null -> [DateTime.now]). Makes the
+  /// feed-loss staleness age computation host-deterministic.
   final DateTime Function()? clock;
 
   /// Injectable position source (null -> the real [herPositionStream]).
@@ -889,7 +889,7 @@ class _HomePageState extends State<HomePage> {
     ));
   }
 
-  // V21: ageingRural is the default — HER's mother is the named first customer.
+  // ageingRural is the default — an older driver in Akita is the named first customer.
   DriverProfile _profile = DriverProfile.ageingRural;
 
   // Road-surface condition. Default UNKNOWN (路面状況不明) — the app has no
@@ -909,7 +909,7 @@ class _HomePageState extends State<HomePage> {
   // override that NSC ships pre-loaded.
   String? _vehicleClassToken;
 
-  // VehicleThresholdOverrides registry pre-loaded with HER kei-car-at-65
+  // VehicleThresholdOverrides registry pre-loaded with the kei-car-at-65
   // cohort default per NSC 0.9.0. Selecting 'kei-car' in the dropdown
   // produces a +50m / +1°C caution-adding-only delta vs baseline.
   // Other tokens (compact-sedan / 4wd / commercial-light) demonstrate
@@ -917,22 +917,22 @@ class _HomePageState extends State<HomePage> {
   final VehicleThresholdOverrides _vehicleOverrides =
       VehicleThresholdOverrides.withKeiCarDefault();
 
-  // WS5 — the actuator layer that makes a hazard alert REACH HER (audio +
+  // The actuator layer that makes a hazard alert REACH the driver (audio +
   // haptic) and holds the screen awake. On desktop/test this is a no-op, so
   // the render-SEE ceiling stays intact; on android/ios it drives the real
   // plugins. Until WS5 the app never spoke: voice_guidance reached her as
-  // silence. _announcer enforces the OPS-059 floor (audio AND haptic on the
+  // silence. _announcer enforces the accessibility floor (audio AND haptic on the
   // same severity gate).
   late final AlertActuators _actuators;
   late final AlertAnnouncer _announcer;
 
-  // Tier-1 voice-lane hardening — the HUD chip flag: true while the LAST
+  // Tier-1 voice-channel hardening — the HUD chip flag: true while the LAST
   // announce could not be verified as delivered (hardened engine reported
   // unverified), cleared on the next verified speak. Page-owned unless a
   // test injects its own notifier. Never disposed here when injected.
   late final ValueNotifier<bool> _speechUnverified;
 
-  // OPS-059 tactile twin — true while the LAST tactile cue that was OWED did
+  // Tactile (accessibility) twin — true while the LAST tactile cue that was OWED did
   // not land (no vibrator / fault / the platform never answered), cleared on
   // the next cue the platform accepts. Same ownership rule as the speech
   // flag: page-owned unless a test injects one, never disposed when injected.
@@ -943,7 +943,7 @@ class _HomePageState extends State<HomePage> {
   // 2026-08-21, it was firing nothing.
   late final ValueNotifier<bool> _hapticUnverified;
 
-  // A1 pre-drive voice-lane verdict. Starts (and off-device stays) unknown —
+  // Pre-drive voice-channel verdict. Starts (and off-device stays) unknown —
   // unknown renders NOTHING (never a false warning where we cannot read the
   // voice list). Resolved async in initState.
   VoiceLaneVerdict _voiceLaneVerdict = VoiceLaneVerdict.unknown;
@@ -959,22 +959,22 @@ class _HomePageState extends State<HomePage> {
   // answer, and null renders NOTHING — same honest-unknown discipline as
   // _audioReadiness and _voiceLaneVerdict. Resolved async on the SAME cadence
   // as the audio probe (_probeAlertChannelReadiness), which is the whole
-  // point of AAA's G-3: the two eyes-off channels are probed together or the
+  // point of the safety-review finding: the two eyes-off channels are probed together or the
   // asymmetry comes back.
   bool? _hapticAvailable;
 
-  // ---- WARNING-CHANNEL CHECK (AAE 2026-09-19) -------------------------
-  // C3 — seen / heard / felt — is the definition of the first build that
-  // reaches HER. `seen` was met on a real phone 2026-09-17. `heard` and
+  // ---- WARNING-CHANNEL CHECK (2026-09-19) -----------------------------
+  // The release criterion "seen / heard / felt" is the definition of the first build that
+  // reaches the driver. `seen` was met on a real phone 2026-09-17. `heard` and
   // `felt` were met by nobody, and at 85617da (2026-09-16 00:04 JST) the demo
   // controls that could fire a cue moved to the development page, which
   // `_developerPageOffered` hard-gates on `!kReleaseMode`. So the SIGNED build
   // had no way for any person to make the app speak or buzz: the instrument
   // left the shipping build 2 days 18 hours before that build was written
-  // (APK 2026-09-18 18:16 JST). This comment said "four days" until R115; the
+  // (APK 2026-09-18 18:16 JST). This comment said "four days" until 2026-09-19; the
   // two timestamps are the measurement.
   //
-  // This panel is the replacement, and it is HER affordance rather than a
+  // This panel is the replacement, and it is the driver's affordance rather than a
   // debug one: for a deaf or hard-of-hearing driver the tactile cue is the
   // only channel there is, and checking it before a mountain pass is a
   // safety act. It fires the REAL announce path — what she tests is what
@@ -987,21 +987,21 @@ class _HomePageState extends State<HomePage> {
   String? _ccMachineClaim;
   String? _ccSaveMessage;
 
-  // True once HER has tapped 承知しました on the media-muted caution: the
+  // True once the driver has tapped 承知しました on the media-muted caution: the
   // strong row collapses to the compact acknowledged line. Informed
   // acknowledgment only — NO behavior gating, haptics stay unconditional,
   // and we NEVER touch her volume (the Tier-3 dignity boundary).
   bool _mediaMutedAcked = false;
 
-  // WS6 — the live in-drive compound-failure caution brain. It is fed HER real
+  // The live in-drive compound-failure caution brain. It is fed the driver's real
   // position samples (from the GPS listener below), the mocked visibility band
   // (no real visibility sensor yet — honestly labeled in the panel), and the
   // REAL area advisory the app already fetched; it raises an advisory-only
   // caution rung and — the MOMENT the rung RISES — auto-announces on the SAME
   // single _actuators / _announcer as WS5 (injected, so there is exactly ONE
   // actuator + ONE wakelock owner for the whole app). Rendered below in
-  // Japanese for HER, so it is on-screen (render-SEE on desktop) AND reaches
-  // her eyes-off on a phone. On-device HEAR/FEEL is DEFERRED (OPS-066).
+  // Japanese for the driver, so it is on-screen (render-SEE on desktop) AND reaches
+  // her eyes-off on a phone. On-device HEAR/FEEL is DEFERRED.
   late final DriveHudController _driveHud;
   static const DriveHudLocalizer _driveHudText = DriveHudLocalizer();
   // EXPLICIT demo override for the visibility band (the panel dropdown), in
@@ -1039,24 +1039,24 @@ class _HomePageState extends State<HomePage> {
   JmaResult? _jmaResult;
   bool _jmaLoading = false;
 
-  // W0 detection-survival — last-known GOOD observation, retained across a feed
+  // Detection survival — last-known GOOD observation, retained across a feed
   // loss so slow-varying winter hazards survive the network dying. Set ONLY on
   // JmaSuccess; NEVER cleared on JmaFailure (that is the whole point). Distinct
   // from _jmaResult, which is overwritten by a JmaFailure.
   JmaObservation? _lastGoodObservation;
 
-  // W0 detection-survival — absence-line announce gate. The ABSENCE-LINE fires
+  // Detection survival — absence-line announce gate. The ABSENCE-LINE fires
   // ONCE per entry into a dead-zone so a persistent no-reading does not spam;
   // re-armed on the next JmaSuccess (see _announceWatchTransitions). The SLOW
-  // stale-ice hazard is deliberately NOT gated (Chair: keep announcing) — it
+  // stale-ice hazard is deliberately NOT gated (decided: keep announcing) — it
   // re-warns each feed-loss cycle, rate-limited only by the JMA ticker.
   bool _absenceActive = false; // absence-line announce currently active
 
-  // C2 RED-1 — THE MEMORY. The trip-window-valid hazard bundle, captured at
+  // THE MEMORY (offline-survival fix). The trip-window-valid hazard bundle, captured at
   // PLAN time (network alive) and consulted in the DEAD ZONE (network gone).
   // This is the source that needs no source: no fetch, no point-query, just the
   // publisher's declared validity window against the clock. It is what stands
-  // between HER and silence at T+90.
+  // between the driver and silence at T+90.
   TripHazardMemory? _tripHazardMemory;
 
   // Rise-gate for the forecast line, mirroring _absenceActive: a persistent
@@ -1064,7 +1064,7 @@ class _HomePageState extends State<HomePage> {
   // Cry-wolf discipline — the same restraint the absence line gets.
   bool _forecastAnnounceActive = false;
 
-  // BETA_PLAN W1 — invisible-ice (radiative-frost) watch state over the
+  // Invisible-ice (radiative-frost) watch state over the
   // live JMA observation. _lastAnnouncedIceResult is the transition gate: the
   // ice VERDICT last spoken (watch / subZeroFrozen), or null when the channel
   // is not firing — so re-entry re-announces and a cross-0 °C tier change
@@ -1072,7 +1072,7 @@ class _HomePageState extends State<HomePage> {
   InvisibleIceWatchResult? _invisibleIceResult;
   InvisibleIceWatchResult? _lastAnnouncedIceResult;
 
-  /// Liveness of the measured-weather lane, tracked SEPARATELY from the watch
+  /// Liveness of the measured-weather feed, tracked SEPARATELY from the watch
   /// verdicts.
   ///
   /// The verdicts alone cannot carry this: a feed LOSS clears them to
@@ -1082,23 +1082,23 @@ class _HomePageState extends State<HomePage> {
   /// "we could not look" (see services/advisory_axis.dart for the same
   /// asymmetry on the advisory axis), so the app carries it here and states it
   /// as a first-class unknown on the glance instead. It never raises the rung:
-  /// an outage is an unknown, not a hazard (no cry-wolf, Chair 2026-07-23).
+  /// an outage is an unknown, not a hazard (no cry-wolf, decided 2026-07-23).
   MeasuredWatchFeed _measuredWatchFeed = MeasuredWatchFeed.notYetRead;
 
-  // BETA_PLAN W3 — measured-turmoil (downpour / strong-wind) watch over the
-  // same live observation (Chair-ratified 2026-07-09: measured actual
+  // Measured-turmoil (downpour / strong-wind) watch over the
+  // same live observation (decided 2026-07-09: measured actual
   // weather, never historical assumption). Same transition-gate discipline.
   TurmoilWatchState? _turmoilState;
   bool _turmoilAnnounced = false;
 
-  // W3 in-drive refresh loom: AMeDAS publishes 10-minutely; without a
+  // In-drive refresh: AMeDAS publishes 10-minutely; without a
   // periodic re-fetch the watches only re-evaluate on manual taps — not an
   // in-drive surface. The same tick re-pulls area advisories so a PARKED
   // driver still receives a newly issued JMA warning (movement-gated
   // refresh alone never re-fetches while stationary).
   Timer? _jmaTicker;
 
-  // N8 — real-GPS-blackout watchdog. The degradation machine's poll() was
+  // Real-GPS-blackout watchdog. The degradation machine's poll() was
   // production-wired ONLY to the demo blackout button; in a REAL blackout
   // (tunnel, mountain pass — exactly the compound-failure scenario) no fix
   // events arrive, nothing calls poll, and the dot stays "trusted" forever.
@@ -1133,7 +1133,7 @@ class _HomePageState extends State<HomePage> {
   /// nothing, announced once to a screen reader.
   bool _herFirstEventOverdue = false;
 
-  // B32 — the voice-lane + media-volume cautions were probed ONCE in
+  // B32 — the voice-channel + media-volume cautions were probed ONCE in
   // initState: a mid-drive mute (or a mid-drive voice-pack removal) was
   // invisible for the whole drive. This ticker re-probes both (~45 s, and on
   // drive start) so the pre-drive cautions stay TRUE during the drive.
@@ -1141,7 +1141,7 @@ class _HomePageState extends State<HomePage> {
   // volume.
   Timer? _audioReadinessTicker;
 
-  // AAA F1 — the spoken-lane locale, resolved ONCE from the same inputs the
+  // The spoken-channel locale, resolved ONCE from the same inputs the
   // screen uses (widget.locale override first, else device locales against
   // the same ja-first supported list). 'ja' | 'en'.
   late final String _spokenLanguageCode;
@@ -1152,14 +1152,14 @@ class _HomePageState extends State<HomePage> {
   bool _corridorLoading = false;
 
   // Routing state — Slice 2b: A and B → fetch → polyline. Chosen in the route
-  // act, never by a touch on her map (ruled 2026-09-14).
+  // act, never by a touch on her map (decided 2026-09-14).
   LatLng? _origin;
   LatLng? _destination;
   RouteResult? _routeResult;
   bool _routeLoading = false;
 
   // B27/B26 — pre-send consent for the OSRM coordinate egress. null =
-  // undecided (ask before the first send); true/false = HER remembered
+  // undecided (ask before the first send); true/false = the driver's remembered
   // choice (persisted via RouteConsentStore when a documents dir exists).
   //
   // SCOPE (B26, honest): full driving_consent wiring is a larger design —
@@ -1182,7 +1182,7 @@ class _HomePageState extends State<HomePage> {
   RouteManeuver? _nextManeuver;
   ManeuverNarration? _lastManeuverNarration;
 
-  // HER position — Slice 2c. The passenger sits down quietly.
+  // The driver's position — Slice 2c. The passenger sits down quietly.
   PositionFix? _herFix;
   StreamSubscription<PositionFix>? _herSub;
 
@@ -1196,7 +1196,7 @@ class _HomePageState extends State<HomePage> {
   /// The last event of THIS sharing session that the drive brain was not
   /// given, or `null`. Before the session's first trusted fix, an event that
   /// would not be that fix is held back unless a measured condition raises
-  /// caution (ruled 2026-09-14): a failure that has not measured the road does
+  /// caution (decided 2026-09-14): a failure that has not measured the road does
   /// not reach the caution rung by itself. Held, not dropped: a measured
   /// condition that arrives later still gives it to the drive brain.
   PositionFix? _herHeldEvent;
@@ -1245,7 +1245,7 @@ class _HomePageState extends State<HomePage> {
   bool _whiteoutTold = false;
 
   /// What THIS sharing session has measured about motion, for route setting
-  /// (ruled 2026-09-14). A new session starts with none, and so does her "no"
+  /// (decided 2026-09-14). A new session starts with none, and so does her "no"
   /// to location: with no session there is no motion evidence, and a driver
   /// who needs to plan in a GPS drought can end sharing to do it.
   ShareMotion _shareMotion = ShareMotion.none;
@@ -1258,7 +1258,7 @@ class _HomePageState extends State<HomePage> {
   /// tick rebuilds only when a stop has aged out.
   bool? _routeSettingOpenBuilt;
 
-  /// HER map's camera. Until 2026-09-13 nothing moved it but a hand: 8.2 km
+  /// The map's camera. Until 2026-09-13 nothing moved it but a hand: 8.2 km
   /// out along Route 13 the map held no mark of her in any mode. The rules are
   /// in `her_map_follow.dart`.
   final MapController _herMapController = MapController();
@@ -1349,7 +1349,7 @@ class _HomePageState extends State<HomePage> {
   /// still feed the drive brain; the all-clear is never retained.
   bool _advisoryRetained = false;
 
-  /// N10 (stationary-expiry) — minute ticker that culls a RETAINED advisory
+  /// Stationary expiry — minute ticker that culls a RETAINED advisory
   /// past its publisher-declared expires while NO fetch cycle is firing
   /// (fetches are movement-gated at ~1 km; a parked driver gets none). See
   /// [cullExpiredRetainedAdvisories].
@@ -1376,7 +1376,7 @@ class _HomePageState extends State<HomePage> {
     // built, user-visible and driver-initiated — never silent background
     // location tracking, which we refuse for dignity, hence NO
     // ACCESS_BACKGROUND_LOCATION.)
-    // Tier-1 voice-lane hardening — the speech-verification flag + its feed.
+    // Tier-1 voice-channel hardening — the speech-verification flag + its feed.
     // The hardened engine (inside defaultAlertActuators) reads the platform's
     // own utterance-completion report and drives these callbacks; unverified
     // deliveries also land one line in the same LocalErrorLog as crashes.
@@ -1397,7 +1397,7 @@ class _HomePageState extends State<HomePage> {
           },
           // The tactile half. Both directions are wired deliberately: without
           // the verified path a single transient fault would pin the chip on
-          // HER screen for the rest of the drive, which is its own dishonesty.
+          // the driver's screen for the rest of the drive, which is its own dishonesty.
           onHapticUnverified: () {
             if (mounted) _hapticUnverified.value = true;
           },
@@ -1406,7 +1406,7 @@ class _HomePageState extends State<HomePage> {
           },
         );
     _announcer = AlertAnnouncer(actuators: _actuators);
-    // A1 + Tier-2 — pre-drive voice-lane + media-volume reads (honest
+    // Tier-2 — pre-drive voice-channel + media-volume reads (honest
     // unknown/null off-mobile; fail-soft). B32: no longer once-only — the
     // same probes re-run on a ticker + on drive start (_probeAudioCautions)
     // so a MID-DRIVE mute or voice-pack change is detected, not just a
@@ -1416,7 +1416,7 @@ class _HomePageState extends State<HomePage> {
       const Duration(seconds: 45),
       (_) => _probeAlertChannelReadiness(),
     );
-    // AAA F1 — resolve the spoken-lane locale ONCE, from the same inputs
+    // Resolve the spoken-channel locale ONCE, from the same inputs
     // MaterialApp resolves the screen from: the injected override first,
     // else the device locale list against the identical ja-first supported
     // list (basicLocaleListResolution is Flutter's default resolver). The
@@ -1444,8 +1444,8 @@ class _HomePageState extends State<HomePage> {
       actuators: _actuators,
       announcer: _announcer,
       text: _driveHudText,
-      // AAA F1: was a hardcoded 'ja' — DriveHudLocalizer ships full ja+en
-      // pairs, so the HUD's spoken lane follows the resolved locale.
+      // Was a hardcoded 'ja' — DriveHudLocalizer ships full ja+en
+      // pairs, so the HUD's spoken channel follows the resolved locale.
       localeTag: _spokenLanguageCode,
     );
     // AQ4: a line raised by a value nobody measured is spoken as a test value.
@@ -1473,7 +1473,7 @@ class _HomePageState extends State<HomePage> {
     _rebuildSubBundle4For(_profile);
     _nwsClient = NoaaNwsClient(userAgent: kSngnavAppUserAgent);
     // Region-gate each provider to the geography its publisher actually
-    // covers, so HER Akita point goes ONLY to JMA and the US NWS endpoint
+    // covers, so the Akita point goes ONLY to JMA and the US NWS endpoint
     // is never called (no HTTP-400 error card, and no coordinate leaked to
     // a service that cannot help her). See services/provider_coverage.dart.
     _advisoryService =
@@ -1490,7 +1490,7 @@ class _HomePageState extends State<HomePage> {
     _advisoryInitFuture = _advisoryService.init();
     _refreshJma();
     _refreshCorridor();
-    // W3 — in-drive refresh loom (see the _jmaTicker field note). 10-minute
+    // In-drive refresh (see the _jmaTicker field note). 10-minute
     // cadence matches AMeDAS's own publication interval: one station GET +
     // one advisory refresh per tick — polite by construction. Foreground
     // only in practice (Android freezes a cached app's timers; the wakelock
@@ -1499,14 +1499,14 @@ class _HomePageState extends State<HomePage> {
       _refreshJma();
       _onAdvisoryRefreshTapped();
     });
-    // N10 (stationary-expiry) — honor the publisher's validity bound between
+    // Stationary expiry — honor the publisher's validity bound between
     // movement-gated fetch cycles: a retained advisory whose expires passes
     // while she is parked must drop, not render as current indefinitely.
     _advisoryExpiryTicker =
         Timer.periodic(const Duration(minutes: 1), (_) => _advisoryExpiryTick());
   }
 
-  /// N10 (stationary-expiry) — one tick: cull expired advisories from a
+  /// Stationary expiry — one tick: cull expired advisories from a
   /// RETAINED result. Culling to empty leaves the empty+providerErrors shape,
   /// which renders the honest degraded-unknown banner (never all-clear), and
   /// the drive brain stops being fed the expired hazard on the next fix.
@@ -1523,14 +1523,14 @@ class _HomePageState extends State<HomePage> {
     setState(() => _advisoryResult = culled);
   }
 
-  /// B32 — run BOTH audio-caution probes (A1 voice-lane + Tier-2 media
+  /// B32 — run BOTH audio-caution probes (voice channel + Tier-2 media
   /// volume). Called from initState, from the ~45 s re-probe ticker, and on
   /// drive start (share-location / mock-position), so a mid-drive mute is
   /// detected while the warning still matters.
   ///
-  /// Retention discipline (D3: absence must never render as calm — and its
+  /// Retention discipline (absence must never render as calm — and its
   /// dual, a proven caution must never be CLEARED by a failed read):
-  /// - voice lane: `unknown` (read failed / unreadable) NEVER overwrites a
+  /// - voice channel: `unknown` (read failed / unreadable) NEVER overwrites a
   ///   prior proven verdict — only a proven verdict (ready / degraded)
   ///   replaces one. A transient engine hiccup must not hide the caution.
   /// - media volume: a `null` probe result keeps the prior reading, same
@@ -1540,7 +1540,7 @@ class _HomePageState extends State<HomePage> {
   ///   mute she dismissed an hour ago.
   /// Probes BOTH eyes-off channels on one cadence.
   ///
-  /// ⚑ Was `_probeAudioCautions` until 2026-08-22. AAA's verdict §2.1 found
+  /// ⚑ Was `_probeAudioCautions` until 2026-08-22. A safety review that day found
   /// the audio channel probed at four triggers and the tactile channel at
   /// none — *"the channel with the higher dignity load has the weaker
   /// instrument."* Giving the tactile probe four call sites of ITS OWN would
@@ -1602,7 +1602,7 @@ class _HomePageState extends State<HomePage> {
           .then((reading) {
         if (!mounted || reading == null) return;
         final prior = _audioReadiness;
-        // AAE 2026-09-02, re-landed 2026-09-19 — compare the VALUE, never a
+        // Added 2026-09-02, re-landed 2026-09-19 — compare the VALUE, never a
         // hand-written field list. This block named mediaVolume /
         // mediaVolumeMax / ttsServiceVisible and OMITTED streamMuted, so a
         // STREAM_MUSIC that went MUTED at an unchanged volume index — the
@@ -1744,14 +1744,14 @@ class _HomePageState extends State<HomePage> {
       // fallback her_position.dart names as deferred). An error arriving here
       // with no handler goes to the zone, which is invisible to her in a
       // release build, while her last dot stays on screen looking measured
-      // until the N8 watchdog degrades it up to a 30 s cadence later. The
+      // until the blackout watchdog degrades it up to a 30 s cadence later. The
       // abstention must reach her pixel at the instant the loom knows it,
-      // not a cadence after (AAE-6/AAE-7).
+      // not a cadence after (an abstention is never drawn as a measurement).
       //
       // The reason string matches her_position.dart's own wrapper verbatim, so
       // AppL10n.gpsUnavailable renders it in her language
       // ('GPSストリームのエラー'), and the exception text after the wrapper
-      // never reaches her line (ruled 2026-09-14). An error here has no typed
+      // never reaches her line (decided 2026-09-14). An error here has no typed
       // cause: this source is swappable, and only herPositionStream types
       // what the platform said.
       //
@@ -1765,12 +1765,12 @@ class _HomePageState extends State<HomePage> {
     // The real stream reports its own subscription, after the permission
     // answer, through the callback above.
     if (injected != null) _herPositionStreamSubscribedAt = _now();
-    // N8 — start the blackout watchdog for the real position feed.
+    // Start the blackout watchdog for the real position feed.
     _positionWatchdog ??=
         Timer.periodic(_watchdogTickEvery, (_) => _watchdogTick());
   }
 
-  /// One event from HER position feed: a fix, an honest unavailability, or a
+  /// One event from the driver's position feed: a fix, an honest unavailability, or a
   /// stream error converted into one by [_shareLocation]'s onError. Single
   /// path, so all three keep the watchdog fed and reach the same surfaces.
   void _onPositionEvent(PositionFix fix) {
@@ -1805,7 +1805,7 @@ class _HomePageState extends State<HomePage> {
     }
     // Before this session's first trusted fix, an event that would not be
     // that fix is not given to the drive brain, unless a measured condition
-    // raises caution (ruled 2026-09-14). With no trusted fix ever, the brain
+    // raises caution (decided 2026-09-14). With no trusted fix ever, the brain
     // rates "no position at all" its top concern and always speaks it: a
     // failed start or location services off got the critical haptic, the line
     // inviting her to stop and 停車の検討, identically in a measured clear
@@ -1828,7 +1828,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     _herHeldEvent = null;
-    // N8 — any event (fix OR honest unavailability) proves the position
+    // Any event (fix OR honest unavailability) proves the position
     // pipeline is alive and feeding the drive brain itself; the watchdog
     // only covers the SILENT drought where nothing arrives at all.
     _lastPositionEventAt = _now();
@@ -1863,7 +1863,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  /// Move HER map's camera to [target], at a zoom inside the offline archive.
+  /// Move the map's camera to [target], at a zoom inside the offline archive.
   /// Called from event and button handlers only, never during build.
   void _moveHerMapTo(LatLng target) {
     if (!_herMapReady) return;
@@ -1881,8 +1881,8 @@ class _HomePageState extends State<HomePage> {
 
   /// A finger landing on the map pauses follow at that moment, before any
   /// gesture resolves: a trusted fix arriving under her finger must not move
-  /// the map she is touching (ruled 2026-09-13). A touch does nothing else: it
-  /// sets no route point and clears none (ruled 2026-09-14). Only her return
+  /// the map she is touching (decided 2026-09-13). A touch does nothing else: it
+  /// sets no route point and clears none (decided 2026-09-14). Only her return
   /// control resumes follow.
   void _onHerMapTouched() {
     if (_herMapFollowing) setState(() => _herMapFollowing = false);
@@ -1908,7 +1908,7 @@ class _HomePageState extends State<HomePage> {
   /// her real position. Never in mock: using the mock ends sharing.
   bool get _showHerMapReturnControl => !_herMapFollowing && _herSub != null;
 
-  /// N8 — one watchdog tick: poll the drive brain iff no position event
+  /// One watchdog tick: poll the drive brain iff no position event
   /// arrived within the expected cadence (decision table:
   /// [positionWatchdogPollTime]), so a REAL GPS blackout degrades the honest
   /// dot exactly like the demo button does.
@@ -1917,7 +1917,7 @@ class _HomePageState extends State<HomePage> {
     // Nothing has arrived for 60 s since the stream subscribed: the map stops
     // being silent. The drive brain is not fed anything, so nothing alarms:
     // no event exists to feed it, and whether a first fix that never comes
-    // should reach the alarm is not decided here (ruled 2026-09-14: landing
+    // should reach the alarm is not decided here (decided 2026-09-14: landing
     // these words must not make this state louder than it was).
     var overdueNow = false;
     if (!_herFirstEventOverdue &&
@@ -1959,7 +1959,7 @@ class _HomePageState extends State<HomePage> {
           ?.add(Duration(seconds: _blackoutSeconds)),
     );
     if (pollAt != null) _driveHud.poll(now: pollAt);
-    // A stop is current for no longer than the drought cadence (ruled
+    // A stop is current for no longer than the drought cadence (decided
     // 2026-09-14), checked here on the same tick, so route setting closes
     // when a stop ages out even if no event arrives to rebuild the page.
     if (_routeSettingOpenBuilt != null &&
@@ -1976,7 +1976,7 @@ class _HomePageState extends State<HomePage> {
     if (_herSub != null) return;
     _herSub?.cancel();
     _herSub = null;
-    // N8 — the mock dot is a static dev tool: the watchdog would "honestly"
+    // The mock dot is a static dev tool: the watchdog would "honestly"
     // degrade a position that is not claiming to be live. The demo blackout
     // button is the degradation driver in mock mode.
     _positionWatchdog?.cancel();
@@ -2066,7 +2066,7 @@ class _HomePageState extends State<HomePage> {
     _driveHud.visibilityMeters = _effectiveVisibilityMeters;
     _driveHud.visibilityAgeSeconds = _effectiveVisibilityAgeSeconds();
     _driveHud.advisorySeverity = readAdvisoryAxis(_advisoryResult).level;
-    // Never her speed (ruled 2026-09-14): with no visibility reading the
+    // Never her speed (decided 2026-09-14): with no visibility reading the
     // advisor counts the missing reading as a degraded condition, and a known
     // speed above 13.4 m/s spoke a caution with a haptic on an ordinary drive.
     // Her ring takes the speed from the fix itself.
@@ -2074,7 +2074,7 @@ class _HomePageState extends State<HomePage> {
     _driveHud.measuredHazard = _currentMeasuredHazard();
     // A fresh trusted fix resets the blackout clock; a PositionUnavailable
     // (denied / revoked / error / non-finite) degrades honestly toward lost,
-    // and so does a sample with no measured accuracy (ruled 2026-09-14).
+    // and so does a sample with no measured accuracy (decided 2026-09-14).
     if (fix is PositionAvailable && fix.accuracyMeters != null) {
       _driveHudBaseTime = fix.timestamp;
       _blackoutSeconds = 0;
@@ -2085,14 +2085,14 @@ class _HomePageState extends State<HomePage> {
   /// The current measured-weather hazard floor from the app's own JMA watches.
   /// Null-safe by construction: a feed-loss cycle leaves both watches
   /// non-firing (`_refreshJma` sets the live verdicts to unknown/null), so no
-  /// STALE hazard keeps the rung raised — the dead-zone memory lane handles the
+  /// STALE hazard keeps the rung raised — the dead-zone memory path handles the
   /// offline case separately.
   ///
   /// HONEST BOUND — this floor CANNOT distinguish "measured, and clear" from
   /// "we could not look". A cold start, a failed read and a genuine all-clear
   /// all produce [MeasuredWeatherHazard.none]. That is deliberate on the RUNG
   /// (an outage is an unknown, not a hazard — raising it would cry wolf every
-  /// time the network hiccuped, Chair 2026-07-23), and it is why the liveness
+  /// time the network hiccuped, decided 2026-07-23), and it is why the liveness
   /// is tracked separately in [_measuredWatchFeed] and reported as a
   /// first-class unknown by [_appUnknowns]. Do not read a `none` here as
   /// evidence about the road.
@@ -2192,7 +2192,7 @@ class _HomePageState extends State<HomePage> {
 
   /// A held event reaches the drive brain the moment a measured condition
   /// raises caution, not only when the next event arrives: a failure never
-  /// takes away a caution a measured condition raises (ruled 2026-09-14), and
+  /// takes away a caution a measured condition raises (decided 2026-09-14), and
   /// a failed share may send no further event at all. Called wherever the
   /// app's measured environment changes: the weather refresh, the visibility
   /// band, and an advisory result.
@@ -2214,7 +2214,7 @@ class _HomePageState extends State<HomePage> {
     setState(() => _herFedThisShare = true);
   }
 
-  /// Route setting reads what [fix] measured about motion (ruled 2026-09-14):
+  /// Route setting reads what [fix] measured about motion (decided 2026-09-14):
   /// a moving reading from any sample closes it, and only a current stop
   /// measured on a fix the drive brain took as trusted ([onTrustedFix]) opens
   /// it again ([ShareMotion]). An open route act closes itself on a moving
@@ -2260,7 +2260,7 @@ class _HomePageState extends State<HomePage> {
     final base = _driveHudBaseTime;
     if (base == null) return;
     _blackoutSeconds += 60;
-    // The simulated clock never runs behind the real one (AAA R52, S6): when
+    // The simulated clock never runs behind the real one (found in safety review): when
     // her real drought is already past the simulated seconds, polling at the
     // simulated time moved the advisor's clock backwards and a degraded dot
     // dropped a caution step. The same later-of rule the watchdog holds
@@ -2295,7 +2295,7 @@ class _HomePageState extends State<HomePage> {
     if (effective == null) return false;
     final visibilityIsTest = _visibilityForCaution.isTestValue &&
         (brainIsThisShares || noShareWhiteout);
-    // AAA R58 W1 (FSE R106). A mock at a trusted fix adds no reason, so it
+    // A mock at a trusted fix adds no reason, so it
     // cannot have raised the rung — the card-wide line would then be claiming
     // the card shows a test value while its rung came from a measurement. The
     // mock draws it only where the 理由 row carries positionUncertain.
@@ -2330,7 +2330,7 @@ class _HomePageState extends State<HomePage> {
       );
 
   Widget _driveHudPanel() {
-    // A share is judged by itself (ruled 2026-09-14): while this session has
+    // A share is judged by itself (decided 2026-09-14): while this session has
     // given the drive brain nothing, the panel shows nothing the brain still
     // holds from an earlier session or the dev mock. A failed re-share's event
     // is held back from the brain, so without this the panel would go on
@@ -2363,7 +2363,7 @@ class _HomePageState extends State<HomePage> {
     final measuredUnconfirmed = appUnknowns.any((u) =>
         u == AppUnknown.measuredWatchFeedLost ||
         u == AppUnknown.measuredWatchNotYetRead);
-    // The sub-zero frozen-surface chip (Chair 2026-07-23) renders directly
+    // The sub-zero frozen-surface chip (decided 2026-07-23) renders directly
     // above this banner and deliberately does NOT raise the rung. A chip
     // reading 路面凍結のおそれ beside an unscoped 「特段の注意なし」 is a
     // glance-level contradiction; the chip is correct, so the headline yields.
@@ -2405,10 +2405,10 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Tier-1 voice-lane hardening — shown while the LAST announce could
+        // Tier-1 voice-channel hardening — shown while the LAST announce could
         // not be verified as delivered (the platform never reported the
         // utterance complete). Cleared on the next verified speak. This chip
-        // tells HER the AUDIO half may not have sounded.
+        // tells the driver the AUDIO half may not have sounded.
         //
         // ⚑ CORRECTED 2026-08-22. This comment used to end: "Haptic parity is
         // unconditional in the announcer, so the tactile channel is unaffected
@@ -2454,7 +2454,7 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(height: 8),
         ],
-        // OPS-059 tactile lane — shown while the LAST tactile cue that was
+        // Tactile (accessibility) channel — shown while the LAST tactile cue that was
         // OWED did not land. Independent of the speech chip above: the two
         // channels fail independently and the deaf / hard-of-hearing driver
         // this one is written for reads no meaning at all in the other.
@@ -2497,7 +2497,7 @@ class _HomePageState extends State<HomePage> {
         ],
         // Sub-zero frozen-surface CHIP — a calm, persistent glance-surface
         // WHAT for the driver who cannot hear the spoken warning (deaf / HoH /
-        // ears useless in a roaring whiteout). Chair ruling 2026-07-23:
+        // ears useless in a roaring whiteout). Decided 2026-07-23:
         // "add a calm glance chip" — give the frozen-road meaning on the
         // surface she watches WITHOUT raising the caution banner/rung (that
         // stays gated on `watch` alone, so this does not cry-wolf every cold
@@ -2572,7 +2572,7 @@ class _HomePageState extends State<HomePage> {
           // The honest position line. The whole panel follows the app's
           // resolved locale (2026-09-13; every value was 'ja' and every label
           // a Japanese literal): the same locale as the line under the map.
-          // AAA R58 W1 (FSE R106): mock only. The card-wide test-value line is
+          // Mock only. The card-wide test-value line is
           // no longer drawn for a trusted mock, so these rows carry the
           // statement — a fabricated fix never wears the words of a measured
           // one. GPS 途絶 / 現在地 不明 are unchanged; there the 理由 row
@@ -2588,11 +2588,11 @@ class _HomePageState extends State<HomePage> {
                   isMock: _isMockPosition)),
         ],
         // A test value is what the card shows (2026-09-16): drawn only where
-        // the rung on the card was computed from it (AAA R52, P2) — a demo
+        // the rung on the card was computed from it — a demo
         // visibility read by the brain holding this share or by the no-share
         // whiteout card, or the Akita mock position with the brain. With no
         // rung on the card, nothing on it came from a test value.
-        // Directly above the rung banner (HIE R57 L1, 2026-09-16): below the
+        // Directly above the rung banner (2026-09-16): below the
         // position rows the step and the fact that a test value set it were
         // ~90 px apart, and a glance at the banner did not reach the line.
         if (rungFromTestValue)
@@ -2663,7 +2663,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           const SizedBox(height: 8),
-          // Why (reasons) + first-class unknowns, localized for HER.
+          // Why (reasons) + first-class unknowns, localized for the driver.
           if (advice.reasons.isNotEmpty)
             _kv(
               l.driveHudReasonsLabel,
@@ -2695,8 +2695,8 @@ class _HomePageState extends State<HomePage> {
           // Announce status — honest reach bounds, keyed on the EFFECTIVE rung
           // AND on whether the rung LANE actually speaks it. A measured-hazard
           // floor (or an unknown-visibility-only heightened) is shown+coloured
-          // but NOT spoken by this lane — the watch lane speaks the specific
-          // hazard — so it must not falsely claim it auto-fired (OPS-068).
+          // but NOT spoken by this channel — the watch channel speaks the specific
+          // hazard — so it must not falsely claim it auto-fired.
           Text(
             key: const Key('drive-hud-announce-status'),
             switch (effective ?? advice.action) {
@@ -2838,7 +2838,7 @@ class _HomePageState extends State<HomePage> {
     _herNoEventYet = false;
     _herSub?.cancel();
     _herSub = null;
-    // N8 — she deliberately ENDED the feed: the blackout watchdog must stop
+    // She deliberately ENDED the feed: the blackout watchdog must stop
     // with it (same treatment as _useMockPosition, a fortiori — there is no
     // live position claim left to degrade). Leaving it running would keep
     // polling with the LAST drive's _lastPositionEventAt and, ~30 s later,
@@ -2859,8 +2859,8 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  /// W0 detection-survival — wall-clock read, injectable for host-deterministic
-  /// staleness (OPS-066).
+  /// Detection survival — wall-clock read, injectable for host-deterministic
+  /// staleness.
   DateTime _now() => (widget.clock ?? DateTime.now)();
 
   /// Build the on-disk store, or null when this platform/harness has no
@@ -2893,7 +2893,7 @@ class _HomePageState extends State<HomePage> {
   ///
   /// Refreshed at most every 3 hours: JMA reissues the forecast a few times a
   /// day, and re-fetching a forward grid on every 10-minute observation tick
-  /// would spend HER battery and JMA's bandwidth for nothing.
+  /// would spend the driver's battery and JMA's bandwidth for nothing.
   Future<void> _captureTripHazardMemory() async {
     final existing = _tripHazardMemory;
     if (existing != null &&
@@ -2926,19 +2926,19 @@ class _HomePageState extends State<HomePage> {
       _jmaResult = result;
       _jmaLoading = false;
       if (result is JmaSuccess) {
-        // W0: RETAIN the last GOOD observation for the feed-loss survival path.
+        // RETAIN the last GOOD observation for the feed-loss survival path.
         _lastGoodObservation = result.observation;
         // The network is ALIVE — so this is PLAN TIME, and the only moment the
         // dead-zone memory can be formed. Fire-and-forget: a forecast fetch must
-        // never delay or wedge the live observation lane.
+        // never delay or wedge the live observation feed.
         unawaited(_captureTripHazardMemory());
         _invisibleIceResult = evaluateInvisibleIceWatch(result.observation);
         _turmoilState = evaluateTurmoilWatch(result.observation);
-        // The lane is LIVE: the non-firing verdicts below are now MEASURED
-        // negatives, and the glance may stop reporting the lane as unknown.
+        // The feed is LIVE: the non-firing verdicts below are now MEASURED
+        // negatives, and the glance may stop reporting the feed as unknown.
         _measuredWatchFeed = MeasuredWatchFeed.live;
       } else {
-        // W0 feed loss: do NOT discard _lastGoodObservation — that retention is
+        // Feed loss: do NOT discard _lastGoodObservation — that retention is
         // the whole point. The LIVE verdicts become unknown/null (the live
         // surfaces must not read a stale reading as live); the stale/absence
         // decision is made in _announceWatchTransitions from the retained obs.
@@ -2962,18 +2962,18 @@ class _HomePageState extends State<HomePage> {
     _announceWatchTransitions();
   }
 
-  /// BETA_PLAN W1+W3 — transition-gated announces for BOTH measured watches
+  /// Transition-gated announces for BOTH measured watches
   /// over the live JMA observation. Each watch announces ONCE when its
   /// measured window turns on, never repeating on every fetch while the
   /// window persists (the cry-wolf discipline the SNGNav status bar uses).
   ///
   /// - Invisible ice: the catalog's possibility-graded looks-wet line,
-  ///   VERBATIM in the resolved spoken locale (AAA Article 17 β — the app
+  ///   VERBATIM in the resolved spoken locale (Article 17 β, verbatim relay — the app
   ///   does not paraphrase catalog strings; jaSpokenText/enSpokenText are
   ///   both the catalog publisher's own strings). Warning tier, not
   ///   critical, because the detection is a dew-point inference, not a
   ///   surface measurement.
-  /// - Turmoil (W3): app-authored possibility-graded line over the measured
+  /// - Turmoil: app-authored possibility-graded line over the measured
   ///   rain/wind thresholds (services/turmoil_watch.dart documents the
   ///   JMA-table grounding). Warning tier for the same reason: a derived
   ///   caution from a point measurement, not a surface statement.
@@ -3033,7 +3033,7 @@ class _HomePageState extends State<HomePage> {
       //       oscillation into saturated air (measured: subZero=1 with the
       //       envelope between, subZero=2 with `clear` between).
       //     Accepted because the alternative re-speaks the black-ice line on
-      //     0.1 °C feed jitter — the cry-wolf the 2026-07-23 calibration ruling
+      //     0.1 °C feed jitter — the cry-wolf the 2026-07-23 calibration decision
       //     exists to prevent. A time-bounded re-arm was considered and
       //     rejected as a periodic nag that reconstructs that cry-wolf.
       //   * Benefit and cost are ONE mechanism, and it is stronger than
@@ -3054,7 +3054,7 @@ class _HomePageState extends State<HomePage> {
       final turmoilRose = turmoilFired && !_turmoilAnnounced;
       _turmoilAnnounced = turmoilFired;
 
-      // W0: re-arm the absence gate so a LATER dead-zone re-announces the
+      // Re-arm the absence gate so a LATER dead-zone re-announces the
       // absence line once on entry. Same for the forecast-memory gate: a LATER
       // dead-zone must be free to speak the valid forecast once on entry.
       _absenceActive = false;
@@ -3066,7 +3066,7 @@ class _HomePageState extends State<HomePage> {
           final String iceText;
           if (iceResult == InvisibleIceWatchResult.subZeroFrozen) {
             // Below-zero expected-frozen line — possibility-graded, NOT the
-            // 「ブラックアイスバーン」 surprise wording (Chair calibration
+            // 「ブラックアイスバーン」 surprise wording (calibration decided
             // 2026-07-23). Bundled offline (id sub_zero_frozen_live).
             iceText = subZeroFrozenSpokenText(ja: _spokenJa);
           } else {
@@ -3097,7 +3097,7 @@ class _HomePageState extends State<HomePage> {
     // FEED-LOSS path — JmaFailure or null (no successful fetch this cycle).
     // The CONTENT decision (stale-vs-forecast-vs-absence-vs-quiet) is the
     // shared, testable [feedLossVerdict] — the SAME function `_jmaPanel`
-    // renders from, so the screen can never contradict the speaker (N15).
+    // renders from, so the screen can never contradict the speaker.
     // The announce GATING (once-per-entry vs re-warn-per-cycle) stays here.
     final verdict = feedLossVerdict(
       cached: _lastGoodObservation,
@@ -3108,10 +3108,10 @@ class _HomePageState extends State<HomePage> {
     switch (verdict) {
       // ── (1) TRUE no-reading dead zone ────────────────────────────────────
       // Both cases reset the LIVE rise-gates on entry. Here — and ONLY here —
-      // continuity of the spoken channel is genuinely broken: HER just heard
+      // continuity of the spoken channel is genuinely broken: the driver just heard
       // "conditions unavailable" (or the forecast memory). Without this reset,
       // a live hazard that RETURNS on feed-recovery is silently suppressed
-      // (iceRose = fired && !alreadyAnnounced stays false), so HER's last
+      // (iceRose = fired && !alreadyAnnounced stays false), so the driver's last
       // spoken word about the road would remain "unavailable" while a live
       // black-ice warning is swallowed exactly in the recovery-from-dead-zone
       // case. NOT reset on every feed-loss cycle (per-blip cry-wolf) and NOT
@@ -3119,7 +3119,7 @@ class _HomePageState extends State<HomePage> {
       case FeedLossForecastMemory(:final line, :final spokenAloud):
         _lastAnnouncedIceResult = null;
         _turmoilAnnounced = false;
-        // C2 RED-1: THE MEMORY, BEFORE THE SILENCE. We have no live reading,
+        // THE MEMORY, BEFORE THE SILENCE (offline-survival fix). We have no live reading,
         // but we KNOW something TRUE: a hazard the publisher declared VALID
         // FOR THIS VERY HOUR, captured before she left. Not a stale
         // observation dressed up as live — a forecast, inside its own
@@ -3176,7 +3176,7 @@ class _HomePageState extends State<HomePage> {
         }
 
       // ── (2) Within the slow bound, black-ice window present ─────────────
-      // KEEP announcing HONESTLY TIME-STAMPED (Chair: retain + keep
+      // KEEP announcing HONESTLY TIME-STAMPED (decided: retain + keep
       // announcing, never as live). NOT gated once-per-entry (unlike the
       // absence line): a persistent black-ice dead-zone re-warns each
       // feed-loss cycle, honestly re-stamped. The JMA ticker cadence
@@ -3197,18 +3197,18 @@ class _HomePageState extends State<HomePage> {
       // NOT invoked on the cache).
       //
       // KNOWN LIMITATION — DROPPED SUSTAINED GALE (design §3 caveat + §8 attack
-      // #2; review finding #2, OPS-068 fail-toward-keeping). Wind is lumped
-      // into the FAST lane, so on feed loss a still-valid SUSTAINED synoptic
+      // #2; review finding #2, fail-toward-keeping). Wind is lumped
+      // into the FAST path, so on feed loss a still-valid SUSTAINED synoptic
       // gale (measured mean wind ≥ kWindCautionMeanMs, 暴風-class) is silently
       // dropped even at ~0 min staleness — a gale is slow-varying (persists for
       // HOURS), unlike a convective downpour cell, so a 10-60-min-old gale
       // reading is still physically indicative, exactly the property that
       // justified retaining black ice. This is a RECORDED, deliberately-
-      // deferred gap, not an invisible one: the 暴風警報 JMA-warnings lane
-      // (turmoil_watch.dart:33-36) is likewise not cached by W0. A fix would
+      // deferred gap, not an invisible one: the 暴風警報 JMA-warnings path
+      // (turmoil_watch.dart:33-36) is likewise not cached by the detection-survival layer. A fix would
       // give wind its own longer retain window + a stale-stamped, past-framed
       // line reusing the not-live clause (mirror the black-ice path); deferred
-      // as too large for this pass + needs AAA/NDI review. Pinned by the
+      // as too large for this pass + needs safety and adapter-package review. Pinned by the
       // "KNOWN LIMITATION … sustained wind" test so the drop stays a recorded
       // decision. See unresolved_safety_items.
       //
@@ -3234,7 +3234,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// Whether a route may be set here, and then only through the route act
-  /// (ruled 2026-09-14). Read at build, from the platform this build runs on
+  /// (decided 2026-09-14). Read at build, from the platform this build runs on
   /// and the motion this phone has measured.
   bool get _routeSettingOpen => routeSettingOpen(
         routeSettingHost(),
@@ -3313,7 +3313,7 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  /// B27 — the pre-send gate at the OSRM coordinate egress. Resolves HER
+  /// B27 — the pre-send gate at the OSRM coordinate egress. Resolves the driver's
   /// remembered choice, asking ONCE (dialog) when undecided. Returns true
   /// only when she has agreed; anything else means NOTHING may be sent.
   ///
@@ -3400,7 +3400,7 @@ class _HomePageState extends State<HomePage> {
     final d = _destination;
     if (o == null || d == null) return;
 
-    // B27 — consent BEFORE the wire. The OSRM demo server receives HER
+    // B27 — consent BEFORE the wire. The OSRM demo server receives the driver's
     // full-precision tapped coordinates; nothing may be sent until she has
     // read the pre-send disclosure and agreed. Decline/dismiss → no fetch,
     // honest neutral state (never rendered as an error).
@@ -3430,7 +3430,7 @@ class _HomePageState extends State<HomePage> {
     var maneuvers = const <RouteManeuver>[];
     try {
       final r = await engine.calculateRoute(
-        // AAA F1: follow the resolved spoken locale (was hardcoded ja-JP);
+        // Follow the resolved spoken locale (was hardcoded ja-JP);
         // routing_engine's maneuver localizer supports both primary subtags.
         RouteRequest(
           origin: o,
@@ -3490,7 +3490,7 @@ class _HomePageState extends State<HomePage> {
       icyTurn: _maneuverCoincidesWithHazard(),
       positionIsThisShares: _driveHudPositionIsThisDrives,
       // Nothing measured reaches the icy coupling: its one input is the
-      // simulated road condition (2026-09-16; AAA R52, AQ4).
+      // simulated road condition (2026-09-16).
       icyTurnFromTestValue: true,
     );
     setState(() => _lastManeuverNarration = decision);
@@ -3499,10 +3499,10 @@ class _HomePageState extends State<HomePage> {
   /// WS5 — deliver the current (condition, profile) hazard to the driver on
   /// the audio + haptic channels. This is the seam that ends the silence:
   /// the guidance the driver hears/feels is the catalog's action-coupled
-  /// [AlertExplainer] string, spoken VERBATIM (AAA Article 17 β; the app must
+  /// [AlertExplainer] string, spoken VERBATIM (Article 17 β, verbatim relay; the app must
   /// not paraphrase). Severity is derived from the road-surface condition;
   /// [AlertAnnouncer.announce] gates BOTH channels on `>= warning` so a
-  /// whiteout-class critical fires audio AND haptic (OPS-059 floor).
+  /// whiteout-class critical fires audio AND haptic (accessibility floor).
   void _announceCurrentAlert() {
     final explainer = AlertExplainer.forConditionAndProfile(
       _condition,
@@ -3565,7 +3565,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // What HER map draws about her position: from the position controller's
+    // What the map draws about the driver's position: from the position controller's
     // estimate when it is dead-reckoning or lost, so a GPS stream error never
     // blanks the map and `lost` says so in words (see her_map_inputs.dart).
     final herMap = herMapInputs(
@@ -3598,7 +3598,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const _Banner(),
-            // HER map first, directly under the banner (2026-09-13): below the
+            // The map first, directly under the banner (2026-09-13): below the
             // developer panels it sat at 4314 px of an 852 px phone screen,
             // and she would have scrolled past fourteen cards to find herself.
             const SizedBox(height: 16),
@@ -3616,7 +3616,7 @@ class _HomePageState extends State<HomePage> {
                       _ => const [],
                     },
                     // No onTap: a touch on her map sets no route point and
-                    // clears none (ruled 2026-09-14). One more tap used to
+                    // clears none (decided 2026-09-14). One more tap used to
                     // throw a set route away, and a tap is also the gesture
                     // that pauses follow.
                     herPosition: herMap.position,
@@ -3647,7 +3647,7 @@ class _HomePageState extends State<HomePage> {
                   ],
                   const SizedBox(height: 8),
                   _herStatusLine(),
-                  // A1 — pre-drive voice-lane caution, in the consent/status
+                  // Pre-drive voice-channel caution, in the consent/status
                   // region she reads BEFORE driving. Rendered ONLY on a
                   // proven-degraded verdict (jaNetworkOnly / noJaVoice);
                   // unknown and offlineJaReady show nothing.
@@ -3656,7 +3656,7 @@ class _HomePageState extends State<HomePage> {
                     const SizedBox(height: 8),
                     _voiceLaneCautionRow(),
                   ],
-                  // G-3 (AAA 2026-08-22) — pre-drive TACTILE caution, in the
+                  // Pre-drive TACTILE caution (safety review 2026-08-22), in the
                   // same region she reads BEFORE driving, on a `false` answer
                   // only. `null` (unreadable / off-mobile / test) renders
                   // NOTHING: a caution about a device that may vibrate
@@ -3667,7 +3667,7 @@ class _HomePageState extends State<HomePage> {
                     _hapticUnavailableCautionRow(),
                   ],
                   // Tier-2 — media-volume-zero caution, same pre-drive
-                  // voice-lane region. Rendered ONLY on a proven-muted probe
+                  // voice-channel region. Rendered ONLY on a proven-muted probe
                   // reading (null probe = NOTHING). Acknowledgment collapses
                   // it to a compact line; it never blocks the drive and we
                   // never touch her volume.
@@ -3773,7 +3773,7 @@ class _HomePageState extends State<HomePage> {
       _profile,
     );
     // Action-coupled explainer for current (condition, profile) tuple.
-    // Action string is rendered VERBATIM per AAA Article 17 (β) — the
+    // Action string is rendered VERBATIM per Article 17 (β) — the
     // package owns the wording (advisory mood, road-surface vocabulary,
     // per-profile verbosity). The app must not paraphrase or restyle.
     // The wording is navigation_safety_core's own; it was described here
@@ -3899,7 +3899,7 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Verbatim per AAA Article 17 (β): publisher voice
+            // Verbatim per Article 17 (β): publisher voice
             // preserved; no app-side paraphrase or truncation.
             Text(
               explainer.action,
@@ -3921,10 +3921,10 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 10),
             // WS5 — the button that ends the silence. Speaks the guidance
-            // aloud AND fires the tactile cue (OPS-059 floor: audio for
+            // aloud AND fires the tactile cue (accessibility floor: audio for
             // eyes-off, haptic for deaf/HoH or roaring-wind whiteout).
             // On desktop/test this is a no-op (NoOpAlertActuators).
-            // Label + helper are localized (D4 — HER reads Japanese).
+            // Label + helper are localized (the driver reads Japanese).
             ElevatedButton.icon(
               key: const Key('announce-alert-button'),
               onPressed: _announceCurrentAlert,
@@ -3959,9 +3959,9 @@ class _HomePageState extends State<HomePage> {
               child: const Text('Fire 8 sequential warning alerts'),
             ),
             const SizedBox(height: 4),
-            // AAE-7: this control evaluates AlertDensityThrottle and
+            // This control evaluates AlertDensityThrottle and
             // records telemetry. It does NOT call _announcer — no audio,
-            // no haptic, nothing reaches HER from this button. It is a
+            // no haptic, nothing reaches the driver from this button. It is a
             // throttle-decision simulation, and it says so, because the
             // 2026-07-09 on-device walk read its green result word as
             // proof the alert path actuates. It is not that proof.
@@ -4118,7 +4118,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// C6 ログを共有 — the beta feedback card (BETA_PLAN fix #8, criterion C6).
+  /// ログを共有 (share log) — the beta feedback card (BETA_PLAN fix #8).
   ///
   /// A tester sends the local error log the way she sends a photo: one tap,
   /// the OS share sheet, a receiver of her own choice. Consent-preserving by
@@ -4138,7 +4138,7 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // liveRegion: assistive tech announces the log-state line when it
-        // changes (OPS-059 floor — parity with the consent card). A node of
+        // changes (accessibility floor — parity with the consent card). A node of
         // its own, or the flag merges into the card and the whole card is
         // announced (measured 2026-09-14).
         Semantics(
@@ -4188,8 +4188,8 @@ class _HomePageState extends State<HomePage> {
   /// Composes header + log text and hands it to the injected sink
   /// (production: the platform share sheet). Payload composition is pure
   /// (services/log_share.dart) so tests pin it without a device; the OS
-  /// share sheet itself is on-device verify DEFERRED (OPS-066, AAE
-  /// env-bound).
+  /// share sheet itself is on-device verify DEFERRED (no device
+  /// here).
   Future<void> _shareLog() async {
     final log = widget.errorLog;
     if (log == null) return;
@@ -4420,7 +4420,7 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // liveRegion: assistive tech announces the diary-state line when it
-        // changes (OPS-059 floor — parity with the log-share card). A node of
+        // changes (accessibility floor — parity with the log-share card). A node of
         // its own, as for the log-share line.
         Semantics(
           container: true,
@@ -4479,8 +4479,8 @@ class _HomePageState extends State<HomePage> {
   /// Composes header + diary text and hands it to the injected sink
   /// (production: the platform share sheet). Payload composition is pure
   /// (services/drive_diary.dart) so tests pin it without a device; the OS
-  /// share sheet itself is on-device verify DEFERRED (OPS-066, AAE
-  /// env-bound).
+  /// share sheet itself is on-device verify DEFERRED (no device
+  /// here).
   Future<void> _shareDiary() async {
     final diary = widget.diary;
     if (diary == null) return;
@@ -4495,7 +4495,7 @@ class _HomePageState extends State<HomePage> {
 
   /// Key/value row with an adaptive label column.
   ///
-  /// W2 ladder fix (a) — the old fixed 110-px label column mangled long
+  /// Ladder fix (a) — the old fixed 110-px label column mangled long
   /// labels: 路面凍結ウォッチ wrapped MID-WORD (ladder_out/api30/03_jma_card.png)
   /// and the threshold-preview labels stacked one word per line
   /// (05b_airplane_top.png). The label is now measured at the live text
@@ -4535,7 +4535,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// Renders the rolling LoomFitTelemetry record list as
-  /// development-class observability. AAA Article 17 (β) discipline:
+  /// development-class observability. Article 17 (β) discipline:
   /// this panel is calibration substrate (insight #105), NOT
   /// driver-facing-class advice — section header + body framing must
   /// keep that boundary visible.
@@ -4606,20 +4606,20 @@ class _HomePageState extends State<HomePage> {
           children: [
             ..._observationFieldRows(observation),
             _kv(AppL10n.of(context).observationFetchedLabel, _formatFetched(observation.fetchedAt, stale)),
-            // BETA_PLAN W1 — the invisible-ice watch verdict, rendered with
+            // The invisible-ice watch verdict, rendered with
             // the same honest-unknown discipline as the fields above.
             _kv(
               AppL10n.of(context).roadIceWatchLabel,
               AppL10n.of(context).roadIceWatchVerdict(_invisibleIceResult),
             ),
-            // BETA_PLAN W3 — the measured-turmoil watch verdict, same
+            // The measured-turmoil watch verdict, same
             // honest-unknown discipline (per-channel 判定不能 named).
             _kv(
               AppL10n.of(context).turmoilWatchLabel,
               AppL10n.of(context).turmoilWatchVerdict(_turmoilState),
             ),
             const SizedBox(height: 8),
-            // Honesty split (CT Joel-Test catch, 2026-07-09 vision audit):
+            // Honesty split (caught in a 2026-07-09 review):
             // the observation fields above are verbatim relay; the watch rows
             // are NOT — they are derived classifications. One caption claiming
             // "no derivation" under both was a false claim on the safety
@@ -4642,7 +4642,7 @@ class _HomePageState extends State<HomePage> {
           ],
         );
       case JmaFailure():
-        // N15 — the screen must match the speaker. This panel previously said
+        // The screen must match the speaker. This panel previously said
         // "Cached data is NOT shown" while the voice was WARNING FROM that
         // cache (the stale black-ice re-warn) — a flat contradiction on the
         // safety surface. The verdict below is computed by the SAME function
@@ -4689,7 +4689,7 @@ class _HomePageState extends State<HomePage> {
                   if (retained != null) ..._observationFieldRows(retained),
                 ],
               // No valid observation, but the plan-time forecast memory holds
-              // a publisher-declared hazard valid NOW: the observation lane is
+              // a publisher-declared hazard valid NOW: the observation feed is
               // honestly empty AND the forecast card shows what the voice says.
               FeedLossForecastMemory(
                 :final line,
@@ -4744,7 +4744,7 @@ class _HomePageState extends State<HomePage> {
       _kv(AppL10n.of(context).observationTemperatureLabel, temp == null ? '—' : '${temp.toStringAsFixed(1)} °C'),
       _kv(AppL10n.of(context).observationHumidityLabel, hum == null ? '—' : '$hum %'),
       _kv(AppL10n.of(context).observationWindLabel, wind == null ? '—' : '${wind.toStringAsFixed(1)} m/s'),
-      // W3 — the measured rain-rate the turmoil watch judges on,
+      // The measured rain-rate the turmoil watch judges on,
       // shown verbatim beside the inference (same discipline as the
       // fields above; '—' = the station did not report the field).
       _kv(
@@ -4757,7 +4757,7 @@ class _HomePageState extends State<HomePage> {
     ];
   }
 
-  /// N15 — prominent staleness label over RETAINED observation fields after a
+  /// Prominent staleness label over RETAINED observation fields after a
   /// failed fetch. The retained fields ARE shown (the voice may be warning
   /// from them); this banner is the on-screen guarantee she is not reading
   /// them as live (the visual sibling of the spoken 「最新の情報は取得できて
@@ -4772,7 +4772,7 @@ class _HomePageState extends State<HomePage> {
         borderRadius: BorderRadius.circular(6),
       ),
       // liveRegion — live→stale is a safety-relevant transition; assistive
-      // tech must announce it (OPS-059 floor). Contrast: orange.shade900 on
+      // tech must announce it (accessibility floor). Contrast: orange.shade900 on
       // orange.shade50 was ~3.5:1, below the AA 4.5:1 floor at this size —
       // kCautionTextOnOrange measures ~7.1:1. 13 px, up from 12, for the
       // ageing-rural cohort this label protects.
@@ -4790,7 +4790,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// N15 — the observation lane is honestly EMPTY (no reading within the
+  /// The observation feed is honestly EMPTY (no reading within the
   /// retain bound); shown above the forecast-memory card so the card is never
   /// mistaken for an observation.
   Widget _noValidObservationRow(AppL10n l) {
@@ -4801,11 +4801,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// N15 — visible counterpart of the stale black-ice re-warn: the EXACT text
+  /// Visible counterpart of the stale black-ice re-warn: the EXACT text
   /// the voice speaks ([staleInvisibleBlackIceSpokenText], same hour stamp,
-  /// same locale source [_spokenJa] — AAA F1: the eyes-on channel renders the
+  /// same locale source [_spokenJa] — the eyes-on channel renders the
   /// identical content the eyes-off channel speaks). liveRegion so assistive
-  /// tech announces it (OPS-059 floor).
+  /// tech announces it (accessibility floor).
   Widget _staleIceVisibleCard(int hourJst) {
     return Container(
       key: const Key('stale-ice-visible'),
@@ -4819,7 +4819,7 @@ class _HomePageState extends State<HomePage> {
         children: [
           // kCautionTextOnAmber + 13 px — the amber.shade900-on-amber.shade50
           // pair was ~2.6:1, functionally invisible to a reduced-contrast
-          // elderly reader (OPS-059 AA floor 4.5:1; this measures ~7.9:1).
+          // elderly reader (accessibility AA floor 4.5:1; this measures ~7.9:1).
           const Icon(Icons.warning_amber, size: 16, color: kCautionTextOnAmber),
           const SizedBox(width: 6),
           Expanded(
@@ -4843,12 +4843,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// N15 — visible counterpart of the forecast-memory line (C2 RED-1): the
+  /// Visible counterpart of the forecast-memory line (offline-survival fix): the
   /// EXACT line the voice speaks when it speaks (ja + covered mouth), or the
   /// visible-only counterpart when the voice keeps the absence line (en
   /// surface / uncovered mouth — see [FeedLossForecastMemory.spokenAloud]).
   /// Plus the capture timestamp so she knows this is plan-time knowledge,
-  /// not a reading we just took. liveRegion for assistive tech (OPS-059
+  /// not a reading we just took. liveRegion for assistive tech (accessibility
   /// floor).
   Widget _forecastMemoryVisibleCard(
     AppL10n l,
@@ -4897,7 +4897,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// N15 — visible counterpart of the spoken absence line: the EXACT text the
+  /// Visible counterpart of the spoken absence line: the EXACT text the
   /// voice speaks (same locale source [_spokenJa]). Amber, not grey body
   /// text: "we do not know the road state" is caution-class information, and
   /// absence must never render as calm. liveRegion for assistive tech.
@@ -4929,10 +4929,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// A1 pre-drive voice-lane caution row (compact, amber — caution-class,
-  /// not error-class: the app still runs; the AUDIO lane may go silent where
+  /// Pre-drive voice-channel caution row (compact, amber — caution-class,
+  /// not error-class: the app still runs; the AUDIO channel may go silent where
   /// there is no signal). liveRegion so assistive tech announces it
-  /// (OPS-059 floor, parity with the consent/status lines).
+  /// (accessibility floor, parity with the consent/status lines).
   Widget _voiceLaneCautionRow() {
     final l = AppL10n.of(context);
     return Container(
@@ -4972,10 +4972,10 @@ class _HomePageState extends State<HomePage> {
   /// safety alert is silent right now. Carries the acknowledge action
   /// (informed haptics-only consent). NO behavior gating — the driver always
   /// drives, haptic is already unconditional, and we NEVER touch her volume:
-  /// that is the Tier-3 dignity boundary the Chair holds (we inform; a
-  /// volume-overriding actuator is a Chair-level dignity question, never an
+  /// that is the Tier-3 dignity boundary the project holds (we inform; a
+  /// volume-overriding actuator is a dignity question for the project owner, never an
   /// engineering default). liveRegion so assistive tech announces it
-  /// (OPS-059 floor).
+  /// (accessibility floor).
   Widget _mediaMutedCautionRow() {
     final l = AppL10n.of(context);
     return Container(
@@ -5021,7 +5021,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Compact acknowledged line after HER tap collapses the muted caution.
+  /// Compact acknowledged line after the driver's tap collapses the muted caution.
   Widget _mediaMutedAckedLine() {
     final l = AppL10n.of(context);
     return Row(
@@ -5046,7 +5046,7 @@ class _HomePageState extends State<HomePage> {
   /// warning was already lost. Red-tinted like the media-muted row rather than
   /// amber like the A1 voice row: for the driver whose ears are out, this is
   /// not a degradation of one channel among two, it is the loss of the last
-  /// non-visual one. liveRegion so assistive tech announces it (OPS-059).
+  /// non-visual one. liveRegion so assistive tech announces it (accessibility floor).
   Widget _hapticUnavailableCautionRow() {
     final l = AppL10n.of(context);
     return Container(
@@ -5117,7 +5117,7 @@ class _HomePageState extends State<HomePage> {
   /// drought (never in deliberate mock mode). The map dot + status line couple
   /// to this so they cannot outlive the HUD's honest degrade — the silent-
   /// blackout bug where `_herFix` keeps a confident last point on the surface
-  /// HER eyes snap to.
+  /// the driver's eyes snap to.
   bool get _herPositionDegraded =>
       !_isMockPosition && _driveHud.positionUnlocatable;
 
@@ -5129,18 +5129,18 @@ class _HomePageState extends State<HomePage> {
   Widget _herStatusLine() {
     final l = AppL10n.of(context);
     // Initial state: no mode active. Deny-by-default — nothing touches GPS
-    // until HER deliberate tap. The localized disclosure sits here so she can
+    // until the driver's deliberate tap. The localized disclosure sits here so she can
     // read WHERE her coordinates go BEFORE she grants (task 3).
     if (_herSub == null && !_isMockPosition) {
-      // W2 ladder fix (a) — ladder_out/api30/02b_location_consent.png showed
+      // Ladder fix (a) — ladder_out/api30/02b_location_consent.png showed
       // the status line ("Location not yet shared.") crammed into a
       // one-syllable-wide column beside the two consent buttons. The most
       // trust-carrying line on the card must read as a sentence: it now gets
       // the FULL card width, and the actions sit on their own row below,
       // Wrap-ping instead of squeezing when the screen is narrow.
       // liveRegion: assistive tech announces the consent-state line when it
-      // changes (OPS-059 floor — the state change must reach eyes-off users).
-      // A node of its own, labelled only this line (ruled 2026-09-14): it
+      // changes (accessibility floor — the state change must reach eyes-off users).
+      // A node of its own, labelled only this line (decided 2026-09-14): it
       // merged into the map card, whose announced label was 736 characters.
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -5247,7 +5247,7 @@ class _HomePageState extends State<HomePage> {
               );
     final (text, color) = switch (fix) {
       // 60 s after the position stream subscribed, with nothing arrived:
-      // "locating" is a promise the app has no evidence for (ruled
+      // "locating" is a promise the app has no evidence for (decided
       // 2026-09-14). The app's existing line for a position unknown with no
       // trusted fix ever, the state the map now names, in that line's colour.
       null when _herFirstEventOverdue => (
@@ -5259,7 +5259,7 @@ class _HomePageState extends State<HomePage> {
         l.locatingYou,
         Colors.grey.shade700,
       ),
-      // A position the drive brain was not given (ruled 2026-09-14): it would
+      // A position the drive brain was not given (decided 2026-09-14): it would
       // not have been a trusted fix, so the line claims no position and no
       // radius, the words the same event gets when the brain refuses it.
       PositionAvailable() when _herFixNotGivenToDriveBrain => (
@@ -5278,12 +5278,12 @@ class _HomePageState extends State<HomePage> {
         l.youAreHere(accuracyMeters.toStringAsFixed(0)),
         Colors.blueGrey.shade700,
       ),
-      // No measured accuracy (ruled 2026-09-14): the line states no radius.
+      // No measured accuracy (decided 2026-09-14): the line states no radius.
       PositionAvailable() => (
         l.positionLostStatus(double.infinity),
         Colors.blueGrey.shade700,
       ),
-      // Location is off for this app: the ruled line (2026-09-13), headed by
+      // Location is off for this app: the decided line (2026-09-13), headed by
       // the same words as the map. Read from the typed cause, never from the
       // reason text.
       PositionUnavailable() when isLocationRefusal(fix) => (
@@ -5294,7 +5294,7 @@ class _HomePageState extends State<HomePage> {
         Colors.grey.shade700,
       ),
       // This app has no location on this device, known from the exception's
-      // type (ruled 2026-09-14). Only the words change: the event still
+      // type (decided 2026-09-14). Only the words change: the event still
       // reaches the drive brain as before.
       PositionUnavailable() when isNoLocationOnThisDevice(fix) => (
         l.noLocationOnThisDeviceStatus,
@@ -5325,12 +5325,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// The route section. A route is set only through the route act, opened
-  /// from the control here, beside the ruled words; where route setting is
-  /// closed the words stand alone (ruled 2026-09-14). Nothing on her map
+  /// from the control here, beside the agreed words; where route setting is
+  /// closed the words stand alone (decided 2026-09-14). Nothing on her map
   /// reaches this panel's state.
   Widget _routePanel() {
     final l = AppL10n.of(context);
-    // One line per host, never both (ruled 2026-09-14). On a host that reads no
+    // One line per host, never both (decided 2026-09-14). On a host that reads no
     // vehicle signal no state of the car opens route setting, so its line names
     // no stop; the phone keeps the line that names the stop that opens it.
     final whenStopped = routeSettingHost() == RouteSettingHost.phone
@@ -5391,7 +5391,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-            // The app's own words only (ruled 2026-09-14). The reason stays in
+            // The app's own words only (decided 2026-09-14). The reason stays in
             // the result and reaches no widget: it can hold the request's
             // address with both chosen points, or a server's whole reply. It
             // is not written to the error log either, which keeps no location.
@@ -5534,8 +5534,8 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (mode != null)
-          // AAA R58 W1 re-audit (FSE R114): the THIRD modeLabel site, and the
-          // one R106 missed. It carries the SAME 現在地の信頼度 label as the
+          // The THIRD modeLabel site, and the
+          // one an earlier change missed. It carries the SAME 現在地の信頼度 label as the
           // drive card's trust row, and nothing about a route depends on the
           // position being real — _fetchRoute (:3351) returns only on a missing
           // tapped origin or destination, then on her routing consent; it never
@@ -5547,9 +5547,9 @@ class _HomePageState extends State<HomePage> {
               _driveHudText.modeLabel(mode, l.locale.languageCode,
                   isMock: _isMockPosition)),
         // NOTE: the raw ENGLISH engine instruction is deliberately NOT rendered
-        // to HER — it would both leak English to a JA driver (D4) and show a
+        // to the driver — it would both leak English to a JA driver and show a
         // confident "turn" string even when the position gate suppresses it.
-        // HER sees only the gated, JA-localized narration banner below.
+        // The driver sees only the gated, JA-localized narration banner below.
         const SizedBox(height: 8),
         Container(
           key: const Key('maneuver-narration-banner'),
@@ -5585,7 +5585,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 // Nothing measured reaches this mark: the only input is the
-                // simulated road condition (2026-09-16). Words to be ruled.
+                // simulated road condition (2026-09-16). Words to be decided.
                 Text(
                   key: const Key('maneuver-test-road-condition'),
                   l.maneuverTestRoadConditionInForce,
@@ -6348,7 +6348,7 @@ class _Footer extends StatelessWidget {
 /// rows, demonstrating the no-op fallback semantics of
 /// `applyOverrideForToken`.
 ///
-/// AAA Article 17 (β) discipline: kei-car deltas are reported verbatim
+/// Article 17 (β) discipline: kei-car deltas are reported verbatim
 /// from NSC 0.9.0 CHANGELOG; the design-default-hypothesis flag is
 /// preserved verbatim in the provenance footer.
 class _ThresholdPreview extends StatelessWidget {

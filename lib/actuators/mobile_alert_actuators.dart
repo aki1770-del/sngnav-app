@@ -8,7 +8,7 @@
 /// render-SEE ceiling (`flutter run -d linux`) MUST stay intact. On any
 /// non-mobile target these methods are pure no-ops.
 ///
-/// **Honesty (OPS-066 / AAE-1).** Not verified on an Android device in this
+/// **Honesty.** Not verified on an Android device in this
 /// environment. Code-complete; on-device HEAR / FEEL / keep-awake is DEFERRED.
 library;
 
@@ -91,10 +91,10 @@ TtsEngine buildMobileTtsEngine({
 /// and test-safe.
 ///
 /// [errorLog] / [onSpeechUnverified] / [onSpeechVerified] flow into the
-/// lazily-built [HardenedTtsEngine] (Tier-1 voice-lane hardening): the log
+/// lazily-built [HardenedTtsEngine] (Tier-1 voice-channel hardening): the log
 /// receives one line per unverified delivery, and the callbacks drive the
 /// in-drive HUD's 「音声警告を確認できませんでした」 chip. All optional; a
-/// no-op actuator ignores them (there is no voice lane to verify off-mobile).
+/// no-op actuator ignores them (there is no voice channel to verify off-mobile).
 AlertActuators defaultAlertActuators({
   LocalErrorLog? errorLog,
   void Function()? onSpeechUnverified,
@@ -112,7 +112,7 @@ AlertActuators defaultAlertActuators({
     : const NoOpAlertActuators();
 
 /// Drives the real phone actuators. Speech goes through the app's
-/// [HardenedTtsEngine] (Tier-1 voice-lane hardening: awaitSpeakCompletion +
+/// [HardenedTtsEngine] (Tier-1 voice-channel hardening: awaitSpeakCompletion +
 /// nav audio attributes + focus-duck + read-the-result + retry/timeout +
 /// unverified reporting), which keeps FlutterTtsEngine's guard + rate-mapping
 /// parity. The `vibration` / `wakelock_plus` static APIs drive the tactile +
@@ -217,7 +217,7 @@ class MobileAlertActuators implements AlertActuators {
     if (!_isMobilePlatform && _injectedHaptics == null) return;
     // Fire-and-report. The outcome is deliberately not rethrown or awaited by
     // the caller for anything but ordering: AlertAnnouncer awaits haptic
-    // BEFORE speak (haptic-first, OPS-059), so this must always complete.
+    // BEFORE speak (haptic-first, accessibility floor), so this must always complete.
     await _haptics.fire(pattern);
   }
 

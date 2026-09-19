@@ -1,4 +1,4 @@
-/// AAA R52 AQ4: a line a test value raised is spoken with テスト値です。 /
+/// A line a test value raised is spoken with テスト値です。 /
 /// "Test value." before it, as its OWN utterance, so the offline audio still
 /// finds the line by its exact string, and the prefix itself is bundled.
 ///

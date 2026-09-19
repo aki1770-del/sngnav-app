@@ -201,7 +201,7 @@ void main() {
         expect(
           logText(),
           isEmpty,
-          reason: 'a delivered cue must leave HER log clean',
+          reason: 'a delivered cue must leave the log clean',
         );
         expect(driver.vibrations, hasLength(1));
       },

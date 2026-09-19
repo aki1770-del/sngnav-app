@@ -9,7 +9,7 @@
 /// on this test host maps the code the same way,
 /// `method_channel_geolocator.dart:238-239`). The app wrapped that exception as
 /// 'GPS stream error: …', a failure. After her "no" a failure can reach the
-/// critical caution rung, which the 2026-09-13 ruling on her "no" removed.
+/// critical caution rung, which the 2026-09-13 decision on her "no" removed.
 ///
 /// The rules tested here:
 ///

@@ -1,7 +1,7 @@
-/// W0 DETECTION-SURVIVAL LAYER — staleness policy (bounds + observed-at parse).
+/// DETECTION-SURVIVAL LAYER — staleness policy (bounds + observed-at parse).
 ///
 /// The physics rationale for the two retain/freshness windows lives here in one
-/// auditable place (AAA-reviewable, device-tunable). See
+/// auditable place (safety-reviewable, device-tunable). See
 /// SNGNav/docs/W0_DETECTION_SURVIVAL_DESIGN.md §2 + §4 + §6a.
 ///
 /// Honest-absence discipline: a stale observation is NEVER read as live. These
@@ -20,16 +20,16 @@ library;
 /// black-ice window. 60 min balances "still physically valid" against "old
 /// enough that dawn / a wind shift may have ended it". Past this bound we STOP
 /// stale-announcing and fall to the honest absence-line — never a stale announce.
-/// AAA-reviewable; device-tunable.
+/// Safety-reviewable; device-tunable.
 const Duration kSlowHazardRetainWindow = Duration(minutes: 60);
 
 /// FAST-hazard (downpour / strong wind) FRESHNESS window.
 ///
 /// Rationale: a convective downpour cell or a gust is transient (minutes); a
 /// reading older than this may describe weather that is already gone. Per the
-/// Chair's cry-wolf discipline, a fast hazard is NOT announced from a reading
+/// project's cry-wolf discipline, a fast hazard is NOT announced from a reading
 /// older than this — on feed loss the cache is by definition pre-loss, so this
-/// makes the fast lane effectively SILENT when the feed is dead. AAA-reviewable.
+/// makes the fast path effectively SILENT when the feed is dead. Safety-reviewable.
 const Duration kFastHazardFreshWindow = Duration(minutes: 20);
 
 /// App-local mirror of the catalog's `conditionsUnknownAnnouncement` (GAP-2).
@@ -40,7 +40,7 @@ const Duration kFastHazardFreshWindow = Duration(minutes: 20);
 /// packages/snow_rendering/lib/src/models/road_surface_announcement.dart:200
 /// has it; the published package this app resolves does not, and the core
 /// ^0.10 cap forbids floating to it). These app-authored constants carry the
-/// EXACT verbatim ja/en text so the honest absence-line reaches HER TODAY, on
+/// EXACT verbatim ja/en text so the honest absence-line reaches the driver TODAY, on
 /// the one night the feed dies in Akita. Replace with the catalog import once
 /// snow_rendering republishes with the symbol against a reachable core range.
 const String kConditionsUnknownJaSpokenText =
@@ -51,7 +51,7 @@ const String kConditionsUnknownEnSpokenText =
 /// Parse a 14-digit JMA observedAtJstKey (yyyymmddHHMMSS, JST wall-clock) into a
 /// LOCAL DateTime. Returns null if the key is not 14 digits (caller then treats
 /// it as no-reading → absence-line). NOTE: parsed as LOCAL time — correct only on
-/// a JST-clock device (HER phone in Akita); see design safety review #3.
+/// a JST-clock device (a phone in Japan); see design safety review #3.
 DateTime? observedAtJstAsLocal(String key) {
   if (key.length != 14) return null;
   final y = int.tryParse(key.substring(0, 4));
@@ -93,7 +93,7 @@ DateTime? observedAtJstInstant(String key) {
 ///
 /// FLOOR, not nearest: a floored hour is NEVER newer than the true observation
 /// (06:50 → 「6時」, always sounds at-or-OLDER than reality), which is the safe
-/// direction for a staleness stamp — HER, eyes on the ice, must never hear a
+/// direction for a staleness stamp — the driver, eyes on the ice, must never hear a
 /// stale reading stamped with an hour that makes it sound fresher than it is
 /// (nearest-rounding did the reverse: 06:31 → 「7時」 could sound near-live). The
 /// retain/expire bound is computed on the exact instant ([observedAtJstInstant]),

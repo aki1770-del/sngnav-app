@@ -1,4 +1,4 @@
-// AAE 2026-09-02, re-landed on `0bc7351` 2026-09-19 — RECORD, NEVER GATE.
+// Added 2026-09-02, re-landed on `0bc7351` 2026-09-19 — RECORD, NEVER GATE.
 //
 // `hasVibrator()` DOES NOT ASK THE VIBRATOR. Read from source this turn at the
 // version this app resolves (pubspec.lock -> vibration 3.2.0):
@@ -9,7 +9,7 @@
 //
 // Gating the vibration on it means every device the heuristic misreads gets NO
 // TACTILE WARNING. For a deaf or hard-of-hearing driver that is the only
-// channel there is (OPS-RULE-059 — an accessibility channel is never gated),
+// channel there is (the accessibility rule — an accessibility channel is never gated),
 // and at ten metres' visibility the screen is not a substitute.
 //
 // The honest REPORT must not change: the outcome stays `noVibrator` and stays

@@ -3,7 +3,7 @@
 /// The app already talks to JMA, but ONLY to the AMeDAS OBSERVATION endpoint
 /// (`lib/jma_fetch.dart` → `bosai/amedas/…`), which answers "what is the road
 /// doing right now". That answer decays; it is the reading that expires at 60
-/// minutes and leaves HER with silence at T+90.
+/// minutes and leaves the driver with silence at T+90.
 ///
 /// JMA ALSO publishes a FORWARD FORECAST with its own explicit interval
 /// boundaries, and we had never fetched it. MEASURED LIVE 2026-07-12 from
@@ -22,7 +22,8 @@
 /// `timeDefines[i]` are THE PUBLISHER'S OWN interval boundaries. So the forecast
 /// text at index `i` is declared valid for `[timeDefines[i], timeDefines[i+1])`
 /// — a window with a publisher-declared START and a publisher-declared END. That
-/// is precisely the publisher-declared validity NDI's Andon requires, and it is
+/// is precisely the publisher-declared validity the open flag on the adapter
+/// package asks for, and it is
 /// the memory that survives the dead zone.
 ///
 /// ── TWO REFUSALS, BOTH DELIBERATE ────────────────────────────────────────────

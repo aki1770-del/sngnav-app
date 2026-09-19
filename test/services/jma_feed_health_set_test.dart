@@ -22,7 +22,7 @@
 /// below proves that against the real 111-day Akita feed rather than asserting
 /// it.
 ///
-/// HER trace: the feed-health notice is the only thing on her screen that says
+/// Why: the feed-health notice is the only thing on her screen that says
 /// the road ahead is unmeasured rather than clear. At ten metres' visibility
 /// she cannot go and check. A signal that silently stops arriving takes the
 /// prompt to look out of the windscreen with it.

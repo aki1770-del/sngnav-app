@@ -5,13 +5,13 @@
 /// **Why a hand-written lookup map, not gen-l10n/ARB.** Per the BOD-17 fence
 /// ("an ARB/gen or a simple lookup map is fine; keep it honest + minimal"),
 /// this is a small, dependency-free lookup keyed on the resolved locale's
-/// language code. It carries ONLY the strings HER must read to grant location
+/// language code. It carries ONLY the strings the driver must read to grant location
 /// and to understand where her coordinates go — not the whole dev-facing
 /// chrome. The catalog's own driver-facing prose (AlertExplainer, glossary,
 /// DriveHudLocalizer) already localizes itself verbatim; this fills the gap
 /// the app owns.
 ///
-/// **D4 (load-bearing).** An English-only consent gate for a Japanese-reading
+/// **Dignity (load-bearing).** An English-only consent gate for a Japanese-reading
 /// driver both breaches dignity AND functionally kills the position dot: she
 /// cannot read the gate, so she cannot grant, so there is no dot. Localizing
 /// this surface is the reach fix, not a nicety.
@@ -30,8 +30,8 @@ import '../services/turmoil_watch.dart' show TurmoilWatchState, turmoilRowText;
 /// Minimal app-level localizations for sngnav-app's consent + status surface.
 ///
 /// Resolution is by [Locale.languageCode]: `ja` -> Japanese, anything else
-/// -> English (the honest default; en is the fallback tongue, ja is HER
-/// tongue and the first supported locale).
+/// -> English (the honest default; en is the fallback tongue, ja is the
+/// driver's tongue and the first supported locale).
 class AppL10n {
   const AppL10n(this.locale);
 
@@ -68,7 +68,7 @@ class AppL10n {
 
   /// The row's end-sharing control after location is off for this app. Same
   /// action as [stop]; "Stop" would be offered for a session that never
-  /// started, beside words saying the app has no access (ruled 2026-09-13).
+  /// started, beside words saying the app has no access (decided 2026-09-13).
   String get close => _ja ? '閉じる' : 'Close';
 
   // ===== Live position / mid-drive status =====
@@ -95,7 +95,7 @@ class AppL10n {
   String youAreHere(String accuracyMeters) =>
       _ja ? '現在地 · ±$accuracyMeters m' : 'You are here · ±$accuracyMeters m';
 
-  /// Status line under the map when HER position is LOST — past the position
+  /// Status line under the map when the driver's position is LOST — past the position
   /// controller's honesty horizon. It says how old the last trusted position
   /// is, never a radius: in `lost` the controller no longer vouches for one,
   /// and with no trusted fix ever the radius is infinite. This line used to
@@ -142,8 +142,8 @@ class AppL10n {
   /// The words on the map when location is off for this app: permission
   /// denied, now or for good (`isLocationRefusal`). They describe the setting
   /// and never say that she refused: a denial can happen without her taking
-  /// any action. Ruled 2026-09-13; 位置情報 is the word in the dialog she saw.
-  /// English: "No location access", ruled on the render the same day.
+  /// any action. Decided 2026-09-13; 位置情報 is the word in the dialog she saw.
+  /// English: "No location access", decided on the render the same day.
   /// "Location off" shared its first-word shape and the word "off" with
   /// "Position off this map", and blurred the two differed by 9.0/255.
   String get locationOffLabel =>
@@ -153,13 +153,13 @@ class AppL10n {
   /// [locationOffLabel], the same bytes as the words on the map. Only a denial
   /// for good gets the device-settings hint: the platform no longer shows the
   /// dialog then, and without the hint she has no way back. Ruled 2026-09-13,
-  /// byte-exact. The English sentence after the dash re-ruled 2026-09-14: it
+  /// byte-exact. The English sentence after the dash re-decided 2026-09-14: it
   /// said "this app is not allowed to access location" under a head that
   /// already said so, and now adds only that it is a permission, and this
   /// app's. Japanese unchanged.
   ///
   /// [routeSettingOpen]: where route setting is closed (the IVI with no
-  /// vehicle signal, ruled 2026-09-14), the line must not say the route panel
+  /// vehicle signal, decided 2026-09-14), the line must not say the route panel
   /// works, so its last sentence is left out. It has no default: a line that
   /// forgot to ask would say it.
   String locationOffStatus({
@@ -187,7 +187,7 @@ class AppL10n {
 
   static const String _routePanelWorksJa = 'ルート欄はタップで引き続き使えます。';
 
-  // ===== Setting a route (ruled 2026-09-14) =====
+  // ===== Setting a route (decided 2026-09-14) =====
   //
   // A touch on her map sets no route point and clears none. On a phone with
   // no motion signal a route is set only through the route act, started from
@@ -313,7 +313,7 @@ class AppL10n {
   String get driveHudUnknownsLabel => _ja ? '不明な点' : 'Unknowns';
 
   /// Row label for the sight-stopping speed hint, shown only under a grounded
-  /// low or whiteout visibility reading. English ruled 2026-09-14 (was
+  /// low or whiteout visibility reading. English decided 2026-09-14 (was
   /// "Guide speed"): a hint, not a speed the app guides her to. Japanese
   /// unchanged.
   String get driveHudGuideSpeedLabel => _ja ? '目安速度' : 'Speed hint';
@@ -432,13 +432,13 @@ class AppL10n {
           'says to turn back.';
 
   /// The card's rung was computed from a test value, not a measurement
-  /// (2026-09-16; words ruled AAA R52 AQ3).
+  /// (2026-09-16; words decided in safety review).
   String get driveHudTestValueInForce => _ja
       ? 'テスト値を使った表示です（測定ではありません）'
       : 'This card uses a test value, not a measurement.';
 
   /// The icy mark comes from a simulated road condition (2026-09-16; words
-  /// ruled AAA R52 AQ3).
+  /// decided in safety review).
   String get maneuverTestRoadConditionInForce => _ja
       ? '凍結の表示はテスト値です（路面は測定していません）'
       : 'The ice mark is a test value; the road was not measured.';
@@ -589,7 +589,7 @@ class AppL10n {
   //   code(s) ON-DEVICE (`prefectureCodesForPoint`, jma_advisory_provider.dart
   //   :163) and requests only
   //   `https://www.jma.go.jp/bosai/warning/data/warning/{prefectureCode}.json`
-  //   (:53, :342). HER coordinates NEVER leave the device for Japan — the
+  //   (:53, :342). The driver's coordinates NEVER leave the device for Japan — the
   //   previous copy claimed they were "sent to the JMA", which was FALSE.
   // - UNITED STATES: noaa_nws_adapter 0.0.8 sends the actual point —
   //   `GET https://api.weather.gov/alerts/active?point={lat},{lon}`
@@ -721,7 +721,7 @@ class AppL10n {
   /// de-emphasized and marked as English reference material.
   String get englishReferenceNote => _ja ? '英語の情報（参考）' : 'English (reference)';
 
-  // ===== WS5 announce affordance (D4 — HER-surface, was English-only) =====
+  // ===== Announce affordance (driver-facing, was English-only) =====
 
   /// Label for the button that speaks + buzzes the current hazard.
   String get announceToDriver =>
@@ -730,7 +730,7 @@ class AppL10n {
   /// Helper under the announce button when the current condition IS announced
   /// (>= warning). [severityName] is the technical severity token (warning /
   /// critical), kept verbatim. The on-device HEAR/FEEL bound is stated
-  /// honestly (OPS-066 — not verified without a device).
+  /// honestly (not verified without a device).
   String announceFiresHelper(String severityName) => _ja
       ? '音声＋振動で発報します（重要度: $severityName）。'
           '端末での聴取・体感は本環境では未検証です。'
@@ -746,7 +746,7 @@ class AppL10n {
       : 'This road condition is information only, so pressing this does not '
           'announce it by voice or vibration.';
 
-  // ===== Advisory card states (D4 — HER-surface, was English-only) =====
+  // ===== Advisory card states (driver-facing, was English-only) =====
 
   /// Empty-state: honest no-data render (never a stale snapshot fallback).
   String get advisoryNoneActive => _ja
@@ -770,7 +770,7 @@ class AppL10n {
   /// cannot say the sky is clear. The fail-safe backstop: any advisory
   /// result that cannot account for its own completeness renders here rather
   /// than as the positive all-clear. Deliberately NOT a hazard claim — an
-  /// outage is an unknown, not a warning, and crying wolf would teach HER to
+  /// outage is an unknown, not a warning, and crying wolf would teach the driver to
   /// ignore the instrument.
   String get advisoryLookupIncomplete => _ja
       ? '警報・注意報の照会が完了したか確認できません — '
@@ -778,7 +778,7 @@ class AppL10n {
       : 'Cannot confirm the advisory lookup was complete — whether any '
           'warning or advisory is in force is unknown.';
 
-  /// Measured-weather lane NOT YET READ this session — the cold-start state.
+  /// Measured-weather feed NOT YET READ this session — the cold-start state.
   /// The invisible-ice and turmoil watches are non-firing because nobody has
   /// been asked yet, which looks EXACTLY like a measured all-clear on the
   /// drive brain's floor. Says so plainly instead. Deliberately not a hazard
@@ -788,7 +788,7 @@ class AppL10n {
       : 'The weather observation has not been read yet — the measured '
           'road-ice and turmoil watches are unknown.';
 
-  /// Measured-weather lane READ AND FAILED. Distinct from the cold start
+  /// Measured-weather feed READ AND FAILED. Distinct from the cold start
   /// above: something went wrong, and the resulting non-firing watches say
   /// nothing about the road. Same anti-cry-wolf discipline — we report the
   /// outage, we do not invent a hazard out of it.
@@ -833,7 +833,7 @@ class AppL10n {
     return _ja ? '$h時間$m分' : '${h}h ${m}m';
   }
 
-  // ===== Words ruled for her screen, 2026-09-15 (prefecture table, Akita card, banner) =====
+  // ===== Words decided for the driver's screen, 2026-09-15 (prefecture table, Akita card, banner) =====
 
   /// Prefecture table column heads. English unchanged.
   String get prefectureHeadStation => _ja ? '観測点' : 'Station';
@@ -879,8 +879,8 @@ class AppL10n {
         // The classifier DECLINED to judge this reading — every field was
         // measured and in range, and it still produced no verdict.
         // Deliberately distinguishable from `outOfScope`'s wording: that one
-        // says another lane owns these conditions, which is false here — no
-        // lane covers it (the app has no fog concept at all). Not spoken: it
+        // says another watch owns these conditions, which is false here — no
+        // watch covers it (the app has no fog concept at all). Not spoken: it
         // is the absence of a judgement, not a hazard (see the enum's
         // dartdoc).
         InvisibleIceWatchResult.outsideModelEnvelope => _ja
@@ -976,7 +976,7 @@ class AppL10n {
           'responsible for all driving decisions. This app surfaces information; '
           'it does not control the vehicle.';
 
-  // ===== JMA feed-loss panel (N15 — the screen must match the speaker) =====
+  // ===== JMA feed-loss panel (the screen must match the speaker) =====
 
   /// Prominent staleness label over the RETAINED observation shown after a
   /// failed JMA fetch. The retained fields ARE shown (the voice may be
@@ -992,12 +992,13 @@ class AppL10n {
   }
 
   /// Feed-loss with NO valid observation held (none, unparseable stamp, or
-  /// past the 60-min retain bound): the observation lane is honestly empty.
+  /// past the 60-min retain bound): the observation feed is honestly empty.
   String get jmaNoValidObservation => _ja
       ? '60分以内の有効な観測を保持していません。'
       : 'No observation within the 60-minute retain window is held.';
 
-  /// Caption under the visible forecast-memory card (C2 RED-1 counterpart).
+  /// Caption under the visible forecast-memory card (the visible counterpart
+  /// of the offline-survival fix).
   /// [time] is the local clock time the memory was captured — before
   /// departure, while the network was still alive.
   String forecastMemoryCaption(String time) => _ja
@@ -1033,8 +1034,8 @@ class AppL10n {
   /// unchanged; until 2026-09-16 the Japanese page read the English word too.
   String get advisoryOtherSource => _ja ? 'その他' : 'Source';
 
-  /// The Japan Meteorological Agency's name, in the page's language (HIE R105,
-  /// AAA R58 W3). It is the publisher of every warning HER app shows in Akita,
+  /// The Japan Meteorological Agency's name, in the page's language. It is the
+  /// publisher of every warning the app shows in Akita,
   /// and it appears twice on one page: the advisory card head, and the
   /// publisher inside [advisoryPublisherErrored].
   ///
@@ -1058,17 +1059,17 @@ class AppL10n {
       ? '配信元 $publisher から取得できませんでした。'
       : 'Could not fetch from $publisher.';
 
-  // ===== The advisory card's OWN labels (HIE R114, 2026-09-19) =====
+  // ===== The advisory card's OWN labels (2026-09-19) =====
   //
-  // Named but not fixed by HIE R105, seen in that lane's
-  // `frames/ja_card-head_cjk_new.png`: HER Japanese card drew the English word
+  // Found but not fixed in the 2026-09-18 change, seen in a rendered frame of
+  // the Japanese card head: the Japanese card drew the English word
   // `severe` in the severity pill, because the pill rendered
   // `advisory.severity.name` — the raw Dart enum token — in every locale.
   // Beside it on the same Row the card drew `eff.`, and lower down `expires`:
-  // three English tokens on a Japanese page, the same defect class as the R105
+  // three English tokens on a Japanese page, the same defect class as the 2026-09-18
   // error line that read "Could not fetch from ▯▯▯."
   //
-  // The rule these follow is R105's, unchanged and applied one level out: the
+  // The rule these follow is that change's, unchanged and applied one level out: the
   // card's OWN labels read the page's language; the publisher's verbatim
   // wording does not move. eventClass, areaDescription, headline and
   // description stay untranslated in every locale, and so does
@@ -1117,7 +1118,7 @@ class AppL10n {
   String advisoryExpiresAt(String time) =>
       _ja ? '終了 $time' : 'expires $time';
 
-  /// A warnings fetch that failed with no publisher named (AAA R58 W2,
+  /// A warnings fetch that failed with no publisher named (decided
   /// 2026-09-16). The only app writer is a fetch that threw before any
   /// provider answered, so the line names nobody; 配信元 その他 named no one
   /// while reading like a publisher's name.
@@ -1137,10 +1138,10 @@ class AppL10n {
   String get corridorStationFetchFailed =>
       _ja ? '取得できませんでした。' : 'Fetch failed.';
 
-  // ===== Voice-lane readiness (A1) + speech-unverified chip (Tier-1) =====
+  // ===== Voice-channel readiness + speech-unverified chip (Tier-1) =====
 
-  /// Pre-drive caution shown ONLY when the voice-lane readiness read proved
-  /// the ja lane is network-bound (jaNetworkOnly) or absent (noJaVoice).
+  /// Pre-drive caution shown ONLY when the voice-channel readiness read proved
+  /// the ja voice is network-bound (jaNetworkOnly) or absent (noJaVoice).
   /// unknown shows NOTHING — never a false warning off-device.
   String get voiceOfflineCaution => _ja
       ? 'オフライン音声が未インストールです。'
@@ -1177,7 +1178,7 @@ class AppL10n {
   /// actually left: the screen.
   /// PRE-DRIVE caution when the platform reports NO vibrator at all.
   ///
-  /// The stronger, measured statement AAA's G-3 makes possible: not *"we could
+  /// The stronger, measured statement a safety-review finding makes possible: not *"we could
   /// not verify"* after a warning was already lost, but *"this device has
   /// none"* before she commits to the drive. Rendered ONLY on a `false`
   /// answer — `null` (unreadable / off-mobile / test binding) renders nothing,
@@ -1199,11 +1200,11 @@ class AppL10n {
   // at zero (null = probe unavailable = NOTHING). Informed acknowledgment,
   // never a block: haptic alerts are already unconditional, the driver
   // always drives, and we NEVER touch her volume (the Tier-3 dignity
-  // boundary the Chair holds).
+  // boundary the project holds).
 
   /// Strong pre-drive caution when no spoken safety alert can be heard.
   ///
-  /// ⚑ REWRITTEN 2026-08-22 on AAA's PUSHBACK (G-1), which found two defects
+  /// ⚑ REWRITTEN 2026-08-22 after a safety review pushed back, finding two defects
   /// in the one sentence this used to be — *"メディア音量がゼロです。音声警告が
   /// 聞こえません。振動でお知らせします。"*:
   ///
@@ -1213,9 +1214,9 @@ class AppL10n {
   ///     "Silent" is true of both; "volume is zero" was true of one.
   /// (b) **the second clause promised a delivery the app only ATTEMPTS.**
   ///     Future tense, unconditional, about the one channel that had no
-  ///     prospective probe. AAA: *claimed delivery, earned attempt.*
+  ///     prospective probe. The review: *claimed delivery, earned attempt.*
   ///
-  /// The wording below is AAA's, verbatim from its verdict, and carries three
+  /// The wording below is the review's, verbatim from its verdict, and carries three
   /// checkable properties: the cause is stated as silent; the tactile channel
   /// is attempted, not promised; and what REMAINS — the screen — is named,
   /// because a caution that removes a channel without naming what is left is
@@ -1229,7 +1230,7 @@ class AppL10n {
 
   /// Acknowledge action on the media-muted caution.
   ///
-  /// ⚑ RENAMED 2026-08-22 on AAA's PUSHBACK (G-2). This used to read
+  /// ⚑ RENAMED 2026-08-22 after the same review pushed back. This used to read
   /// 「承知しました（振動のみで続行）」 — asking her to consent to, and then
   /// labelling her whole drive by, a channel the app had never verified. The
   /// measured fact is the AUDIO loss, not the haptic presence, so the mode is
@@ -1242,7 +1243,7 @@ class AppL10n {
   String get mediaMutedAckedLine =>
       _ja ? '音声なしモード承知済み' : 'No-spoken-alerts mode acknowledged';
 
-  // ===== C6 ログを共有 — beta feedback share-log surface (BETA_PLAN fix #8) =====
+  // ===== ログを共有 (share log) — beta feedback share-log surface (BETA_PLAN fix #8) =====
   //
   // Honesty-traced to real code: the share fires ONLY from the button tap
   // (services/log_share.dart — no auto-telemetry, no background path, no
@@ -1296,10 +1297,10 @@ class AppL10n {
   // the explicit share tap.
 
   /// Section title for the drive-diary card.
-  // ---- WARNING-CHANNEL CHECK (AAE 2026-09-19) -------------------------
-  // Why these are HER strings and not developer chrome: for a deaf or
+  // ---- WARNING-CHANNEL CHECK (2026-09-19) -----------------------------
+  // Why these are driver-facing strings and not developer chrome: for a deaf or
   // hard-of-hearing driver the tactile cue is the ONLY warning channel
-  // (OPS-RULE-059). Confirming it works BEFORE the pass shuts is a safety
+  // (the accessibility rule). Confirming it works BEFORE the pass shuts is a safety
   // affordance she is owed, not a debug button — which is also why this
   // surface must survive in a release build, unlike the development page.
 
@@ -1432,7 +1433,7 @@ class AppL10n {
   // ===== Home page card titles (2026-09-15) =====
   //
   // Until 2026-09-15 fifteen of these were English literals in every language,
-  // and some carried the team's own words: its name for the driver's cohort,
+  // and some carried the project's internal words: its name for the driver's cohort,
   // a package version with issue numbers, a tool's name, package names, and a
   // default ("kei-car-at-65") the vehicle dropdown does not have. Each title
   // now says what its card is. A card that exists for development says so, so
@@ -1541,9 +1542,9 @@ class AppL10n {
   // ===== The foot of her page and the prefecture card's source (2026-09-15) =====
   //
   // Until 2026-09-15 both were English literals in every language. The foot
-  // named the reason the Akita station was chosen in the team's own words, a
+  // named the reason the Akita station was chosen in the project's internal words, a
   // self-description of the position as honest, the dev mock's colour and seven
-  // package names; the source line cited one of the team's rulings. Each keeps
+  // package names; the source line cited one of the project's internal decisions. Each keeps
   // what she needs from it.
 
   /// The foot of her home page: the app and its version, that routes do not

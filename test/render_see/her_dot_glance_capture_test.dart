@@ -1,4 +1,4 @@
-/// Render capture — HER position dot: real fix / mock / degraded, normal and
+/// Render capture — the driver's position dot: real fix / mock / degraded, normal and
 /// desaturated, MEASURED in the rendered pixels.
 ///
 /// WHY, written before the act. On `14f3699` the dot carried its three states
@@ -318,7 +318,7 @@ void main() {
   });
 
   testWidgets(
-    'the three HER-dot states stay distinct once colour is removed, '
+    'the three position-dot states stay distinct once colour is removed, '
     'measured in the pixels of the real AkitaMap',
     (tester) async {
       tester.view.devicePixelRatio = 1.0;

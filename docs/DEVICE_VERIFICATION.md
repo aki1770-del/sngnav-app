@@ -1,15 +1,15 @@
 # WS5 / WS6 — On-Device Verification Checklist (the DEFERRED reach)
 
-**Owner**: AAE (android-app-engineer) per CLAUDE.md §4.
+**Owner**: the app maintainer.
 **Why this file exists**: the WS5 actuators (`lib/actuators/`) and the WS6 live
 drive brain (`lib/services/drive_hud_controller.dart`) are **code-complete and
-wired** — the caution code-path reaches HER on audio + haptic. But **no Android
+wired** — the caution code-path reaches the driver on audio + haptic. But **no Android
 device is available in this build environment**, so the final "she HEARS / FEELS
-it" step is **DEFERRED**, not done. Per OPS-066 (observation-grade verification)
-and AAE-1, the app **must not claim "works on Android"** from a green test suite
+it" step is **DEFERRED**, not done. Under observation-grade verification (reach
+is verified on a device), the app **must not claim "works on Android"** from a green test suite
 alone: passing tests + a render-SEE on desktop prove the *code-path*; only a real
 device proves the *reach*. This checklist is what makes the deferred claim
-honest — each item is verified on a real phone before any "reaches HER on-device"
+honest — each item is verified on a real phone before any "reaches the driver on-device"
 claim is made.
 
 ## How to use
@@ -83,7 +83,7 @@ Andon, not a footnote.
 
 ## Consent / dignity (WS7 interaction)
 
-- [ ] **Deny-by-default honored** — nothing touches GPS or speaks until HER
+- [ ] **Deny-by-default honored** — nothing touches GPS or speaks until the driver's
       deliberate "Share my location"; the WS6 brain has no position until then.
 - [ ] **Revoke stops the reach** — revoking location mid-drive surfaces
       `PositionUnavailable`, the honest dot degrades toward `lost`, and no stale
@@ -97,10 +97,10 @@ Andon, not a footnote.
 SDK, an emulator and the AVD `sngnav_api30` DO exist here and were walked on
 2026-07-09 (`ladder_out/`, 71 files tracked in git; airplane-mode pass
 2026-07-10). Until every item above is PASS on a **physical phone**, the app
-claims only: *"the caution code-path reaches HER on audio + haptic; on-device
+claims only: *"the caution code-path reaches the driver on audio + haptic; on-device
 HEAR / FEEL is deferred."* It never claims *"works on Android."*
 
-> **Corrected 2026-08-09 (AAE, OPS-RULE-002).** This line read *"no Android
+> **Corrected 2026-08-09.** This line read *"no Android
 > device in this environment"* — false since 2026-07-09, and never propagated.
 > The deferral itself was and remains correct: the emulator ladder ran
 > `-no-audio` and bound a **server** voice, so it cannot discharge HEAR or FEEL.

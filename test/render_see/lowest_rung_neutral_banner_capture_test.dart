@@ -1,9 +1,9 @@
-/// OPS-066 render-SEE capture for the CHOICE-NEUTRAL lowest-rung caution banner
-/// (Design-Floor Refusal #1, Chair 2026-07-19). Session-scope; NOT a CI claim.
+/// Render-and-look capture for the CHOICE-NEUTRAL lowest-rung caution banner
+/// (Design-Floor Refusal #1, decided 2026-07-19). Session-scope; NOT a CI claim.
 ///
 /// Produces a fresh ja-rendered PNG of the `drive-hud-caution-banner`
 /// (Key('drive-hud-caution-banner') in lib/main.dart) in the LOWEST rung state,
-/// so VAA can LOOK at the headline the fix changes:
+/// so a reviewer can LOOK at the headline the fix changes:
 ///   13 — trusted position, MEASURED clear visibility, no watch → grey banner
 ///        reading 「特段の注意なし」 (was 「走行を継続」, which advocated GO).
 ///
@@ -14,7 +14,7 @@
 /// `_driveHudPanel`); the rung decision is not re-implemented. The lowest rung
 /// shows ONLY the headline (no guidance line) — parity with the voice channel's
 /// silence. On-device / on-phone render is DEFERRED (no device); nobody affirms
-/// this PNG as HER-phone evidence.
+/// this PNG as phone evidence.
 library;
 
 import 'dart:io';

@@ -1,8 +1,8 @@
-/// Tier-1 voice-lane hardening — a [TtsEngine] that READS what flutter_tts
+/// Tier-1 voice-channel hardening — a [TtsEngine] that READS what flutter_tts
 /// already returns instead of fire-and-forgetting.
 ///
 /// Every plugin-API fact below was verified against the REAL flutter_tts
-/// 4.2.5 source (clone: /home/komada/work/flutter_tts-serve; version pinned
+/// 4.2.5 source (a local clone; version pinned
 /// in its pubspec.yaml:3). Load-bearing citations are at the call sites.
 ///
 /// What this raises — and what it honestly cannot:
@@ -18,7 +18,7 @@
 ///   it claims completed-or-unverified.
 ///
 /// On-device behavior (actual audio focus ducking, engine rebind timing) is
-/// OPS-066 DEFERRED — no Android device in this environment.
+/// DEFERRED — not verified on an Android device in this environment.
 library;
 
 import 'dart:async';
@@ -262,7 +262,7 @@ class HardenedTtsEngine implements TtsEngine {
       // focus: true — Android requests transient-may-duck audio focus for
       // the utterance (FlutterTtsPlugin.kt:668-670 → requestAudioFocus,
       // kt:795-806 AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK; released in onDone,
-      // kt:128), so HER music/radio ducks under the warning instead of
+      // kt:128), so the driver's music/radio ducks under the warning instead of
       // drowning it. Non-Android ignores the flag (flutter_tts.dart:355-362).
       final dynamic result = await _adapter
           .speak(text, focus: true)

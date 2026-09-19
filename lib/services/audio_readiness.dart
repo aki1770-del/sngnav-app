@@ -1,14 +1,14 @@
 /// Tier-2 pre-drive audio readiness probe (the unit's first first-party
-/// Kotlin surface; Chair-ratified 2026-07-11, proposal §Tier-2).
+/// Kotlin surface; decided 2026-07-11, proposal §Tier-2).
 ///
-/// Answers ONE Dart-unreachable question before HER drive: *is the media
+/// Answers ONE Dart-unreachable question before the drive: *is the media
 /// stream muted?* Media-volume-zero silences every spoken safety alert and
-/// no plugin in our set exposes the volume — the app would drive HER into a
+/// no plugin in our set exposes the volume — the app would send the driver into a
 /// whiteout believing its ja warning will sound while the platform plays it
 /// into silence. The platform side is a ~30-line read-only MethodChannel in
 /// `MainActivity.kt` (`sngnav/audio_readiness`).
 ///
-/// READ-ONLY BY DESIGN (the Tier-3 dignity boundary the Chair holds): we
+/// READ-ONLY BY DESIGN (the Tier-3 dignity boundary the project holds): we
 /// inform, we NEVER touch her volume. The pre-drive surface warns and asks
 /// for acknowledgment — it never blocks the drive and never adjusts a
 /// setting on her behalf.
@@ -51,7 +51,7 @@ final class AudioReadiness {
   /// ⚑ Added 2026-08-22 after measuring the counter-example on a device: the
   /// AVD reported `STREAM_MUSIC: Muted: true` in `dumpsys audio` while
   /// `getStreamVolume` returned 5 of 15, so this app read a silent device as
-  /// audible and HER media-muted caution never rendered. Index and mute are
+  /// audible and the media-muted caution never rendered. Index and mute are
   /// two platform facts behind two different calls; reading one and calling
   /// it the other is an absent measurement rendered as the safe value.
   final bool? streamMuted;
@@ -69,11 +69,11 @@ final class AudioReadiness {
 
   /// Value equality over EVERY field.
   ///
-  /// AAE 2026-09-02, re-landed on `0bc7351` 2026-09-19. This exists because
+  /// Added 2026-09-02, re-landed on `0bc7351` 2026-09-19. This exists because
   /// the 45 s poll-dedup in `main.dart` compared three fields BY HAND and
   /// omitted [streamMuted] — the field added 2026-08-22 for the one case the
   /// volume index cannot express. A STREAM_MUSIC that went MUTED at an
-  /// UNCHANGED index therefore returned early and never reached HER screen:
+  /// UNCHANGED index therefore returned early and never reached the driver's screen:
   /// she drove on believing the spoken ja warning would sound. The symptom
   /// was one missing field; the root is that a hand-written field list
   /// silently omits the NEXT field too. Comparing the value closes the class,

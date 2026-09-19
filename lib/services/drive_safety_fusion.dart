@@ -1,7 +1,7 @@
 /// WS6 — the fusion seam: honest localization × in-drive compound-failure
-/// caution, wired for HER live drive.
+/// caution, wired for the live drive.
 ///
-/// **Why this exists (mission trace, <=4 hops).** HER — the Chair's mother in
+/// **Why this exists.** The driver — an older driver in
 /// Akita — is driving in unexpected snow. Maps AND GPS have failed at once and
 /// she cannot see where the road is (the PHIL-001 compound worst-case). Two
 /// pure-Dart catalog packages already answer the two halves honestly:
@@ -15,9 +15,9 @@
 /// drive HUD can tell her the honest truth and — via the WS5 actuators — speak
 /// and buzz the caution she cannot look up to read. It is wired live in
 /// `SngnavApp` (`main.dart`) through `DriveHudController`.
-///   fusion (this file) → honest caution reaches HER on screen+audio+haptic
-///   (code-path; on-device HEAR/FEEL DEFERRED per OPS-066 / AAE-1, no device in
-///   this env) → she eases / pauses → HER survives the whiteout.
+///   fusion (this file) → honest caution reaches the driver on screen+audio+haptic
+///   (code path; on-device HEAR/FEEL DEFERRED, no device in
+///   this env) → she eases off or pauses → she gets through the whiteout.
 ///
 /// Pure logic, no Flutter, no timers, no IO — every function here is total and
 /// synchronous, so it is fully testable off a device.
@@ -82,7 +82,7 @@ class DriveLocalizer {
   /// is never a fix.
   ///
   /// Asked BEFORE feeding, so the app can decline to give the drive brain an
-  /// event that would not anchor it (ruled 2026-09-14). The same answer as
+  /// event that would not anchor it (decided 2026-09-14). The same answer as
   /// feeding it and reading the basis back, pinned against the real controller
   /// in `test/services/drive_localizer_would_trust_test.dart`.
   bool wouldTrust(PositionFix fix) => switch (fix) {
@@ -100,7 +100,7 @@ class DriveLocalizer {
               ).hasFiniteGeometry &&
               (_lastTrustedFixAt == null ||
                   timestamp.isAfter(_lastTrustedFixAt!)),
-        // A sample with no measured accuracy is not a fix (ruled 2026-09-14).
+        // A sample with no measured accuracy is not a fix (decided 2026-09-14).
         PositionAvailable() => false,
         PositionUnavailable() => false,
       };
@@ -140,7 +140,7 @@ class DriveLocalizer {
           _lastTrustedFixAt = timestamp;
         }
         return estimate;
-      // No measured accuracy: not a fix (ruled 2026-09-14). Treated as an event
+      // No measured accuracy: not a fix (decided 2026-09-14). Treated as an event
       // that carries no position, polled at the sample's own timestamp, so the
       // brain degrades from the anchor it holds. Its coordinates and its speed
       // are never taken: no radius is invented for it.
@@ -160,7 +160,7 @@ class DriveLocalizer {
 /// reasons for this environment on a trusted, fresh, exact position, other
 /// than a visibility it could not read, or a firing measured-weather watch.
 ///
-/// Why (ruled 2026-09-14): before a share's first trusted fix a position
+/// Why (decided 2026-09-14): before a share's first trusted fix a position
 /// failure does not reach the caution rung by itself, and it never takes away
 /// a caution that a measured condition raises. A missing or stale visibility
 /// reading is not a measurement, so it is excluded by name. Every other reason

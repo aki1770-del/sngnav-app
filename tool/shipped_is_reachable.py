@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Nothing may be SHIPPED that code cannot REACH.
 
-WHY (OPS-070(B), before the act). Root cause, taken from AGL's ondemandnavi and
+WHY (written before the act). Root cause, taken from AGL's ondemandnavi and
 verified against our own tree the same day:
 
   Its recipe installs `openjtalk`, its voice model and its dictionary; it ships

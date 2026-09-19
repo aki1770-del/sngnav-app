@@ -1,4 +1,4 @@
-// C6 ログを共有 — payload composition (services/log_share.dart).
+// ログを共有 (share log) — payload composition (services/log_share.dart).
 //
 // Pins the share payload's contract WITHOUT a device: identity header
 // (appVersion + os + UTC export timestamp), the error-log text verbatim,

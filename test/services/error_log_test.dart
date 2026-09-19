@@ -1,4 +1,4 @@
-// W2 — crash boundary + local error log (services/error_log.dart).
+// Crash boundary + local error log (services/error_log.dart).
 //
 // Verifies the on-device logger's contract: write (append, timestamped,
 // stack included), rotate (size cap enforced, OLDEST entries dropped at an

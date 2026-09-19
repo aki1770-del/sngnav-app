@@ -263,12 +263,12 @@ void main() {
     });
   });
 
-  // HER-POV #3 — a null-expires JMA warning (the mapper emits expires:null as
+  // Driver's-view finding #3 — a null-expires JMA warning (the mapper emits expires:null as
   // its ONLY value) is retained inside a BOUNDED synthetic window anchored to
   // the last successful fetch, instead of being dropped on the first errored
-  // refresh (a false-clear on HER Akita total-failure target). PROVE-TO-FAIL:
+  // refresh (a false-clear on the Akita total-failure target). PROVE-TO-FAIL:
   // survives WITHIN the window (fails on the pre-fix code, which never retained
-  // a null-expires advisory), DROPS past it (N10 — never stale-forever).
+  // a null-expires advisory), DROPS past it (never stale-forever).
   group('retainAdvisoriesOnFailure — null-expires JMA synthetic window', () {
     final lastFresh = DateTime.utc(2026, 1, 15, 12); // last successful fetch
     final jmaNoExpires = _advisory(expires: null); // JMA 大雪警報, no bound
@@ -289,7 +289,7 @@ void main() {
     });
 
     test(
-        'PAST the window the null-expires JMA warning DROPS (N10 — a parked '
+        'PAST the window the null-expires JMA warning DROPS (a parked '
         'driver never keeps a null-expires hazard forever)', () {
       final applied = retainAdvisoriesOnFailure(
         prior: _result([jmaNoExpires]),

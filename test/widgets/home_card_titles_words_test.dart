@@ -1,9 +1,9 @@
 /// Every card on her home page is titled in her language, and says what the
-/// card is rather than what the team calls it.
+/// card is rather than what the project calls it internally.
 ///
 /// WHY, written before the act (2026-09-15). On 8b445ad fifteen of the twenty
 /// card titles were English literals in every language. Three carried the
-/// team's own words for things ("HER cohort", "NSC 0.10.0 — #28 / #29 / #30",
+/// project's own internal words for things (an internal cohort name, "NSC 0.10.0 — #28 / #29 / #30",
 /// "LoomFit telemetry"), two carried package names, and one stated a default
 /// the dropdown under it does not have: "kei-car-at-65 default" above a value
 /// that starts as "unknown / no signal". The helper under the announce button
@@ -18,7 +18,7 @@
 /// not on her home page. Their titles are read there, so the same rule holds
 /// for all twenty wherever they are drawn.
 ///
-/// Not ruled here, and named for a ruling instead: the English inside those
+/// Not decided here, and named for a later decision instead: the English inside those
 /// cards (dropdown values, rows, sources, buttons), the app bar, the banner
 /// above the map and the page foot. Public names that stay in a title are the
 /// publisher's (気象庁, JMA, AMeDAS).
@@ -59,7 +59,7 @@ Future<List<String>> _titlesIn(WidgetTester tester, String lang) async {
 
 void main() {
   testWidgets('every card title is in Japanese on a Japanese screen, and in '
-      'neither language uses the team\'s words', (tester) async {
+      'neither language uses the project\'s internal words', (tester) async {
     final ja = await _titlesIn(tester, 'ja');
     final en = await _titlesIn(tester, 'en');
 

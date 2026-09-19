@@ -1,5 +1,5 @@
 /// Measured-turmoil (downpour / strong-wind) watch over the live JMA
-/// observation — the W3 turmoil surface (BETA_PLAN; Chair-ratified
+/// observation — the turmoil surface (BETA_PLAN; decided
 /// 2026-07-09: *"we do not assume but measure the actual weather. Not our
 /// historical data."*).
 ///
@@ -31,7 +31,7 @@
 ///   JMA's FIRST band with an explicit driving impact. AMeDAS wind IS a
 ///   10-minute mean — the same unit as the table's 平均風速; no conversion.
 /// - 台風-class winds (暴風警報 etc.) and 大雨警報-class rain reach the app on
-///   a SEPARATE lane: the JMA warnings feed (condition_aggregator_jma),
+///   a SEPARATE path: the JMA warnings feed (condition_aggregator_jma),
 ///   relayed verbatim as advisory cards. This watch is the measured-field
 ///   complement, not a substitute for JMA's own warnings.
 library;

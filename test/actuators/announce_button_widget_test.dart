@@ -1,7 +1,7 @@
 /// WS5 — widget test: tapping "Announce to driver" fires audio + haptic with
 /// the correct JA whiteout guidance. This is the end-to-end in-env proof that
 /// the app's button reaches BOTH channels; it does NOT prove on-device
-/// HEAR/FEEL (DEFERRED, OPS-066 / AAE-1).
+/// HEAR/FEEL (DEFERRED).
 library;
 
 import 'package:flutter/material.dart';
@@ -15,7 +15,7 @@ import 'package:sngnav_app/main.dart';
 import '../support/fake_alert_actuators.dart';
 import '../support/developer_page.dart';
 
-// A clear-conditions JMA observation so the W0 detection-survival lane stays
+// A clear-conditions JMA observation so the detection-survival path stays
 // SILENT (no ice, no turmoil, no feed loss) — isolating this WS5 announce-button
 // test from the JMA announce path. Without an injected fetch the real AMeDAS
 // call fails under the test binding and the no-cache absence-line would speak

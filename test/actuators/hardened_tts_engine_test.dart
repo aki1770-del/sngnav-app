@@ -1,4 +1,4 @@
-// Tier-1 voice-lane hardening — HardenedTtsEngine behavior contract.
+// Tier-1 voice-channel hardening — HardenedTtsEngine behavior contract.
 //
 // The fake TtsAdapter scripts the platform's verified result semantics
 // (flutter_tts 4.2.5 Android FlutterTtsPlugin.kt: 1 = utterance completed
@@ -6,7 +6,7 @@
 // stopped, kt:304-309/379-382; onError HANGS the Future, kt:168-198 — hence
 // the timeout scenario is a real, reachable plugin state, not paranoia).
 //
-// HONESTY (OPS-066 / AAE env-bound): these tests pin the DART-side contract
+// HONESTY (no device here): these tests pin the DART-side contract
 // (config-once, focus:true, retry, timeout, log, callbacks, never-throw).
 // Real engine rebind timing / audio-focus ducking / audibility are on-device
 // facts — DEFERRED, no Android device in this env.

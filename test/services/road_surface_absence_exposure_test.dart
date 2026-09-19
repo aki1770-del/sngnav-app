@@ -28,7 +28,7 @@
 // did: it crossed the migration without losing a tooth.
 //
 // The invariant under test is NOT "always warn". A fabricated alarm is worse
-// than none — it teaches HER to ignore the app. The invariant is narrower and
+// than none — it teaches the driver to ignore the app. The invariant is narrower and
 // strictly honest:
 //
 //   an ABSENCE of data must never be rendered as a BENIGN DETERMINATION.
@@ -47,7 +47,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/scenarios/nagoya_unexpected_snow_scenario.dart';
 import 'package:sngnav_app/services/road_surface_classifier.dart';
 
-/// The states that tell HER the road is FINE. If an absent-data reading lands
+/// The states that tell the driver the road is FINE. If an absent-data reading lands
 /// on any of these, the app has fabricated an all-clear.
 const benign = <RoadSurfaceState>{RoadSurfaceState.dry};
 

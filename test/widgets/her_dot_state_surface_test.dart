@@ -1,4 +1,4 @@
-/// The HER position dot's three states, read from the laid-out map.
+/// The driver's position dot's three states, read from the laid-out map.
 ///
 /// Rendered desaturated, the dot's real-fix, mock and degraded states used to
 /// be one grey disc: a single 22px circle told apart by fill colour alone.
@@ -174,9 +174,9 @@ void main() {
 
   // ---- lost (2026-09-13): the map SAYS it does not know -----------------
   //
-  // HIE rendered bd6ebc4 in every mode: lost was the dead-reckoning ring pixel
+  // A render review drew bd6ebc4 in every mode: lost was the dead-reckoning ring pixel
   // for pixel, and its circle was the only mark that grew. These pin the
-  // structure the fix depends on; HIE's harness pins the pixels.
+  // structure the fix depends on; the review's harness pins the pixels.
 
   testWidgets(
       'lost with a last trusted position: the ring, the words, and NO accuracy '
@@ -223,7 +223,7 @@ void main() {
 
   testWidgets(
       'in lost, positionDegraded true or false builds the same state (the app '
-      'passes true; HIE\'s harness passed false)', (tester) async {
+      'passes true; the review harness passed false)', (tester) async {
     for (final degraded in [true, false]) {
       await _pumpMap(tester, degraded: degraded, lost: true, accuracy: 375);
 

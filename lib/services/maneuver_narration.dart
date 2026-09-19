@@ -1,6 +1,6 @@
-/// (e) NARROW honest confidence-gated maneuver narration — the HER differentiator.
+/// (e) NARROW honest confidence-gated maneuver narration — what sets this app apart.
 ///
-/// **Why this exists (mission trace, <=4 hops).** HER — the Chair's mother in
+/// **Why this exists.** The driver — an older driver in
 /// Akita — is driving in unexpected snow. Maps and GPS are failing. A turn-by-
 /// turn instruction spoken against a DRIFTING or LOST position dot is a
 /// *confidently-wrong* command: "turn right now" when the app does not actually
@@ -12,8 +12,8 @@
 ///   suspect GPS  → HEDGE (soften, tell her to confirm before acting),
 ///   dead-reckoning / lost → SUPPRESS (say NOTHING about the turn — honest
 ///                            silence, never a wrong "turn now").
-///   narrator (this file) → honest guidance reaches HER → she turns only when
-///   the dot is trustworthy → HER survives the whiteout.
+///   narrator (this file) → honest guidance reaches the driver → she turns only
+///   when the dot is trustworthy → she gets through the whiteout.
 ///
 /// **This is NOT a nav state machine.** No route-snapping, no off-route
 /// detection, no recompute-on-deviation. It takes the NEXT maneuver from the
@@ -24,17 +24,17 @@
 /// `voice_guidance.ManeuverSpeechFormatter` consumes
 /// `navigation_safety.NavigationManeuver`. The two types are field-identical, so
 /// [toNavigationManeuver] adapts one to the other in a single copy (proven by
-/// test). We do NOT, however, route HER's spoken line through
+/// test). We do NOT, however, route the driver's spoken line through
 /// `ManeuverSpeechFormatter`: that formatter returns the maneuver's `instruction`
 /// VERBATIM when non-empty, and `OsrmRoutingEngine` emits ENGLISH instructions
-/// ("Left onto Main St") — shipping English to a Japanese-reading driver is a D4
-/// breach. So the app localizes by engine-agnostic maneuver TYPE via
-/// [DriveHudLocalizer] (JA for HER), and carries the adapted [NavigationManeuver]
+/// ("Left onto Main St") — shipping English to a Japanese-reading driver would
+/// leave her out. So the app localizes by engine-agnostic maneuver TYPE via
+/// [DriveHudLocalizer] (JA by default), and carries the adapted [NavigationManeuver]
 /// alongside for any consumer that wants the catalog type. That is the honest
 /// reconciliation: adapt the type, but localize the words ourselves.
 ///
-/// **Honesty (OPS-066 / AAE-1).** The speak/hedge/suppress DECISION is pure and
-/// fully provable off-device (this file's tests). Whether HER actually HEARS the
+/// **Honesty.** The speak/hedge/suppress DECISION is pure and
+/// fully provable off-device (this file's tests). Whether the driver actually HEARS the
 /// line, and the real-world turn-trigger TIMING, are device-observable and
 /// DEFERRED — never claimed as "guidance works" from a green suite.
 library;
@@ -52,7 +52,7 @@ enum NarrationConfidence {
   /// Position is trusted — the turn is spoken plainly.
   speak,
 
-  /// Position is suspect — the turn is softened and HER is told to confirm.
+  /// Position is suspect — the turn is softened and the driver is told to confirm.
   hedge,
 
   /// Position is dead-reckoned or lost — the turn is NOT announced. Honest
@@ -133,7 +133,7 @@ class ManeuverNarration {
   /// The position mode that produced [confidence].
   final LocalizationMode mode;
 
-  /// The localized (JA for HER) line to speak. Empty iff suppressed.
+  /// The localized (JA by default) line to speak. Empty iff suppressed.
   final String text;
 
   /// The severity to announce at (drives the audibility gate + haptic cue).
@@ -200,7 +200,7 @@ RouteManeuver? nextActionableManeuver(List<RouteManeuver> maneuvers) {
 class ManeuverNarrator {
   const ManeuverNarrator({this.text = const DriveHudLocalizer()});
 
-  /// The driver-facing string localizer (JA for HER). Reused for the maneuver
+  /// The driver-facing string localizer (JA by default). Reused for the maneuver
   /// phrasing AND the icy-turn coupling.
   final DriveHudLocalizer text;
 

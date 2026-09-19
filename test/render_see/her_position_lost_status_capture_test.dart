@@ -1,7 +1,7 @@
-/// HER map and the status line under it, in the REAL app, in every position
+/// The map and the status line under it, in the REAL app, in every position
 /// state a dead GPS reaches: checked always, rendered to PNG on request.
 ///
-/// WHY, written before the act. HIE's harnesses render [AkitaMap] alone, from
+/// WHY, written before the act. The render review's harnesses render [AkitaMap] alone, from
 /// a replica of `main.dart`'s mapping, and derive the status line as text
 /// without rendering it. Neither can see whether the app is wired. This drives
 /// `SngnavApp` itself, through its injected position stream and clock, the way
@@ -50,7 +50,7 @@ import 'render_see_env.dart';
 
 const _out = String.fromEnvironment('HER_LOST_STATUS_OUT');
 
-// 06:00 JST on a January morning, as in HIE's harness.
+// 06:00 JST on a January morning, as in the render review's harness.
 final _t0 = DateTime.utc(2026, 1, 14, 21, 0);
 const _lat = 39.7195;
 const _lon = 140.1180;

@@ -1,8 +1,8 @@
-/// OPS-066 render-SEE capture for the measured-hazard fusion into the compound
+/// Render-and-look capture for the measured-hazard fusion into the compound
 /// caution banner (session-scope; NOT a CI assertion).
 ///
 /// Produces fresh ja-rendered PNGs of the `_driveHudPanel` caution banner
-/// (`Key('drive-hud-caution-banner')` in lib/main.dart) so VAA can LOOK at the
+/// (`Key('drive-hud-caution-banner')` in lib/main.dart) so a reviewer can LOOK at the
 /// thing the fix changes:
 ///   10 — no measured hazard, trusted, clear   → grey  「特段の注意なし」
 ///   11 — MEASURED black-ice firing, trusted    → amber 「注意して走行」  ← the fix
@@ -17,8 +17,8 @@
 /// + `actionHeadline` + `spokenGuidance`); the raised-rung decision is not
 /// re-implemented here. The caption states the advisor-alone rung beside the
 /// effective rung, so the RAISE is legible in the pixels. On-device HEAR/FEEL +
-/// on-phone render remain the emulator ladder / device hour's job (OPS-066 /
-/// AAE-1): NOBODY affirms these PNGs as HER-phone evidence.
+/// on-phone render remain the emulator ladder / device hour's job (on-device
+/// verification): NOBODY affirms these PNGs as phone evidence.
 library;
 
 import 'dart:io';

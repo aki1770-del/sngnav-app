@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# L34 — THE MUTATION GATE. A guard is not INSERTED until it has been PROVEN to FAIL.
+# THE MUTATION GATE. A guard is not INSERTED until it has been PROVEN to FAIL.
 #
 # WHY THIS EXISTS (BOD-19 recursive 5-Whys terminus, 2026-07-11)
 # --------------------------------------------------------------
-# On 2026-07-11 VAA shipped four green verdicts that were each defective, and every
-# one was caught by a different agent — never by VAA. The recursive 5-Whys bottomed
+# On 2026-07-11 the project shipped four green verdicts that were each defective, and every
+# one was caught by a different reviewer — never by their author. The recursive 5-Whys bottomed
 # out here:
 #
 #   The unit gates ARTIFACTS at tool boundaries, and grades those gates against the
@@ -13,11 +13,11 @@
 #   builder's imagination, rendered in green.
 #
 # Measured, three times in ONE file (tool/assert_manifest_perms.sh):
-#   * self-test 10/10 — while the guard blessed a DEAD ja voice lane (greedy regex)
+#   * self-test 10/10 — while the guard blessed a DEAD ja voice channel (greedy regex)
 #   * self-test 26/26 — while the guard passed `tools:node="removeAll"` on
 #     ACCESS_FINE_LOCATION, printing "PASS: 3 WS1-blocker permissions effectively
-#     declared" over HER DEAD LOCATION DOT — the exact regression the guard was
-#     written to make impossible. It carried a DIA certification stamp while doing it.
+#     declared" over a DEAD LOCATION DOT — the exact regression the guard was
+#     written to make impossible. It carried an audit certification stamp while doing it.
 #
 # Both greens were over defective cloth. Neither was caught by running the guard.
 # Both were caught only by someone MUTATING the input and demanding the guard bite.
@@ -32,8 +32,8 @@
 #   ACCEPTS every healthy input. A guard that PASSES a mutant is BLIND, and this gate
 #   exits non-zero: NOT INSERTED.
 #
-# WHO WRITES THE CORPUS — the load-bearing rule (OPS-RULE-064(C), one tier down)
-#   The mutants MUST NOT be authored by the pen that wrote the guard. A builder's
+# WHO WRITES THE CORPUS — the load-bearing rule (the author is never the only verifier)
+#   The mutants MUST NOT be authored by the hand that wrote the guard. A builder's
 #   mutants encode the builder's model — the same blind spot, one level up. Corpus
 #   provenance is asserted from git: if the corpus and the guard share their last
 #   author, this gate WARNS loudly. (It cannot prove independence — that is judgement,
@@ -101,7 +101,7 @@ if [[ "${1:-}" == "--self-test" ]]; then
   # This gate's own claim is "I bite a blind guard." So it must be run against a guard
   # that IS REALLY BLIND — not one this pen imagined. We use the unit's own history:
   # the manifest guard as it stood BEFORE 96fd023, whose regex could not match
-  # `removeAll` and therefore passed a manifest that killed HER location dot.
+  # `removeAll` and therefore passed a manifest that killed the location dot.
   #
   # If this gate cannot bite THAT, it is exactly the thing it condemns.
   echo ">> SELF-TEST: does the mutation gate BITE the real, historically blind guard?"
@@ -109,7 +109,7 @@ if [[ "${1:-}" == "--self-test" ]]; then
   mkdir -p "$tmp/corpus/mutants" "$tmp/corpus/healthy"
 
   MF='<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">'
-  # COMPLETED 2026-08-15 (AAE) with WAKE_LOCK + VIBRATE. This fixture set is the
+  # COMPLETED 2026-08-15 with WAKE_LOCK + VIBRATE. This fixture set is the
   # HEALTHY corpus, so it has to satisfy whatever the CURRENT guard requires. When
   # the 2026-08-10 change added the two eyes-off actuator perms to
   # assert_manifest_perms.sh's REQUIRED_PERMS, it completed that file's own
@@ -127,7 +127,7 @@ if [[ "${1:-}" == "--self-test" ]]; then
 <uses-permission android:name="android.permission.VIBRATE"/>'
   QUERIES='<queries><intent><action android:name="android.intent.action.TTS_SERVICE"/></intent></queries>'
 
-  # MUTANT — the real one. HER location dot, killed by a documented merger directive.
+  # MUTANT — the real one. The location dot, killed by a documented merger directive.
   cat > "$tmp/corpus/mutants/location_removeall.xml" <<EOF
 $MF
 <uses-permission android:name="android.permission.INTERNET"/>
@@ -135,7 +135,7 @@ $MF
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 $QUERIES</manifest>
 EOF
-  # MUTANT — the real one. HER ja voice lane, killed by moving the intent out of <queries>.
+  # MUTANT — the real one. The ja voice channel, killed by moving the intent out of <queries>.
   cat > "$tmp/corpus/mutants/voice_lane_dead.xml" <<EOF
 $MF
 $PERMS

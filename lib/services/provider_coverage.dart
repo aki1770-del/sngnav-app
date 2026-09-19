@@ -2,11 +2,11 @@
 /// region its publisher can actually answer for.
 ///
 /// **Why this exists (the defect this closes).** The `AdvisoryAggregator`
-/// fans every point query across ALL registered providers. For HER Akita
+/// fans every point query across ALL registered providers. For the Akita
 /// point (39.7167, 140.0983) that meant the US National Weather Service
 /// (NWS) endpoint was called for a Japanese coordinate it has no data for
 /// — it answered HTTP 400 EVERY time, surfacing a useless error card, AND
-/// it sent HER coordinate to a US service that cannot help her (a D4
+/// it sent the driver's coordinate to a US service that cannot help her (a
 /// dignity / privacy boundary). The fix is to query a provider ONLY when
 /// its publisher covers the query point.
 ///
@@ -47,7 +47,7 @@ typedef CoveragePredicate = bool Function(double latitude, double longitude);
 /// One advisory provider paired with the geographic region it covers.
 ///
 /// `AdvisoryService` queries [provider] ONLY when [covers] returns true for
-/// the query point — so HER coordinate is never sent to a publisher that
+/// the query point — so the driver's coordinate is never sent to a publisher that
 /// has no data for her location.
 class CoveredProvider {
   const CoveredProvider({required this.provider, required this.covers});

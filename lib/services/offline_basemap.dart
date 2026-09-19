@@ -1,6 +1,6 @@
 /// Offline-basemap wiring (2026-07-01).
 ///
-/// HER worst-case is unexpected snow with Maps AND GPS down and no cell
+/// The worst case is unexpected snow with Maps AND GPS down and no cell
 /// signal — the moment the NETWORK basemap goes blank. This wires the
 /// mechanism that keeps the Akita basemap rendering when the network is gone:
 /// a bundled MBTiles archive consumed through offline_tiles'
@@ -45,7 +45,7 @@ const String akitaOfflineMbtilesAsset = 'assets/tiles/akita_offline.mbtiles';
 /// The Kan-Etsu / Minakami approach — Ring 1's Kanto corridor.
 ///
 /// Phase C puts Kanto hands on Oct 20, ahead of Akita on Oct 31: they meet
-/// snow on this road before HER prefecture is in anyone's hand.
+/// snow on this road before Akita prefecture is in anyone's hand.
 const String gunmaOfflineMbtilesAsset = 'assets/tiles/gunma_offline.mbtiles';
 
 /// Keeps two loads in one process from sharing a staging name.

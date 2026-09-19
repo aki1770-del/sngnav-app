@@ -20,17 +20,17 @@
 # Exit: 0 self-consistent · 1 archive lies about itself · 2 substrate error
 set -uo pipefail
 
-# --self-test: prove the guard FAILS on the real 2026-08-11 D3 defect before it
+# --self-test: prove the guard FAILS on the real 2026-08-11 mislabelled-archive defect before it
 # is trusted to judge. Operates only on a fixture it BUILDS ITSELF, in a tmpdir.
 #
-# ⚑ REPAIRED 2026-08-16 (AAE). Recorded at length because the defect is subtler
+# ⚑ REPAIRED 2026-08-16. Recorded at length because the defect is subtler
 # than the red it produced, and because TWO repairs of this one red were authored
 # hours apart in two different clones of this repository. This is the
-# reconciliation of both; neither shipped alone. See the record at
-# outputs/operational-records/aae_tile_guard_reconciliation_2026_08_16.md.
+# reconciliation of both; neither shipped alone. The full record is kept outside
+# this repository (2026-08-16).
 #
 #   WHAT WAS WRONG. The fixture was `$APP/assets/tiles/gunma_offline.mbtiles`,
-#   and absence was made RED (ADVERSARIAL-REVIEW C1) on the correct reasoning that a
+#   and absence was made RED (ADVERSARIAL REVIEW finding 1) on the correct reasoning that a
 #   self-test which skips when it cannot check is the anti-loom. The reasoning
 #   was right. The FIXTURE was wrong: gunma_offline.mbtiles is a LOCAL BUILD
 #   INTERMEDIATE of the 2026-08-11 multi-region render (render_akita_mbtiles.py
@@ -42,7 +42,7 @@ set -uo pipefail
 #   The 10:29 commit c20e392 wrote that the fixture is "not on the authoring
 #   machine either — it exists nowhere." That is FALSE, measured 2026-08-16:
 #   assets/tiles/gunma_offline.mbtiles is present in the clone at
-#   /home/komada/tmp/sngnav-app — 11,034,624 bytes, md5 336a9e2e595a4e337881
+#   $HOME/tmp/sngnav-app — 11,034,624 bytes, md5 336a9e2e595a4e337881
 #   702d9e820092. It is absent only from the OTHER clone, which is the one that
 #   commit was authored in. A claim about "the machine" was made from one tree.
 #   The operative fact survives the correction and is what matters here: the
@@ -100,7 +100,7 @@ if [[ "${1:-}" == "--self-test" ]]; then
     echo "  A self-test that skips when it cannot check is the anti-loom. RED, not skipped."
     exit 2; }
 
-  # ADVERSARIAL-REVIEW C2 PRESERVED — carried in from the sibling repair 69b7cec, where
+  # ADVERSARIAL REVIEW finding 2 PRESERVED — carried in from the sibling repair 69b7cec, where
   # an independent reviewer found it adversarially. Under `set -uo pipefail` with no `-e`, a failing
   # `mktemp -d` leaves T SET but EMPTY, every path below becomes an absolute
   # path at /, and the whole self-test proceeds against files that do not exist.
@@ -115,13 +115,13 @@ if [[ "${1:-}" == "--self-test" ]]; then
   # archive's actual cut. Self-consistent by construction — every defect below is
   # introduced deliberately, one at a time, on a COPY.
   #
-  # A note on ADVERSARIAL-REVIEW C1, the SQL-injection defect found in the OTHER repair:
+  # A note on ADVERSARIAL REVIEW finding 1, the SQL-injection defect found in the OTHER repair:
   # there, the mutations were derived from a real archive's own `source_cut`, so
   # archive data reached an UPDATE statement and a crafted fixture could forge a
   # green. Here every value is a literal in this file. That defect is not fixed
   # here — it is structurally absent, which is the stronger property.
   #
-  # ⚑ SCOPE OF THAT SENTENCE, corrected 2026-08-16 after the independent reviewer (C9) refuted the
+  # ⚑ SCOPE OF THAT SENTENCE, corrected 2026-08-16 after the independent reviewer (finding 9) refuted the
   # over-reading it invited: "structurally absent" is true of THIS SELF-TEST and
   # of nothing else. The guard's MAIN path below reads name/bounds/centre/cut/
   # description straight out of the file under inspection, and one of those did
@@ -153,7 +153,7 @@ SQL
   # broken fixture is exactly the failure class this guard exists inside.
   fx_tiles=$(sqlite3 "$SRC" "SELECT count(*) FROM tiles;" 2>/dev/null)
   fx_meta=$(sqlite3 "$SRC" "SELECT count(*) FROM metadata WHERE name IN ('name','bounds','center','source_cut','description');" 2>/dev/null)
-  # ADVERSARIAL-REVIEW C11: if sqlite3 ever emits non-numeric or multi-line output (a
+  # ADVERSARIAL REVIEW finding 11: if sqlite3 ever emits non-numeric or multi-line output (a
   # build that reads ~/.sqliterc non-interactively with .headers/.mode set will),
   # BOTH `[` tests below error to rc=2, which reads as false, and the integrity
   # check silently passes — a fixture-validity gate that validates nothing. Not
@@ -167,7 +167,7 @@ SQL
     exit 1
   fi
 
-  # ADVERSARIAL-REVIEW C2 PRESERVED — the exit-code discipline, carried in from 69b7cec.
+  # ADVERSARIAL REVIEW finding 2 PRESERVED — the exit-code discipline, carried in from 69b7cec.
   # THE FALSE GREEN IT PREVENTS, re-measured on THIS branch 2026-08-16 against
   # the un-hardened 8-case version: with `cp` made to fail (a `cp` shim on PATH
   # standing in for ENOSPC), that version printed "self-test 8/8 OK" and exited
@@ -245,7 +245,7 @@ SQL
   #     it — so that the assertion still means something if the contract moves.
   expect_exit 2 "absent archive correctly refused as substrate error" "$T/no-such-archive.mbtiles"
 
-  # [9] ADVERSARIAL-REVIEW C8: delete the source_cut and the description's provenance
+  # [9] ADVERSARIAL REVIEW finding 8: delete the source_cut and the description's provenance
   #     claim has nothing to corroborate it. This PASSED before 2026-08-16 —
   #     the branch fell through to a `warn` and the archive exited 0, so the
   #     2026-08-11 defect class walked through by dropping one row.
@@ -254,20 +254,20 @@ SQL
                          DELETE FROM metadata WHERE name='source_cut';"
   expect_exit 1 "uncorroborated provenance claim correctly REJECTED" "$T/g.mbtiles"
 
-  # [10] ADVERSARIAL-REVIEW C8: a region outside the old hardcoded eight. Okinawa was
+  # [10] ADVERSARIAL REVIEW finding 8: a region outside the old hardcoded eight. Okinawa was
   #      accepted against a kanto cut purely because nobody had listed it.
   mkcopy "$T/h.mbtiles"
   mutate "$T/h.mbtiles" "UPDATE metadata SET value='Real OpenStreetMap cartography for Gunma prefecture rendered from the Geofabrik Okinawa extract.' WHERE name='description';"
   expect_exit 1 "off-list region contradiction correctly REJECTED" "$T/h.mbtiles"
 
-  # [11] ADVERSARIAL-REVIEW C8: the CRY-WOLF side. A legitimate cut with a suffix after
+  # [11] ADVERSARIAL REVIEW finding 8: the CRY-WOLF side. A legitimate cut with a suffix after
   #      the date must still be recognised as its own region, or the guard
   #      rejects honest archives — which is how a guard gets switched off.
   mkcopy "$T/i.mbtiles"
   mutate "$T/i.mbtiles" "UPDATE metadata SET value='geofabrik/kanto-260801-rebuild' WHERE name='source_cut';"
   expect_exit 0 "suffixed-but-honest cut correctly ACCEPTED (no cry-wolf)" "$T/i.mbtiles"
 
-  # [12] ADVERSARIAL-REVIEW C9: a crafted `name` must not become a regex that suppresses
+  # [12] ADVERSARIAL REVIEW finding 9: a crafted `name` must not become a regex that suppresses
   #      the coherence warning. Advisory-only, so the archive still exits 0 —
   #      the assertion is that the WARN survives, checked on stdout.
   mkcopy "$T/j.mbtiles"
@@ -346,7 +346,7 @@ fi
 # 3. the archive must not contradict its own source_cut
 #    (Gunma tiles cut from kanto, described as a Tohoku extract, is the real defect)
 #
-# ⚑ REWRITTEN 2026-08-16 on three defects the reviewer found adversarially (ADVERSARIAL-REVIEW C8).
+# ⚑ REWRITTEN 2026-08-16 on three defects the reviewer found adversarially (ADVERSARIAL REVIEW finding 8).
 # The previous shape had the CUT drive the comparison, against a hardcoded list:
 #
 #   1. DELETE the source_cut row and the whole check fell to `warn`, exit 0 — so
@@ -387,7 +387,7 @@ fi
 # 4. name/description coherence (advisory: cosmetic unless surfaced to a user)
 if [ -n "$NAME" ] && [ -n "$DESC" ]; then
   REGION=$(awk '{print $1}' <<<"$NAME")
-  # ADVERSARIAL-REVIEW C9: -F, not -E. $REGION is DATA READ FROM THE ARCHIVE, and it was
+  # ADVERSARIAL REVIEW finding 9: -F, not -E. $REGION is DATA READ FROM THE ARCHIVE, and it was
   # interpolated into a regex: a name of `.* offline basemap` made this match
   # anything and permanently suppressed the warning. Advisory-only impact, but
   # the comment at the head of the self-test claims this injection class is

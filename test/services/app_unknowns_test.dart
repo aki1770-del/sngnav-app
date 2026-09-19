@@ -10,7 +10,7 @@
 /// stated rather than inferred from an absence.
 ///
 /// An outage is an unknown, NOT a hazard: these rows never raise the caution
-/// rung (Chair 2026-07-23, no cry-wolf). They withhold the reassurance.
+/// rung (decided 2026-07-23, no cry-wolf). They withhold the reassurance.
 library;
 
 import 'package:flutter_test/flutter_test.dart';

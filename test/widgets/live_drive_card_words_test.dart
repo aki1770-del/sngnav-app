@@ -5,7 +5,7 @@
 ///
 /// * The card's title and footer were English literals in both languages.
 ///   The title carried a work-package tag ("WS6"); the footer carried the
-///   team's name for the driver ("HER"), a self-description ("honestly
+///   project's internal all-caps name for the driver, a self-description ("honestly
 ///   degraded") and a team slogan ("driver-always-drives").
 /// * The Japanese description carried another work-package tag ("WS5"), and
 ///   called the position 正直 ("honest"). Two announce lines named the app's
@@ -21,7 +21,7 @@
 ///
 /// Publishers' names stay: NWS and JMA are where the card's advisories and
 /// visibility come from. Package names, pub.dev and pubspec.lock are not the
-/// team's words either, but they are not for her glance: ruled 2026-09-15,
+/// team's words either, but they are not for her glance: decided 2026-09-15,
 /// they left her card for the development page.
 library;
 
@@ -40,8 +40,8 @@ import '../support/fake_alert_actuators.dart';
 
 final _cjk = RegExp(r'[぀-ヿ㐀-鿿＀-￯]');
 
-/// Words that exist only inside the team that built the app. "HER" is matched
-/// in capitals only, so an English "her" is not caught.
+/// Words that exist only inside the project that built the app. The internal
+/// name for the driver is matched in capitals only, so an English "her" is not caught.
 final _teamWords = RegExp(r'\bWS\d+\b|\bHER\b|[Hh]onest|正直|実測ウォッチ|'
     r'音声ゲート|[Vv]oice gate|measured-watch|HEAR/FEEL|driver-always-drives');
 
@@ -117,7 +117,7 @@ Future<List<String>> _cardTextsThroughStates(WidgetTester tester) async {
 
 void main() {
   testWidgets('Japanese: the title and footer are Japanese, and no card text '
-      'carries the team\'s words', (tester) async {
+      'carries the project\'s internal words', (tester) async {
     await _boot(tester, 'ja');
     final title = tester
             .widget<Text>(
@@ -143,7 +143,7 @@ void main() {
     expect(footerText, contains('気象庁の秋田の観測点'));
   });
 
-  testWidgets('English: no card text carries the team\'s words, and the footer '
+  testWidgets('English: no card text carries the project\'s internal words, and the footer '
       'names her GPS and the station, not the mock', (tester) async {
     await _boot(tester, 'en');
     final texts = await _cardTextsThroughStates(tester);

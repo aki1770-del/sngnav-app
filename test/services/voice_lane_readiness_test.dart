@@ -1,4 +1,4 @@
-// A1 pre-drive voice-lane readiness — verdicts from faked voice maps in the
+// Pre-drive voice-channel readiness — verdicts from faked voice maps in the
 // REAL flutter_tts 4.2.5 Android map shape (FlutterTtsPlugin.kt:618-626:
 // name / locale as Locale.toLanguageTag / quality / latency /
 // network_required "0"|"1" strings / features).

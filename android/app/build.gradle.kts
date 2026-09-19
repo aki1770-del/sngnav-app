@@ -8,8 +8,8 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// Release signing (BETA_PLAN W1): reads android/key.properties when present
-// (keystore + key.properties are the Chair's secrets, NEVER committed —
+// Release signing (see BETA_PLAN.md): reads android/key.properties when present
+// (keystore + key.properties are the maintainer's secrets, NEVER committed —
 // key.properties is gitignored). Absent the file, release falls back to
 // debug keys so `flutter run --release` keeps working for development.
 val keystoreProperties = Properties()

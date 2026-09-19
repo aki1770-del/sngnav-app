@@ -2,7 +2,7 @@
 ///
 /// WHY. What the map should show after her "no" was under review, so the
 /// refusal was first carried to the map with its behaviour unchanged: the same
-/// black 現在地不明 pill as a GPS that never found her. The ruling of
+/// black 現在地不明 pill as a GPS that never found her. The decision of
 /// 2026-09-13 gave it its own words, 位置情報オフ, in that one branch; the
 /// words and the line under the map are pinned in
 /// `her_location_off_words_test.dart`.

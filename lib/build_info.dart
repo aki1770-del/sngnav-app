@@ -2,7 +2,7 @@
 ///
 /// WHY this exists: three UI strings used to hardcode package versions
 /// ('snow_rendering 0.2.5' etc.) that silently went stale on every
-/// `pub upgrade` — a small OPS-062 rot (displayed claims diverging from
+/// `pub upgrade` — a small rot (displayed claims diverging from
 /// resolved reality). The rule now: UI copy names PACKAGES, never their
 /// versions (the pubspec/lockfile is the version authority); the only
 /// version the UI shows is the app's own, from this constant.

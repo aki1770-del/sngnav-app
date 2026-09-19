@@ -9,12 +9,12 @@
 //   (b) an un-mute clears the row (the reading is live, not sticky);
 //   (c) a NEW mute after an acknowledged one re-arms the full-strength row
 //       (an hour-old acknowledgment must not pre-dismiss a new event);
-//   (d) a voice-lane verdict that degrades mid-session surfaces, and a later
+//   (d) a voice-channel verdict that degrades mid-session surfaces, and a later
 //       failed read (unknown) does NOT clear the proven caution;
 //   (e) drive start (mock-position tap) re-probes without waiting for the
 //       tick.
 //
-// HONESTY (OPS-066 / AAE env-bound): widget-tree + fake probes only. The
+// HONESTY (no device here): widget-tree + fake probes only. The
 // real Kotlin channel reporting a real mid-drive mute is an on-device fact,
 // DEFERRED to the next APK build.
 
@@ -142,7 +142,7 @@ void main() {
     expect(find.byKey(_mutedCautionKey), findsNothing);
   });
 
-  testWidgets('voice lane: a verdict that degrades mid-session surfaces on '
+  testWidgets('voice channel: a verdict that degrades mid-session surfaces on '
       'the next tick, and a later failed read (unknown) does NOT clear the '
       'proven caution', (tester) async {
     verdict = VoiceLaneVerdict.offlineJaReady;

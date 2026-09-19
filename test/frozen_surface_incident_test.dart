@@ -1,4 +1,4 @@
-/// HARM-PINNED REGRESSION — the modal frozen-road case must reach HER.
+/// HARM-PINNED REGRESSION — the modal frozen-road case must reach the driver.
 ///
 /// Harm basis (genba 2026-07-20 §A3): slip = 83.9% of Hokkaido winter
 /// accidents; of 8,097 slip accidents over ten years, 89% occurred on a
@@ -33,7 +33,7 @@ void main() {
     for (final rh in [40, 60, 80, 95]) {
       test('-2.4 C / RH $rh% (Chuo 2021-12-15 conditions) → subZeroFrozen', () {
         final r = evaluateInvisibleIceWatch(_obs(tempC: -2.4, rh: rh));
-        // Stronger than the original isNot(clear): the Chair ruled sub-zero
+        // Stronger than the original isNot(clear): the project decided sub-zero
         // SHOULD warn (2026-07-23), so pin the exact protective verdict — a
         // silent `unknown` or a non-coverage `outOfScope` would also have
         // passed isNot(clear) while leaving her unwarned.

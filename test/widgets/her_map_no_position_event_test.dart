@@ -8,7 +8,7 @@
 /// delivers looks exactly like that, and an empty map can be read as nothing
 /// to worry about.
 ///
-/// The rule tested here is the one ruled 2026-09-14, with existing strings
+/// The rule tested here is the one decided 2026-09-14, with existing strings
 /// only:
 ///
 /// * Phase 1, from the subscription until 60 s with no event: the line says

@@ -1,13 +1,13 @@
-// G-3 — the PRE-DRIVE tactile caution, per AAA's 2026-08-22 PUSHBACK.
+// The PRE-DRIVE tactile caution, per a 2026-08-22 safety-review pushback.
 //
-// AAA's finding, verbatim from its verdict: *"the channel with the higher
+// The review's finding, verbatim from its verdict: *"the channel with the higher
 // dignity load has the weaker instrument."* Audio was probed at four triggers
 // and cautioned before the drive; the tactile channel was probed only when a
 // warning was already owed. This file asserts the tactile half now exists on
-// HER pre-drive surface — and, as importantly, that it stays SILENT on the two
+// the pre-drive surface — and, as importantly, that it stays SILENT on the two
 // answers that do not earn a caution.
 //
-// HONESTY (OPS-066 / AAE-1): verifies the WIDGET TREE against an injected
+// HONESTY: verifies the WIDGET TREE against an injected
 // probe. Whether a real phone vibrates is an on-device fact, verified
 // separately and recorded there.
 

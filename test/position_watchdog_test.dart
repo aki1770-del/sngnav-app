@@ -1,4 +1,4 @@
-/// N8 — the real-GPS-blackout watchdog decision table.
+/// The real-GPS-blackout watchdog decision table.
 ///
 /// The degradation machine's poll() was production-wired ONLY to the demo
 /// blackout button: in a REAL blackout no fix events arrive, nothing polls,
@@ -20,7 +20,7 @@ import 'package:sngnav_app/main.dart'
 import 'support/fake_alert_actuators.dart';
 
 // A clear, warm observation: no invisible-ice window, no turmoil — the JMA
-// lane stays silent so any spoken line in these tests can only come from the
+// feed stays silent so any spoken line in these tests can only come from the
 // drive brain's degradation path.
 JmaObservation _clearObs() => JmaObservation(
       stationId: '32402',

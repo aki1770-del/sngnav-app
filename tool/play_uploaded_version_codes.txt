@@ -15,12 +15,12 @@
 # STATE AS OF 2026-08-10: EMPTY. Nothing has ever been uploaded to any Play
 # track — measured, not assumed: BETA_PLAN.md's own checklist still carries
 # "[ ] Play internal track created + first signed build uploaded (A4)" unticked,
-# and criterion C3 (a tester installing through the track) is unmet.
+# and BETA_PLAN criterion C3 (a tester installing through the track) is unmet.
 #
-# RE-MEASURED 2026-09-18 (AAE, 0.0.2 release train): STILL EMPTY — this file holds
+# RE-MEASURED 2026-09-18 (0.0.2 release): STILL EMPTY — this file holds
 # a header and no integers, so no versionCode has ever been spent on any track.
 # The 2026-08-10 line predicting "the first upload will be versionCode 2" is
 # SUPERSEDED and was never acted on: 0.0.2 ships at versionCode 3, because the
-# Chair's phone already holds a hand-installed build at 2 and Android refuses a
+# maintainer's phone already holds a hand-installed build at 2 and Android refuses a
 # non-increasing versionCode on update. Play is not the constraint here; the
 # device in his hand is. Nothing is appended below until an upload is ACCEPTED.

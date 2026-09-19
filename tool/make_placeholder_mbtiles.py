@@ -18,7 +18,7 @@
 # tilemaker / an OSM style stack are absent) and NOTHING is downloaded from
 # the public OSM tile server (tile.openstreetmap.org) — that usage policy is
 # exactly what the tileset-provenance escalation avoided. Real Akita/Tohoku
-# raster tiles are EIE's Geofabrik-extract ODbL-render production; this script
+# raster tiles are the embedded-integration Geofabrik-extract ODbL render; this script
 # only proves the MECHANISM (schema + provider consumption + offline render).
 #
 # Standard MBTiles schema (github.com/mapbox/mbtiles-spec):
@@ -40,7 +40,7 @@ try:
 except ImportError:
     sys.exit("Pillow is required: pip install Pillow")
 
-# --- Coverage: a small Akita corridor around HER mother's city -------------
+# --- Coverage: a small Akita corridor around the driver's home city ----------
 CENTER_LAT = 39.72
 CENTER_LON = 140.10
 HALF_LAT = 0.09   # ~20 km N-S

@@ -1,6 +1,6 @@
 /// Slice 2b — driving route fetch via the OSRM public demo server.
 ///
-/// HER-trace: HER needs to see whether a road exists from where she is to
+/// Why: the driver needs to see whether a road exists from where she is to
 /// where she wants to go. Snow-aware routing (avoid closed passes, prefer
 /// plowed) is a later slice — that's where the condition_aggregator
 /// explore-phase substrate eventually lands. Slice 2b answers the pre-snow

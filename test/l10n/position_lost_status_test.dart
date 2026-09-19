@@ -1,11 +1,11 @@
-/// The status line under the map when HER position is lost says how old the
+/// The status line under the map when the driver's position is lost says how old the
 /// last trusted position is, never a radius, and never 「±Infinitym」.
 ///
 /// Until 2026-09-13 the line was built as
 /// `'${modeLabel} · 最後の位置 ±${radius.toStringAsFixed(0)}m'`. In lost with no
 /// trusted fix ever, the controller's radius is `double.infinity`, and Dart
 /// prints it as `Infinity`: she read 「現在地 不明 · 最後の位置 ±Infinitym」
-/// (derived by HIE, `bd6ebc4_every_mode/MANIFEST.txt`, scenario 09).
+/// (derived in a render review, scenario 09).
 ///
 /// The ages below come from the real position controller, driven the way the
 /// app drives it, not from chosen numbers.

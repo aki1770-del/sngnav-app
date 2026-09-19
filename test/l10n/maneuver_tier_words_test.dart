@@ -10,7 +10,7 @@
 /// depend on: no state's words contain another's. A test that looks for the
 /// trusted state by its words would otherwise pass on the suspect one.
 ///
-/// The bytes are candidates for a look on a render; none is ruled.
+/// The bytes are candidates for a look on a render; none is decided.
 library;
 
 import 'package:flutter/widgets.dart';

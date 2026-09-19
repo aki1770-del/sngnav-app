@@ -1,13 +1,13 @@
-/// A1 pre-drive voice-lane readiness check.
+/// Pre-drive voice-channel readiness check.
 ///
-/// Answers ONE question before HER drive: *if she loses signal in the
+/// Answers ONE question before the drive: *if she loses signal in the
 /// mountains, can this phone still speak Japanese?* Android TTS voices are
 /// per-voice network-bound; a device can pass every in-signal test and go
 /// silent exactly where the warning matters most (the no-signal pass where
 /// GPS + Maps die too — the compound-failure scenario).
 ///
 /// Voice-map shape — verified against the REAL flutter_tts 4.2.5 source
-/// (clone /home/komada/work/flutter_tts-serve):
+/// (a local clone of the published package):
 /// - `getVoices` (lib/flutter_tts.dart:519-526) returns a `List` of maps.
 /// - Android builds each map in FlutterTtsPlugin.kt:618-626
 ///   (`readVoiceProperties`): keys `name`, `locale`
@@ -33,13 +33,13 @@ import 'package:flutter_tts/flutter_tts.dart';
 
 import '../actuators/mobile_alert_actuators.dart' show isMobileActuatorPlatform;
 
-/// Pre-drive verdict on the Japanese voice lane.
+/// Pre-drive verdict on the Japanese voice channel.
 enum VoiceLaneVerdict {
   /// At least one ja voice is installed that does NOT require the network:
-  /// the spoken lane survives a signal blackout.
+  /// the spoken channel survives a signal blackout.
   offlineJaReady,
 
-  /// ja voices exist but every one requires the network: the lane goes
+  /// ja voices exist but every one requires the network: the channel goes
   /// SILENT exactly in the no-signal compound-failure case. Cautioned.
   jaNetworkOnly,
 

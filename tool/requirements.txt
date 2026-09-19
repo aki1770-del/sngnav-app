@@ -1,7 +1,7 @@
 # Offline-basemap tile pipeline — the complete PYTHON dependency closure.
 #
 # NOT the complete THIRD-PARTY closure — see the SYSTEM DEPENDENCIES section at
-# the foot of this file. That distinction was corrected by CT's independent
+# the foot of this file. That distinction was corrected by an independent
 # certification on 2026-08-11, which found this file claiming "COMPLETE
 # third-party dependency closure" while omitting the CJK fonts. Overstating a
 # closure inside the very artifact built to fix an understated one is the same
@@ -15,7 +15,7 @@
 # shapely was never a secret — render_akita_mbtiles.py:528 states verbatim that
 # "shapely is mandatory for the whole pipeline since sea fill". The code knew.
 # (Cited as :527 when this file was written; the `def` is at :527 and the quoted
-# words at :528. Corrected by CT 2026-08-11 — and it matters, because this
+# words at :528. Corrected 2026-08-11 — and it matters, because this
 # unit's own charter verifier FAILS a misattributed line number by design.)
 # The record did not carry it. That is a propagation failure, not an oversight,
 # and the countermeasure is that the dependency list is now an ARTIFACT YOU CAN
@@ -49,7 +49,7 @@ osmium==4.3.1
 pillow==12.3.0
 shapely==2.1.2
 
-# ─── SYSTEM DEPENDENCIES (not installable by pip; found by CT, 2026-08-11) ───
+# ─── SYSTEM DEPENDENCIES (not installable by pip; found in review, 2026-08-11) ───
 #
 # CJK FONTS ARE LOAD-BEARING AND WERE OMITTED FROM THIS FILE'S FIRST VERSION.
 # render_akita_mbtiles.py:107-109 hardcodes three paths:

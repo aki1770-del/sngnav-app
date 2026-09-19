@@ -32,11 +32,11 @@
 /// ## Why this does NOT raise the rung
 ///
 /// An outage is an UNKNOWN, not a hazard. Manufacturing a warning out of a
-/// feed failure is the cry-wolf the Chair ruled against on 2026-07-23 (the
+/// feed failure is the cry-wolf the project decided against on 2026-07-23 (the
 /// sub-zero frozen-surface chip was constituted as a calm glance chip that
 /// deliberately does NOT raise the caution rung, under a named cry-wolf
 /// contract, for exactly this reason). An instrument that warns whenever it
-/// cannot see teaches HER to stop believing it — and then it is worth nothing
+/// cannot see teaches the driver to stop believing it — and then it is worth nothing
 /// on the night it is right.
 ///
 /// The countermeasure is the other direction: **withhold the reassurance.**
@@ -100,7 +100,7 @@ class AdvisoryAxis {
 
 /// Reads the advisory axis out of an aggregate [result].
 ///
-/// A `null` [result] is the bootstrap state — the lane has not returned yet,
+/// A `null` [result] is the bootstrap state — the lookup has not returned yet,
 /// so we have not looked. It is deliberately NOT a proven clear: reading the
 /// moment before the first fetch as a measured all-clear is the same
 /// fabricated clear in a different disguise.
@@ -147,7 +147,7 @@ AdvisoryLevel? _topLevelOf(AdvisoryAggregateResult result) {
   // `_announcer.announce` — audio AND haptic (main.dart:1070-1071).
   //
   // So the eyes-off channels were being driven by a three-month-old document.
-  // That is the cry-wolf the Chair ruled against on 2026-07-23, arriving
+  // That is the cry-wolf the project decided against on 2026-07-23, arriving
   // through the one door this file had left open: the doctrine above says "an
   // outage is an UNKNOWN, not a hazard", and a stale read IS an outage — it
   // just arrives dressed as a successful answer instead of an error.
@@ -166,7 +166,8 @@ AdvisoryLevel? _topLevelOf(AdvisoryAggregateResult result) {
   // publisher went quiet would be its own false silence.
   //
   // The CARD is untouched (advisory_cards.dart still renders the advisory
-  // beside its stale-source banner). That is the split AAE-7 asks for: the
+  // beside its stale-source banner). That is the split the provenance rule
+  // (what is drawn says where it came from) asks for: the
   // visual surface can carry provenance in the same glance, so it keeps the
   // information; the eyes-off surface cannot say "…but this is 88 days old",
   // so it must not assert the urgency.

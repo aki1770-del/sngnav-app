@@ -1,6 +1,6 @@
-/// Slice 2c — HER's position, with honest uncertainty.
+/// Slice 2c — the driver's position, with honest uncertainty.
 ///
-/// HER-trace: HER needs to see WHERE SHE IS, with the loom telling the
+/// Why: the driver needs to see WHERE SHE IS, with the app telling the
 /// truth about what it knows and what it doesn't. The accuracy field IS
 /// the loom's honesty. A small accuracy circle says "I'm sure"; a big
 /// accuracy circle says "I'm not sure"; no dot at all says "I don't know,
@@ -38,7 +38,7 @@ class PositionAvailable extends PositionFix {
   final double longitude;
 
   /// The platform's measured horizontal accuracy, in metres, or `null` when it
-  /// measured none (ruled 2026-09-14). geolocator writes 0.0 where the platform
+  /// measured none (decided 2026-09-14). geolocator writes 0.0 where the platform
   /// has no accuracy and says so only in `Position.hasAccuracy`; read as a
   /// number, that placeholder was a 0 m ring, "exactly here", which nothing
   /// measured. A sample with `null` here is not a fix: the drive brain polls
@@ -50,7 +50,7 @@ class PositionAvailable extends PositionFix {
   /// [groundSpeedFloorMps] from what the platform reported with it: `null`
   /// when it reported no usable speed.
   ///
-  /// Her ring only (ruled 2026-09-14). The caution advisor is never given it:
+  /// Her ring only (decided 2026-09-14). The caution advisor is never given it:
   /// with no visibility reading it counts the missing reading as a degraded
   /// condition, so a known speed above 13.4 m/s would speak a caution on an
   /// ordinary drive.
@@ -70,7 +70,7 @@ class PositionAvailable extends PositionFix {
   });
 }
 
-/// What one position says about motion (ruled 2026-09-14).
+/// What one position says about motion (decided 2026-09-14).
 enum GroundMotion {
   /// A usable speed whose lower bound, less its usable accuracy, is above
   /// [kStoppedAtMostMps].
@@ -153,7 +153,7 @@ GroundMotion groundMotionOf(Position p) {
 
 /// [p]'s horizontal accuracy, only when the platform flags it as measured and
 /// it is finite and not negative; otherwise `null`, whatever the field holds
-/// (ruled 2026-09-14). A flagged 0.0 is believed. iOS writes its accuracy on
+/// (decided 2026-09-14). A flagged 0.0 is believed. iOS writes its accuracy on
 /// every fix, an invalid -1 included, so the flag alone is not enough.
 double? usableAccuracyMeters(Position p) =>
     _reported(_measured(p, p.hasAccuracy, p.accuracy), p.accuracy);
@@ -192,13 +192,13 @@ enum PositionUnavailableCause {
   /// stream's platform calls has none (`MissingPluginException`, wherever it
   /// arrives, including as a stream error). Known from the exception's type.
   /// Not a refusal, and it changes nothing the drive brain is given: only the
-  /// words (ruled 2026-09-14).
+  /// words (decided 2026-09-14).
   noLocationOnThisDevice,
 }
 
 /// The reasons [herPositionStream] gives for a denied permission, kept for
 /// the log. The app acts on [PositionUnavailable.cause], never on these words,
-/// and a reason with no cause never reads as a refusal (ruled 2026-09-14).
+/// and a reason with no cause never reads as a refusal (decided 2026-09-14).
 const String _permissionDeniedReason = 'Location permission denied';
 const String _permissionPermanentlyDeniedReason =
     'Location permission permanently denied — change in OS settings';
@@ -227,12 +227,12 @@ bool isPermanentLocationRefusal(PositionFix? fix) =>
 
 /// Finite-coordinate chokepoint guard.
 ///
-/// HER-trace: a degraded / NaN / Inf GPS fix must NEVER become a
+/// Why: a degraded / NaN / Inf GPS fix must NEVER become a
 /// confidently-wrong dot on the map. The accuracy field is the loom's
 /// honesty (see library doc); a non-finite coordinate is the loom lying.
 /// Worse: the app pins flutter_map 8.3.0, whose `Crs.checkLatLng` THROWS on
 /// a non-finite `LatLng` (`Exception('LatLng is not finite: ...')`,
-/// flutter_map issue #2178) — a single bad fix would crash HER entire map
+/// flutter_map issue #2178) — a single bad fix would crash the driver's entire map
 /// subtree. So this single ingest chokepoint converts any non-finite sample
 /// into the honest "position unavailable" state INSTEAD of a position.
 ///
@@ -277,7 +277,7 @@ PositionFix fixFromSample({
   );
 }
 
-/// Streams HER position with accuracy. Emits [PositionUnavailable] on
+/// Streams the driver's position with accuracy. Emits [PositionUnavailable] on
 /// permission denial, service-disabled, stream error, platform-call
 /// timeout, or platform stream termination — never silently stalls on a
 /// stale fix, and never hangs waiting on a platform call that will not

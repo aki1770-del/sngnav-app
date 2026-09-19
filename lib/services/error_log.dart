@@ -1,12 +1,12 @@
-/// W2 — crash boundary + LOCAL on-device error log.
+/// Crash boundary + LOCAL on-device error log.
 ///
 /// A top-level error boundary (FlutterError.onError +
 /// PlatformDispatcher.onError) that appends every uncaught error to a
 /// size-capped local log file under the app-support directory.
 ///
-/// HER-trace: when the app misbehaves on HER phone on a snow morning, the
+/// Why: when the app misbehaves on the driver's phone on a snow morning, the
 /// evidence of WHY must survive on the device so she (or a beta tester) can
-/// share it deliberately — the W3 "ログを共有" action. Honest bounds:
+/// share it deliberately — the "ログを共有" (share log) action. Honest bounds:
 /// - NO network, NO telemetry, NO auto-upload. The log leaves the device
 ///   ONLY via the user-initiated ログを共有 share action
 ///   (services/log_share.dart; BETA_PLAN fix #8, consent-preserving by
@@ -60,7 +60,7 @@ class LocalErrorLog {
   }
 
   /// Whole log as text (newest entries at the end). Empty string when no
-  /// log exists yet. This is the read surface for the W3 "ログを共有" action.
+  /// log exists yet. This is the read surface for the "ログを共有" action.
   String readAll() {
     try {
       if (!file.existsSync()) return '';
@@ -117,7 +117,7 @@ Future<LocalErrorLog?> installCrashBoundary({LocalErrorLog? log}) async {
     resolved?.record(error, stack, source: 'PlatformDispatcher');
     // Debug: return false so the error stays loudly unhandled for the
     // developer. Release: absorb after logging — the boundary keeps a
-    // recoverable async error from hard-killing the app on HER phone,
+    // recoverable async error from hard-killing the app on the driver's phone,
     // and the log preserves the evidence.
     return !kDebugMode;
   };

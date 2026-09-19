@@ -1,4 +1,4 @@
-/// The sub-zero frozen-surface GLANCE CHIP (Chair ruling 2026-07-23: "add a
+/// The sub-zero frozen-surface GLANCE CHIP (decided 2026-07-23: "add a
 /// calm glance chip"). The deaf / HoH / can't-hear-over-the-wind driver cannot
 /// receive the spoken sub-zero warning; this chip gives her the frozen-road
 /// WHAT on the surface she watches — WITHOUT raising the caution banner/rung
@@ -9,9 +9,9 @@
 ///   1. sub-zero → the chip is PRESENT (the deaf driver gets a visible WHAT);
 ///   2. a non-sub-zero verdict → the chip is ABSENT (no false frozen-road claim);
 ///   3. sub-zero does NOT raise the caution banner above its baseline — the
-///      calm-treatment / anti-cry-wolf invariant the Chair chose.
+///      calm-treatment / anti-cry-wolf invariant the project chose.
 ///
-/// It does NOT prove she SEES it on a phone (OPS-066 / AAE-1 device-deferred).
+/// It does NOT prove she SEES it on a phone (device verification deferred).
 library;
 
 import 'package:flutter/material.dart';

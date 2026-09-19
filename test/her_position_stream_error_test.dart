@@ -1,4 +1,4 @@
-/// D10 — an ERROR on HER position feed must reach her surface as the honest
+/// D10 — an ERROR on the driver's position feed must reach her surface as the honest
 /// "GPS unavailable" line, at the instant it is known.
 ///
 /// Why this test exists. `herPositionStream` (her_position.dart) documents its
@@ -14,11 +14,11 @@
 ///
 /// The measured harm is not "the dot freezes forever": Dart leaves a
 /// subscription live through an unhandled error (cancelOnError defaults to
-/// false), and the N8 watchdog degrades a silent feed on its own 30 s cadence.
+/// false), and the blackout watchdog degrades a silent feed on its own 30 s cadence.
 /// The harm is that the app owns a distinct, localized, honest state for "we do
 /// not know where you are" and the error path is the one path that bypasses it
 /// — she is shown a confident dot for up to a cadence after the loom knew
-/// better. AAE-6/AAE-7: the last inch carries the abstention it was handed.
+/// better. The last inch carries the abstention it was handed.
 library;
 
 import 'dart:async';
@@ -31,7 +31,7 @@ import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import 'support/fake_alert_actuators.dart';
 
-// Clear, warm: the JMA lane stays silent so nothing else moves the surface.
+// Clear, warm: the JMA feed stays silent so nothing else moves the surface.
 JmaObservation _clearObs() => JmaObservation(
       stationId: '32402',
       stationName: '秋田',
@@ -45,12 +45,12 @@ JmaObservation _clearObs() => JmaObservation(
       fetchedAt: DateTime(2026, 7, 15, 6, 30),
     );
 
-/// HER-facing lines, verbatim from AppL10n (ja).
+/// Driver-facing lines, verbatim from AppL10n (ja).
 const _honestUnavailable = 'GPSストリームのエラー';
 const _confidentDot = '現在地 · ±20 m';
 
 void main() {
-  group('D10 — HER position feed: an error reaches her surface', () {
+  group('D10 — the driver\'s position feed: an error reaches her surface', () {
     Future<StreamController<PositionFix>> pumpSharing(
       WidgetTester tester,
       DateTime Function() clock,

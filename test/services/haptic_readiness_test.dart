@@ -1,7 +1,7 @@
-// The tactile channel, probed BEFORE the drive — the gap AAA ruled PUSHBACK
-// load-bearing on 2026-08-22.
+// The tactile channel, probed BEFORE the drive — the gap a safety review pushed
+// back on as load-bearing on 2026-08-22.
 //
-// Measured that day (`outputs/operational-records/aaa_verdict_eyes_off_channel_boundary_2026_08_22.md`):
+// Measured that day (recorded in that review's verdict):
 // `_probeAudioCautions()` fired at FOUR sites — app open, a 45 s ticker, real
 // drive start, mock drive start — under the app's own comment *"the drive is
 // when a mute matters"*. The tactile channel had NONE of the four: its only

@@ -1,8 +1,8 @@
 /// Advisory cards — renders one `Advisory` per card in the home page.
 ///
 /// The source LABEL is the publisher's name in the page's language (`NWS` for
-/// NOAA records; `気象庁` on HER Japanese page and `JMA` on the English one —
-/// HIE R105, see [AppL10n.advisoryJmaPublisher]). Event class + headline +
+/// NOAA records; `気象庁` on the Japanese page and `JMA` on the English one —
+/// see [AppL10n.advisoryJmaPublisher]). Event class + headline +
 /// description +
 /// area + effective + expires are all rendered verbatim per the
 /// verbatim-relay discipline — the publisher's wording is the
@@ -12,12 +12,12 @@
 ///
 /// The publisher content (event class, headline, area, ...) is verbatim and
 /// NOT translated; the app-owned STATE strings (empty / loading / error /
-/// fetch actions) are localized for HER via [AppL10n] (D4).
+/// fetch actions) are localized for the driver via [AppL10n].
 ///
 /// Empty state: an honest localized no-data line — does NOT fall back to a
 /// stale snapshot. Loading state: spinner. Error state: a localized failure
 /// line with nothing after it (no exception text, URL or status code, as
-/// ruled for the route line), plus the per-publisher `providerErrors` channel, which names the
+/// decided for the route line), plus the per-publisher `providerErrors` channel, which names the
 /// publisher and not its exception.
 library;
 
@@ -27,7 +27,7 @@ import 'package:intl/intl.dart';
 
 import '../l10n/app_localizations.dart';
 
-/// OPS-059 contrast floor — caution text/icon color on the amber-tinted
+/// Accessibility contrast floor — caution text/icon color on the amber-tinted
 /// caution surfaces (`Colors.amber.shade50`, #FFF8E1). The Material pair
 /// `amber.shade900` (#FF6F00) on that tint is ~2.6:1 — far below the WCAG AA
 /// 4.5:1 floor at the 11–13 px sizes these honesty labels use, functionally
@@ -47,12 +47,12 @@ const Color kCautionTextOnOrange = Color(0xFF8A3B00);
 /// this app can answer. Retrying does not help, nothing is broken, and nothing
 /// will change when the network recovers. Rendering it on the same amber as
 /// the transient "we could not look right now" states made one tint carry four
-/// different meanings, and taught HER to read amber as noise. Blue-grey reads
+/// different meanings, and taught the driver to read amber as noise. Blue-grey reads
 /// as a standing note rather than an active caution, and is still clearly not
 /// the calm grey of a real all-clear.
 ///
 /// #ECEFF1 (`blueGrey.shade50`) under [kNoteTextOnBlueGrey] measures ~13:1,
-/// well clear of the OPS-059 4.5:1 floor.
+/// well clear of the 4.5:1 contrast floor.
 const Color kNoteFillBlueGrey = Color(0xFFECEFF1);
 
 /// Text/icon colour for [kNoteFillBlueGrey] (`blueGrey.shade900`).
@@ -100,7 +100,7 @@ class AdvisoryCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // D4 — these app-owned STATE strings render on HER Japanese surface; route
+    // These app-owned STATE strings render on the driver's Japanese surface; route
     // them through the l10n (the publisher-verbatim advisory content below is
     // NOT translated — that is faithful relay, not app chrome).
     final l = AppL10n.of(context);
@@ -143,7 +143,7 @@ class AdvisoryCards extends StatelessWidget {
         TextButton(onPressed: onRefresh, child: Text(l.advisoryFetch)),
       ]);
     }
-    // WS7 (task 4) — for HER Japanese surface, LEAD with the authoritative
+    // On the driver's Japanese surface, LEAD with the authoritative
     // Japanese publisher (JMA / 気象庁). The English NWS card is unreadable
     // noise for an Akita driver, so it is ordered AFTER JMA and de-emphasized
     // (never hidden — dropping a safety card would be dishonest; it is present,
@@ -269,7 +269,7 @@ class AdvisoryCards extends StatelessWidget {
             color: kCautionTextOnAmber,
           )
         else ...[
-          // N10 — retained (stale) hazard data carries a visible age label;
+          // Retained (stale) hazard data carries a visible age label;
           // trust the hazard, but never let it masquerade as current.
           if (retainedAgeMinutes != null)
             Container(
@@ -330,7 +330,7 @@ class AdvisoryCards extends StatelessWidget {
 
   /// Stable partition: JMA (気象庁) advisories to the front, everything else
   /// after, each group keeping the publisher's returned order. Used only on
-  /// the Japanese surface so HER reads the authoritative Japanese source first.
+  /// the Japanese surface so the driver reads the authoritative Japanese source first.
   static List<Advisory> _jmaFirst(List<Advisory> list) {
     final jma = <Advisory>[];
     final rest = <Advisory>[];
@@ -350,7 +350,7 @@ class _AdvisoryCard extends StatelessWidget {
 
   final Advisory advisory;
 
-  /// When true (HER ja surface, English NWS card), the card is dimmed and
+  /// When true (Japanese surface, English NWS card), the card is dimmed and
   /// captioned as English reference material — present but not the primary
   /// read. Never hides the card (dropping safety data would be dishonest).
   final bool deEmphasize;
@@ -456,7 +456,7 @@ class _AdvisoryCard extends StatelessWidget {
         ],
       ),
     );
-    // De-emphasized (English NWS on HER ja surface): dim but keep present.
+    // De-emphasized (English NWS on the Japanese surface): dim but keep present.
     return deEmphasize ? Opacity(opacity: 0.55, child: card) : card;
   }
 }
@@ -465,7 +465,7 @@ class _AdvisoryCard extends StatelessWidget {
 /// with no name of its own reads in the page's language too
 /// ([AppL10n.advisoryOtherSource]).
 ///
-/// HIE R105 (2026-09-18): JMA was the literal 気象庁 in every locale, so the
+/// Until 2026-09-18, JMA was the literal 気象庁 in every locale, so the
 /// English page named one publisher two ways — 気象庁 in the card head and
 /// "Could not fetch from 気象庁." on the error line, beside nine other English
 /// strings that all say JMA. See [AppL10n.advisoryJmaPublisher]. This is the
@@ -497,7 +497,7 @@ String _sourceLabel(AdvisorySource source, AppL10n l) {
 ///
 /// `liveRegion` — the all-clear→unknown flip is exactly the state change these
 /// banners exist to make loud, so assistive tech must ANNOUNCE it rather than
-/// merely hold it in the tree (OPS-059 floor). The glyph sits outside the
+/// merely hold it in the tree (accessibility floor). The glyph sits outside the
 /// announced text and is marked [ExcludeSemantics] so a screen reader speaks
 /// the sentence, not "warning sign".
 Widget _honestyBanner({
@@ -536,11 +536,10 @@ Widget _honestyBanner({
 
 /// The severity pill's text, in the page's language.
 ///
-/// HIE R114 (2026-09-19). Until this change the pill drew
-/// `advisory.severity.name` — the raw Dart enum token — so HER Japanese card
-/// read the English word `severe` beside 気象庁 and 大雪警報. Seen in
-/// `outputs/hie/r105_w3_l2_frame_items_2026_09_18/frames/ja_card-head_cjk_new.png`,
-/// named in that lane's record, and fixed here.
+/// Changed 2026-09-19. Until then the pill drew
+/// `advisory.severity.name` — the raw Dart enum token — so the Japanese card
+/// read the English word `severe` beside 気象庁 and 大雪警報. Seen in a
+/// rendered frame of the Japanese card head during review, and fixed here.
 ///
 /// Exhaustive on the enum, deliberately: a `String` switch on
 /// `severity.name` would fall through silently if the package added a level,

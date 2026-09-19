@@ -1,12 +1,12 @@
 # sngnav-app emulator API-level ladder — FINDINGS (2026-07-09)
 
-Implementer: CT. Repo HEAD at walk time: `fb51490949223ae923fb224d61a1860adc7f4785` (rebuilt fresh; `flutter build apk --debug` exit 0, 39.2s, APK 185,530,589 bytes, mtime 2026-07-09 20:27).
+Implementer: a build reviewer. Repo HEAD at walk time: `fb51490949223ae923fb224d61a1860adc7f4785` (rebuilt fresh; `flutter build apk --debug` exit 0, 39.2s, APK 185,530,589 bytes, mtime 2026-07-09 20:27).
 All artifacts under `ladder_out/api30/`. Every claim below cites an artifact or a command output read this session.
 
-## Environment measured BEFORE running (OPS-062)
+## Environment measured BEFORE running
 
 - `/dev/kvm` present (crw-rw---- root:kvm).
-- SDK root: `/home/komada/android-sdk` (NOT `~/Android/Sdk`; located via `flutter config --list`).
+- SDK root: `~/android-sdk` (NOT `~/Android/Sdk`; located via `flutter config --list`).
 - **No emulator binary and no system images existed at session start.** The 4 pre-existing AVDs (sngnav_obs, sngnav_dot, sngnav_t, sng_arc — all `target=android-34` per their config.ini) pointed at an emulator + android-34 image installed in a prior session's `/tmp/claude-1000/...31ce4f05.../scratchpad/android-sdk` (per `emu-launch-params.txt` / `hardware-qemu.ini` in the AVD dirs) — that path no longer exists (`ls` ENOENT). So the "existing" AVDs were NOT runnable.
 - Per the one-download cap, installed via sdkmanager into the persistent SDK root: `emulator` + `system-images;android-30;google_apis;x86_64` (exit 0). Created AVD `sngnav_api30` (pixel_5 profile).
 
@@ -15,7 +15,7 @@ All artifacts under `ladder_out/api30/`. Every claim below cites an artifact or 
 | API | Status | Basis |
 |-----|--------|-------|
 | 30 | **RAN — full walk complete** | this file, artifacts in `api30/` |
-| 34 | **SKIPPED** — android-34 system image not installed (prior copy lived in wiped /tmp scratchpad); one-image download cap already spent on API 30 | `ls /home/komada/android-sdk/system-images/` → `android-30` only |
+| 34 | **SKIPPED** — android-34 system image not installed (prior copy lived in wiped /tmp scratchpad); one-image download cap already spent on API 30 | `ls ~/android-sdk/system-images/` → `android-30` only |
 | 36 | **SKIPPED** — same reason (no android-36 image ever present) | same `ls` |
 
 ## API 30 walk
@@ -57,7 +57,7 @@ All artifacts under `ladder_out/api30/`. Every claim below cites an artifact or 
 Nothing committed, nothing pushed, no app source modified. `ladder_out/` is untracked output only.
 
 ---
-## CORRECTION (2026-07-09, CT fix-lane measurement; appended — evidence-of-record is never silently edited)
+## CORRECTION (2026-07-09, fix measurement; appended — evidence-of-record is never silently edited)
 The Defect-2 accessibility claim ("consent actions clickable=false, bounds [0,0][0,0]") is REFUTED:
 all 8 ui_dumps show the consent buttons clickable="true"; dump 14 has real on-screen bounds
 [173,1069][553,1201] (the ladder itself tapped them). The zero-size nodes were Flutter's standard
@@ -65,7 +65,7 @@ hidden-semantics for scrolled-out content (the "Next maneuver" card shows the sa
 A semantics-floor widget test now pins the contract regardless (location_consent_semantics_test.dart).
 
 ---
-## APPENDED 2026-07-10 — Airplane-mode pass on the REAL offline basemap (VAA; emulator sngnav_api30)
+## APPENDED 2026-07-10 — Airplane-mode pass on the REAL offline basemap (emulator sngnav_api30)
 
 Asset under test: akita_offline.mbtiles (cut tohoku-260709; sea fill + network-honest shields + bridge/tunnel styling; 1,552 tiles / 16.3MB). Airplane mode enabled BEFORE first app launch (`settings get global airplane_mode_on` → 1) — cold offline. Artifacts: `ladder_out/api30_offline_v2/`.
 

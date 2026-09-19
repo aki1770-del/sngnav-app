@@ -1,13 +1,13 @@
-/// MEASURED-HAZARD FLOOR — let HER own MEASURED local weather RAISE the eyes-off
+/// MEASURED-HAZARD FLOOR — let the driver's own MEASURED local weather RAISE the eyes-off
 /// compound caution rung, without fabricating a measurement and without crying
 /// wolf.
 ///
 /// ── THE DEFECT THIS CLOSES (measured 2026-07-15) ─────────────────────────────
 /// The app runs two measured watches over the live JMA observation — the
 /// invisible-ice (radiative-frost black-ice) watch and the turmoil (strong
-/// rain / strong wind) watch. Both announce on their own lane. But the
+/// rain / strong wind) watch. Both announce on their own channel. But the
 /// **compound-failure caution rung** — the one HUD banner + severity + haptic
-/// HER reacts to with her eyes on the invisible road — is computed by
+/// the driver reacts to with her eyes on the invisible road — is computed by
 /// `compound_failure_advisor` from position-trust × visibility × advisory ×
 /// speed ONLY. It never sees the two watches. So a MEASURED black-ice window
 /// can be firing on-screen while the eyes-off rung banner still reads
@@ -28,7 +28,7 @@
 ///   - invent a fourth "turn back / abort" rung (the ladder is three by
 ///     construction — the worst case demotes the MAP, never the JOURNEY to her
 ///     mother);
-///   - speak (the watch lane already speaks the specific hazard line — see the
+///   - speak (the watch channel already speaks the specific hazard line — see the
 ///     announce gate in `DriveHudController`, which suppresses a duplicate
 ///     spoken line for a rise caused solely by this floor).
 ///
@@ -40,7 +40,7 @@
 /// precisely the stacking danger the ceiling exists for, so it compounds to
 /// [DriveAction.considerStopping].
 ///
-/// Honest bound (OPS-068): this is ANALOGOUS to, NOT identical to, the advisor's
+/// Honest bound: this is ANALOGOUS to, NOT identical to, the advisor's
 /// own `position-concern>=2 AND visibility-concern>=2 → considerStopping` rule.
 /// The measured hazard stands in for the visibility axis, and "unlocatable" (the
 /// caller passes dead-reckoning/lost, position-concern>=2) stands in for the
@@ -57,14 +57,14 @@
 /// caution rung → the compound-failure caution SECTION no longer shows a
 /// 「走行を継続」banner over a firing hazard, and a hazard-she-cannot-locate
 /// reaches "consider stopping" → she eases / pauses on real local weather she
-/// cannot self-detect → HER survives the compound-failure night.
+/// cannot self-detect → she gets through the compound-failure night.
 ///
-/// **Reach bound, honest (OPS-068).** The fusion LOGIC is built + tested and its
+/// **Reach bound, honest.** The fusion LOGIC is built + tested and its
 /// audible compound escalation reaches through the app's single actuator (audio
-/// + OPS-059 haptic). Its VISIBLE banner currently renders in the alpha app's
+/// + haptic, for drivers who cannot hear). Its VISIBLE banner currently renders in the alpha app's
 /// WS6 "Live drive — compound-failure caution" section, NOT yet a dedicated
 /// full-screen driver HUD (BETA_PLAN drive-loop; tracked-not-shipped), and the
-/// on-device HEAR/FEEL is DEFERRED (no device in this env). It reaches HER's
+/// on-device HEAR/FEEL is DEFERRED (no device in this env). It reaches the driver's
 /// phone only in the next APK build.
 library;
 
@@ -88,7 +88,7 @@ enum MeasuredWeatherHazard {
   /// The turmoil watch has at least one measured channel in caution (strong
   /// rain and/or strong wind): a measured visibility/control hazard.
   ///
-  /// Deliberate choice (OPS-068): turmoil floors IDENTICALLY to [blackIce],
+  /// Deliberate choice: turmoil floors IDENTICALLY to [blackIce],
   /// including the compound considerStopping ceiling — even for the mildest
   /// firing channel (JMA's 10 m/s やや強い風, the first band with a driving
   /// impact). This is caution-add-only and intentional: a crosswind or a
@@ -110,7 +110,7 @@ enum MeasuredWeatherHazard {
 /// can only ever RAISE caution (caution-add-only). [positionUnlocatable] must be
 /// the STRICT condition (the honest position is dead-reckoning or lost) — NOT
 /// merely `DriveAdvice.positionUncertain`, which also covers a fresh, still-
-/// locatable SUSPECT fix that should stay at the heightened floor (OPS-068). The
+/// locatable SUSPECT fix that should stay at the heightened floor. The
 /// app derives it from the localization MODE.
 DriveAction fuseMeasuredWeather({
   required DriveAction advisorAction,

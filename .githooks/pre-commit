@@ -4,7 +4,9 @@
 CHANGED=$(git diff --cached --name-only)
 if grep -qE '^(tool/.*\.py|tool/requirements\.txt|assets/tiles/.*\.mbtiles)$' <<<"$CHANGED"; then
   echo "[pre-commit] tile pipeline touched — running gate…"
-  GATE="/home/komada/Documents/LLMnotebooks/toyota flutter masterplan/scripts/tile-pipeline-gate.sh"
+  # An optional local gate kept outside this repository. Point TILE_PIPELINE_GATE
+  # at your own copy; CI runs the vendored guards in tool/ either way.
+  GATE="${TILE_PIPELINE_GATE:-$HOME/Documents/LLMnotebooks/toyota flutter masterplan/scripts/tile-pipeline-gate.sh}"
   if [ -x "$GATE" ]; then
     "$GATE" || { echo "[pre-commit] BLOCKED: tile-pipeline gate failed."; exit 1; }
   else

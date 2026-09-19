@@ -1,4 +1,4 @@
-// Tier-1 voice-lane hardening — widget wiring:
+// Tier-1 voice-channel hardening — widget wiring:
 // (a) the A1 pre-drive caution row shows ONLY on a proven-degraded verdict
 //     (jaNetworkOnly / noJaVoice) and NEVER on offlineJaReady/unknown —
 //     unknown must render nothing (no false warning off-device);
@@ -6,7 +6,7 @@
 //     injected speech-verification flag (set on unverified, cleared on the
 //     next verified speak).
 //
-// HONESTY (OPS-066 / AAE env-bound): verifies the WIDGET TREE. Whether the
+// HONESTY (no device here): verifies the WIDGET TREE. Whether the
 // caution matches a real device's installed voices, and whether an
 // unverified announce is really inaudible, are on-device facts — DEFERRED.
 

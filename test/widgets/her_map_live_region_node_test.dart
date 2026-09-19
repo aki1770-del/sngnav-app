@@ -8,7 +8,7 @@
 /// in Japanese. On Android the platform announces the label of the node that
 /// holds the flag, so what she heard was the card, not the change.
 ///
-/// The rules tested here, as ruled 2026-09-14:
+/// The rules tested here, as decided 2026-09-14:
 ///
 /// * The flag sits on a node of its own, labelled exactly the state's words,
 ///   which are already on screen: 位置情報オフ / No location access, 現在地不明 /
