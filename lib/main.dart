@@ -948,11 +948,13 @@ class _HomePageState extends State<HomePage> {
   // ---- WARNING-CHANNEL CHECK (AAE 2026-09-19) -------------------------
   // C3 — seen / heard / felt — is the definition of the first build that
   // reaches HER. `seen` was met on a real phone 2026-09-17. `heard` and
-  // `felt` were met by nobody, and on 2026-09-15 the demo controls that
-  // could fire a cue moved to the development page, which `_developerPageOffered`
-  // hard-gates on `!kReleaseMode`. So the SIGNED build had no way for any
-  // person to make the app speak or buzz: the instrument left the shipping
-  // build four days before the build was signed.
+  // `felt` were met by nobody, and at 85617da (2026-09-16 00:04 JST) the demo
+  // controls that could fire a cue moved to the development page, which
+  // `_developerPageOffered` hard-gates on `!kReleaseMode`. So the SIGNED build
+  // had no way for any person to make the app speak or buzz: the instrument
+  // left the shipping build 2 days 18 hours before that build was written
+  // (APK 2026-09-18 18:16 JST). This comment said "four days" until R115; the
+  // two timestamps are the measurement.
   //
   // This panel is the replacement, and it is HER affordance rather than a
   // debug one: for a deaf or hard-of-hearing driver the tactile cue is the

@@ -3,12 +3,13 @@
 //
 // WHY IT EXISTS. C3 (seen · heard · felt) is the definition of the first
 // build that reaches HER. `seen` was met on the Chair's phone 2026-09-17.
-// `heard` and `felt` were met by nobody — and on 2026-09-15 the demo
-// controls that could fire a cue moved to the development page, which
-// `_developerPageOffered` gates on `!kReleaseMode` (main.dart). So the
-// SIGNED 0.0.2+3 build had no release-reachable way for any person to make
-// the app speak or buzz: the instrument left the shipping build four days
-// before the build was signed. Nobody skipped a step; the only surface that
+// `heard` and `felt` were met by nobody — and at 85617da (2026-09-16 00:04
+// JST) the demo controls that could fire a cue moved to the development
+// page, which `_developerPageOffered` gates on `!kReleaseMode` (main.dart).
+// So the SIGNED 0.0.2+3 build had no release-reachable way for any person to
+// make the app speak or buzz: the instrument left the shipping build 2 days
+// 18 hours before that build was written (APK 2026-09-18 18:16 JST). This
+// comment said "four days" until R115; the two timestamps are the measurement. Nobody skipped a step; the only surface that
 // could answer the question was removed for a good reason and not replaced.
 //
 // WHAT THIS TEST CAN AND CANNOT DO — stated because the whole defect family
