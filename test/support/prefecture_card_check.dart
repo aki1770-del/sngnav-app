@@ -2,20 +2,6 @@
 /// station failure line and the descriptors against the floor, and each value
 /// readable, with the scale it is drawn at printed.
 ///
-/// ⚑⚑ R7 IN THIS FILE IS A PROPOSAL, NOT A SETTLED CHANGE. It was amended on
-/// 2026-09-18 (7f6928a) and strengthened on 2026-09-19. An independent audit
-/// had found that the amendment's WORDS claimed more than its assertions held.
-/// In this version the assertions reach the words, and the words claim no more
-/// than the assertions. A second read the same day found two places where that
-/// still was not so: clause 6 said "the station's measurement" while checking
-/// only the quantity, and clause 2 said "every transform" while measuring only
-/// its horizontal scale. Both now check what they say. A third read found that
-/// clause 4 named a node it does not read and that nothing bound the heads'
-/// words; clause 4 now says what it reads, and clause 7 binds the words. It goes
-/// back to that audit before it leaves PROPOSED.
-/// Until 2026-09-19 it was called an audited check in several places, but no
-/// audit had read it before that day.
-///
 /// WHY it had to move: R7 asserted that every value is drawn WITH ITS UNIT on
 /// one line. The unit no longer sits beside the value — it does not fit a 43 px
 /// cell at 393 px, where the cell shrank "-12.1 °C" to 7.93 px with a Japanese
@@ -147,7 +133,7 @@ Future<void> _settleReal(WidgetTester tester, [int n = 30]) async {
   }
 }
 
-// PROPOSED — the successor to `_valueWithUnit`. What each clause asserts is in
+// The successor to `_valueWithUnit`. What each clause asserts is in
 // the banner at the head of this file. What is kept from the 2026-09-18
 // amendment is its direction, a check made STRICTER rather than looser. A check
 // relaxed to let a change through has been bought, not moved.
@@ -270,7 +256,7 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
           print('$lang $face descriptor: ${p.describe()}');
         }
 
-        // R7 (PROPOSED): six clauses, stated in the banner at the head of this
+        // R7: six clauses, stated in the banner at the head of this
         // file. Semantics are turned ON before the values are read, because
         // clause 4 reads each value's own node. The first draft of this check
         // found two corrections by running it: the tree stays empty until
