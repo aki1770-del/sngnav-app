@@ -4,7 +4,7 @@
 /// IPAGothic; see there for why.
 ///
 /// Roboto is found inside the Flutter SDK running this test, not at a fixed
-/// path: this file named `/home/komada/flutter/...` until 2026-09-18, which is
+/// path: this file named a path in one developer's home directory (`$HOME/flutter/...`) until 2026-09-18, which is
 /// why it failed on the first CI run (35300438549). Search order in
 /// `render_see_env.dart`, `robotoSearchOrder`.
 library;

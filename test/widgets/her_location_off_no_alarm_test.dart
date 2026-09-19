@@ -104,7 +104,7 @@ Future<void> _tapShare(WidgetTester tester) async {
 }
 
 /// The row's end-sharing control. After a denial it reads 閉じる / "Close"
-/// (ruled 2026-09-13), with the same action as 停止.
+/// (decided 2026-09-13), with the same action as 停止.
 Future<void> _tapStop(WidgetTester tester, String lang) async {
   final s = find.text(lang == 'ja' ? '閉じる' : 'Close');
   await tester.ensureVisible(s.first);
@@ -174,9 +174,9 @@ void main() {
   // Re-expressed 2026-09-14. These three pins said a failure at drive start
   // "still reaches the drive brain", read as "the panel has a rung". Ruled the
   // same day: before a share's first trusted fix, a position failure does not
-  // reach the caution rung by itself, so all three went red on the ruled
-  // landing, as the ruling's author and its auditor both predicted. What they
-  // protected is kept here in the ruling's terms: a real failure is never
+  // reach the caution rung by itself, so all three went red on the decided
+  // landing, as the decision's author and its auditor both predicted. What they
+  // protected is kept here in the decision's terms: a real failure is never
   // silenced (her map says so at once, and a measured condition still reaches
   // the drive brain with it); free text is never read, pinned where the words
   // could still decide something, after a trusted fix in the same share; and

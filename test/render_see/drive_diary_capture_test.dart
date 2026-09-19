@@ -1,4 +1,4 @@
-/// OPS-066 render-SEE capture for the Ring-2 運転日記 card + entry form
+/// Render-and-look capture for the Ring-2 運転日記 card + entry form
 /// (session-scope; NOT a CI pixel assertion) — three-month plan §2.
 ///
 /// Produces PNGs under `ladder_out/drive_diary/` so a human LOOKS at what
@@ -7,8 +7,8 @@
 /// 圧雪 chip, area + note fields). Pumps the REAL SngnavApp with an
 /// injected DriveDiary — the pixels are the app's own widget tree.
 ///
-/// On-device render remains the device hour's job (OPS-066 / AAE lane):
-/// nobody affirms these PNGs as HER-phone evidence, and on a fontless
+/// On-device render remains the device hour's job (on-device verification):
+/// nobody affirms these PNGs as phone evidence, and on a fontless
 /// host the comparator is a no-op (render pipeline still exercised).
 library;
 

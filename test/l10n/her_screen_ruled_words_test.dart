@@ -1,7 +1,7 @@
-/// Her screen's words, as ruled for both languages on 2026-09-15: the live
+/// Her screen's words, as decided for both languages on 2026-09-15: the live
 /// drive card, the Akita observation card, the prefecture table, the
 /// responsibility banner and the low-visibility reason. Literals, so a change
-/// of words is a red, not a silent pass. Generated from the ruled table; the
+/// of words is a red, not a silent pass. Generated from the decided table; the
 /// consent body is pinned in route_consent_withdraw_test.dart.
 library;
 
@@ -17,7 +17,7 @@ void main() {
   const ja = AppL10n(Locale('ja'));
   const en = AppL10n(Locale('en'));
 
-  test('every ruled string, whole, in both languages', () {
+  test('every decided string, whole, in both languages', () {
     expect(ja.driveHudDescription, '現在地（GPS → 推測航法 → 現在地 不明。自信のある誤った点は出しません）を、視界と実際の地域の警報・注意報と組み合わせます。注意の段階が上がった瞬間に、音声＋振動で自動的に知らせます（手動のボタンは不要です）。', reason: 'row 2');
     expect(en.driveHudDescription, 'Combines your position (GPS → dead reckoning → position unknown; never a confident wrong dot) with visibility and the area\'s actual warnings and advisories. The moment the caution level rises, it tells you by voice and vibration automatically; no button is needed.', reason: 'row 3');
     expect(ja.driveHudShareHint, '上の「現在地を共有」を押すと、現在地も使って注意を判断します。', reason: 'row 4');

@@ -16,7 +16,7 @@
 /// actually threw: whichever call has no implementation, the stream says so
 /// with an event, and never goes quiet.
 ///
-/// Amended 2026-09-14, as ruled that day. The line named a GPS fault and,
+/// Amended 2026-09-14, as decided that day. The line named a GPS fault and,
 /// in English, carried the exception's text. Where the app knows from the
 /// exception's type that it has no location implementation, the line is
 /// 現在地不明 — この端末では、このアプリは位置を取得できません。地図は表示された

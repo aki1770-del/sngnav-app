@@ -1,6 +1,6 @@
 /// A failed fetch on her page is said in her language and nothing after it.
 ///
-/// WHY, written before the act (2026-09-15). The route line was ruled on
+/// WHY, written before the act (2026-09-15). The route line was decided on
 /// 2026-09-14: "ルートを取得できませんでした。 / Route fetch failed., with nothing
 /// after it" (held in route_act_fetch_test.dart). The same page still showed
 /// three other failure lines with the fetch's reason after them: the advisory
@@ -70,7 +70,7 @@ void main() {
     ),
     'en': (
       advisory: 'Advisory fetch failed.',
-      // HIE R105, 2026-09-18 (AAA R58 W3): the publisher's name reads in the
+      // Since 2026-09-18 the publisher's name reads in the
       // page's language. This line was an English sentence with a Japanese
       // subject, beside nine English strings that all say JMA.
       publisher: 'Could not fetch from JMA.',

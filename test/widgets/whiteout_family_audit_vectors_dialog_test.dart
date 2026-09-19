@@ -1,5 +1,5 @@
 /// Audit vectors, the dialog window: the driver with no position in a measured whiteout
-/// (the four cases ruled 2026-09-15), for clauses the landing set reaches with
+/// (the four cases decided 2026-09-15), for clauses the landing set reaches with
 /// no test.
 ///
 /// Why, written before the act. The landing set holds each case's direction

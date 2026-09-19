@@ -6,7 +6,7 @@
 ///   - a LOST dot SUPPRESSES — the announcer is NOT fired for the maneuver, so
 ///     no "turn now" is ever spoken against a position we do not trust;
 ///   - with no position fed yet, the fail-safe is SUPPRESS.
-/// It does NOT prove HER hears/feels it — device-observable, DEFERRED (OPS-066).
+/// It does NOT prove the driver hears/feels it — device-observable, DEFERRED.
 library;
 
 import 'package:flutter_test/flutter_test.dart';

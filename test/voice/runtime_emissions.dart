@@ -3,9 +3,9 @@
 /// The first guard (offline_safety_voice_test.dart) asked only: "is every
 /// phrase in the catalog a real string somewhere in the source?" That is a test
 /// of the AUTHOR'S HONESTY. It passes GREEN on a catalog of ten phrases the app
-/// can never emit, while every hazard warning HER actually hears goes to a
+/// can never emit, while every hazard warning the driver actually hears goes to a
 /// layer with no mouth. c2_offline_survival_test RED-2 was worse: it asserted a
-/// file exists ON OUR DISK. Neither test is about HER HEARING ANYTHING.
+/// file exists ON OUR DISK. Neither test is about the driver HEARING ANYTHING.
 ///
 /// This guard enumerates what the app can ACTUALLY pass to
 /// `AlertActuators.speak()` at runtime — by CALLING the real builders at the
@@ -103,12 +103,12 @@ Set<String> emittableSafetyStaticJa() {
   // (5) main.dart:1218 — the honest-absence line.
   out.add(kConditionsUnknownJaSpokenText);
 
-  // (5b) AAA R52 AQ4 — the test-value prefix, spoken as its own utterance by
+  // (5b) The test-value prefix, spoken as its own utterance by
   // AlertAnnouncer before a rung line a test value raised. Produced by CALLING
   // the localizer the drive brain calls.
   out.add(localizer.testValueSpokenPrefix('ja'));
 
-  // (6) main.dart dead-zone path — THE MEMORY (C2 RED-1). The forecast line is
+  // (6) main.dart dead-zone path — THE MEMORY (offline survival). The forecast line is
   // emitted by `TripHazardMemory.speakableJaAt()`, so we produce it the honest
   // way: by CALLING that production emitter with a hazard whose window covers
   // the instant we ask about. If the emitter ever stops returning this string,

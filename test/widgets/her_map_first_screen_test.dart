@@ -1,4 +1,4 @@
-/// HER map is on the first screen at launch, with no scroll.
+/// The map is on the first screen at launch, with no scroll.
 ///
 /// WHY, written before the act. Measured 2026-09-13: every developer panel
 /// ships (the only release gate is in error_log.dart), fourteen cards sat above

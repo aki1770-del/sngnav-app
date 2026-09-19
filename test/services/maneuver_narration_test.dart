@@ -1,11 +1,11 @@
-/// (e) The confidence gate — the HER differentiator — proven off-device.
+/// (e) The confidence gate — what sets the app apart — proven off-device.
 ///
 /// These are PURE logic tests of `ManeuverNarrator.decide`, the seam adapter,
 /// and the next-maneuver selector. They prove the safety contract that a turn
 /// is spoken only when the honest position allows it:
 ///   gpsTrusted → SPEAK, gpsSuspect → HEDGE, deadReckoning/lost → SUPPRESS.
 ///
-/// What they CANNOT prove (device-observable, DEFERRED per OPS-066): that HER
+/// What they CANNOT prove (device-observable, DEFERRED): that the driver
 /// actually hears the line, and the real turn-trigger timing.
 library;
 
@@ -59,7 +59,7 @@ void main() {
     });
   });
 
-  group('the confidence gate (JA — HER)', () {
+  group('the confidence gate (JA)', () {
     test('gpsTrusted → SPEAK the JA turn plainly', () {
       final d = narrator.decide(
         maneuver: maneuver(type: 'right'),
@@ -69,7 +69,7 @@ void main() {
       expect(d.confidence, NarrationConfidence.speak);
       expect(d.shouldAnnounce, isTrue);
       expect(d.text, contains('右折'));
-      // NOT the raw English instruction (D4: no English maneuvers to HER).
+      // NOT the raw English instruction (no English maneuvers to a Japanese-reading driver).
       expect(d.text, isNot(contains('Main St')));
       expect(d.severity, AlertSeverity.warning);
       expect(d.icyCoupled, isFalse);
@@ -85,7 +85,7 @@ void main() {
       expect(d.shouldAnnounce, isTrue);
       expect(d.text, contains('右折')); // still names the maneuver
       expect(d.text, contains('不確か')); // but flags the position as uncertain
-      expect(d.text, contains('ご確認')); // and asks HER to confirm
+      expect(d.text, contains('ご確認')); // and asks the driver to confirm
       expect(d.severity, AlertSeverity.warning);
     });
 

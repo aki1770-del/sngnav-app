@@ -37,15 +37,15 @@ List<String> _herTitles(AppL10n l) => [
       l.prefectureObservationsSectionTitle,
       l.advisoriesSectionTitle,
       l.logShareSectionTitle,
-      // AAE 2026-09-19 — the warning-channel check. DECLARED here, never
-      // worked around: this guard exists so that adding a card to HER page is
+      // 2026-09-19 — the warning-channel check. DECLARED here, never
+      // worked around: this guard exists so that adding a card to the driver's page is
       // a deliberate act, and it caught this one. Why it belongs on her page
       // and not the development page: for a deaf or hard-of-hearing driver
-      // the tactile cue is the ONLY warning channel (OPS-RULE-059), and the
+      // the tactile cue is the ONLY warning channel (the accessibility rule), and the
       // development page is hard-gated on `!kReleaseMode`, so a check that
       // lived there could never be run by anyone holding a shipped build.
       // ⚑ HANDED ON, NOT ABSORBED: her page goes from 9 cards to 10, and
-      // whether that costs her the glance is HIE's call, not this seat's.
+      // whether that costs her the glance is for the display review to decide, not this test.
       l.channelCheckSectionTitle,
       l.diarySectionTitle,
     ];

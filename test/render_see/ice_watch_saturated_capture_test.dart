@@ -1,4 +1,4 @@
-/// STAGE 1, OPS-066 render-SEE — what the 路面凍結ウォッチ row ACTUALLY prints
+/// STAGE 1, render-and-look — what the 路面凍結ウォッチ row ACTUALLY prints
 /// on Akita's ordinary saturated near-freezing morning.
 ///
 /// Session-scope capture, NOT a CI pixel assertion (same contract as
@@ -25,12 +25,12 @@
 /// (see the scope-envelope test's header). This fixture asserts a CONTRACT
 /// defect, which does not depend on how often the cell occurs.
 ///
-/// WHY (OPS-070(B), written before the act): the envelope test
+/// WHY (written before the act): the envelope test
 /// `test/services/ice_watch_scope_envelope_test.dart` proves at the LOGIC
 /// layer that this cell returns `InvisibleIceWatchResult.clear`, whose own
 /// dartdoc reserves that value for a MEASURED negative "inside this watch's
 /// scope". The calibration package documents this cell as OUTSIDE the model's
-/// coverage. A logic proof is not observation-grade: OPS-066 requires going
+/// coverage. A logic proof is not observation-grade: look-verification requires going
 /// and SEEING what she reads, and this project has three prior fabricated-
 /// clear incidents that were each argued from source before anyone looked.
 ///
@@ -39,11 +39,11 @@
 /// tofu, and a PNG can look fine while the string drifted.
 ///
 /// HONEST BOUND: this is a widget-layer render on a desktop test host, not
-/// HER phone. Non-CJK symbols (⚠) are a known blind spot of this harness
+/// the driver's phone. Non-CJK symbols (⚠) are a known blind spot of this harness
 /// (see subzero_chip_capture_test.dart) — the CJK words are the load-bearing
 /// content here and they render through the installed IPA/Droid family. On-
-/// device render remains the emulator ladder / device hour's job (AAE-1);
-/// nobody may affirm this PNG as HER-phone evidence.
+/// device render remains the emulator ladder / device hour's job (on-device
+/// verification); nobody may affirm this PNG as phone evidence.
 library;
 
 import 'dart:io';

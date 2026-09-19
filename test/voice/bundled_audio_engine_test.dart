@@ -143,7 +143,7 @@ void main() {
     });
   });
 
-  group('N9 — the raw channel await is timeout-capped (a hang is not a throw)',
+  group('the raw channel await is timeout-capped (a hang is not a throw)',
       () {
     test('a platform channel that never answers falls back to TTS after the '
         'cap, instead of silencing every later announce', () async {

@@ -1,4 +1,4 @@
-/// OPS-066 render-SEE captures for the 路面凍結ウォッチ verdicts
+/// Render-and-look captures for the 路面凍結ウォッチ verdicts
 /// (session-scope; NOT a CI pixel assertion) — produces PNGs into
 /// `ladder_out/w1_ice/` so a human LOOKS at each rendered verdict:
 ///
@@ -12,11 +12,11 @@
 ///
 /// WHY FOUR FRAMES. The four render four DISTINCT verdicts the driver can now
 /// see on the 路面凍結ウォッチ row, proving each is what we say:
-///   1. sub-zero → 「⚠ 路面凍結のおそれ（気温氷点下）」 — the Chair-ruled
+///   1. sub-zero → 「⚠ 路面凍結のおそれ（気温氷点下）」 — the decided
 ///      sub-zero WARNING (2026-07-23). This carries the exact measured
 ///      conditions of the Chuo Expressway nine-vehicle pileup of 2021-12-15
 ///      (−2.4 °C, clear morning, no visible snow): the case where this
-///      surface first told HER 該当なし (Andon 2026-07-20T13:40Z), then
+///      surface first told the driver 該当なし (flagged 2026-07-20T13:40Z), then
 ///      本ウォッチの対象外 (6c746be), and now WARNS. It is a DISTINCT string,
 ///      never the 「ブラックアイスバーン」 surprise line — below zero ice is
 ///      expected, not a radiative surprise.
@@ -27,7 +27,7 @@
 ///
 /// HONEST BOUNDS — three, all measured on 2026-07-23, none narrated:
 ///
-/// 1. A passing golden is NOT the OPS-066 evidence. On a host without CJK
+/// 1. A passing golden is NOT look-verification evidence. On a host without CJK
 ///    fonts the comparator is a no-op that returns true for everything. The
 ///    evidence is a human viewing the PNG on a font-bearing desktop.
 ///    On-device render remains the emulator ladder / device hour's job.
@@ -38,7 +38,7 @@
 ///    REPLACING it rather than supplementing it. Neither font maps U+26A0
 ///    WARNING SIGN (verified by cmap parse: ABSENT in both; the CJK controls
 ///    U+8DEF 路 / U+8A72 該 are PRESENT in both), so the ⚠ that opens the
-///    black-ice row renders as TOFU in the capture. On HER Android device the
+///    black-ice row renders as TOFU in the capture. On the driver's Android device the
 ///    system stack is expected to supply it — but that is UNVERIFIED, and it
 ///    is exactly what this harness cannot distinguish: a symbol genuinely
 ///    broken on-device and a symbol merely missing from the test substitute
@@ -152,8 +152,8 @@ void main() {
   testWidgets('w1 — sub-zero frozen-surface WARNING (Chuo 2021-12-15) (ja)',
       (tester) async {
     // −2.4 °C / RH 95 % / no precipitation — the exact Chuo pileup reading.
-    // It rendered 該当なし (Andon 2026-07-20), then 本ウォッチの対象外 (6c746be),
-    // and now — on the Chair's calibration ruling (2026-07-23) — WARNS.
+    // It rendered 該当なし (flagged 2026-07-20), then 本ウォッチの対象外 (6c746be),
+    // and now — on the calibration decision (2026-07-23) — WARNS.
     await capture(
       tester,
       observation: _obs(temp: -2.4, humidity: 95, precip10m: 0.0),
@@ -190,7 +190,7 @@ void main() {
   });
 
   testWidgets('w1 — the hazard still fires (ja)', (tester) async {
-    // +2 °C / RH 70 % / no precipitation — HER founding scenario, the Akita
+    // +2 °C / RH 70 % / no precipitation — the founding scenario, the Akita
     // pre-dawn radiative-frost window. Captured so the split cannot be shown
     // to have muted the warning it exists to deliver.
     await capture(

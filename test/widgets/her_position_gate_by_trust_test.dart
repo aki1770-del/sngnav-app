@@ -3,7 +3,7 @@
 ///
 /// Why, written before the act (2026-09-14). Ruled that day: before her first
 /// trusted fix of a share, a position failure does not reach the caution rung
-/// by itself, and a measured condition keeps its caution. The ruling's own
+/// by itself, and a measured condition keeps its caution. The decision's own
 /// tests use failures that arrive as unavailabilities. But a sample the drive
 /// brain refuses arrives as a position: iOS writes an invalid horizontal
 /// accuracy of -1 on the fix itself, and a platform can re-deliver a fix no
@@ -15,10 +15,10 @@
 /// brain holding an earlier drive: nothing narrates a maneuver as trusted from
 /// a position that is not this share's.
 ///
-/// And one choice this landing makes where the ruling is open: under a
+/// And one choice this landing makes where the decision is open: under a
 /// measured 300 m a failed start is given to the brain, so it reaches the top
 /// rung, where a positioned driver there gets heightened caution. Recorded so
-/// a later ruling that reads the text the other way changes a named test.
+/// a later decision that reads the text the other way changes a named test.
 library;
 
 import 'dart:async';
@@ -346,7 +346,7 @@ void main() {
   });
 
   testWidgets(
-      'recorded, not ruled: under a measured 300 m a failed start reaches the '
+      'recorded, not decided: under a measured 300 m a failed start reaches the '
       'top rung, where a positioned driver there gets heightened caution',
       (tester) async {
     final platform = StreamController<Position>();

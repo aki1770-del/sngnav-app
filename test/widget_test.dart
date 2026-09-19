@@ -3,7 +3,7 @@
 // Verifies the app boots, the DriverProfile selector renders, and the
 // alpha-banner appears. JMA fetch is NOT exercised in widget tests
 // (network-dependent; would slow CI). End-to-end JMA verification is a
-// manual try-first action by Komada-as-first-tester.
+// manual try-first action by the first tester.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:navigation_safety_core/navigation_safety_core.dart';
@@ -30,11 +30,11 @@ void main() {
     await tester.pumpWidget(const SngnavApp(developerPageEntry: true));
     await tester.pump();
     await openDeveloperPage(tester);
-    // Default profile per V21 — HER's mother in Akita.
+    // Default profile: an older driver in Akita.
     expect(find.text(DriverProfile.ageingRural.name), findsOneWidget);
   });
 
-  // Until 2026-09-15 this test held the page foot to the team's reason for the
+  // Until 2026-09-15 this test held the page foot to the project's internal reason for the
   // Akita station. Ruled that day: the foot keeps what she needs from it.
   testWidgets('Footer says routes do not consider snow', (
     tester,

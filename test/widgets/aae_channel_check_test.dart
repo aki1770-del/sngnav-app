@@ -1,15 +1,16 @@
-// AAE 2026-09-19 — the instrument that makes C3's "heard" and "felt"
-// DECIDABLE in one short pass on a real phone.
+// Added 2026-09-19 — the instrument that makes the release criterion's
+// "heard" and "felt" DECIDABLE in one short pass on a real phone.
 //
-// WHY IT EXISTS. C3 (seen · heard · felt) is the definition of the first
-// build that reaches HER. `seen` was met on the Chair's phone 2026-09-17.
+// WHY IT EXISTS. The release criterion (seen · heard · felt) is the definition
+// of the first build that reaches the driver. `seen` was met on the maintainer's
+// phone 2026-09-17.
 // `heard` and `felt` were met by nobody — and at 85617da (2026-09-16 00:04
 // JST) the demo controls that could fire a cue moved to the development
 // page, which `_developerPageOffered` gates on `!kReleaseMode` (main.dart).
 // So the SIGNED 0.0.2+3 build had no release-reachable way for any person to
 // make the app speak or buzz: the instrument left the shipping build 2 days
 // 18 hours before that build was written (APK 2026-09-18 18:16 JST). This
-// comment said "four days" until R115; the two timestamps are the measurement. Nobody skipped a step; the only surface that
+// comment said "four days" until 2026-09-19; the two timestamps are the measurement. Nobody skipped a step; the only surface that
 // could answer the question was removed for a good reason and not replaced.
 //
 // WHAT THIS TEST CAN AND CANNOT DO — stated because the whole defect family
@@ -17,7 +18,7 @@
 //   CAN prove the app FIRES the real announce path (audio + haptic, real
 //       severity, her locale) and that a three-valued answer is recorded
 //       beside the platform's own claim.
-//   CANNOT prove anyone heard or felt anything. No host can. C3 stays UNMET
+//   CANNOT prove anyone heard or felt anything. No host can. The criterion stays UNMET
 //       until a person answers on a device, and this file never says
 //       otherwise.
 
@@ -61,7 +62,7 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('the check is reachable on HER page, not the developer page',
+  testWidgets('the check is reachable on the driver\'s page, not the developer page',
       (tester) async {
     await pumpApp(tester, FakeAlertActuators());
     await tester.scrollUntilVisible(
@@ -151,7 +152,7 @@ void main() {
     await tester.tap(find.byKey(const Key('channel-check-fire')));
     await tester.pumpAndSettle();
 
-    // Heard yes, FELT NO — the Chair's own 2026-08-31 report ("buzz does not
+    // Heard yes, FELT NO — the maintainer's own 2026-08-31 report ("buzz does not
     // work so far") while the app's fault chip stayed clear.
     await tester.tap(find.byKey(const Key('channel-check-heard-yes')));
     await tester.pump();
@@ -192,7 +193,7 @@ void main() {
 
     expect(diary.readAll(), contains('heard=unsure'));
     expect(diary.readAll(), contains('felt=unsure'));
-    // C3 is met by an explicit yes and by nothing else.
+    // The criterion is met by an explicit yes and by nothing else.
     expect(DiaryPerception.unsure.isMet, isFalse);
     expect(DiaryPerception.notPerceived.isMet, isFalse);
     expect(DiaryPerception.perceived.isMet, isTrue);

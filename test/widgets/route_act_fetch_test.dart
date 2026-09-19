@@ -4,18 +4,18 @@
 /// Why this test exists. Until 2026-09-14 no test path could give the app a
 /// route: the router was built inside the fetch, and the test binding answers
 /// every HTTP request with 400. So no test ever rendered a route result, and
-/// the ruling that a touch on her map clears no route could not be held for a
+/// the decision that a touch on her map clears no route could not be held for a
 /// fetched one. The app now takes an injected routing engine; production still
 /// builds the OSRM demo engine.
 ///
-/// The rules tested here (ruled 2026-09-14):
+/// The rules tested here (decided 2026-09-14):
 ///
 /// * A touch on her map clears no route, including a fetched one, and fetches
 ///   nothing.
 /// * Before any route, the maneuver panel names no gesture on the map.
 /// * The page footer makes no promise about snow ("yet").
 /// * A failed request says the app's own words and nothing after them: no
-///   server reply, no exception, no address with her chosen points (ruled
+///   server reply, no exception, no address with her chosen points (decided
 ///   2026-09-14).
 library;
 

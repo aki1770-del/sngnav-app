@@ -1,4 +1,4 @@
-/// OPS-066 render-SEE capture for the 1b tofu fix (plan 2026-07-25 §1) —
+/// Render-and-look capture for the tofu fix (2026-07-25) —
 /// the ⚠ warning row rendered from the BUNDLED symbols subset, not tofu.
 ///
 /// Produces `ladder_out/symbols_font/subzero_watch_row_symbols_ja.png`: the
@@ -7,12 +7,12 @@
 /// Unlike every earlier capture (whose harness fonts lack U+26A0 and drew
 /// □), this suite loads `assets/fonts/SnGNavSymbols.ttf` — the same bytes
 /// the APK ships — under the family the app's ThemeData.fontFamilyFallback
-/// names, so the PNG shows the actual glyph HER row falls back to.
+/// names, so the PNG shows the actual glyph the driver's row falls back to.
 ///
 /// HONEST BOUNDS: host-level render evidence only. It proves the shipped
 /// bytes resolve ⚠ through the app's own theme fallback in a real widget
-/// tree. On-device rendering (HER phone's own fallback chain ahead of ours)
-/// is OPS-066 DEFERRED — no device/emulator in this env (AAE env-bound).
+/// tree. On-device rendering (the phone's own fallback chain ahead of ours)
+/// is DEFERRED — no device/emulator in this env.
 /// Existing capture suites deliberately do NOT load this font, so their
 /// goldens stay pixel-stable (opt-in per render_see_env.dart).
 library;
@@ -84,7 +84,7 @@ void main() {
     await tester.ensureVisible(row);
     await tester.pump();
     // Capture the row's enclosing panel line so the PNG shows label + verdict
-    // (the frame a human affirms per L32).
+    // (the frame a human affirms by looking).
     await expectLater(
       find.ancestor(of: row, matching: find.byType(Padding)).first,
       matchesGoldenFile(

@@ -1,10 +1,10 @@
 /// WS6 — the escalation → announce path, with a recording fake actuator.
 ///
-/// HER-trace: this proves the caution actually REACHES the actuator seam — a
+/// Why: this proves the caution actually REACHES the actuator seam — a
 /// rising rung speaks the correct Japanese guidance AND fires the haptic, ONCE
 /// per rung rise (no nag), on the SINGLE injected actuator. It does NOT prove
 /// she HEARS / FEELS it — that is on-device verification, DEFERRED
-/// (docs/DEVICE_VERIFICATION.md, OPS-066 / AAE-1).
+/// (docs/DEVICE_VERIFICATION.md).
 ///
 /// The announce is fired fire-and-forget (`unawaited`) inside the controller,
 /// so each test settles the event queue before asserting on the fake channels.

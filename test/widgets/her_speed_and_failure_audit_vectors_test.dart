@@ -1,16 +1,16 @@
 /// Audit vectors for the speed-ring and position-failure rulings (2026-09-14).
 ///
-/// Why, written before the act: the ruling's own tests were shown to fail on
+/// Why, written before the act: the decision's own tests were shown to fail on
 /// bb02b98 and were mutated by their author. An adversarial audit asks the
 /// other question: can a landing pass every one of those tests and still break
-/// the ruling's own words? Each vector below states one clause of the ruled
-/// text (ruled_conditions.txt) that none of those tests pins, in the form a
+/// the decision's own words? Each vector below states one clause of the decided
+/// text (its written conditions) that none of those tests pins, in the form a
 /// landing must satisfy. Each is run on bb02b98, on the audit's instrument
 /// landing, and on one mutation of that landing built to break that clause.
 ///
 /// Audit instruments only: not the fix, and not a re-authoring of the rulings.
 /// Read from what the map is told, what the actuators record and the caution
-/// panel's words, the way the ruling's own tests read them.
+/// panel's words, the way the decision's own tests read them.
 library;
 
 import 'dart:async';
@@ -283,13 +283,13 @@ void main() {
           reason: 'at $s s: lost where 10 + 8.6 x $s = ${10 + 8.6 * s} m is '
               'inside the 500 m horizon');
       expect(told.ring, lessThanOrEqualTo(10 + 8.6 * s + 0.5),
-          reason: 'at $s s: the ring overstates the ruled floor');
+          reason: 'at $s s: the ring overstates the decided floor');
     }
     await platform.close();
   });
 
   testWidgets(
-      'V-f the vector named in the ruling\'s test and not run there: a '
+      'V-f the vector named in the decision\'s test and not run there: a '
       'reported 25 m/s with a NaN speed accuracy still sets the floor (speed '
       'alone)', (tester) async {
     final platform = StreamController<Position>();

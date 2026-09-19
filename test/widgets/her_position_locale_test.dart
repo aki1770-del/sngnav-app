@@ -131,7 +131,7 @@ void main() {
     });
   });
 
-  group('English: the whole drive panel (ruled 2026-09-13)', () {
+  group('English: the whole drive panel (decided 2026-09-13)', () {
     // The panel's driver-facing rows and caution banner. Its developer
     // controls (the demo visibility bands, the blackout button) are not rows
     // she reads, and are not asserted here.

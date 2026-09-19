@@ -1,4 +1,4 @@
-/// HER map's camera follows her on trusted fixes, and only there.
+/// The map's camera follows the driver on trusted fixes, and only there.
 ///
 /// WHY, written before the act. Measured 2026-09-13 in the real app, driving
 /// 144 fixes along Route 13 out of Akita city: the camera never left the
@@ -311,7 +311,7 @@ void main() {
   });
 
   group('a hand pauses follow; only her return control resumes it', () {
-    // Amended 2026-09-14: a touch on her map sets no route point (ruled that
+    // Amended 2026-09-14: a touch on her map sets no route point (decided that
     // day). Until then this test's control was that the same gesture set
     // route start A, which it did at 7e9cd29: so this gesture resolves as a
     // tap, and a map that set a point on a tap would fail the check below.

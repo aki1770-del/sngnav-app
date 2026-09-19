@@ -1,12 +1,11 @@
-/// The position mapping the app runs is the mapping HIE rendered.
+/// The position mapping the app runs is the mapping a render review drew.
 ///
-/// Why this test exists. HIE's lost-mode harness
-/// (`outputs/hie/r2_her_position_surface_2026_09_13/harness/
-/// her_position_lost_candidate_capture_test.dart`, masterplan repo) renders
+/// Why this test exists. That review's lost-mode harness (kept outside this
+/// repository) renders
 /// [AkitaMap] from a REPLICA of the candidate mapping, its `_Cand` class,
 /// because the app's mapping was private to its State. A replica is a
 /// description: its frames prove nothing about the app unless the app computes
-/// the same inputs. So this test builds HIE's six scenarios through the real
+/// the same inputs. So this test builds the review's six scenarios through the real
 /// [DriveHudController] and [fixFromSample], exactly as the harness's `_cands()`
 /// does, and requires [herMapInputs] to equal the harness's rule.
 ///
@@ -46,7 +45,7 @@ class _Scenario {
   final DriveHudController hud;
 }
 
-/// HIE's `_cands()`, the same event sequences in the same order.
+/// The review harness's `_cands()`, the same event sequences in the same order.
 List<_Scenario> _hieScenarios() {
   _Scenario drought(String id, Duration d) {
     final h = _hud();
@@ -147,7 +146,7 @@ HerMapInputs _app(_Scenario s, {bool isMock = false}) =>
         anchoredThisSession: true);
 
 void main() {
-  group('herMapInputs equals HIE\'s candidate mapping on HIE\'s scenarios', () {
+  group('herMapInputs equals the reviewed candidate mapping on its scenarios', () {
     for (final s in _hieScenarios()) {
       test(s.id, () {
         final app = _app(s);
@@ -408,7 +407,7 @@ void main() {
 
     test(
         'no trusted fix this session and an unavailability that is not a '
-        'refusal: 現在地不明, even with no estimate at all (ruled 2026-09-13)',
+        'refusal: 現在地不明, even with no estimate at all (decided 2026-09-13)',
         () {
       for (final fix in const [
         PositionUnavailable('GPS stream error: platform failed'),

@@ -1,4 +1,4 @@
-/// OPS-066 render-SEE captures for the W3 turmoil surface (session-scope;
+/// Render-and-look captures for the turmoil surface (session-scope;
 /// NOT a CI pixel assertion) — produces PNGs into `ladder_out/w3_turmoil/`
 /// so the reviewer can LOOK at the new rows before the change lands:
 ///

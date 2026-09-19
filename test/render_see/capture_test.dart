@@ -1,7 +1,7 @@
-/// OPS-066 render-SEE capture harness (session-scope; NOT a CI assertion).
+/// Render-and-look capture harness (session-scope; NOT a CI assertion).
 ///
-/// Produces fresh render PNGs of the HER-facing JA surfaces into
-/// `render_out/` via golden capture so VAA can LOOK at them. Run with:
+/// Produces fresh render PNGs of the driver-facing JA surfaces into
+/// `render_out/` via golden capture so a reviewer can LOOK at them. Run with:
 ///
 ///   flutter test --update-goldens test/render_see/capture_test.dart
 ///
@@ -190,7 +190,7 @@ void main() {
     // advisory CARD, still standing on the GLANCE.
     //
     // The rung is unchanged: an outage is an unknown, not a hazard, and
-    // raising it would cry wolf (Chair 2026-07-23). Only the reassurance is
+    // raising it would cry wolf (decided 2026-07-23). Only the reassurance is
     // withheld.
     expect(
       find.descendant(of: banner, matching: find.text('特段の注意なし')),
@@ -247,7 +247,7 @@ void main() {
 
   testWidgets('04 — JA advisory ordering (気象庁 leads, NWS de-emphasized)',
       (tester) async {
-    // A JMA (Japanese) advisory + an English NWS advisory. On HER ja surface
+    // A JMA (Japanese) advisory + an English NWS advisory. On the ja surface
     // AdvisoryCards must (a) order 気象庁 FIRST and (b) de-emphasize + caption
     // the English NWS card as 英語の情報（参考）. Passing [NWS, JMA] proves the
     // reorder is real (input order is NWS-first).
@@ -324,7 +324,7 @@ void main() {
       (tester) async {
     // Region-gate proof, rendered. The result is produced by the REAL
     // AdvisoryService + REAL coverage predicates (nwsCoverage / jmaCoverage)
-    // at HER Akita point — so NWS (which would throw HTTP 400) is never even
+    // at the Akita point — so NWS (which would throw HTTP 400) is never even
     // queried. The captured surface therefore shows the JMA 大雪警報 card and
     // NO NWS error banner / NWS card at all.
     final svc = AdvisoryService(providers: [
@@ -338,7 +338,7 @@ void main() {
     );
     // Guard the render: if gating regressed, this fails LOUDLY before capture.
     expect(result.providerErrors, isEmpty,
-        reason: 'NWS must not be queried for HER Akita point (no error card)');
+        reason: 'NWS must not be queried for the Akita point (no error card)');
     expect(result.advisories.single.source, AdvisorySource.jmaJapan);
 
     tester.view.devicePixelRatio = 2.0;
@@ -396,7 +396,7 @@ void main() {
     // The road-surface condition defaults to RoadSurfaceCondition.unknown (no
     // sensor wired), so the per-profile glossary renders 路面状況不明 — never a
     // synthetic ice hazard. Scroll that section into view and capture it so a
-    // human can SEE the honest default (OPS-066).
+    // human can SEE the honest default.
     final section =
         find.text(const AppL10n(Locale('ja')).roadConditionNamesSectionTitle);
     await captureApp(
@@ -411,18 +411,18 @@ void main() {
 
   testWidgets(
       '17 — JA consent disclosure names the FULL JMA egress + stationary '
-      'cadence (BOD P2 D4 fix)', (tester) async {
-    // The card HER reads BEFORE sharing her location must match the measured
+      'cadence (disclosure fix)', (tester) async {
+    // The card the driver reads BEFORE sharing her location must match the measured
     // wire: three region/prefecture-keyed JMA endpoints (prefecture warning +
     // regional AMeDAS + prefecture forecast — precise coords NOT sent),
     // fetched about once per ~1 km AND about every 10 minutes while open,
     // including stopped. The old copy said "都道府県コードのみを（走行約1kmごとに）"
     // — false-exhaustive + cadence-incomplete. Capture the disclosure so a
-    // human can SEE the corrected honest text (OPS-066).
+    // human can SEE the corrected honest text.
     await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
     await tester.pump();
     final disclosure = find.byKey(const Key('location-disclosure'));
-    // Render guard: the corrected terms are actually on the surface HER reads.
+    // Render guard: the corrected terms are actually on the surface the driver reads.
     final rendered = tester.widget<Text>(disclosure).data ?? '';
     expect(rendered, contains('アメダス'));
     expect(rendered, contains('予報'));

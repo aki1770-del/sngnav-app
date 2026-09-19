@@ -25,7 +25,7 @@ void main() {
     });
 
     test(
-      'OPS-059 set parity: the tactile-cue severity set == the announced '
+      'accessibility-floor set parity: the tactile-cue severity set == the announced '
       '(>= warning) severity set — no reduced haptic subset',
       () {
         for (final severity in AlertSeverity.values) {
@@ -60,7 +60,7 @@ void main() {
   });
 
   group('severityForCondition', () {
-    test('ice / wet-ice are critical (HER whiteout worst-case)', () {
+    test('ice / wet-ice are critical (the whiteout worst case)', () {
       expect(
         severityForCondition(RoadSurfaceCondition.ice),
         AlertSeverity.critical,

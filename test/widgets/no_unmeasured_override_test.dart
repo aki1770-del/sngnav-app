@@ -1,5 +1,5 @@
 /// Nothing that is not a measurement lowers, clears, ages out or hides a
-/// caution her card shows from a measurement (ruled 2026-09-15; made an
+/// caution her card shows from a measurement (decided 2026-09-15; made an
 /// invariant 2026-09-16).
 ///
 /// Why, written before the act. On b0f74e7 the demo visibility band took
@@ -22,16 +22,16 @@
 ///  (d) it may ADD caution: a demo value lower than the reading raises the rung;
 ///  (e) while a value that is not a measurement is what her card shows, the
 ///      card says a test value is in force (a keyed line; its words are not
-///      ruled here).
+///      decided here).
 ///
-/// (e) narrowed 2026-09-18 (AAA R58 W1, produced by FSE at R106) for the mock
-/// position ONLY, and only because the same ruling moved the statement to a
+/// (e) narrowed 2026-09-18 for the mock
+/// position ONLY, and only because the same decision moved the statement to a
 /// place that never goes quiet. The card-wide line claimed the CARD shows a
 /// test value; under a measured visibility the rung came from the measurement,
 /// so the claim was wrong about the rung. It is now drawn for the mock only
-/// where the 理由 row carries `positionUncertain` — and, in the same ruling,
+/// where the 理由 row carries `positionUncertain` — and, in the same decision,
 /// the mock's own trust and uncertainty rows say the position is a test.
-/// Measured at R106 and the reason these are one change and not two: a trusted
+/// Measured on 2026-09-18, and the reason these are one change and not two: a trusted
 /// mock can NEVER reach `positionUncertain` (taking the mock cancels the
 /// position watchdog, so nothing polls the estimate down), so the narrowing
 /// alone does not shrink the mock case — it empties it. The two halves are
@@ -69,7 +69,7 @@ const _hud = DriveHudLocalizer();
 final _stopLine = _hud.spokenGuidance(DriveAction.considerStopping, 'ja');
 String _reason(CautionReason r) => _hud.reasonLabel(r, 'ja');
 
-/// The keyed lines invariant (e) asks for. Their words are not ruled here.
+/// The keyed lines invariant (e) asks for. Their words are not decided here.
 const _testValueOnCard = Key('drive-hud-test-value');
 const _testRoadOnTurnCard = Key('maneuver-test-road-condition');
 
@@ -156,7 +156,7 @@ Future<FakeAlertActuators> _boot(
   List<int?> visibilities = const [80],
   List<bool> failing = const [false],
   bool route = false,
-  // AAA R58 W1 re-audit (FSE R114). Defaults to ja so every existing call site
+  // Added on re-audit. Defaults to ja so every existing call site
   // is byte-unchanged; the en case exists because AppL10n.supportedLocales is
   // [ja, en] and the app follows the DEVICE, so an English-locale driver reads
   // these same rows. The ja default is this harness's, never the app's.
@@ -399,7 +399,7 @@ void _expectNotLower(_Card after, _Card before, String when) {
 
 const _lowVis = CautionReason.lowVisibility;
 
-// ------------------------------------ AAA R52: words and the spoken prefix ----
+// ------------------------------------------ Words and the spoken prefix ----
 // Literals, not the app's constants: a test that imported the words it checks
 // would pass on any words.
 
@@ -407,7 +407,7 @@ const _cardWordsJa = 'テスト値を使った表示です（測定ではあり�
 const _iceWordsJa = '凍結の表示はテスト値です（路面は測定していません）';
 const _prefixJa = 'テスト値です。';
 
-// AAA R58 W1, the half that carries the honesty when the card-wide line is
+// The half that carries the honesty when the card-wide line is
 // narrowed away: the mock's own position rows. Mock only — GPS 途絶 and
 // 現在地 不明 are unchanged, because a card in those modes already carries the
 // card-wide line (positionUncertain is in its 理由 row by construction).
@@ -416,7 +416,7 @@ const _mockRadiusWordsJa = '誤差 約 35 m（テスト値）';
 
 // The SAME two rows on an English device. AppL10n.supportedLocales is
 // [ja, en] and the app follows the DEVICE, so these rows ship to an
-// English-locale driver exactly as the ja pair ships to hers. Until FSE R114
+// English-locale driver exactly as the ja pair ships to hers. Until 2026-09-19
 // they were asserted in ja only: shipped and unasserted in en.
 const _mockTrustWordsEn = 'Test position (not GPS)';
 const _mockRadiusWordsEn = 'within ~35 m (test value)';
@@ -729,7 +729,7 @@ void main() {
     );
 
     testWidgets(
-      'P2 (AAA R52): no share, a fresh measured 700 m, a demo 80 m: the card '
+      'P2: no share, a fresh measured 700 m, a demo 80 m: the card '
       'shows no rung, and no line says it shows a test value',
       (tester) async {
         await _boot(tester, visibilities: const [700]);
@@ -747,26 +747,26 @@ void main() {
       },
     );
 
-    // W1 (AAA R58, produced by FSE at R106). The card-wide line said the card
+    // The card-wide line said the card
     // shows a test value; under a measured 1500 m the RUNG came from the
-    // measurement, so the line was wrong about the rung. AAA narrowed it to the
-    // 理由 row carrying positionUncertain, and in the SAME ruling moved the
+    // measurement, so the line was wrong about the rung. The review narrowed it to the
+    // 理由 row carrying positionUncertain, and in the SAME decision moved the
     // honesty into the position rows themselves, mock only. The two halves are
-    // complementary and neither stands alone: measured at R106, a trusted mock
+    // complementary and neither stands alone: measured on 2026-09-18, a trusted mock
     // can NEVER reach positionUncertain (the mock cancels the position
     // watchdog, so nothing polls the estimate down), so the condition alone
     // does not narrow the mock case — it empties it, leaving her card reading
-    // GPS 良好 · 誤差 約 35 m about a position nobody measured. AAA R52 AQ3
-    // already ruled the separate モック位置 banner "not enough".
+    // GPS 良好 · 誤差 約 35 m about a position nobody measured. An earlier
+    // review had already judged the separate モック位置 banner "not enough".
     //
     // These two assertions are NOT of equal strength and the difference is
-    // recorded on purpose: the ABSENT one below discriminates (red before W1,
+    // recorded on purpose: the ABSENT one below discriminates (red before this change,
     // green after); the PRESENT one cannot tell the two trees apart and is a
     // regression guard only. Its failability is proven by mutation, never
     // assumed.
 
     testWidgets(
-      'W1: the Akita mock position under a measured 1500 m, nothing uncertain: '
+      'mock rows: the Akita mock position under a measured 1500 m, nothing uncertain: '
       'no card-wide test-value line, and the position rows say it is a test',
       (tester) async {
         await _boot(tester, visibilities: const [1500]);
@@ -789,7 +789,7 @@ void main() {
               'the card-wide line says the card shows a test value while its '
               'rung came from the measured 1500 m',
         );
-        // The other half of AAA R58, without which the narrowing above just
+        // The other half of the decision, without which the narrowing above just
         // removes what she was told: the card's own trust row must not dress a
         // fabricated fix in the words of a measured one.
         expect(
@@ -811,16 +811,16 @@ void main() {
     );
 
     testWidgets(
-      'W1: ten minutes with the mock in force reaches no positionUncertain of '
+      'mock rows: ten minutes with the mock in force reaches no positionUncertain of '
       'its own, so the position rows are the only thing telling her',
       (tester) async {
         await _boot(tester, visibilities: const [1500]);
         await _advance(tester, const Duration(seconds: 1));
         expect(await _tapMockIfOffered(tester), isTrue, reason: 'control');
         await _advance(tester, const Duration(minutes: 10));
-        // The measurement the W1 ruling rests on, kept as an assertion so it
+        // The measurement the mock-rows decision rests on, kept as an assertion so it
         // cannot quietly stop being true: taking the mock cancels the position
-        // watchdog (`main.dart`, N8 — "the mock dot is a static dev tool"), so
+        // watchdog (`main.dart`: "the mock dot is a static dev tool"), so
         // no clock degrades the estimate and positionUncertain never arrives.
         // The card-wide line is therefore NEVER drawn for a trusted mock, and
         // the rows below are the whole of what she is told.
@@ -844,16 +844,16 @@ void main() {
     );
 
     testWidgets(
-      'W1: the Akita mock position with an uncertain position on the card: the '
-      'card-wide line (regression guard; does not discriminate W1)',
+      'mock rows: the Akita mock position with an uncertain position on the card: the '
+      'card-wide line (regression guard; does not discriminate the mock-rows change)',
       (tester) async {
         await _boot(tester, visibilities: const [1500]);
         await _advance(tester, const Duration(seconds: 1));
         expect(await _tapMockIfOffered(tester), isTrue, reason: 'control');
         await _advance(tester, const Duration(seconds: 1));
         // The ONLY reach to positionUncertain while a mock is in force,
-        // measured at R106: the simulated blackout polls the estimate down.
-        // The card has no blackout check of its own (AAA R55 5(a)), so the
+        // measured on 2026-09-18: the simulated blackout polls the estimate down.
+        // The card has no blackout check of its own (confirmed in review), so the
         // line below is drawn by the mock branch and by nothing else.
         for (var i = 0; i < 3; i++) {
           await _pressBlackout(tester);
@@ -978,12 +978,12 @@ void main() {
       });
     }
 
-    // AAA R52 P1. Every press above follows a fresh fix, where the simulated
+    // P1. Every press above follows a fresh fix, where the simulated
     // clock is ahead of the real one. Here her real drought is already 68 s:
     // a press polled at fix + 60 s moved the clock back, and a degraded dot
     // dropped from the top rung to the middle one.
     testWidgets(
-      'P1 (AAA R52): a positioned share under measured 700 m, 68 s without a '
+      'P1: a positioned share under measured 700 m, 68 s without a '
       'fix: one press does not lower the top rung',
       (tester) async {
         final p = _Positioned();
@@ -1018,8 +1018,8 @@ void main() {
       },
     );
 
-    // AQ4, the simulated drought (FSE extension beyond AAA's text, for AAA to
-    // rule): a top rung only the simulated clock raised is a test value too.
+    // AQ4, the simulated drought (an extension beyond the review's text, for the
+    // review to decide): a top rung only the simulated clock raised is a test value too.
     testWidgets(
       'AQ4: a positioned share under measured 1500 m: the top rung the '
       'simulated blackout raises is spoken as a test value',
@@ -1085,7 +1085,7 @@ void main() {
   // ============================================ (O4) the road condition ====
 
   group('(Q3) a simulated road condition on her next-turn card', () {
-    // Hoisted to _routeWithOneTurn/_turnCard (FSE R114) so the (Q5) group runs
+    // Hoisted to _routeWithOneTurn/_turnCard so the (Q5) group runs
     // the SAME route recipe this group runs; these keep the local names.
     Future<void> routeWithOneTurn(WidgetTester t) => _routeWithOneTurn(t);
     Finder turnCard() => _turnCard();
@@ -1166,11 +1166,11 @@ void main() {
     }
   });
 
-  // ================= (Q5) AAA R58 W1 re-audit: the THIRD modeLabel site ====
+  // ============================ (Q5) re-audit: the THIRD modeLabel site ====
   //
-  // WHY, written before the act. FSE R106 measured `GPS 良好` exactly once
-  // under a trusted mock and read that as no reachable defect left open. AAA
-  // refuted the measurement at the genba: it is true only of a session with NO
+  // WHY, written before the act. An earlier change measured `GPS 良好` exactly once
+  // under a trusted mock and read that as no reachable defect left open. The
+  // re-audit refuted the measurement in the running app: it is true only of a session with NO
   // ROUTE SET. With a route set, the turn-preview panel draws its own
   // 現在地の信頼度 row — the SAME label as the drive card's trust row — from a
   // third modeLabel call that never received isMock. The card then said the
@@ -1220,7 +1220,7 @@ void main() {
           isTrue,
           reason: 'the turn panel trust row does not say the position is a test',
         );
-        // And the whole screen, which is what she actually looks at: the R106
+        // And the whole screen, which is what she actually looks at: the earlier
         // assertion that held only because no route was set.
         expect(
           find.textContaining('GPS 良好'),
@@ -1231,10 +1231,10 @@ void main() {
       },
     );
 
-    // The OTHER direction, on AAA's published re-audit bar. Without this, the
+    // The OTHER direction, on the re-audit's published bar. Without this, the
     // test above is satisfied by a panel that calls EVERY fix a test position
     // — honest about the mock by being dishonest about hers. Proven failable
-    // by mutation M2 (isMock: true at the site): this test goes red, the one
+    // by a mutation (isMock: true at the site): this test goes red, the one
     // above stays green.
     testWidgets(
       'a route set and a REAL share: the turn panel still reads GPS 良好 — the '
@@ -1287,7 +1287,7 @@ void main() {
   // never the app's: AppL10n.supportedLocales is [ja, en] and the app follows
   // the device. The mock position rows were asserted in ja only, so the
   // English words they ship to an English-locale driver were unasserted. This
-  // is the parity assertion, and it fails on a tree without the W1 pair.
+  // is the parity assertion, and it fails on a tree without the mock-rows pair.
   group('(Q6) the Akita mock position rows on an English device', () {
     testWidgets(
       'en: the position rows say the position is a test and the radius is a '
@@ -1327,7 +1327,7 @@ void main() {
               'test value',
         );
 
-        // AAA R114 bar: her_position_locale_test.dart:138 sweeps the English
+        // Re-audit bar: her_position_locale_test.dart:138 sweeps the English
         // drive panel for CJK, but never in the mock state. Same range, now
         // reaching it — an English driver must not meet Japanese here just
         // because the position is a test one.
@@ -1354,7 +1354,7 @@ void main() {
 
 // ------------------------------------------------- the route recipe, hoisted ----
 // One recipe, used by (Q3) and (Q5). Moved out of the (Q3) group unchanged
-// (FSE R114) so the turn-panel assertions run exactly the route this file
+// so the turn-panel assertions run exactly the route this file
 // already proved sets a next maneuver.
 Future<void> _routeWithOneTurn(WidgetTester tester) async {
   final open = find.byKey(const Key('route-act-open'));

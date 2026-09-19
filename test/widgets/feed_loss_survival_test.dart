@@ -1,11 +1,11 @@
-/// W0 DETECTION-SURVIVAL LAYER — feed-loss survival WIRING tests (design §7).
+/// DETECTION-SURVIVAL LAYER — feed-loss survival WIRING tests (design §7).
 ///
 /// Max honest in-env verification (same bound as fake_alert_actuators.dart):
 /// proves the app RETAINS the last-good observation across a feed loss and
 /// makes the correct stale-vs-absence-vs-silent decision from an INJECTED clock
 /// — the honest time-stamped black-ice line survives the network dying, and a
-/// stale reading is NEVER spoken as live. It does NOT prove HER HEARS anything
-/// (on-device HEAR is DEFERRED — OPS-066): audibility, TTS pronunciation of the
+/// stale reading is NEVER spoken as live. It does NOT prove the driver HEARS anything
+/// (on-device HEAR is DEFERRED): audibility, TTS pronunciation of the
 /// hour+頃, and real feed-loss timing are the device hour's job.
 library;
 
@@ -24,7 +24,7 @@ import '../support/fake_alert_actuators.dart';
 // the spoken stamp is 「6時頃」 (floor never sounds newer than the observation).
 const String _key0630 = '20260115063000';
 
-// HER phone wall-clock expressed as a TRUE instant anchored to the 06:30 JST
+// The phone's wall-clock expressed as a TRUE instant anchored to the 06:30 JST
 // observation, so the retain/expire bound compare (now.toUtc() - observedInstant)
 // is HOST-TIMEZONE-INDEPENDENT — the test passes on a JST or a UTC CI host alike.
 // (The old naive-local clock only matched the bound on a JST host.)
@@ -109,8 +109,8 @@ void main() {
     });
   });
 
-  // ---- sub-zero frozen-surface WARNING: the live announce path (Chair
-  // calibration 2026-07-23). These pump SngnavApp end-to-end and inspect the
+  // ---- sub-zero frozen-surface WARNING: the live announce path (calibration
+  // decided 2026-07-23). These pump SngnavApp end-to-end and inspect the
   // fake actuator, so the bool→enum latch refactor and the iceRose fold cannot
   // be silently re-muted with the suite still green (impl-review 2026-07-23).
   group('sub-zero frozen-surface live announce', () {
@@ -178,7 +178,7 @@ void main() {
     testWidgets(
         'the model DECLINING (outsideModelEnvelope) does NOT re-nag on return '
         'to sub-zero — the accepted cost, pinned', (tester) async {
-      // ADDED 2026-08-01 (build-track review, AAE): the two announce-path costs
+      // ADDED 2026-08-01 (build review): the two announce-path costs
       // accepted when `outsideModelEnvelope` shipped were pinned only by a
       // COMMENT in main.dart. A comment is not a loom. This is the sibling of
       // the outOfScope case above, for the new value.
@@ -211,9 +211,9 @@ void main() {
             'an all-clear, so it must not re-arm. If this ever reads 2, the '
             'latch has been made to re-arm on absence of evidence, which the '
             '`_lost`-latch doctrine forbids. If that change is ever wanted it '
-            'must be a deliberate Chair calibration, not a silent regression.',
+            'must be a deliberate calibration decision, not a silent regression.',
       );
-      // THE HAPTIC HALF — pinned explicitly (FSE, build-track review).
+      // THE HAPTIC HALF — pinned explicitly (build review).
       // The commit names the cost as losing "the 14-second sub-zero line AND
       // its haptic", but the first version of this guard asserted only
       // `fake.spoken`. Haptic is the EYES-OFF channel: it is what reaches a
@@ -331,7 +331,7 @@ void main() {
     final stale = newLines.single;
     expect(stale.text, contains('6時頃の観測では')); // spokenHourJst FLOORs 06:30→6
     expect(stale.text, contains(_notLiveClause),
-        reason: 'the only spoken guarantee HER is not hearing a live reading');
+        reason: 'the only spoken guarantee the driver is not hearing a live reading');
     expect(stale.localeTag, 'ja-JP');
     // Severity is warning on BOTH new announces (clears the audibility floor,
     // never cries critical): every haptic fired is the warning cue.
@@ -427,7 +427,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    // On the one night the network is dead from the start, HER still hears the
+    // On the one night the network is dead from the start, the driver still hears the
     // honest absence-line — never silence-as-all-clear.
     expect(fake.spoken.where((s) => s.text.contains(_absenceLine)), hasLength(1));
     final absence =
@@ -465,7 +465,7 @@ void main() {
   });
 
   testWidgets(
-      'two consecutive losses ≤60 + ice: stale KEEPS announcing (Chair) AND '
+      'two consecutive losses ≤60 + ice: stale KEEPS announcing (by design) AND '
       'absence NEVER fires (cache never cleared on failure)', (tester) async {
     final fake = FakeAlertActuators();
     JmaResult next = JmaSuccess(_iceObs());
@@ -484,7 +484,7 @@ void main() {
     expect(
         fake.spoken.where((s) => s.text.contains(_iceStaleStamp)), hasLength(1));
 
-    // Second loss → the SLOW hazard KEEPS announcing (Chair: retain + keep
+    // Second loss → the SLOW hazard KEEPS announcing (decided: retain + keep
     // announcing), honestly re-stamped each feed-loss cycle (unlike the
     // once-per-entry absence line). And if the cache had been WIPED on the first
     // failure this would fire the ABSENCE-line (no cache) — it must NOT.
@@ -545,12 +545,12 @@ void main() {
     next = const JmaFailure('offline');
     await _refetch(tester, fromSuccess: true);
     expect(fake.spoken.where((s) => s.text.contains(_absenceLine)), hasLength(1),
-        reason: 'HER hears "conditions unavailable" in the true dead-zone');
+        reason: 'the driver hears "conditions unavailable" in the true dead-zone');
 
     // (3) Network returns; ice STILL watch → the LIVE line MUST fire AGAIN.
     // Without the finding #1 reset, iceRose = fired && !alreadyAnnounced would
     // stay false and the confirming live warning would be silently swallowed —
-    // HER's last spoken word about the road would remain "unavailable".
+    // The driver's last spoken word about the road would remain "unavailable".
     next = JmaSuccess(_iceObs());
     await _refetch(tester, fromSuccess: false); // was in failure state → Retry
     expect(fake.spoken.where((s) => s.text.contains(_liveLooksWet)), hasLength(2),
@@ -573,14 +573,14 @@ void main() {
     await tester.pump();
     expect(fake.spoken.where((s) => s.text.contains(_liveLooksWet)), hasLength(1));
 
-    // Short blip ≤60 → the STALE-STAMPED line re-warns (HER stays warned).
+    // Short blip ≤60 → the STALE-STAMPED line re-warns (the driver stays warned).
     next = const JmaFailure('offline');
     await _refetch(tester, fromSuccess: true);
     expect(fake.spoken.where((s) => s.text.contains(_iceStaleStamp)), hasLength(1),
         reason: 'a within-bound feed loss keeps warning via the stamped line');
 
     // Restore, still watch: the stale branch deliberately did NOT reset the gate
-    // (HER was warned throughout the blip), so the live line does NOT re-fire —
+    // (the driver was warned throughout the blip), so the live line does NOT re-fire —
     // the reset is scoped to a TRUE dead-zone only, not every feed-loss cycle.
     next = JmaSuccess(_iceObs());
     await _refetch(tester, fromSuccess: false);
@@ -648,7 +648,7 @@ void main() {
 
   testWidgets(
       'KNOWN LIMITATION: a live SUSTAINED-WIND caution is DROPPED (silent) on '
-      'feed loss — recorded, deliberately-deferred (OPS-068 fail-toward-keeping)',
+      'feed loss — recorded, deliberately-deferred (fail-toward-keeping)',
       (tester) async {
     final fake = FakeAlertActuators();
     JmaResult next = JmaSuccess(_windObs());
@@ -669,7 +669,7 @@ void main() {
     next = const JmaFailure('offline');
     await _refetch(tester, fromSuccess: true);
 
-    // DOCUMENTED intentional silence: wind is in the FAST lane and is NOT
+    // DOCUMENTED intentional silence: wind is in the FAST path and is NOT
     // retained on feed loss, so a still-valid gale is dropped. This pins the
     // dropped-gale gap as a RECORDED decision. If wind later gets its own retain
     // window + stale-stamped line (the fail-toward-keeping fix), this flips

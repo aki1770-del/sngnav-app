@@ -23,7 +23,7 @@ JmaObservation _obs({
 
 void main() {
   group('evaluateInvisibleIceWatch', () {
-    test('HER founding scenario (+2°C / 70% / measured no precip) → watch',
+    test('the founding scenario (+2°C / 70% / measured no precip) → watch',
         () {
       expect(
         evaluateInvisibleIceWatch(_obs(temp: 2.0, humidity: 70, precip10m: 0)),
@@ -51,9 +51,9 @@ void main() {
       );
     });
 
-    test('sub-zero ambient → subZeroFrozen (Chair calibration 2026-07-23; '
+    test('sub-zero ambient → subZeroFrozen (calibration decided 2026-07-23; '
         'was outOfScope, was clear before that)', () {
-      // The Chair ruled sub-zero SHOULD warn. It now returns a DISTINCT
+      // The project decided sub-zero SHOULD warn. It now returns a DISTINCT
       // verdict — not `watch` (that names the above-zero surprise), not
       // `clear`/`outOfScope` (an affirmative all-clear / non-coverage on a
       // very likely frozen surface, the fabricated-clear class of Andon

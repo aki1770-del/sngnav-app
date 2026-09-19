@@ -19,7 +19,7 @@
 // is asked for with 「ルートを取得」. The consent gate itself is unchanged. The
 // failure container is found by its key, because its words follow the locale.
 //
-// HONESTY (OPS-066): this verifies the widget-tree gate in the test binding.
+// HONESTY: this verifies the widget-tree gate in the test binding.
 // No device; no real OSRM traffic is possible here (HTTP is stubbed to 400
 // by flutter_test). On-device behavior of the dialog and the real send is
 // DEFERRED to the next APK pass.
@@ -82,7 +82,7 @@ void main() {
 
     await setAThenB(tester);
 
-    // The pre-send disclosure is up, in HER language, naming the real host.
+    // The pre-send disclosure is up, in the driver's language, naming the real host.
     final body = find.byKey(const Key('route-consent-body'));
     expect(body, findsOneWidget);
     expect(tester.widget<Text>(body).data, contains('router.project-osrm.org'));

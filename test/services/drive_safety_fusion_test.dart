@@ -1,7 +1,7 @@
 /// WS6 — pure-fusion tests: the honest position seam + the compound-failure
 /// caution, provable NOW off a device (no Flutter, no IO).
 ///
-/// HER-trace: the two load-bearing honesty properties are asserted here — a
+/// Why: the two load-bearing honesty properties are asserted here — a
 /// dropped/denied GPS fix NEVER becomes a confident dot, and a lost position at
 /// the same time as low visibility raises the caution to its ceiling (the
 /// compounding rule this package exists for).

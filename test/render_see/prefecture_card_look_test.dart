@@ -144,7 +144,7 @@ void main() {
         // with `tester.allRenderObjects`: this app puts every paragraph in that
         // list TWICE (「地図」「地図」, 「秋田」「秋田」 …), so a render-object
         // count reported every unit as drawn twice and this rule fired on its
-        // own arithmetic. Caught 2026-09-18 before the verdict left this lane.
+        // own arithmetic. Caught 2026-09-18 before the verdict was published.
         final drawn = <String>[];
         for (final t
             in tester.widgetList<Text>(find.byType(Text)).map((w) => w.data)) {
@@ -160,7 +160,7 @@ void main() {
         // ⚑ Literals, not the constants this change introduced. A harness
         // that cites the new code's own names cannot compile against the old
         // code, which would leave the defect unrenderable and the comparison
-        // unmade. Caught twice in this lane before either frame was used.
+        // unmade. Caught twice in review before either frame was used.
         for (final unit in const ['cm', '\u00B0C', 'm/s']) {
           final asHead = find.text(unit).evaluate().length;
           // ignore: avoid_print

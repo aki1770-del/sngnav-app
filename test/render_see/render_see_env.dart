@@ -1,6 +1,6 @@
 /// Shared environment honesty for the render_see suites.
 ///
-/// The render_see tests serve OPS-066: they produce ja-rendered PNGs a
+/// The render_see tests serve render-and-look verification: they produce ja-rendered PNGs a
 /// human LOOKS at on the dev host, with golden files as the local
 /// regression anchor. Two facts make the golden comparison meaningless
 /// off that host:
@@ -15,7 +15,7 @@
 /// swaps in a comparator that records an honest per-golden SKIP note
 /// instead of failing. The test still builds, pumps, and renders the
 /// REAL widgets (a broken pipeline still fails loudly); only the
-/// pixel claim is withdrawn. Nobody affirms CI PNGs as OPS-066
+/// pixel claim is withdrawn. Nobody affirms CI PNGs as look-verified
 /// evidence — that affirmation only ever happens from a human-viewed
 /// desktop run.
 library;
@@ -123,7 +123,7 @@ Future<bool> loadDiscoveredFace(String family, FaceSearch search) =>
 //
 // WHY this exists. Until 2026-09-18 every caller of [loadCjkFamily] passed a
 // fixed absolute path, and two of the three named ONE DEVELOPER'S MACHINE:
-// `/home/komada/flutter/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf`
+// `$FLUTTER_ROOT/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf` (under a home directory)
 // and `/usr/share/fonts/opentype/ipafont-gothic/ipag.ttf`. The first CI run
 // this app ever had (run 35300438549, head da281ce) failed 7 tests on exactly
 // that, logging `no CJK system font on this host` 31 times. The tests were
@@ -156,8 +156,8 @@ Future<bool> loadDiscoveredFace(String family, FaceSearch search) =>
 /// (`<sdk>/bin/cache/artifacts/engine/<host>/flutter_tester`), so it is the
 /// SDK actually running, not one named in an environment variable. Measured
 /// 2026-09-18 on this host: resolvedExecutable
-/// `/home/komada/flutter/bin/cache/artifacts/engine/linux-x64/flutter_tester`
-/// → artifacts `/home/komada/flutter/bin/cache/artifacts`, which holds both
+/// `$FLUTTER_ROOT/bin/cache/artifacts/engine/linux-x64/flutter_tester`
+/// → artifacts `$FLUTTER_ROOT/bin/cache/artifacts`, which holds both
 /// `material_fonts/MaterialIcons-Regular.otf` and `Roboto-Regular.ttf`.
 ///
 /// [loadMaterialIconsFont] has resolved its font this way since before the CI
@@ -220,7 +220,7 @@ List<String> _existing(Iterable<String> paths) => paths
 /// The second is the dangerous one. Asked for a JAPANESE face, fontconfig
 /// answers with a LATIN-ONLY one and exits 0. A discovery that trusted it
 /// would load Roboto, the load would succeed, the guard would pass, and the
-/// Japanese legibility of HER screen would have been certified by a font with
+/// Japanese legibility of the driver's screen would have been certified by a font with
 /// no kanji in it. This is not a host quirk and no environment variable fixes
 /// it — it is what the harness does for hermeticity, on every host.
 ///
@@ -398,7 +398,7 @@ List<String> robotoSearchOrder() => _firstNonEmpty([
 /// Load the app's own bundled symbols-subset font (the APK-shipped bytes at
 /// `assets/fonts/SnGNavSymbols.ttf`) under its REAL family name — the one
 /// `ThemeData.fontFamilyFallback` in main.dart names — so a capture renders
-/// the ⚠/❄-class glyphs from the same bytes HER device ships instead of
+/// the ⚠/❄-class glyphs from the same bytes the phone ships instead of
 /// tofu. Opt-in per capture suite: existing goldens were cut without it and
 /// stay pixel-stable unless a suite loads it deliberately.
 Future<bool> loadBundledSymbolsFont() =>
@@ -438,7 +438,7 @@ Future<bool> loadMaterialIconsFont() async {
 /// by accident, and the accident was load-bearing.**
 ///
 /// On 2026-09-18 CI began installing `fonts-ipafont-gothic` and
-/// `fonts-droid-fallback`, because seven legibility guards cannot see HER
+/// `fonts-droid-fallback`, because seven legibility guards cannot see the
 /// Japanese screen without real glyphs. That removes the accident: the fonts
 /// now load on CI, the fontless branch stops firing, and 18 capture suites
 /// would start comparing dev-host pixels against a different engine's.
@@ -460,8 +460,8 @@ bool goldenPixelsComparableHere() {
 /// Replace the golden comparator with one that SKIPS (pass + honest
 /// note) every comparison. Called when no real glyphs loaded, and when
 /// [goldenPixelsComparableHere] says this host did not cut these goldens.
-// ⚑ THE SKIP NOTE USED TO STATE THE WRONG REASON. Corrected 2026-09-18 (AAE,
-// 0.0.2 release train), found while counting skips for release criterion C5.
+// ⚑ THE SKIP NOTE USED TO STATE THE WRONG REASON. Corrected 2026-09-18 (0.0.2
+// release), found while counting skips for one of that release's criteria.
 //
 // This comparator is installed from TWO different conditions (see the call
 // pattern in every capture suite: `if (!cjkLoaded || !goldenPixelsComparableHere())`)

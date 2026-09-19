@@ -7,7 +7,7 @@
 /// landing the phone read no motion at all: the platform's speed was
 /// discarded, so route setting stayed open whatever the car was doing.
 ///
-/// The stop rule is the fail-closed one ruled that day (it replaced "zero lies
+/// The stop rule is the fail-closed one decided that day (it replaced "zero lies
 /// inside the reported accuracy", which read 3.0 ±4.0 m/s as stopped): stopped
 /// only when speed and speed accuracy are both reported, both finite and not
 /// negative, and their sum is at most 0.5 m/s, on a fix the drive brain took
@@ -15,8 +15,8 @@
 /// 0.5 m/s limit is provisional; no reading at a real stop on a real phone
 /// exists.
 ///
-/// The rules pinned here, as ruled and audited that day:
-/// * A measured moving reading closes route setting: the ruled words stand
+/// The rules pinned here, as decided and audited that day:
+/// * A measured moving reading closes route setting: the agreed words stand
 ///   alone and no route act is offered. An open act closes, keeping the point
 ///   she chose. Only measured motion closes an open act.
 /// * Motion belongs to the sharing session. With no motion reading in it,
@@ -189,7 +189,7 @@ Future<void> _send(
 
 bool _open(WidgetTester tester) {
   expect(find.byKey(_whenStopped), findsOneWidget,
-      reason: 'the ruled words are shown either way');
+      reason: 'the agreed words are shown either way');
   return find.byKey(_openAct).evaluate().isNotEmpty;
 }
 
@@ -206,7 +206,7 @@ Future<void> _openTheAct(WidgetTester tester) async {
 
 void main() {
   testWidgets(
-      'a trusted fix measured moving closes route setting: the ruled words '
+      'a trusted fix measured moving closes route setting: the agreed words '
       'stand alone, and no route act is offered', (tester) async {
     final platform = await _bootAndShare(tester);
     await _send(tester, platform, _fix());

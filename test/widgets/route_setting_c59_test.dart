@@ -4,10 +4,10 @@
 /// Why this test exists. Measured at bb02b98 in the real widget tree: a touch
 /// on her map set route points, and one more touch after a route was set threw
 /// it away, with no confirmation and no undo. That touch is also the gesture
-/// ruled on 2026-09-13 to pause follow, so the gesture she uses to look around
+/// decided on 2026-09-13 to pause follow, so the gesture she uses to look around
 /// could take her route away, found only downstream.
 ///
-/// The rules tested here, as ruled 2026-09-14 (route setting by touch, and
+/// The rules tested here, as decided 2026-09-14 (route setting by touch, and
 /// the route section's title):
 ///
 /// * A touch on her map sets no route point and clears none.
@@ -16,7 +16,7 @@
 ///   starts from a control, with ルートは停車中に設定できます。 beside it.
 /// * On the IVI, with no vehicle signal, route setting is closed, and no state
 ///   of the car opens it. There the panel says この端末では、このアプリでルートを
-///   設定できません。 alone, never ルートは停車中に設定できます。 (ruled
+///   設定できません。 alone, never ルートは停車中に設定できます。 (decided
 ///   2026-09-14: the stop line named a condition that opens nothing on that
 ///   host), and no line under the map says the route panel works.
 /// * No sound and no haptic for a touch.
@@ -54,7 +54,7 @@ const _routeClauseEn = 'the route panel still works by tap';
 /// A reason the app writes on a path it measured, whose line keeps its words
 /// and so carries the route-panel sentence where route setting is open. (An
 /// exception while starting no longer does: with no typed cause its line
-/// names no cause and has no route sentence, ruled 2026-09-14.)
+/// names no cause and has no route sentence, decided 2026-09-14.)
 const _servicesOff = 'Location services disabled';
 
 const _openAct = Key('route-act-open');
@@ -190,10 +190,10 @@ void main() {
 
   group('on a phone with no motion signal: only through the route act', () {
     testWidgets(
-        'the route card has the ruled title, the ruled words and the act; the '
+        'the route card has the agreed title, the agreed words and the act; the '
         'act opens with the words', (tester) async {
       await _boot(tester);
-      expect(find.text(_titleJa), findsOneWidget, reason: 'ruled title');
+      expect(find.text(_titleJa), findsOneWidget, reason: 'agreed title');
       expect(find.text(_oldTitle), findsNothing);
       final card =
           find.ancestor(of: find.text(_titleJa), matching: find.byType(Card));
@@ -212,7 +212,7 @@ void main() {
           _whenStoppedJa);
     });
 
-    testWidgets('English: the ruled title and words', (tester) async {
+    testWidgets('English: the agreed title and words', (tester) async {
       await _boot(tester, lang: 'en');
       expect(find.text(_titleEn), findsOneWidget);
       expect(find.text(_oldTitle), findsNothing);
@@ -319,7 +319,7 @@ void main() {
   group('on the IVI, with no vehicle signal: route setting is closed', () {
     final ivi = TargetPlatformVariant.only(TargetPlatform.linux);
 
-    testWidgets('the ruled words stand alone: no route act, and touches set '
+    testWidgets('the agreed words stand alone: no route act, and touches set '
         'nothing', (tester) async {
       final a = await _boot(tester);
       final givenBefore = '${a.spoken} ${a.haptics}';
@@ -328,7 +328,7 @@ void main() {
       expect(tester.widget<Text>(find.byKey(_closedWords)).data,
           _closedOnThisDeviceJa);
       expect(find.byKey(_panelWords), findsNothing, reason: 'one line per host');
-      // Anywhere, not only as a whole line (ruled 2026-09-14).
+      // Anywhere, not only as a whole line (decided 2026-09-14).
       expect(find.textContaining('停車中に設定'), findsNothing,
           reason: 'on this host no stop opens route setting, so no line says '
               'one does');

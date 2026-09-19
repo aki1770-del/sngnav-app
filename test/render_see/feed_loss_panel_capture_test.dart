@@ -1,4 +1,4 @@
-/// OPS-066 render-SEE captures for the N15 feed-loss visible counterparts
+/// Render-and-look captures for the feed-loss visible counterparts
 /// (session-scope; NOT a CI pixel assertion) — produces PNGs into
 /// `ladder_out/feed_loss/` so the reviewer can LOOK at the new cards before
 /// the change lands:

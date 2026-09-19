@@ -26,7 +26,7 @@ void main() {
     expect(find.text('No active advisories at this location.'), findsOneWidget);
   });
 
-  // HIE R105, 2026-09-18 (AAA R58 W3). Until this turn the publisher label was
+  // 2026-09-18. Until then the publisher label was
   // the literal 気象庁 in EVERY locale, and this test pinned that on a page with
   // no locale — the English fallback — beside nine English strings that all say
   // JMA. The label now reads the page's language. The test is not merely moved
@@ -65,11 +65,11 @@ void main() {
     expect(find.text('秋田県では、大雪に警戒してください。'), findsOneWidget);
   });
 
-  // The other direction. HER page is the Japanese one, and the publisher must
+  // The other direction. The driver's page is the Japanese one, and the publisher must
   // still be 気象庁 there — the change must not have translated her surface into
   // the developer's.
   testWidgets(
-      'JMA advisory on HER ja page keeps the publisher as 気象庁, and the '
+      'JMA advisory on the ja page keeps the publisher as 気象庁, and the '
       'verbatim content is identical to the English page', (tester) async {
     final advisory = Advisory(
       source: AdvisorySource.jmaJapan,
@@ -106,16 +106,16 @@ void main() {
     ));
     expect(find.text('気象庁'), findsOneWidget);
     expect(find.text('JMA'), findsNothing);
-    // Verbatim publisher content — unchanged by the label ruling, in both.
+    // Verbatim publisher content — unchanged by the label decision, in both.
     expect(find.text('大雪警報'), findsOneWidget);
     expect(find.text('秋田中央'), findsOneWidget);
     expect(find.text('秋田県では、大雪に警戒してください。'), findsOneWidget);
   });
 
   // NWS and MET Norway are one Latin string each in both languages, and the
-  // ruling must not have moved them. The NWS card head is asserted below on the
-  // English page; this holds it on HER Japanese one.
-  testWidgets('a non-JMA publisher reads the same on HER ja page as on the '
+  // change must not have moved them. The NWS card head is asserted below on the
+  // English page; this holds it on the Japanese one.
+  testWidgets('a non-JMA publisher reads the same on the ja page as on the '
       'English one', (tester) async {
     final advisory = Advisory(
       source: AdvisorySource.nwsUnitedStates,
@@ -189,7 +189,7 @@ void main() {
       errorMessage: 'Some transport error',
       onRefresh: () => refreshed = true,
     )));
-    // The app's words and nothing after them (as ruled for the route line): the
+    // The app's words and nothing after them (as decided for the route line): the
     // exception text is not shown.
     expect(find.text('Advisory fetch failed.'), findsOneWidget);
     expect(find.textContaining('Some transport error'), findsNothing);
@@ -221,7 +221,7 @@ void main() {
     expect(find.byKey(const Key('advisory-unknown-degraded')), findsOneWidget);
     expect(find.textContaining('unknown'), findsOneWidget);
     // The publisher is named, in the language of the sentence that names it
-    // (HIE R105): until 2026-09-18 this line read verbatim "Could not fetch
+    // — until 2026-09-18 this line read verbatim "Could not fetch
     // from 気象庁." — an English sentence whose only subject was in another
     // script, and three empty boxes on a font stack with no CJK face. Its
     // exception text is still not shown.
@@ -290,7 +290,7 @@ void main() {
   });
 
   testWidgets(
-      'N10: retained advisories carry a visible stale-age banner',
+      'retained advisories carry a visible stale-age banner',
       (tester) async {
     final advisory = Advisory(
       source: AdvisorySource.jmaJapan,
@@ -436,7 +436,7 @@ void main() {
     // The anti-cry-wolf pin. This test must pass BEFORE and AFTER the gate:
     // it proves the fix distinguishes "could not look" from "looked and it
     // is clear" rather than blanket-suppressing the all-clear. An
-    // instrument that can never say "clear" is as useless to HER as one
+    // instrument that can never say "clear" is as useless to the driver as one
     // that always does.
     testWidgets(
         'a COMPLETE lookup with no advisories DOES render the all-clear '
@@ -464,15 +464,15 @@ void main() {
     });
   });
 
-  // ===== HIE R114, 2026-09-19 — the card's own labels =====
+  // ===== 2026-09-19 — the card's own labels =====
   //
-  // R105 named this and did not fix it: HER Japanese card drew the English
+  // The 2026-09-18 change named this and did not fix it: the Japanese card drew the English
   // word `severe` in the severity pill, because the pill rendered
   // `advisory.severity.name`. Beside it the same Row drew `eff.`, and lower
-  // down the card drew `expires`. Seen in
-  // `outputs/hie/r105_w3_l2_frame_items_2026_09_18/frames/ja_card-head_cjk_new.png`.
+  // down the card drew `expires`. Seen in a rendered frame of the Japanese
+  // card head.
   //
-  // Both directions, as for the publisher label: HER page must change, the
+  // Both directions, as for the publisher label: the Japanese page must change, the
   // English page must not, and the publisher's verbatim wording must not move
   // in either.
   group('the advisory card\'s own labels read the page\'s language', () {
@@ -511,7 +511,7 @@ void main() {
           onRefresh: _noop,
         );
 
-    testWidgets('HER ja page: the severity pill and both times are Japanese',
+    testWidgets('ja page: the severity pill and both times are Japanese',
         (tester) async {
       await tester.pumpWidget(ja(cards(jmaSevere())));
 
@@ -541,7 +541,7 @@ void main() {
 
     // Every level, because the one that matters most is the one no fixture
     // ever carries. An unknown severity must reach her as unknown.
-    testWidgets('every severity level draws a Japanese word on HER page',
+    testWidgets('every severity level draws a Japanese word on the ja page',
         (tester) async {
       const expected = <AdvisorySeverity, String>{
         AdvisorySeverity.extreme: '甚大',
@@ -568,7 +568,7 @@ void main() {
           description: '',
         ))));
         expect(find.text(expected[level]!), findsOneWidget,
-            reason: 'severity $level must draw ${expected[level]} on HER page');
+            reason: 'severity $level must draw ${expected[level]} on the ja page');
         expect(find.text(level.name), findsNothing,
             reason: 'severity $level must not draw its raw enum token');
       }

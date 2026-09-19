@@ -1,5 +1,5 @@
 /// What an area advisory does to the rung a driver is given before her
-/// share's first trusted fix, at the drive brain (ruled 2026-09-15).
+/// share's first trusted fix, at the drive brain (decided 2026-09-15).
 ///
 /// Why, written before the act. The app takes no advisory source a widget test
 /// can give it, so nothing through the app can state these rows. Measured

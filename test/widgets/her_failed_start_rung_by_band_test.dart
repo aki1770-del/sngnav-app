@@ -1,5 +1,5 @@
 /// Which caution rung a failed start is given under a measured condition,
-/// before her first trusted fix of a share (ruled 2026-09-15).
+/// before her first trusted fix of a share (decided 2026-09-15).
 ///
 /// Why, written before the act. Ruled 2026-09-14: before a share's first
 /// trusted fix a position failure does not reach the caution rung by itself,
@@ -32,7 +32,7 @@
 /// Over time: a rise is told when it comes. Once given, the rung does not fall
 /// within the share, as on 6a72b41. A reading the app counts stale must not
 /// lower it: lowered, it is told again when the next reading arrives, with no
-/// change on the road. Recorded and not ruled: a later measured clear reading
+/// change on the road. Recorded and not decided: a later measured clear reading
 /// does not release it either. Whether it should is its own question.
 ///
 /// Read without the card's words or colours: every spoken line and every
@@ -40,7 +40,7 @@
 /// through the app's own localizer. Every JMA reading is stamped at the moment
 /// the app fetches it, so it is fresh for the app's 300 s window after each
 /// 10-minute refresh. A measured whiteout is also told to a driver before she
-/// shares (ruled 2026-09-15), so what a share is given is read from her tap.
+/// shares (decided 2026-09-15), so what a share is given is read from her tap.
 library;
 
 import 'dart:async';
@@ -475,7 +475,7 @@ void main() {
     });
 
     testWidgets(
-        'recorded, not ruled: given at a measured 300 m, a measured clear '
+        'recorded, not decided: given at a measured 300 m, a measured clear '
         '1,500 m from the refresh does not release the top rung', (tester) async {
       var calls = 0;
       final a = await _boot(tester,

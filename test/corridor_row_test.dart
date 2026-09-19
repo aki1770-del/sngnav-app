@@ -178,7 +178,7 @@ void main() {
     );
     expect(find.textContaining('南・内陸'), findsOneWidget);
     // The failure is said in words, and the fetch's reason is not shown
-    // (2026-09-15, as ruled for the route line).
+    // (2026-09-15, as decided for the route line).
     expect(find.byKey(const Key('corridor-station-fetch-failed')),
         findsOneWidget);
     expect(find.textContaining('SocketException'), findsNothing);

@@ -121,7 +121,7 @@ void main() {
     final failures = <String>[];
     for (final id in kOfflineSafetyVoiceJa.keys) {
       // Verify the text the WAV is actually rendered FROM (the render override
-      // when present, else the catalog value) — that is what HER hears. The
+      // when present, else the catalog value) — that is what the driver hears. The
       // catalog value can be a terse emitter string open_jtalk cannot read
       // (e.g. 濡路); the override is the readable phrase the mouth speaks.
       final spoken = offlineSafetyRenderTextFor(id);

@@ -1,6 +1,6 @@
 // B27 — RouteConsentStore round-trip + honest-null discipline.
 //
-// The store remembers HER pre-send decision for the OSRM coordinate egress.
+// The store remembers the driver's pre-send decision for the OSRM coordinate egress.
 // The load-bearing property: absent/unreadable/malformed state loads as null
 // ("not decided" → ask again) — NEVER as a fabricated grant (which would
 // send her coordinates without consent) and NEVER as a fabricated refusal

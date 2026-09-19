@@ -2,11 +2,11 @@
 //
 // This is the most device-free-verifiable workstream: pure text and layout,
 // golden-render-able in-env. It proves the consent gate + data-flow disclosure
-// render in HER language (ja), and that the advisory surface leads with the
+// render in the driver's language (ja), and that the advisory surface leads with the
 // authoritative Japanese publisher (JMA) and de-emphasizes the English NWS
 // card on the ja surface.
 //
-// HONESTY (OPS-066 / AAE-1): this verifies the WIDGET TREE renders localized
+// HONESTY: this verifies the WIDGET TREE renders localized
 // text in the test binding. It does NOT verify on-device HEAR/FEEL/SEE — there
 // is no Android device/emulator in this env. On-device observation is DEFERRED.
 
@@ -57,7 +57,7 @@ void main() {
       await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
       await tester.pump();
 
-      // The deny-by-default consent affordance is HER language.
+      // The deny-by-default consent affordance is in the driver's language.
       expect(find.text('現在地を共有'), findsOneWidget); // "Share my location"
       expect(find.text('位置情報はまだ共有されていません。'), findsOneWidget);
       // The Akita mock position is on the development page since 2026-09-15;
@@ -145,7 +145,7 @@ void main() {
       // The exact reason strings her_position.dart emits with no typed cause.
       // The two refusal reasons are not here: the stream writes them only with
       // the refusal cause, and a typed refusal never reaches this line
-      // (ruled 2026-09-14).
+      // (decided 2026-09-14).
       const reasons = [
         'Location services disabled',
         'Location service check timed out — platform did not answer',
@@ -161,7 +161,7 @@ void main() {
         final line = ja.gpsUnavailable(reason, routeSettingOpen: true);
         expect(
           // No ASCII letter runs from the original reason may survive into
-          // HER line (the wrapper text itself is pure ja + punctuation).
+          // the driver's line (the wrapper text itself is pure ja + punctuation).
           RegExp('[A-Za-z]{3,}').hasMatch(line.replaceAll('GPS', '')),
           isFalse,
           reason: 'reason "$reason" leaked English into the ja surface: '
@@ -210,8 +210,8 @@ void main() {
     });
 
     test('locationDisclosure names the FULL JMA egress + stationary cadence '
-        '(BOD P2 D4 fix — no false "only prefecture code"/"のみ")', () {
-      // The measured JMA wire on HER Akita path is THREE region/prefecture-
+        '(disclosure fix — no false "only prefecture code"/"のみ")', () {
+      // The measured JMA wire on the Akita path is THREE region/prefecture-
       // keyed endpoints, not one: warning/{prefectureCode}.json +
       // AMeDAS observation (station 32402) + forecast/050000.json. And the
       // cadence is per-~1km-travel AND a ~10-minute stationary ticker
@@ -330,7 +330,7 @@ void main() {
   // test literals), so a copy change can't silently pass a stale assertion.
   const jaL10n = AppL10n(Locale('ja'));
 
-  group('WS5 announce affordance localized (task 3a / D4)', () {
+  group('announce affordance localized (task 3a)', () {
     testWidgets('ja surface shows the JA announce label + helper, no EN leak',
         (tester) async {
       // The announce button is on the development page (2026-09-15).
@@ -339,7 +339,7 @@ void main() {
       await tester.pump();
       await openDeveloperPage(tester);
 
-      // The button label is HER language...
+      // The button label is in the driver's language...
       expect(find.text(jaL10n.announceToDriver), findsOneWidget);
       // ...and the English label is gone from the surface.
       expect(find.text('Announce to driver (audio + haptic)'), findsNothing);
@@ -376,7 +376,7 @@ void main() {
     });
   });
 
-  group('Advisory card states localized (task 3b / D4)', () {
+  group('Advisory card states localized (task 3b)', () {
     testWidgets('ja empty-state renders the localized no-data line',
         (tester) async {
       await tester.pumpWidget(_localizedHost(
@@ -415,7 +415,7 @@ void main() {
       ));
       await tester.pump();
       expect(find.text(jaL10n.advisoryFetchFailed), findsOneWidget);
-      // The Retry action is HER language too.
+      // The Retry action is in the driver's language too.
       expect(find.text(jaL10n.retry), findsOneWidget);
     });
 

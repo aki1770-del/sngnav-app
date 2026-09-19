@@ -3,7 +3,7 @@
 /// This is the max honest in-env verification: it proves the app FIRES the
 /// right channel with the right payload (audio + haptic, correct JA text +
 /// locale). It does NOT — and cannot — prove the driver HEARS or FEELS
-/// anything; that is on-device verification, DEFERRED (OPS-066 / AAE-1).
+/// anything; that is on-device verification, DEFERRED.
 library;
 
 import 'package:navigation_safety_enums/navigation_safety_enums.dart'

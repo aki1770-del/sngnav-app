@@ -47,6 +47,6 @@ void main() {
         .toList();
     expect(dead, isEmpty,
         reason: '${dead.length} bundled WAV(s) correspond to NO string the app '
-            'can emit — dead weight in HER APK:\n${dead.join('\n')}');
+            'can emit — dead weight in the APK:\n${dead.join('\n')}');
   });
 }

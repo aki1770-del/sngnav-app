@@ -137,9 +137,9 @@ void main() {
     }
   });
 
-  // AAA R52 mirror test, adopted. The edge test above compares with a trusted
+  // Mirror test from a safety review, adopted. The edge test above compares with a trusted
   // position only, where concern 1 and 2 give the same rung, so a mirror that
-  // ranks 500-999 m as low passed it (AAA's M2) and a demo 700 m replaced a
+  // ranks 500-999 m as low passed it (the review's second mutant) and a demo 700 m replaced a
   // missing reading. The advisor's own concern is recovered from two
   // positions: trusted separates 0 / {1,2} / 3; degraded separates {0,1} /
   // {2,3} by compounding.

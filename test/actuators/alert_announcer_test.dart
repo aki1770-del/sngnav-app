@@ -16,7 +16,7 @@ import 'package:sngnav_app/main.dart' show severityForCondition;
 import '../support/fake_alert_actuators.dart';
 
 /// An actuator whose [speak] ALWAYS throws (a TTS fault), but whose [haptic]
-/// still records. Proves the OPS-059 parity guarantee: a broken audio channel
+/// still records. Proves the accessibility-floor parity guarantee: a broken audio channel
 /// must NOT suppress the tactile cue the deaf / HoH driver depends on.
 /// An actuator whose [speak] is manually completed by the test — lets the
 /// serialization tests hold one utterance "in the air" and prove a second
@@ -65,7 +65,7 @@ class _SpeakThrowsActuators implements AlertActuators {
 }
 
 void main() {
-  group('AlertAnnouncer — whiteout reaches HER on audio AND haptic', () {
+  group('AlertAnnouncer — whiteout reaches the driver on audio AND haptic', () {
     test(
       'critical whiteout (ageingRural + ice) => speak(JA text, ja-JP) + '
       'critical haptic',
@@ -73,7 +73,7 @@ void main() {
         final fake = FakeAlertActuators();
         final announcer = AlertAnnouncer(actuators: fake);
 
-        // The real catalog guidance HER's mother would receive: the ice
+        // The real catalog guidance an older driver would receive: the ice
         // action string for the ageingRural profile. Sourced from the
         // package, not hardcoded, so the test tracks the publisher's wording.
         final explainer = AlertExplainer.forConditionAndProfile(
@@ -163,7 +163,7 @@ void main() {
     );
 
     test(
-      'OPS-059 independence: a TTS fault (speak throws) does NOT suppress the '
+      'channel independence: a TTS fault (speak throws) does NOT suppress the '
       'haptic — the deaf / HoH driver still gets the critical cue',
       () async {
         final throwing = _SpeakThrowsActuators();

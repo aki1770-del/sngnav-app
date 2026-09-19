@@ -1,11 +1,11 @@
 /// What a driver with no position is given while a measured whiteout stands
-/// on the road, in four cases (ruled 2026-09-15).
+/// on the road, in four cases (decided 2026-09-15).
 ///
 /// Why, written before the act. Under a fresh measured visibility below 200 m
 /// the app's own advisor puts the road at its top rung whatever is known of
 /// her position: a driver with a trusted position there is shown the top rung,
 /// given the line inviting a safe stop, and the critical haptic. Measured on
-/// this app before the ruling, with the same weather for every driver:
+/// this app before the decision, with the same weather for every driver:
 /// * a later share in the same whiteout showed the top rung and said and
 ///   buzzed nothing, positioned or not: what an earlier share told was carried
 ///   into it;
@@ -913,7 +913,7 @@ void main() {
     });
 
     testWidgets(
-        'recorded, not ruled: with no share running, a measured 300 m is told '
+        'recorded, not decided: with no share running, a measured 300 m is told '
         'nothing', (tester) async {
       final a = await _boot(tester, visibilities: const [300]);
       await _advance(tester, const Duration(minutes: 10, seconds: 15));
