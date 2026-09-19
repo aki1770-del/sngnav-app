@@ -31,7 +31,10 @@ description: >-
 # /home/komada/work/r115-release-hold-0.0.2+5/). This build adds the outlined
 # check button (cf796cb), the weakest real cue (9cfa2e0) and the bundled check
 # line (52edb1d): a different artifact, so a different versionCode.
-version: 0.0.2+6
+# 2026-09-19: +6 -> +7. The 0.0.2+6 APK exists. This build changes one thing:
+# the prefecture table's 横手 row fetches Yokote's own station (32596) instead of
+# Kakunodate's (32466). A different artifact, so a different versionCode.
+version: 0.0.2+7
 publish_to: 'none'
 
 environment:
