@@ -35,7 +35,12 @@ description: >-
 # 2026-09-19: +6 -> +7. The 0.0.2+6 APK exists. This build changes one thing:
 # the prefecture table's 横手 row fetches Yokote's own station (32596) instead of
 # Kakunodate's (32466). A different artifact, so a different versionCode.
-version: 0.0.2+7
+# 2026-09-20: +7 -> +8. The 0.0.2+7 APK exists. This build adds the English page
+# (station names, places and the watch rows read English on an English phone,
+# the English voice says "fairly strong wind" for the lower wind band, and the
+# black-ice row says what was measured) and plain words in the source's comments
+# and test names. A different artifact, so a different versionCode.
+version: 0.0.2+8
 publish_to: 'none'
 
 environment:
