@@ -47,7 +47,10 @@ const List<({
   (id: '32286', name: '男鹿', lat: 39.911, lon: 139.900, descriptor: '北・海沿い'),
   (id: '32402', name: '秋田', lat: 39.717, lon: 140.098, descriptor: '市街地'),
   (id: '32551', name: '大曲', lat: 39.490, lon: 140.495, descriptor: '中央内陸'),
-  (id: '32466', name: '横手', lat: 39.320, lon: 140.555, descriptor: '南・内陸'),
+  // 32596, not 32466: JMA's table names 32466 角館 (Kakunodate), about 31 km
+  // north. Until 2026-09-19 this row fetched it and drew it as 横手. Checked by
+  // test/corridor_stations_match_jma_table_test.dart.
+  (id: '32596', name: '横手', lat: 39.320, lon: 140.555, descriptor: '南・内陸'),
   (id: '32691', name: '湯沢', lat: 39.187, lon: 140.463, descriptor: '南・山間'),
 ];
 
