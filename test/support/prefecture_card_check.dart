@@ -9,8 +9,10 @@
 /// than the assertions. A second read the same day found two places where that
 /// still was not so: clause 6 said "the station's measurement" while checking
 /// only the quantity, and clause 2 said "every transform" while measuring only
-/// its horizontal scale. Both now check what they say. It goes back to that
-/// audit before it leaves PROPOSED.
+/// its horizontal scale. Both now check what they say. A third read found that
+/// clause 4 named a node it does not read and that nothing bound the heads'
+/// words; clause 4 now says what it reads, and clause 7 binds the words. It goes
+/// back to that audit before it leaves PROPOSED.
 /// Until 2026-09-19 it was called an audited check in several places, but no
 /// audit had read it before that day.
 ///
@@ -32,8 +34,10 @@
 ///      glyph squashed in either direction is held;
 ///   3. each of cm, °C and m/s is drawn exactly once, as exact text, in a
 ///      cell of a row of columns: a column head;
-///   4. each value's own semantics node says it followed by exactly one unit,
-///      and a longer value cannot stand in for it;
+///   4. the screen-reader label of the value's row says the value followed
+///      by exactly one unit, and a longer value cannot stand in for it (a
+///      cell's label is merged into its row's node, and the row is what a
+///      screen reader speaks);
 ///   5. THE BINDING: the unit a value is announced with is the unit of the
 ///      head over the column it is drawn in. After the units moved to the
 ///      heads, a bare number takes its meaning only from the head above it. A
@@ -48,10 +52,15 @@
 ///      that head's quantity, as this test's fixture serves it. So a row that
 ///      shows the corridor's warmest temperature in place of its own, which
 ///      would hide the coldest station's ice, is caught, and so are one
-///      station's numbers under another place's name.
+///      station's numbers under another place's name;
+///   7. the word over each column names the quantity its unit measures, as the
+///      app's own words give it (積雪深 over cm, 気温 over °C, 風速 over m/s, and
+///      the English words on the English page), so a head that reads 気温 over
+///      the wind is caught even with every unit in place.
 /// WHAT IT DOES NOT ASSERT: a scale applied ABOVE the row; a device text scale,
-/// which this 1.0-scale test never sets; anything about the heads' own words
-/// (積雪深 / 気温 / 風速); any face other than the one each file loads; a phone.
+/// which this 1.0-scale test never sets; whether the heads' words read well at
+/// a glance, which is a question for the frame and not for this check; any face
+/// other than the one each file loads; a phone.
 /// On 2026-09-19 each clause was proven able to fail: its defect was planted
 /// and the check went red.
 library;
@@ -65,6 +74,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:sngnav_app/corridor_row.dart';
+import 'package:sngnav_app/l10n/app_localizations.dart' show AppL10n;
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
@@ -89,6 +99,18 @@ Map<String, String> _readingsOf(String stationId) {
     '°C': v.$1.toStringAsFixed(1),
     'cm': v.$2.toStringAsFixed(0),
     'm/s': v.$3.toStringAsFixed(1),
+  };
+}
+
+/// The word the app draws over the column of [unit] on the [lang] page
+/// (clause 7), read from the app's own localizations.
+String _headWordFor(String unit, String lang) {
+  final l = AppL10n(Locale(lang));
+  return switch (unit) {
+    'cm' => l.prefectureHeadSnow,
+    '°C' => l.prefectureHeadTemp,
+    'm/s' => l.prefectureHeadWind,
+    _ => throw ArgumentError('no head word for $unit'),
   };
 }
 
@@ -246,19 +268,55 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
         final semantics = tester.ensureSemantics();
         await tester.pump();
 
-        // Clause 3: each unit drawn exactly once, in a cell of a row of
-        // columns. That cell's horizontal span is the unit's column.
+        // Clauses 3 and 7: each unit drawn exactly once, in a cell of a row
+        // of columns, under the word for its quantity. That cell's horizontal
+        // span is the unit's column.
         final column = <String, (double, double)>{};
         for (final unit in _headUnits) {
           final drawn = find.text(unit).evaluate().toList();
-          // ignore: avoid_print
-          print('$lang $face unit in head 「$unit」 x${drawn.length}');
           if (drawn.length != 1) {
+            // ignore: avoid_print
+            print('$lang $face unit in head 「$unit」 x${drawn.length}');
             problems.add(
               '「$unit」 is drawn ${drawn.length} times; it must be drawn '
               'exactly once, as the head of its column',
             );
             continue;
+          }
+          // 7: the word drawn with the unit, in the same head.
+          Element? head;
+          drawn.single.visitAncestorElements((a) {
+            if (a.widget is CorridorColumnHead) {
+              head = a;
+              return false;
+            }
+            return true;
+          });
+          final word = _headWordFor(unit, lang);
+          final headWords = head == null
+              ? <String>{}
+              : {
+                  for (final e
+                      in find
+                          .descendant(
+                            of: find.byElementPredicate(
+                              (x) => identical(x, head),
+                            ),
+                            matching: find.byType(Text),
+                          )
+                          .evaluate())
+                    if (((e.widget as Text).data ?? '') != unit)
+                      (e.widget as Text).data ?? '',
+                };
+          // ignore: avoid_print
+          print('$lang $face unit in head 「$unit」 x1 under the word '
+              '${headWords.isEmpty ? 'NONE' : headWords.map((w) => '「$w」').join('/')}');
+          if (!headWords.contains(word)) {
+            problems.add(
+              'the head over 「$unit」 reads '
+              '${headWords.isEmpty ? 'no word' : headWords.map((w) => '「$w」').join('/')}; '
+              'it must read 「$word」, the word for what $unit measures',
+            );
           }
           final cell = _cellOf(drawn.single.renderObject!);
           if (cell == null) {
@@ -375,8 +433,10 @@ void prefectureCardTests({required String face, required FaceSearch search}) {
             );
           }
 
-          // 4: the unit its own semantics node says it with. Boundary-checked:
-          // 「2.1」 must not be cleared by the 「-2.1 °C」 of another column.
+          // 4: the unit the row's screen-reader label says it with. A cell's
+          // label is merged into its row's node, so this reads the row, which
+          // is what a screen reader speaks. Boundary-checked: 「2.1」 must not
+          // be cleared by the 「-2.1 °C」 of another column.
           final label = tester
               .getSemantics(find.byElementPredicate((e) => identical(e, el)))
               .getSemanticsData()
