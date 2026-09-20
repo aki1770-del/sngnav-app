@@ -666,6 +666,21 @@ Widget _honestyBanner({
 }) =>
     Container(
       key: key,
+      // MEASURED 2026-09-20 (R116-37) at her phone geometry, 393x851, on the
+      // app's own chrome: two stacked honesty banners sat at 1.126:1 with a
+      // GAP OF 0.0 px. They touch. I looked at the frame and they are ONE
+      // continuous cream block -- the banner saying we could not confirm the
+      // advisory lookup completed is absorbed into the staleness banner above
+      // it. A contrast figure between two blocks that touch is answering the
+      // wrong question, and the `weight` parameter below was my earlier reach
+      // for a channel that does nothing to a boundary.
+      //
+      // The separation is GEOMETRY, which is this seat's own C1: colour is the
+      // channel that dies first in glare, in peripheral vision and to a
+      // colour-lost eye, so two states must differ on something else. 6 px of
+      // page ground between them is that something else, and it survives
+      // desaturation, which 1.126:1 never did.
+      margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(8),
       color: fill,
       child: Semantics(

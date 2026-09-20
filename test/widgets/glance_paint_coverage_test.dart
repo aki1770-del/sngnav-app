@@ -42,12 +42,24 @@ import 'package:flutter_test/flutter_test.dart';
 /// gap, and it is stated so a later reader can move it on evidence.
 const int kPaintThreshold = 4;
 
-final RegExp _paintPos = RegExp(
-    r'(?<![\w])(?:color|backgroundColor|fillColor|surfaceTintColor|shadowColor)\s*:');
+// Widened 2026-09-20 to the GATE's nine keys, after AAA's certification found
+// this register matching five while hie-glance-gate.py matched nine. Nothing is
+// hidden on today's population -- AAA measured that -- but a surface painting
+// only through `foregroundColor:` would have been invisible here and visible to
+// the gate, and two instruments disagreeing about what counts as paint is how
+// this lane's defect started.
+final RegExp _paintPos = RegExp(r'(?<![\w])(?:color|backgroundColor|fillColor|fill'
+    r'|surfaceTintColor|shadowColor|foregroundColor|barrierColor|cursorColor)\s*:');
 
 /// A test SAMPLES PIXELS only if it reads the raster back. Anything that reads
 /// a widget's declared colour is reading the RECIPE.
+///
+/// AAA found on certification 2026-09-20 that THIS FILE contains that pattern,
+/// so it matches itself. Not reachable today -- kCovered names only the real
+/// guard -- but a register that can clear itself is OPS-064(C) in miniature,
+/// so the path is closed below rather than left latent.
 final RegExp _samplesPixels = RegExp(r'toByteData|toImage|getPixel');
+const String _selfPath = 'test/widgets/glance_paint_coverage_test.dart';
 
 /// lib path -> the test that samples its painted pixels.
 const Map<String, String> kCovered = {
@@ -55,19 +67,36 @@ const Map<String, String> kCovered = {
       'test/widgets/advisory_card_contrast_floor_test.dart',
 };
 
-/// lib path -> why it is NOT covered, and by whom. UNMEASURED, never cleared.
-/// Every line here is a surface HER eyes may read with no instrument on it.
-const Map<String, String> kUnmeasuredDebt = {
+/// lib path -> why it has NO PIXEL-SAMPLING guard, and what DOES cover it.
+///
+/// Renamed 2026-09-20 on AAA's certification, and the correction matters. This
+/// map was first named for, and printed as, unmeasured debt. main.dart is NOT
+/// unmeasured: test/widgets/text_contrast_floor_test.dart imports it at :34 and
+/// holds her whole home page to 4.5:1 text / 3.0:1 icon in both languages.
+/// Verified this turn. In this unit that word is load-bearing vocabulary, and
+/// using it for a surface that carries a real instrument is the same error as
+/// reading an empty search as absence -- the error this lane exists to root.
+///
+/// What is true is narrower, and is what each line now says: NO GUARD HERE
+/// SAMPLES THE PAINTED PIXELS. That gap is real, not pedantry --
+/// test/support/painted_text_contrast.dart resolves colours as handed to the
+/// PAINTER and contains ZERO handling of Opacity or RenderOpacity (measured: 0
+/// occurrences, 0 pixel reads). That is exactly the blindness logs/08 shows:
+/// style #616161 passing at 5.604:1 where the painted pixel is #A1A3A4 at
+/// 2.292:1. A render-tree floor guard does not discharge a pixel-sampling bound.
+const Map<String, String> kNoPixelGuard = {
   'lib/main.dart':
-      '2026-09-20 HIE: 92 paint positions, the largest unmeasured surface in '
-      'the app and the page she actually opens. No rendered-pixel floor guard '
-      'exists for it. Owed by HIE.',
+      '2026-09-20 HIE: 92 paint positions, the page she actually opens. Its '
+      'TEXT floor IS held, by text_contrast_floor_test.dart, which imports '
+      'main.dart at :34 -- but that guard reads the render tree and is blind '
+      'to compositing. No guard samples its painted pixels. Owed by HIE.',
   'lib/akita_map.dart':
       '2026-09-20 HIE: 21 paint positions. her_dot_glance_capture_test.dart '
       'samples pixels but covers the dot, not the map surface. Owed by HIE '
       'with AAE on the device path.',
   'lib/corridor_row.dart':
-      '2026-09-20 HIE: 5 paint positions, no rendered-pixel guard. Owed by HIE.',
+      '2026-09-20 HIE: 5 paint positions, no pixel-sampling guard and no text '
+      'floor guard either. Owed by HIE.',
 };
 
 Directory _repoRoot() {
@@ -100,39 +129,43 @@ void main() {
     final uncovered = <String>[];
     for (final entry in painting.entries) {
       if (kCovered.containsKey(entry.key)) continue;
-      if (kUnmeasuredDebt.containsKey(entry.key)) continue;
+      if (kNoPixelGuard.containsKey(entry.key)) continue;
       uncovered.add('${entry.key} (${entry.value} paint positions)');
     }
     expect(uncovered, isEmpty,
         reason: 'These lib files paint and are in neither register. A surface with no '
             'instrument on it is UNMEASURED, never clean. Add a test that samples its '
-            'painted pixels, or name it in kUnmeasuredDebt with a reason and a date:\n'
+            'painted pixels, or name it in kNoPixelGuard with a reason and a date:\n'
             '  ${uncovered.join('\n  ')}');
 
     // A declaration that names nothing is a success-shaped value.
     for (final e in kCovered.entries) {
       expect(exists(e.value), isTrue,
           reason: 'kCovered claims ${e.value} guards ${e.key}; that file does not exist.');
+      expect(e.value == _selfPath, isFalse,
+          reason: 'kCovered names this register itself, which contains its own detector '
+              'pattern and would clear itself. A producer is never its own auditor.');
       expect(_samplesPixels.hasMatch(read(e.value)), isTrue,
           reason: '${e.value} samples no pixels, so it cannot guard what lands on glass. '
               'It reads the recipe.');
       expect(painting.containsKey(e.key), isTrue,
           reason: 'kCovered names ${e.key}, which no longer paints. Stale declaration.');
     }
-    for (final k in kUnmeasuredDebt.keys) {
+    for (final k in kNoPixelGuard.keys) {
       expect(painting.containsKey(k), isTrue,
-          reason: 'kUnmeasuredDebt names $k, which no longer paints above the threshold. '
+          reason: 'kNoPixelGuard names $k, which no longer paints above the threshold. '
               'Stale debt hides real debt -- remove the line.');
     }
 
     final totalPaint = painting.values.fold<int>(0, (a, b) => a + b);
-    final debtPaint = kUnmeasuredDebt.keys
+    final debtPaint = kNoPixelGuard.keys
         .map((k) => painting[k] ?? 0)
         .fold<int>(0, (a, b) => a + b);
     // ignore: avoid_print
     print('GLANCE-COVERAGE ${painting.length} painting file(s), $totalPaint paint position(s); '
         'covered by a pixel-sampling guard: ${kCovered.length} file(s); '
-        'UNMEASURED DEBT: ${kUnmeasuredDebt.length} file(s), $debtPaint paint position(s).');
+        'NO PIXEL-SAMPLING GUARD: ${kNoPixelGuard.length} file(s), $debtPaint '
+        'paint position(s) -- NOT the same as unmeasured; see kNoPixelGuard.');
 
     // The register is honest about itself: coverage is not legibility, and this
     // count is not a pass. It is printed so the debt is visible on every run
