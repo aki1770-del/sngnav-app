@@ -1,0 +1,32 @@
+tool/hie_glance_gate.py is a VENDORED, BYTE-IDENTICAL COPY. It is not this repo's file.
+
+  source repo : toyota flutter masterplan (governance)
+  source path : scripts/hie-glance-gate.py
+  md5         : 8fc43cf0c4d2a25144c2e8c6e36e164c
+  vendored    : 2026-09-20 by AAE, under Komada-voice `d18-2:b`
+  OWNER       : HIE (hmi-interface-engineer). AAE does not edit this file.
+
+WHY IT IS VENDORED AND NOT FETCHED, measured before the act (OPS-070(B)):
+the governance repo that owns this gate has ZERO git remotes (`git remote -v`
+returns nothing, measured 2026-09-20). A GitHub Actions runner cannot fetch a
+file from a repository that exists on one laptop and nowhere else. "CI reaches
+across the seam" is not a design choice here, it is mechanically impossible.
+Copying it in is the only way `d18-2:b` can be executed at all.
+
+THE COST, NAMED RATHER THAN PAPERED OVER. This is now a FORK. Two copies of
+HIE's instrument exist and CI CANNOT DETECT DRIFT BETWEEN THEM, for exactly the
+reason above: the runner cannot see the other copy. If HIE improves the gate,
+this copy silently keeps the old behaviour and every run stays green while
+testing a stale instrument. That is a success-shaped value, and this unit has a
+memory of one.
+
+WHAT CARRIES THE DRIFT INSTEAD, and its honest bound: `tool/glance_gate.sh
+--drift-check` compares this file's md5 with the governance copy. It runs ONLY
+on a machine holding both trees -- i.e. never in CI. It is a local check a seat
+runs, not a loom that fires on its own. ⛑ UNVERIFIED, never cleared: nothing
+schedules it. Stated here so the next reader does not mistake the vendored copy
+for a governed one.
+
+RE-VENDORING: change the governance copy, then re-copy and update the md5 above.
+Never edit this copy in place -- a fork edited on both sides cannot be reconciled
+by a checksum.

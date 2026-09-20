@@ -166,6 +166,60 @@ jobs:
           channel: stable
           flutter-version: '3.41.4'
 
+      # ⛑ 2026-09-20, AAE, on Komada-voice `d18-2:b`. THE GLANCE GATE WAS ARMED
+      # NOWHERE. Re-measured from the source rather than inherited from the brief:
+      # 0 of 39 crontab rows, 0 references in this file, no invoking script; the
+      # only other file naming it is a Dart comment. Our own cron_liveness.log had
+      # been printing `UNARMED  scripts/hie-glance-gate.py  built, no cron row / no
+      # hook / no armed caller` on EVERY run -- armed, fired, correct, unread. The
+      # RCA's terminus: "it did not go green for eight days; it did not run."
+      #
+      # ⛑ IT SITS BELOW flutter-action, AND THE FIRST DRAFT OF THIS STEP PUT IT
+      # ABOVE, WITH A REASON THAT WAS FALSE. That draft said the gate "needs python3
+      # and the checked-out source, and NOTHING else", and placed it with the cheap
+      # source-only guards per finding F5. It does NOT. hie_glance_gate.py:74 reads
+      # the Flutter SDK's material/colors.dart to resolve `Colors.blue.shade600`
+      # into a hex; with that file absent it says `C3 FAIL: ... UNMEASURED, not
+      # absence` and exits 1. Above flutter-action this step would have been RED on
+      # every run, for a reason with nothing to do with legibility.
+      #
+      # The false claim was NOT caught by its author. tool/selftest-hermeticity-guard.sh
+      # classified the new guard OUTSIDE-REPO because its self-test read an absolute
+      # SDK path no runner checks out -- the 2026-08-11 defect's own shape. The
+      # self-test now BUILDS its own palette fixture and reads no SDK at all.
+      # Recorded rather than deleted, in this file's own habit: the correction is
+      # the evidence that the guard below has an instrument on it.
+      #
+      # THE COST OF SITTING HERE, stated because F5 exists: a flaky SDK download now
+      # renders this step `skipped`. That is the trade F5 warned about, and it is
+      # forced -- the gate cannot resolve a shade name without the SDK. What is NOT
+      # traded: the dead-app blocker guard and both self-tests still run above this,
+      # untouched.
+      #
+      # WHY A DECLARATION LIST rather than `--sweep`: measured, not assumed. Run bare
+      # against this app the gate FAILS 24 of 24 classes in the four painting lib
+      # files -- main.dart 9, akita_map.dart 7, corridor_row.dart 6,
+      # advisory_cards.dart 2, recomputed from the captured sweep and not
+      # remembered (the first draft of this line said "20 of 20" from a miscount) --
+      # and NOT ONE is a legibility failure. They are C3b "cannot read this
+      # file's paint" and N/A "0 literal fills", because this app paints through
+      # _severityColor(), .withValues() and Opacity(). A sweep here is a permanently
+      # red build, and a permanently red build gets deleted.
+      #
+      # FAIL-CLOSED, NOT ADVISORY, said plainly: every declared surface must PASS and
+      # the step exits non-zero on anything else, including a surface the gate merely
+      # cannot measure. An advisory gate is how this unit got an instrument that was
+      # green for eight days without running.
+      #
+      # `test` ONLY, on purpose: this reads SOURCE, which android-build and
+      # release-apk compile from the same checkout, so running it there adds no
+      # coverage and two more places to keep in step. `test` carries no `if:`.
+      - name: Glance gate self-test (the loom proves itself before it judges)
+        run: bash tool/glance_gate.sh --self-test
+
+      - name: Glance gate (a state surface must survive the loss of colour)
+        run: bash tool/glance_gate.sh
+
       # 2026-09-18. Every offline voice clip must still say the words its catalog
       # entry holds. The app finds a clip by those exact words, and until this
       # step nothing compared a clip's audio with them: with two catalog values
