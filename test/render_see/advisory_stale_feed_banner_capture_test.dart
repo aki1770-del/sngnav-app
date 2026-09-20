@@ -61,6 +61,11 @@ void main() {
 
   Widget host(AdvisoryAggregateResult result) => MaterialApp(
         locale: const Locale('ja'),
+        // The debug banner is drawn OVER the top-right of the frame and she
+        // never sees it in a release build. Capturing the app rather than the
+        // bare widget is what gives these goldens a ground; it should not also
+        // put a stripe across the warning sentence in the stored evidence.
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(fontFamilyFallback: const ['SnGNavSymbols']),
         localizationsDelegates: const [
           AppL10n.delegate,
@@ -123,7 +128,16 @@ void main() {
     expect(find.textContaining('雷注意報'), findsWidgets);
 
     await expectLater(
-      find.byType(AdvisoryCards),
+      // ⚑ MaterialApp, NOT AdvisoryCards. Capturing the bare widget stored
+      // these three goldens over NOTHING: RGBA with a fully transparent
+      // ground, the banner's 12%-alpha amber saved as (255,156,0,31) over a
+      // void. A colour or contrast judgement read off an unpainted composite
+      // judges nothing, and these are the only stored evidence of the block
+      // that tells her a warning came from a document that stopped being
+      // written. 3 of the 25 goldens in render_out/ had this; all 3 were the
+      // ones that took the widget instead of the app. Measured 2026-09-20,
+      // and held by test/render_see/golden_ground_is_opaque_test.dart.
+      find.byType(MaterialApp),
       matchesGoldenFile('../../render_out/19a_stale_feed_with_warning.png'),
     );
   });
@@ -154,7 +168,16 @@ void main() {
     expect(find.text('この地点に有効な警報・注意報はありません。'), findsNothing);
 
     await expectLater(
-      find.byType(AdvisoryCards),
+      // ⚑ MaterialApp, NOT AdvisoryCards. Capturing the bare widget stored
+      // these three goldens over NOTHING: RGBA with a fully transparent
+      // ground, the banner's 12%-alpha amber saved as (255,156,0,31) over a
+      // void. A colour or contrast judgement read off an unpainted composite
+      // judges nothing, and these are the only stored evidence of the block
+      // that tells her a warning came from a document that stopped being
+      // written. 3 of the 25 goldens in render_out/ had this; all 3 were the
+      // ones that took the widget instead of the app. Measured 2026-09-20,
+      // and held by test/render_see/golden_ground_is_opaque_test.dart.
+      find.byType(MaterialApp),
       matchesGoldenFile('../../render_out/19b_stale_feed_empty_list.png'),
     );
   });
@@ -182,7 +205,16 @@ void main() {
     expect(find.textContaining('約0日'), findsNothing);
 
     await expectLater(
-      find.byType(AdvisoryCards),
+      // ⚑ MaterialApp, NOT AdvisoryCards. Capturing the bare widget stored
+      // these three goldens over NOTHING: RGBA with a fully transparent
+      // ground, the banner's 12%-alpha amber saved as (255,156,0,31) over a
+      // void. A colour or contrast judgement read off an unpainted composite
+      // judges nothing, and these are the only stored evidence of the block
+      // that tells her a warning came from a document that stopped being
+      // written. 3 of the 25 goldens in render_out/ had this; all 3 were the
+      // ones that took the widget instead of the app. Measured 2026-09-20,
+      // and held by test/render_see/golden_ground_is_opaque_test.dart.
+      find.byType(MaterialApp),
       matchesGoldenFile('../../render_out/19c_stale_feed_age_unknown.png'),
     );
   });
