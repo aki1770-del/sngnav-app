@@ -168,7 +168,7 @@ bool routeSettingOpen(
 ///
 /// flutter_map 8.3.2 disposes a tile layer's provider when the layer is
 /// disposed (`tile_layer.dart:517`). Her map's offline provider disposes its
-/// network fallback when disposed (offline_tiles 0.5.7,
+/// network fallback when disposed (offline_tiles 0.5.10,
 /// `offline_tile_provider.dart:73-75`), which closes that fallback's HTTP
 /// client (`network/tile_provider.dart:129-131`). The route act's map borrows
 /// her map's provider through this view, so closing the act leaves her map

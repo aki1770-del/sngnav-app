@@ -585,13 +585,25 @@ class AppL10n {
   // Honesty-traced to the real wire, read at the resolved package sources
   // (pubspec.lock), not at the docs:
   //
-  // - JAPAN: condition_aggregator_jma 0.3.0 maps the point to prefecture
+  // - JAPAN: condition_aggregator_jma 0.7.1 maps the point to prefecture
   //   code(s) ON-DEVICE (`prefectureCodesForPoint`, jma_advisory_provider.dart
-  //   :163) and requests only
-  //   `https://www.jma.go.jp/bosai/warning/data/warning/{prefectureCode}.json`
-  //   (:53, :342). The driver's coordinates NEVER leave the device for Japan — the
-  //   previous copy claimed they were "sent to the JMA", which was FALSE.
-  // - UNITED STATES: noaa_nws_adapter 0.0.8 sends the actual point —
+  //   :262) and requests only
+  //   `https://www.jma.go.jp/bosai/warning/data/r8/{prefectureCode}.json`
+  //   (base constant :70, the one construction site :527). The driver's
+  //   coordinates NEVER leave the device for Japan — the previous copy claimed
+  //   they were "sent to the JMA", which was FALSE.
+  //   ⚑ Re-measured 2026-09-20 and the EVIDENCE under this claim had gone
+  //   stale while the claim stayed true. This bullet said 0.3.0 — four minors
+  //   behind the lock — with that version's line numbers, and named the
+  //   `data/warning/` path, which JMA's 2026-05-29 restructure RETIRED and
+  //   which the adapter stopped reading at 0.7.0 (it is kept in the package
+  //   only as `kJmaRetiredWarningJsonBaseUrl`, marked "Do not fetch it").
+  //   A block headed WIRE-ACCURATE was citing a wire we no longer use.
+  //   The claim is now checked the strongest available way rather than by
+  //   line number: `Uri.parse` appears EXACTLY ONCE in the package's whole
+  //   `lib/src/` tree, at :527, and what it interpolates is a prefecture
+  //   code. There is no second request that could carry a coordinate.
+  // - UNITED STATES: noaa_nws_adapter 0.0.9 sends the actual point —
   //   `GET https://api.weather.gov/alerts/active?point={lat},{lon}`
   //   (noaa_nws_client.dart:307) — and short-circuits out-of-coverage points
   //   BEFORE any URI is constructed (:305), so a non-US coordinate never
@@ -1085,7 +1097,7 @@ class AppL10n {
   // carries the publisher's attribution terms — that one is named, not touched.
   //
   // ⚑ THE SEVERITY WORDS DELIBERATELY AVOID JMA'S REGULATED VOCABULARY.
-  // Measured in condition_aggregator_jma 0.7.0 `jma_advisory_mapper.dart:724-734`:
+  // Measured in condition_aggregator_jma 0.7.1 `jma_advisory_mapper.dart:724-734`:
   // 特別警報/危険警報 → extreme, 警報 → severe, 注意報 → moderate. So for a JMA
   // card 「警報」 would be exactly right — and this same pill also renders NWS
   // and MET Norway advisories, whose severity comes from CAP, not from JMA.

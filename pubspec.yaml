@@ -40,7 +40,21 @@ description: >-
 # the English voice says "fairly strong wind" for the lower wind band, and the
 # black-ice row says what was measured) and plain words in the source's comments
 # and test names. A different artifact, so a different versionCode.
-version: 0.0.2+9
+# 2026-09-20: +8 -> +9. The 0.0.2+8 APK was built and reached NO device, so the
+# code is skipped rather than reused. Two commits landed on top of it since: a
+# retained advisory now keeps its stale-source measurement, and the publisher's
+# own clock became the loud line on the card. The artifact that installs today
+# is therefore not the artifact +8 names, and Android holds one code per
+# install - a second artifact under 8 is the collision the 7 -> 8 bump existed
+# to prevent. Nothing is lost by skipping a code no device ever received.
+# 2026-09-20: +9 -> +10. The 0.0.2+9 APK EXISTS, is signed CN=SNGNav Upload and
+# is held by hash; +9 is NOT withdrawn and still installs. This build is a
+# different artifact because pubspec.lock moves: the app was pinned behind our
+# OWN catalog, holding the five D14 packages the 2026-09-20 publish replaced.
+# A lock overrides a range and pub has no push channel, so nothing moved until
+# this upgrade. 15 dependencies move in total - see the commit for which are
+# covered by PDS's arrival verdict and which are not.
+version: 0.0.2+10
 publish_to: 'none'
 
 environment:

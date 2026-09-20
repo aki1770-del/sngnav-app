@@ -5,18 +5,18 @@ packages:
     dependency: "direct main"
     description:
       name: adaptive_reroute
-      sha256: a2b68aabb7e96dd445cbc093b7d76c49847e2fe2ed3344acda675acaf41df9c9
+      sha256: "8b1c564e3b5a771abb0a591438e490eb1219d483b755fdecb98a2d07f5a204c2"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.1"
+    version: "0.2.3"
   archive:
     dependency: transitive
     description:
       name: archive
-      sha256: ace891da0862b0e4cabbb064ee3fd87b2728b898949fdb366d83fe98342c9f19
+      sha256: "6c5bcd986e06b94e3c40244af471750840a3d2341d1f9763a1100a14add517b4"
       url: "https://pub.dev"
     source: hosted
-    version: "4.2.0"
+    version: "4.3.0"
   args:
     dependency: transitive
     description:
@@ -93,10 +93,10 @@ packages:
     dependency: "direct main"
     description:
       name: condition_aggregator
-      sha256: e888baaf7fee4e803ae87270cb4121b9800b4bfa8a30b1fa59d387272e38e600
+      sha256: "4f1331ee71ee175ec3b3e079f249ad2291fdfa10d4c940cc38b6ff9b1fb9e249"
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.10"
+    version: "0.0.11"
   condition_aggregator_digitraffic:
     dependency: transitive
     description:
@@ -109,10 +109,10 @@ packages:
     dependency: "direct main"
     description:
       name: condition_aggregator_jma
-      sha256: "4568ae97f254d08c4a3627e2af2e70763974fc0dd0778e3653514dc2d7397f48"
+      sha256: "7b1fca67f2985b5f869a98eaa9e69fcd442143a0fd4dc0106cdf2acd153fd3d1"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.0"
+    version: "0.7.1"
   cross_file:
     dependency: transitive
     description:
@@ -181,18 +181,18 @@ packages:
     dependency: "direct main"
     description:
       name: driving_conditions
-      sha256: "57e8bd6a0c80f3677bda1055f27978e3fa15e14c2e49b992e112a9677687c4c2"
+      sha256: "5b97c72b9741135cc0e060a3555762ce1731e7a164e35124f1c04777475a04ba"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.1"
+    version: "0.7.3"
   driving_weather:
     dependency: "direct main"
     description:
       name: driving_weather
-      sha256: d904db194fc64e7a424dfd6498f8d13ec5ba90dd66453d9cddc91c63e22abd69
+      sha256: fa443de9afc7d2f21d983e72f96e95a450d012195ee34547d264d3ea7b031632
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.0"
+    version: "0.5.2"
   equatable:
     dependency: transitive
     description:
@@ -245,10 +245,10 @@ packages:
     dependency: "direct main"
     description:
       name: fleet_hazard
-      sha256: "64e1fc0a953687723eda3ad58a84355b4cd56d0222c1259b52eb44354b53033b"
+      sha256: f0e9e1deddd9839dafac964546a3624bfd735476975a4f13df16fe0df439929c
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.1"
+    version: "0.6.2"
   flutter:
     dependency: "direct main"
     description: flutter
@@ -409,10 +409,10 @@ packages:
     dependency: transitive
     description:
       name: jni_flutter
-      sha256: "7b717011ea40d04fd47c2731d3d1d36eb99eba3435c2753d62489e8c3c9991d5"
+      sha256: b2310cdd4c18c65c081ab141a41efa94aa26c65431803703ece51996f174f351
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.2"
+    version: "1.0.3"
   jni_util:
     dependency: transitive
     description:
@@ -481,10 +481,10 @@ packages:
     dependency: "direct main"
     description:
       name: map_viewport_bloc
-      sha256: "30ab9c192bcc0220c7f53585a019c96a2f6b4c002d819134b2dc950f46430a6f"
+      sha256: "360a3568c152f04101cb0c0e2d96f0ae5fa31330cb9a0811d05576bb295862d8"
       url: "https://pub.dev"
     source: hosted
-    version: "0.4.7"
+    version: "0.4.9"
   matcher:
     dependency: transitive
     description:
@@ -585,10 +585,10 @@ packages:
     dependency: "direct main"
     description:
       name: noaa_nws_adapter
-      sha256: "127f377445e0759f93a1e047aa315231ebcf9ae3dac2ed8c06b8a297659e40a0"
+      sha256: e92696ddec7e51bcbb55b6b734e2b664da352454a5b40ff1bd088aac01f7ac2f
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.8"
+    version: "0.0.9"
   objective_c:
     dependency: transitive
     description:
@@ -601,10 +601,10 @@ packages:
     dependency: "direct main"
     description:
       name: offline_tiles
-      sha256: fd934e155f18f8fd5089835934d573534aba4d0e4e0f00d1b83a5f0b41b8158b
+      sha256: dc1505782e30558168b55e82557577ee4baf4464f5415e4bd59d603b1aaebbb7
       url: "https://pub.dev"
     source: hosted
-    version: "0.5.7"
+    version: "0.5.10"
   package_config:
     dependency: transitive
     description:
@@ -753,10 +753,10 @@ packages:
     dependency: "direct main"
     description:
       name: route_condition_forecast
-      sha256: "19c893c88c99c5a6ae22e837011d5f57396965ca3bea2b55a7bfd6899df00940"
+      sha256: "77e5c464a3c385204edfe9d7f6d5e9984c86917cb4b8c9ed14ef6c9e24d4d0d7"
       url: "https://pub.dev"
     source: hosted
-    version: "0.2.1"
+    version: "0.2.3"
   routing_engine:
     dependency: "direct main"
     description:
@@ -798,10 +798,10 @@ packages:
     dependency: "direct main"
     description:
       name: snow_rendering
-      sha256: "804d08773cf1590aa41ca9cf7e566f918970c6231547644c90874c85a32e0b56"
+      sha256: b790c4e2e22cae23b93e72023f37229ca9af11e4024b369d730d598dbdac8779
       url: "https://pub.dev"
     source: hosted
-    version: "0.3.0"
+    version: "0.3.2"
   source_span:
     dependency: transitive
     description:
@@ -934,10 +934,10 @@ packages:
     dependency: "direct main"
     description:
       name: vibration
-      sha256: c6c25eb7acadfd231925a60004736443cbf63f1eb5740d6dd83a1bc09cf00f6d
+      sha256: "3424f7856b971a2ce94d22be3a3abfb5b9b5984562fdedd621f4e67574be7254"
       url: "https://pub.dev"
     source: hosted
-    version: "3.2.0"
+    version: "3.2.1"
   vibration_platform_interface:
     dependency: transitive
     description:
@@ -958,10 +958,10 @@ packages:
     dependency: "direct main"
     description:
       name: voice_guidance
-      sha256: a0c3a1789d48ea575f42fc18289e4953e9b704819b22576a77d763ed9cdc71eb
+      sha256: "78096f03137be5b2db784ae38a098dc9d581329c66e28dc8a0f966ff679e3013"
       url: "https://pub.dev"
     source: hosted
-    version: "0.7.8"
+    version: "0.7.9"
   wakelock_plus:
     dependency: "direct main"
     description:
