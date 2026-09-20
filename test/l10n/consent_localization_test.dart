@@ -290,10 +290,30 @@ void main() {
       final nwsY = tester.getTopLeft(find.text('Winter Storm Warning')).dy;
       expect(jmaY, lessThan(nwsY));
 
-      // The NWS card carries the localized "English (reference)" caption
-      // and is wrapped in an Opacity (dimmed).
+      // The NWS card carries the localized "English (reference)" caption.
       expect(find.text('英語の情報（参考）'), findsOneWidget);
-      expect(find.byType(Opacity), findsWidgets);
+
+      // CHANGED BY HIE 2026-09-20 (R116-22), AND NAMED IN ITS RETURN RATHER
+      // THAN DONE QUIETLY -- this is not HIE's test.
+      //
+      // The line here used to be `expect(find.byType(Opacity), findsWidgets)`:
+      // an assertion about the de-emphasis MECHANISM. Measured from the raster
+      // at the phone's geometry, `Opacity(0.55)` put EVERY run on this card
+      // below the WCAG AA floor -- the event class at 3.767:1, the area and
+      // description at 2.292:1, the attribution at 1.567:1. Those are the
+      // words naming a hazard. No opacity below about 0.95 keeps the floor, so
+      // the channel itself was the defect and not its setting.
+      //
+      // The subordination this test was reaching for is the CAPTION asserted
+      // above, and that property is unchanged. What replaces the mechanism
+      // assertion is a stronger one, not a weaker one: nothing may wash this
+      // card below the readable floor, whatever the widget is called.
+      for (final o in tester.widgetList<Opacity>(find.byType(Opacity))) {
+        expect(o.opacity, greaterThanOrEqualTo(0.95),
+            reason: 'an Opacity of ${o.opacity} over the advisory card puts '
+                'its words below the WCAG contrast floor; de-emphasize with a '
+                'channel that does not spend her contrast budget');
+      }
     });
 
     testWidgets('en surface keeps publisher order + no de-emphasis caption',

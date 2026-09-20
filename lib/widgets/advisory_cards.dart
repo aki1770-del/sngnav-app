@@ -127,14 +127,35 @@ class AdvisoryCards extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            color: Colors.red.shade50,
-            child: Text(
-              key: const Key('advisory-fetch-failed'),
-              l.advisoryFetchFailed,
-              style: TextStyle(color: Colors.red.shade900),
-            ),
+          // ⚑ THE SAME ⚠ AND THE SAME AMBER AS THE OTHER "we could not get a
+          // trustworthy answer" STATES, AND THE SENTENCE IS WHAT SEPARATES
+          // THEM — the rule this surface already applies to the degraded and
+          // lookup-incomplete banners below.
+          //
+          // Until 2026-09-20 this one banner was red.shade50 (#FFEBEE) while
+          // those were amber.shade50 (#FFF8E1). Measured: the two fills are
+          // 1.076:1 apart, so to an eye that has lost colour — glare on the
+          // windscreen, peripheral vision, colour-vision deficiency — they
+          // were never two blocks at all, and a driver watching this slot flip
+          // between two fetches could not see that anything had changed. The
+          // hue was carrying a distinction it could not deliver.
+          //
+          // It is NOT darkened to separate it on luminance: a fetch failure is
+          // OUR plumbing, not her hazard, and making it the loudest block on
+          // the screen is the same emphasis inversion this card was corrected
+          // for on 2026-09-20. Red is now left to mean one thing here — a
+          // severity actually in force.
+          //
+          // The KEY stays on the sentence Text: another seat's test reads
+          // `tester.widget<Text>` through it, and a guard belonging to someone
+          // else is not moved to suit this change.
+          _honestyBanner(
+            key: const Key('advisory-fetch-failed-banner'),
+            textKey: const Key('advisory-fetch-failed'),
+            glyph: kGlyphTransientUnknown,
+            text: l.advisoryFetchFailed,
+            fill: Colors.amber.shade50,
+            color: kCautionTextOnAmber,
           ),
           Align(
             alignment: Alignment.centerRight,
@@ -453,11 +474,33 @@ class _AdvisoryCard extends StatelessWidget {
           if (deEmphasize) ...[
             Text(
               AppL10n.of(context).englishReferenceNote,
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 10),
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 10),
             ),
             const SizedBox(height: 4),
           ],
-          Row(
+          // ⚑ A Wrap, NOT A Row, AND THE ROW WAS CLIPPING HER WARNING'S START
+          // TIME AT THE DEFAULT TEXT SCALE.
+          //
+          // As a Row with a Spacer this head overflowed on her phone's
+          // measured width (1080x2340, DPR 2.75) at every text scale except
+          // Japanese at 1.0 — the one case that had ever been measured:
+          //   en  1.0  21-54 px   en  1.5  182-232 px   en  2.0  343-409 px
+          //   ja  1.0  clean      ja  1.5   98-148 px   ja  2.0  231-298 px
+          // (per severity word, measured 2026-09-20). Flutter's own words for
+          // that condition are "there is content that cannot be seen", and
+          // what could not be seen was the publisher's name and the START TIME
+          // of the warning — the third age fact on this screen. This app's
+          // default profile is ageingRural and she is an elderly driver; 2.0
+          // is her setting, not a corner case.
+          //
+          // A Wrap cannot overflow: a run that does not fit takes the next
+          // line. The cost, stated: at 1.0 the start time no longer sits
+          // flush right, it follows the pill. Nothing is lost and nothing is
+          // clipped, at any scale, in either language.
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 6,
+            runSpacing: 2,
             children: [
               Text(
                 _sourceLabel(advisory.source, AppL10n.of(context)),
@@ -467,7 +510,6 @@ class _AdvisoryCard extends StatelessWidget {
                   fontSize: 12,
                 ),
               ),
-              const SizedBox(width: 6),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -478,19 +520,24 @@ class _AdvisoryCard extends StatelessWidget {
                 ),
                 child: Text(
                   _severityLabel(advisory.severity, AppL10n.of(context)),
+                  // ⚑ NOT _severityColor. The hue that paints the border and
+                  // the 15%-alpha fill is too light to be READ on that fill:
+                  // measured on the rendered pixels 2026-09-20, every severity
+                  // sat below the 4.5:1 floor and the worst was `moderate` at
+                  // 1.843:1 — the level a 大雪警報 carries. The severity word on
+                  // a snow warning was the word she was least able to read.
                   style: TextStyle(
-                    color: _severityColor(advisory.severity),
+                    color: _severityInk(advisory.severity),
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
-              const Spacer(),
               if (advisory.effective != null)
                 Text(
                   AppL10n.of(context)
                       .advisoryEffectiveAt(fmt.format(advisory.effective!.toLocal())),
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                  style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
                 ),
             ],
           ),
@@ -527,19 +574,40 @@ class _AdvisoryCard extends StatelessWidget {
             Text(
               AppL10n.of(context)
                   .advisoryExpiresAt(fmt.format(advisory.expires!.toLocal())),
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+              style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
             ),
           ],
           const SizedBox(height: 4),
+          // The publisher's attribution is the QUIETEST line on the card and
+          // stays so — by being the smallest, not by being unreadable. At
+          // grey.shade500 it measured 2.424:1 on the card surface: an
+          // attribution a reduced-contrast reader cannot read is an
+          // attribution we are not really making.
           Text(
             advisory.source.attributionString,
-            style: TextStyle(color: Colors.grey.shade500, fontSize: 10),
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 10),
           ),
         ],
       ),
     );
-    // De-emphasized (English NWS on the Japanese surface): dim but keep present.
-    return deEmphasize ? Opacity(opacity: 0.55, child: card) : card;
+    // ⚑ THE DIMMING IS GONE, AND THE CAPTION DOES THE WORK IT WAS DOING.
+    //
+    // `Opacity(0.55)` washed EVERY run on this card toward the surface behind
+    // it. Measured on the rendered pixels 2026-09-20: the event class fell to
+    // 3.753:1, the area and description to 2.290:1, the attribution to
+    // 1.567:1 — the whole card below the 4.5:1 floor, including the words
+    // naming the hazard. No opacity below about 0.95 keeps the floor, and 0.95
+    // is not a de-emphasis. The intent in the line this replaces was right —
+    // "never hides the card (dropping safety data would be dishonest)" — and a
+    // wash that puts every word under the readable floor is nearer to hiding
+    // it than to showing it.
+    //
+    // Subordination is carried instead by the caption above ("English
+    // (reference)" / 英語の情報（参考）) and by the card's place in the order:
+    // a channel that says what it means in words rather than one that spends
+    // her contrast budget. Same reasoning as this seat's founding incident,
+    // where three states were separated by fill alone.
+    return card;
   }
 }
 
@@ -588,6 +656,9 @@ Widget _honestyBanner({
   required String text,
   required Color fill,
   required Color color,
+  /// Optional key on the SENTENCE, for a caller whose existing guard finds the
+  /// line as a `Text` rather than as the block around it.
+  Key? textKey,
   // Default w400 so the three transient/chronic banners are untouched. Only
   // the feed-health banner passes w600, because it is the only one of the four
   // that can appear ABOVE another amber block carrying a second, smaller age.
@@ -595,6 +666,21 @@ Widget _honestyBanner({
 }) =>
     Container(
       key: key,
+      // MEASURED 2026-09-20 (R116-37) at her phone geometry, 393x851, on the
+      // app's own chrome: two stacked honesty banners sat at 1.126:1 with a
+      // GAP OF 0.0 px. They touch. I looked at the frame and they are ONE
+      // continuous cream block -- the banner saying we could not confirm the
+      // advisory lookup completed is absorbed into the staleness banner above
+      // it. A contrast figure between two blocks that touch is answering the
+      // wrong question, and the `weight` parameter below was my earlier reach
+      // for a channel that does nothing to a boundary.
+      //
+      // The separation is GEOMETRY, which is this seat's own C1: colour is the
+      // channel that dies first in glare, in peripheral vision and to a
+      // colour-lost eye, so two states must differ on something else. 6 px of
+      // page ground between them is that something else, and it survives
+      // desaturation, which 1.126:1 never did.
+      margin: const EdgeInsets.only(bottom: 6),
       padding: const EdgeInsets.all(8),
       color: fill,
       child: Semantics(
@@ -612,6 +698,7 @@ Widget _honestyBanner({
             Expanded(
               child: Text(
                 text,
+                key: textKey,
                 style:
                     TextStyle(color: color, fontSize: 13, fontWeight: weight),
               ),
@@ -647,6 +734,48 @@ String _severityLabel(AdvisorySeverity severity, AppL10n l) {
       return l.advisorySeverityMinor;
     case AdvisorySeverity.unknown:
       return l.advisorySeverityUnknown;
+  }
+}
+
+/// The severity word's INK — dark enough to be read on the pill it sits in.
+///
+/// Mirrors [_severityColor] and [_severityLabel] one-for-one, exhaustively on
+/// the enum, for the reason already recorded above: a severity that falls
+/// through is a severity she is not told, and colour, word and ink must never
+/// describe different levels.
+///
+/// WHY IT IS NOT [_severityColor]. That hue paints the border and the
+/// 15%-alpha pill fill, where it works. As the ink ON that fill it does not:
+/// measured from the rendered pixels at the phone's geometry on 2026-09-20,
+/// every severity sat below the WCAG AA 4.5:1 floor for 11 px text, and the
+/// two that matter most were the worst.
+///
+///   severity   fill       old ink   was        now       is
+///   extreme    #ECD6DA    #D32F2F   3.604:1    #8E0000   7.068:1
+///   severe     #F0E0D3    #EF6C00   2.393:1    #8A3B00   6.026:1
+///   moderate   #F2E5D3    #FF8F00   1.843:1    #6B4600   6.766:1
+///   minor      #D0E1F2    #1976D2   3.448:1    #0D47A1   6.467:1
+///   unknown    #DEE1E4    #757575   3.510:1    #424242   7.655:1
+///
+/// `moderate` is the level a 大雪警報 carries. Hue is preserved — each ink is
+/// the dark end of its own severity's colour, so the pill still reads amber,
+/// orange, red, blue or grey at a glance; only the word got legible. The two
+/// middle values are the same as [kCautionTextOnOrange] and
+/// [kCautionTextOnAmber], arrived at by the same measurement rather than by
+/// reference, and kept separate so a change to a banner cannot silently move a
+/// severity word.
+Color _severityInk(AdvisorySeverity severity) {
+  switch (severity) {
+    case AdvisorySeverity.extreme:
+      return const Color(0xFF8E0000);
+    case AdvisorySeverity.severe:
+      return const Color(0xFF8A3B00);
+    case AdvisorySeverity.moderate:
+      return const Color(0xFF6B4600);
+    case AdvisorySeverity.minor:
+      return const Color(0xFF0D47A1);
+    case AdvisorySeverity.unknown:
+      return const Color(0xFF424242);
   }
 }
 
