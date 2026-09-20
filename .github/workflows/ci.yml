@@ -11,7 +11,55 @@ on:
     # Measured before widening: this repo is PUBLIC, so standard-runner minutes are
     # free; only 5 of the last 72 runs were on a non-main branch; median CI is 345s.
     # The economy argument for `main`-only did not survive being measured.
-    branches: [main, 'fix/**', 'preserve/**', 'reconcile/**', 'backport/**']
+    #
+    # ⛑ 2026-09-20, AAE. THE SAME DEFECT FIRED AGAIN, AND THE 09-01 WIDENING IS WHY.
+    # 4cb56af was pushed to `aae/lock-upgrade-plus-10` and got ZERO runs; the IDENTICAL
+    # sha pushed to `fix/lock-upgrade-plus-10` ran once and passed (run 35490809642).
+    # Same tree, same commit — only the ref NAME differed. The 09-01 fix enumerated the
+    # prefixes that had ALREADY failed, so a prefix joins this list only after a branch
+    # of that shape has already gone silently untested. The enumeration is the defect,
+    # not the particular names in it.
+    #
+    # Measured 2026-09-20 over the REAL population of names this unit creates — 24
+    # distinct refs (18 remote + 14 local, deduped), not the two that broke:
+    #   - 5 of 18 remote refs uncovered (aae/, feat/ x2, push/, slice-4-...).
+    #   - 8 of 14 local branch names — a MAJORITY — would get zero check-runs if pushed.
+    #   - 9 distinct shapes: fix/ preserve/ aae/ hie/ feat/ reconcile/ push/ c5/ and TWO
+    #     names with NO prefix at all. `slice-4-driver-state-context` is why enumeration
+    #     can never finish: no prefix pattern reaches a name that has no prefix.
+    #   - `backport/**`, enumerated speculatively on 09-01, matches 0 of the 24.
+    #
+    # So this INVERTS instead of enumerating again: every branch runs, nothing excluded.
+    # A branch whose CI is noise is a loud and free problem; a branch with no CI is a
+    # silent one, and this repo has now produced that silence twice.
+    #
+    # COST, RE-MEASURED TODAY rather than carried over from the lines above:
+    #   - repo is PUBLIC and not a fork -> standard-runner minutes are free.
+    #   - 89 runs in the WHOLE history (2026-04-28..2026-09-20), not "72": 84 push +
+    #     5 pull_request; 76 of the 84 on main, 8 on fix/**, 0 anywhere else. That 8 is
+    #     NOT evidence that little happens off main — it is the filter measuring itself,
+    #     since a branch that cannot trigger can never appear in its own run history.
+    #   - median run 332s over 88 completed runs. The 345s above is stale.
+    #   - all 5 uncovered remote refs are ancestors of main today, so covering them adds
+    #     0 runs retroactively. Forward cost is one run per push; at the observed rate
+    #     that is under ~2/day. ESTIMATE, not a measurement, and marked as one.
+    #   - a branch with an open PR now runs twice per push (push + pull_request).
+    #     Measured small (5 PR runs in 89) and free. Left uncollapsed ON PURPOSE: a
+    #     `concurrency` group is a second unproven change to this file and it can cancel
+    #     an in-flight main run. Named here rather than built untested.
+    #   - NOT a signing change: `release-apk` below is gated
+    #     `if: github.event_name == 'workflow_dispatch'`, so no push to any branch can
+    #     produce a release-signed APK. Checked before widening, not assumed.
+    #
+    # `main` stays LITERALLY named beside the wildcard. It is the one branch whose CI
+    # loss would be unrecoverable, and its coverage must not become contingent on how
+    # `**` is matched. Keeping `branches:` at all (rather than deleting the filter)
+    # also keeps tag pushes non-triggering, exactly as before.
+    # PROVEN today on a seat-prefixed name, by this commit's own push.
+    # ⛑ UNVERIFIED: that `**` matches a no-slash branch OTHER than main. Not demonstrated
+    # here, because demonstrating it would mean minting a second remote ref, and retiring
+    # a remote ref is VOICE-class. Stated as unverified rather than assumed.
+    branches: [main, '**']
   pull_request:
   # Manual trigger for the installable-APK job below. Deliberately NOT on every
   # push: a release-signed artifact is a thing a stranger installs on a phone,
