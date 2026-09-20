@@ -299,6 +299,54 @@ check_mint_target() {
   return 1
 }
 
+# R3b. $1 = ledger body. Rejects a row marked `ambiguous` whose (code, signer)
+#      carries only ONE distinct sha256 on the record.
+#
+# ⚑ THE SIXTH DOOR, found 2026-09-21 by testing the claim that there would not be
+# one. The argument handed to this seat was that existence, shape and type exhaust
+# what a row can be wrong about before its VALUES are wrong. That is true OF A ROW,
+# and the record is not a row -- IT IS A SET, and a set can be wrong in a way no row
+# in it is wrong: A ROW CAN BE MISSING. Deletion leaves every surviving row perfect.
+#
+# Measured: delete the single row proving versionCode 9 carries a second byte-set
+# and the file has 13 well-formed rows, ZERO row defects, and the guard answers the
+# real collider with
+#     OK  versionCode 9 is ON RECORD naming exactly these bytes, and no others
+# at rc 0 -- the strongest positive state, false, the same surgical shape as doors
+# four and five reached through a fourth kind of damage: COMPLETENESS.
+#
+# The byte side does corroborate this IN PRINCIPLE, and that is the argument for
+# calling it covered. It is not covered in practice: `--scan` is not what CI runs and
+# not what preflight gate 4b calls, and in the measured case above it reported
+# "unrecorded: none" because the deleted artifact lay outside the scan root. A
+# countermeasure that only fires in a mode nobody runs is not a countermeasure.
+#
+# This clause cannot be made total against deletion -- nothing inside the file can
+# know a row that is gone was ever there. What it CAN catch is the dangerous
+# instance, and it catches it completely: `ambiguous` MEANS "this code names more
+# than one set of bytes", so a code marked ambiguous carrying exactly one sha is a
+# record CONTRADICTING ITSELF. That is always false of an honest record, and it is
+# precisely the deletion that flips a refusal into an affirmation.
+#
+# Satisfiable by an act, not an unfixable red (V20): record the other byte-set, or
+# correct the marker. Both are one command.
+check_marker_coherence() {
+  local body="$1" bad=0 key n
+  [ -n "$(printf '%s' "$body" | tr -d '[:space:]')" ] || return 0
+  while IFS= read -r key; do
+    [ -n "$key" ] || continue
+    n="$(printf '%s\n' "$body" | awk -F'\t' -v k="$key" '$1"\t"$2==k {print $3}' | sort -u | wc -l)"
+    [ "$n" -eq 1 ] || continue
+    bad=1
+    echo "MARKER: versionCode ${key%%$'\t'*} is marked \`ambiguous\` and the record holds"
+    echo "        only ONE set of bytes for it. \`ambiguous\` means this code names MORE"
+    echo "        THAN ONE, so the record contradicts itself: either a row was removed,"
+    echo "        or bytes exist that were never recorded. RECORD the other byte-set,"
+    echo "        or correct the marker. Do not trust a uniqueness answer for this code."
+  done < <(printf '%s\n' "$body" | awk -F'\t' 'NF>=4 && $4=="ambiguous" {print $1"\t"$2}' | sort -u)
+  [ "$bad" -eq 0 ]
+}
+
 # Strip comments and blanks from a ledger file's contents.
 ledger_body() {
   printf '%s\n' "$1" | sed 's/[[:space:]]*#.*$//' | awk 'NF'
@@ -573,6 +621,17 @@ self_test() {
   # body derived from a file that DID NOT EXIST, and reported the vacuous pass as a
   # clean bill. The fix is at the caller, so the tests for it are below.
   t "an empty record is trivially consistent (vacuous, not clean)" 0 check_ledger_consistency ""
+
+  # ---- R3b MARKER COHERENCE: the sixth door, a row that is simply GONE.
+  local LED_ORPHAN_MARK
+  LED_ORPHAN_MARK="$(printf '9\t%s\t%s\tambiguous\tthe survivor of a deleted pair' "$SIGNER" "$SHA_OTHER")"
+  t "THE SIXTH DOOR: one ambiguous row with no partner is refused" 1 \
+      check_marker_coherence "$LED_ORPHAN_MARK"
+  t "a properly paired ambiguous code is accepted"   0 check_marker_coherence "$LED_BOTH_MARKED"
+  t "a plain minted singleton is NOT a marker defect" 0 check_marker_coherence "$LED_HELD"
+  t "an empty record has no marker defect"            0 check_marker_coherence ""
+  t "the REAL committed ledger has coherent markers"  0 \
+      check_marker_coherence "$(ledger_body "$(cat "$(dirname "$SELF")/minted_version_identities.txt")")"
 
   # ---- THE FAIL-OPEN, 2026-09-21. Proven to FAIL before it is believed fixed.
   # Refuted on V14 by an independent certification and reproduced by this seat on the
@@ -917,6 +976,8 @@ if check_ledger_consistency "$BODY"; then
 else
   rc=1
 fi
+# R3b -- the marker must agree with the rows it sits on (the deletion case).
+if check_marker_coherence "$BODY"; then :; else rc=1; fi
 fi
 
 if [ "$LEDGER_USABLE" -eq 1 ] && [ "$MODE" != "collision" ] && [ -f "$REPO_ROOT/pubspec.yaml" ]; then
@@ -951,7 +1012,21 @@ elif [ -n "$APK_ARG" ]; then
         # Two different states of knowledge; they used to share one sentence.
         case "$(identity_record_state "$c" "$s" "$h" "$BODY")" in
           affirmed)
-            echo "   OK  versionCode $c is ON RECORD naming exactly these bytes, and no others." ;;
+            # ⚑ An affirmation is only as good as the record's own coherence. With
+            # the partner row of an `ambiguous` pair DELETED, this branch printed
+            # "ON RECORD naming exactly these bytes, and no others" beside a MARKER
+            # finding that says the opposite -- the run refused on rc, and the
+            # sentence was still false on the page. Downgraded rather than printed
+            # and contradicted.
+            if printf '%s\n' "$BODY" | awk -F'\t' -v c="$c" -v sg="$s" \
+                 'NF>=4 && $1==c && $2==sg && $4=="ambiguous" {f=1} END{exit !f}' \
+               && [ "$(printf '%s\n' "$BODY" | awk -F'\t' -v c="$c" -v sg="$s" '$1==c && $2==sg {print $3}' | sort -u | wc -l)" -eq 1 ]; then
+              echo "   NOT AFFIRMED: versionCode $c carries these bytes on the record, but that"
+              echo "       row is marked \`ambiguous\` and is the ONLY one for this code. The"
+              echo "       record contradicts itself (see MARKER above). UNVERIFIED, not clear."
+            else
+              echo "   OK  versionCode $c is ON RECORD naming exactly these bytes, and no others."
+            fi ;;
           absent-signer)
             echo "   NOT ON RECORD: signer ${s:0:16}… appears on NO row of the ledger at all."
             echo "       No collision -- and nothing affirmed either. This ledger records"
