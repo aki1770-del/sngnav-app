@@ -419,13 +419,35 @@ jobs:
       # nothing asserted that it did. Two codes were already carrying several
       # distinct byte-sets under one release certificate by the time anyone looked.
       # This runs the RECORD half here: a checkout has no build/ directory, so the
-      # parity half passes trivially and what CI actually enforces is that
-      # tool/minted_version_identities.txt never gains a collision nobody has
-      # acknowledged. The guard's own --self-test is already run by the hermeticity
-      # step above, which discovers every tool/*.sh -- so it is armed twice over,
-      # and neither arming depends on someone remembering to add a step.
+      # parity half passes trivially and what CI enforces is the state of
+      # tool/minted_version_identities.txt. The guard's own --self-test is already
+      # run by the hermeticity step above, which discovers every tool/*.sh -- so it
+      # is armed twice over, and neither arming depends on someone remembering to
+      # add a step.
+      #
+      # ⚑ CORRECTED 2026-09-21. This comment used to claim the step enforced "that
+      # minted_version_identities.txt never gains a collision nobody has
+      # acknowledged" -- and HAVING NO LEDGER AT ALL SATISFIED THAT. Measured on
+      # this exact command: with 13 identities and with 0 it printed the same green
+      # verdict and exited 0; the only difference in the whole log was one
+      # informational integer. `git rm` the record and CI stayed green over it.
+      # The guard now exits 2 (could not measure) when the record is missing, empty
+      # or unreadable, so the step below fails on it. The explicit assertion is kept
+      # in FRONT of it anyway: rc 2 is honest but terse, and a reader who deleted a
+      # tracked file deserves to be told that in one sentence rather than to go and
+      # read a shell script to find out why CI went red.
       - name: Version identity (a versionCode must name one set of bytes)
-        run: bash tool/assert_version_identity.sh
+        run: |
+          # The record must be TRACKED, not merely present. An untracked file in a
+          # runner's workspace is not a record anyone reviewed.
+          git ls-files --error-unmatch tool/minted_version_identities.txt > /dev/null 2>&1 || {
+            echo "::error::tool/minted_version_identities.txt is not tracked in git."
+            echo "This file IS the version-identity record. Without it the guard cannot"
+            echo "measure whether a versionCode names one set of bytes -- and until"
+            echo "2026-09-21 it reported that unmeasured state as a clean pass."
+            exit 1
+          }
+          bash tool/assert_version_identity.sh
 
       - name: Tile archive identity (every shipped .mbtiles must not lie about itself)
         run: |

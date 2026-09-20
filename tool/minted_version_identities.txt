@@ -27,8 +27,30 @@
 # integers while nine codes had been minted.
 #
 # Seeded 2026-09-20 by reading 36 APKs off this disk with aapt2 + apksigner.
-# 13 distinct release-signed identities across 8 codes. Two codes are ambiguous:
-#   code 2 -- FIVE distinct byte-sets, and 2 is a code a device actually reported
+#
+# ⚑ HEADER CORRECTED 2026-09-21. Those seed figures were FALSE ON DISK within a day,
+# and the cause was not the instrument -- it was the POPULATION. The 2026-09-20 scan
+# ran over three roots (/home/komada/work, /home/komada/tmp,
+# /home/komada/sngnav-releases) and the sngnav-app clone nested inside the masterplan
+# repository is under a FOURTH, /home/komada/Documents/..., so its artifacts sat
+# outside every root measured -- including the clone that same record had just
+# flagged as a collision trap. An independent certification measured 40 and this
+# seat RE-MEASURED with the missing root added rather than adopting its numbers:
+#
+#   artifacts of this package on disk .... 40   (was stated as 36)
+#   distinct RELEASE-signed identities ... 14 across 8 codes   (was stated as 13)
+#   code 2, release cert .................. 6 byte-sets  (was stated as FIVE)
+#   code 2, DEBUG cert .................... 5 byte-sets  (not recorded here: this
+#                                           file is release-only, see above)
+#   code 9, release cert .................. 2 byte-sets  (unchanged)
+#   codes 3,4,5,6,7,8 ..................... one each     (unchanged)
+#
+# NO GATE OUTCOME CHANGES: code 2 was already `ambiguous` and is refused either way.
+# What was wrong was the RECORD's account of itself, which is the thing this file is.
+# The sixth byte-set is the last row below.
+#
+# 14 distinct release-signed identities across 8 codes. Two codes are ambiguous:
+#   code 2 -- SIX distinct byte-sets, and 2 is a code a device actually reported
 #             back, so "the phone reports 2" never identified which bytes it held.
 #   code 9 -- TWO distinct byte-sets, 28 minutes apart, the second on a branch that
 #             never took the +10 bump that had already been minted to prevent it.
@@ -39,6 +61,7 @@
 2	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	a663a36b6bf82bbd7027d5b86a7b6caab6726300d11be5d343930e9a87eebc64	ambiguous	0.0.5+2, a build output, no release hold beside it
 2	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	b0640dfbc2c5b63e035f3c86f59b653838e5e2e64d43d773aa2c632cd90fe485	ambiguous	0.0.5+2, tree 4d591cf, release hold
 2	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	fdce8cf841067291a69812158c554c8999b794b5e9dc0ff58d0c344fee4bf00f	ambiguous	0.0.5+2, tree 1c5291b, release hold
+2	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	b168ec43653abc3580e538f07ca6d47502f2d4c6b8c9d9baaa839805c0ac883f	ambiguous	0.0.5+2, 85,033,122 B - the SIXTH. In the sngnav-app clone nested under the masterplan repo, outside the 2026-09-20 scan roots. That clone is ANOTHER LANE'S CHECKOUT: read, never touched.
 3	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	d5a5e4622097e7ee40ee1dfc787395c6e067b2f35b37bc360627b6dee3feec17	minted	0.0.2+3, tree 0bc7351
 4	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	9a8503e6059875425735e9ae256080f37fc010c76d96acc65ab15e666b971278	minted	0.0.2+4, tree eedd04e
 5	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	b37c2fdbc8b21c68bfa78a877ebb552fc04fde8b2e32c8d193197fe7be17d39a	minted	0.0.2+5, tree e7e21af

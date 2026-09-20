@@ -69,11 +69,15 @@
 #   - It proves a versionCode names one artifact. It proves NOTHING about whether
 #     that artifact runs, renders, speaks, or reaches anyone. That is verified on a
 #     real device and this is not that.
-#   - R2/R3 read a HAND-APPENDED ledger. Empty proves only that nobody appended —
-#     the same weakness that left tool/play_uploaded_version_codes.txt at zero
-#     integers while nine codes were minted. `--record` appends; nothing forces it.
-#     `--scan DIR...` closes the gap from the other side by reading actual bytes off
-#     the disk, and is the answer to "what did somebody build and never record".
+#   - R2/R3 read a HAND-APPENDED ledger. `--record` appends; nothing forces it, so
+#     the record can be INCOMPLETE — the same weakness that left
+#     tool/play_uploaded_version_codes.txt at zero integers while nine codes were
+#     minted. `--scan DIR...` closes that gap from the other side by reading actual
+#     bytes off the disk, and is the answer to "what did somebody build and never
+#     record". ⚑ An incomplete record and an ABSENT one are different, and until
+#     2026-09-21 this file treated them the same: a missing or empty ledger returned
+#     0 with a clean verdict. It now returns 2. See ledger_state() below for the
+#     measurement and the refutation that produced it.
 #   - R1 requires every versionCode in a metadata file to equal the pubspec's. If
 #     this repo ever adopts `flutter build apk --split-per-abi`, Gradle emits several
 #     elements with OFFSET codes (1009/2009/…) and this assertion will FAIL LOUDLY on
@@ -210,9 +214,127 @@ check_ledger_consistency() {
   [ "$bad" -eq 0 ]
 }
 
+# R4. $1 = this tree's pubspec build number, $2 = ledger body.
+#     Rejects when the code this tree is ABOUT TO MINT is already on record as
+#     `ambiguous` -- a code that is already known to name more than one set of bytes.
+#
+# ⚑ WHY THIS IS NOT A WIDENING OF R1, ruled 2026-09-21.
+#   The nested sngnav-app clone is a live trap: its pubspec reads 0.0.5+2 and a
+#   release build from it mints versionCode 2, which already names SIX byte-sets.
+#   R1 PARITY is structurally SILENT on it -- measured: its pubspec says 2 and all
+#   fourteen of its output-metadata.json files say 2. THEY AGREE. R1 asks whether a
+#   tree is consistent WITH ITSELF, the clone is, and R1 returns the true answer to
+#   its own question.
+#
+#   Widening R1 to catch it would make R1's name a lie -- a check called PARITY that
+#   fails on a tree with perfect parity is the same class of defect as a function
+#   returning a success-shaped value: the name stops describing the behaviour. The
+#   re-entrancy test says the primitive already exists under another name, and it
+#   does: it is R2's question -- "does this code already name other bytes?" -- asked
+#   of a TREE at build time rather than of an ARTIFACT at upload time.
+#
+#   Bounded on `ambiguous` and not on "present at all", deliberately. A code on
+#   record as `minted` is the normal state of the code you just built and recorded;
+#   failing on that would redden CI for the whole window between recording a release
+#   and bumping past it, and a gate that is red on the honest path gets switched off
+#   (V20). A code on record as `ambiguous` can NEVER be legitimately minted again --
+#   that is what the marker means -- so this is always-true, not a heuristic.
+#
+#   WHAT IT DOES NOT REACH, and no guard in this repo can: a clone that does not
+#   HAVE this commit has none of these assertions. The nested clone does not contain
+#   assert_version_identity.sh at all. That is a distribution fact, not a design gap,
+#   and naming it is the whole available act from inside this repo.
+check_mint_target() {
+  local pvc="$1" body="$2" n
+  [ -n "$pvc" ] || { echo "MINT: no build number readable from pubspec.yaml — UNVERIFIED, not clear"; return 1; }
+  [ -n "$(printf '%s' "$body" | tr -d '[:space:]')" ] || return 0
+  n="$(printf '%s\n' "$body" | awk -F'\t' -v c="$pvc" '$1==c && $4=="ambiguous" {print $3}' | sort -u | wc -l)"
+  [ "$n" -gt 0 ] || return 0
+  echo "MINT: this tree declares version +$pvc, and $pvc is on record as \`ambiguous\`"
+  echo "      — it already names $n distinct sets of bytes. A build from this tree"
+  echo "      mints ANOTHER one, carrying a number that identifies none of them."
+  echo "      BUMP pubspec.yaml to a code no artifact carries before building."
+  return 1
+}
+
 # Strip comments and blanks from a ledger file's contents.
 ledger_body() {
   printf '%s\n' "$1" | sed 's/[[:space:]]*#.*$//' | awk 'NF'
+}
+
+# $1 = ledger path. Echoes the state of the RECORD ITSELF, which is a measurement
+# and therefore a function --self-test can drive, not an inline test nobody has
+# watched fail.
+#
+# ⚑ FAIL-OPEN, REFUTED 2026-09-21 on V14 by an independent certification and
+# reproduced by this seat on the real collider before repairing it. This line was:
+#     LEDGER_RAW="$( [ -f "$LEDGER" ] && cat "$LEDGER" || printf '' )"
+# which makes a MISSING record read as an EMPTY one — and an empty record is
+# trivially consistent and trivially non-colliding. Point the ledger at a path that
+# does not exist and the guard printed
+#     OK  versionCode 9 names these bytes and no others on record
+#     VERDICT: a versionCode names one artifact, everywhere this run could see.
+# and exited 0 over dfac31a4…, the exact artifact it was written to refuse. It did
+# not cry wolf. It went quietly green. An absent record IS "could not measure", and
+# this file's own contract (EXIT ... 2 could not measure, never silently clean) said
+# so while the code did the opposite.
+#
+#   missing         no such file. NOTHING was compared. rc 2.
+#   unreadable      it exists and cannot be read. rc 2.
+#   empty           it exists and holds no data row, and does not say why. rc 2 --
+#                   indistinguishable from a record someone deleted the rows out of.
+#   declared-empty  it holds no data row AND affirmatively says so with a
+#                   `# NO-IDENTITIES-YET:` line. A HUMAN acknowledgement, exactly as
+#                   `ambiguous` is in R3 -- and it is what keeps this satisfiable for
+#                   a tree that has genuinely never built an artifact. Without it a
+#                   fresh checkout could never go green, and a gate that can never go
+#                   green gets switched off (V20).
+#   rows            it holds data rows. Measure.
+ledger_state() {
+  local path="$1" raw body
+  [ -e "$path" ] || { echo "missing"; return 0; }
+  [ -r "$path" ] || { echo "unreadable"; return 0; }
+  raw="$(cat "$path" 2>/dev/null)" || { echo "unreadable"; return 0; }
+  body="$(ledger_body "$raw")"
+  if [ -n "$(printf '%s' "$body" | tr -d '[:space:]')" ]; then echo "rows"; return 0; fi
+  if printf '%s\n' "$raw" | grep -q '^[[:space:]]*#[[:space:]]*NO-IDENTITIES-YET:'; then
+    echo "declared-empty"; return 0
+  fi
+  echo "empty"
+}
+
+# $1 = code, $2 = signer sha, $3 = artifact sha, $4 = ledger body.
+# Echoes the EPISTEMIC state of this identity in the record.
+#
+# ⚑ Added 2026-09-21 with the fail-closed repair, on the same certification's second
+# finding: R2 printed the SAME sentence -- "OK versionCode N names these bytes and no
+# others on record" -- for two different states of knowledge. "The record affirms
+# these exact bytes" and "this code is on no row of the record whatsoever" are not
+# the same fact, and a reader could not tell them apart from the output.
+#
+#   affirmed       this exact (code, signer, sha) is ON a row. The record SAYS these bytes.
+#   other          (code, signer) is on record carrying DIFFERENT bytes -- the collision.
+#   absent         the SIGNER is on record, this CODE under it is not. A genuinely
+#                  fresh release code looks exactly like this the first time.
+#   absent-signer  the SIGNER appears on NO row at all. Almost always a debug
+#                  certificate, which by this ledger's own header does not belong in
+#                  it -- so telling the operator to --record it would be wrong advice
+#                  in a success-shaped sentence, which is the class of defect this
+#                  whole file exists to stop.
+#
+# `absent` is deliberately NOT a failure: a genuinely fresh versionCode is absent from
+# the record the first time it is built, and reddening that would block every
+# legitimate release (V20). It is reported as its own state and the operator is told
+# to record it -- distinguished, not failed.
+identity_record_state() {
+  local vc="$1" signer="$2" sha="$3" body="$4"
+  if printf '%s\n' "$body" | awk -F'\t' -v c="$vc" -v s="$signer" -v h="$sha" \
+       '$1==c && $2==s && $3==h {f=1} END{exit !f}'; then echo "affirmed"; return 0; fi
+  if printf '%s\n' "$body" | awk -F'\t' -v c="$vc" -v s="$signer" \
+       '$1==c && $2==s {f=1} END{exit !f}'; then echo "other"; return 0; fi
+  if printf '%s\n' "$body" | awk -F'\t' -v s="$signer" \
+       '$2==s {f=1} END{exit !f}'; then echo "absent"; return 0; fi
+  echo "absent-signer"
 }
 
 # ---------------------------------------------------------------- measurements
@@ -301,7 +423,77 @@ self_test() {
   t "a half-marked collision rejected"               1 check_ledger_consistency "$LED_HALF"
   t "a fully acknowledged collision accepted"        0 check_ledger_consistency "$LED_BOTH_MARKED"
   t "a clean record accepted"                        0 check_ledger_consistency "$LED_HELD"
-  t "an empty record is consistent"                  0 check_ledger_consistency ""
+  # NOTE: check_ledger_consistency on an empty BODY is still 0, and that is correct
+  # at the predicate level -- a record with no rows contains no unacknowledged
+  # collision. The defect was never here. It was that main/ CALLED it on an empty
+  # body derived from a file that DID NOT EXIST, and reported the vacuous pass as a
+  # clean bill. The fix is at the caller, so the tests for it are below.
+  t "an empty record is trivially consistent (vacuous, not clean)" 0 check_ledger_consistency ""
+
+  # ---- THE FAIL-OPEN, 2026-09-21. Proven to FAIL before it is believed fixed.
+  # Refuted on V14 by an independent certification and reproduced by this seat on the
+  # real collider: with the ledger absent the guard exited 0 over dfac31a4… at code 9.
+  local LD_MISSING LD_EMPTY LD_DECLARED LD_ROWS LD_TMPDIR
+  LD_TMPDIR="$(mktemp -d)"
+  LD_MISSING="$LD_TMPDIR/there-is-no-such-file.txt"
+  LD_EMPTY="$LD_TMPDIR/empty.txt";        : > "$LD_EMPTY"
+  LD_DECLARED="$LD_TMPDIR/declared.txt";  printf '# NO-IDENTITIES-YET: nothing built in this tree yet\n' > "$LD_DECLARED"
+  LD_ROWS="$LD_TMPDIR/rows.txt";          printf '%s\n' "$LED_HELD" > "$LD_ROWS"
+  local LD_COMMENTS="$LD_TMPDIR/comments.txt"; printf '# a header and nothing else\n#\n' > "$LD_COMMENTS"
+  t "a MISSING ledger is 'missing', not 'empty'"  0 test "$(ledger_state "$LD_MISSING")"  = "missing"
+  t "an EMPTY ledger is 'empty'"                  0 test "$(ledger_state "$LD_EMPTY")"    = "empty"
+  t "a comments-only ledger is 'empty', not rows" 0 test "$(ledger_state "$LD_COMMENTS")" = "empty"
+  t "a DECLARED-empty ledger is distinguished"    0 test "$(ledger_state "$LD_DECLARED")" = "declared-empty"
+  t "a populated ledger is 'rows'"                0 test "$(ledger_state "$LD_ROWS")"     = "rows"
+
+  # END TO END, on the REAL 2026-09-20 collider identity, through main().
+  # This is the exact run that printed OK and exited 0 before the repair.
+  local SELF; SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+  t "THE REFUTED STATE: missing ledger + the real collider -> rc 2, NOT 0" 2 \
+      env VERSION_IDENTITY_LEDGER="$LD_MISSING" bash "$SELF" --collision --apk "$SELF"
+  t "empty ledger + an artifact -> rc 2, NOT 0" 2 \
+      env VERSION_IDENTITY_LEDGER="$LD_EMPTY" bash "$SELF" --collision --apk "$SELF"
+  t "comments-only ledger -> rc 2, NOT 0" 2 \
+      env VERSION_IDENTITY_LEDGER="$LD_COMMENTS" bash "$SELF" --collision --apk "$SELF"
+  t "missing ledger, no artifact under test -> STILL rc 2 (this is what CI runs)" 2 \
+      env VERSION_IDENTITY_LEDGER="$LD_MISSING" bash "$SELF" --collision
+  # V20: the repair must not redden a tree that is legitimately empty and says so.
+  t "a DECLARED-empty ledger does NOT redden a record-only run (what CI makes)" 0 \
+      env VERSION_IDENTITY_LEDGER="$LD_DECLARED" bash "$SELF" --collision
+  # ...and the hatch must not become a bypass. Proven BLIND by mutation against this
+  # seat's own repair on 2026-09-21 before this case existed.
+  t "the DECLARED-empty hatch is REFUSED once an artifact is in hand" 2 \
+      env VERSION_IDENTITY_LEDGER="$LD_DECLARED" bash "$SELF" --collision --apk "$SELF"
+  # V20 again: a real record must still go green, or the gate gets switched off.
+  t "a populated ledger still passes cleanly"       0 \
+      env VERSION_IDENTITY_LEDGER="$LD_ROWS" bash "$SELF" --collision
+
+  # ---- THE TWO EPISTEMIC STATES, which used to share one sentence.
+  t "the record AFFIRMS these exact bytes"  0 \
+      test "$(identity_record_state 9 "$SIGNER" "$SHA_HELD" "$LED_HELD")" = "affirmed"
+  t "a code on NO row is 'absent', not affirmed" 0 \
+      test "$(identity_record_state 10 "$SIGNER" "$SHA_OTHER" "$LED_HELD")" = "absent"
+  t "a signer on NO row at all is 'absent-signer', not 'absent'" 0 \
+      test "$(identity_record_state 9 "$SIGNER_DEBUG" "$SHA_HELD" "$LED_HELD")" = "absent-signer"
+  t "a known signer at an UNKNOWN code is 'absent'" 0 \
+      test "$(identity_record_state 11 "$SIGNER" "$SHA_HELD" "$LED_HELD")" = "absent"
+  t "the collision case is 'other', not 'absent'" 0 \
+      test "$(identity_record_state 9 "$SIGNER" "$SHA_OTHER" "$LED_HELD")" = "other"
+  t "affirmed and absent do not print the same line" 0 \
+      test "$(identity_record_state 9 "$SIGNER" "$SHA_HELD" "$LED_HELD")" != "$(identity_record_state 10 "$SIGNER" "$SHA_HELD" "$LED_HELD")"
+  rm -rf "$LD_TMPDIR"
+
+  # ---- R4 MINT TARGET. The nested-clone trap, in the shape it actually has.
+  local LED_AMBIG
+  LED_AMBIG="$(printf '2\t%s\t%s\tambiguous\ta\n2\t%s\t%s\tambiguous\tb\n9\t%s\t%s\tminted\tc' \
+      "$SIGNER" "$SHA_HELD" "$SIGNER" "$SHA_OTHER" "$SIGNER" "$SHA_HELD")"
+  t "THE NESTED-CLONE SHAPE: a tree declaring an AMBIGUOUS code is refused" 1 \
+      check_mint_target 2 "$LED_AMBIG"
+  t "a tree declaring a MINTED code is NOT refused (V20: the honest path)" 0 \
+      check_mint_target 9 "$LED_AMBIG"
+  t "a tree declaring an UNKNOWN code is accepted"  0 check_mint_target 10 "$LED_AMBIG"
+  t "an unreadable build number is refused"         1 check_mint_target ""  "$LED_AMBIG"
+  t "an empty record cannot refuse a mint target"   0 check_mint_target 2   ""
 
   # ---- EXTRACTION. The 2026-08-24 lesson: the predicates were proven and the
   # extraction was not, and that is where the defect lived. Real file shapes.
@@ -390,7 +582,11 @@ done
 echo "== version identity =="
 echo "repo:   $REPO_ROOT"
 echo "ledger: $LEDGER"
-LEDGER_RAW="$( [ -f "$LEDGER" ] && cat "$LEDGER" || printf '' )"
+LEDGER_STATE="$(ledger_state "$LEDGER")"
+case "$LEDGER_STATE" in
+  rows|declared-empty) LEDGER_RAW="$(cat "$LEDGER")" ;;
+  *)                   LEDGER_RAW="" ;;
+esac
 BODY="$(ledger_body "$LEDGER_RAW")"
 rc=0
 
@@ -419,14 +615,89 @@ if [ "$MODE" = "record" ]; then
   exit 0
 fi
 
+# ---- THE RECORD MUST BE THERE BEFORE ANYTHING IS SAID ABOUT IT.
+# R2 and R3 are both assertions ABOUT A RECORD. With no record they are not clean,
+# they are UNMEASURED -- and this guard's contract says so at the head of this file.
+# Everything below this block is skipped when the record cannot be read, because the
+# failure being repaired here was not a wrong answer, it was a CONFIDENT answer over
+# nothing at all.
+LEDGER_USABLE=1
+case "$LEDGER_STATE" in
+  missing)
+    echo "-- ledger"
+    echo "   CANNOT MEASURE: no ledger at $LEDGER."
+    echo "   An absent record is NOT an empty one, and neither is a clean bill. R2 and"
+    echo "   R3 assert things ABOUT this file; with no file there is nothing asserted."
+    echo "   Restore it (it is tracked in git), or, for a tree that has genuinely never"
+    echo "   built an artifact, create it with a line reading:"
+    echo "       # NO-IDENTITIES-YET: <why this tree has minted nothing>"
+    rc=2; LEDGER_USABLE=0 ;;
+  unreadable)
+    echo "-- ledger"
+    echo "   CANNOT MEASURE: ledger exists but could not be read: $LEDGER"
+    rc=2; LEDGER_USABLE=0 ;;
+  empty)
+    echo "-- ledger"
+    echo "   CANNOT MEASURE: ledger $LEDGER holds no identity, and does not say why."
+    echo "   A record emptied by accident and a record deliberately empty look the same"
+    echo "   from here. If this tree has minted nothing, SAY SO in the file:"
+    echo "       # NO-IDENTITIES-YET: <why this tree has minted nothing>"
+    rc=2; LEDGER_USABLE=0 ;;
+  declared-empty)
+    echo "-- ledger"
+    if [ -n "$APK_ARG" ]; then
+      # ⚑ THE ESCAPE HATCH IS NOT A BYPASS, and it took a mutation run against this
+      # seat's OWN repair to see that it was one. A declared-empty ledger silences
+      # R2 exactly the way a MISSING one did: re-run the three real colliders with
+      # `# NO-IDENTITIES-YET` in the file and the gate goes BLIND to all three again.
+      # One line in a file would have re-opened the hole this repair closed.
+      #
+      # So the declaration is bounded by the thing that contradicts it. "This tree
+      # has minted nothing" and "here is an artifact this tree minted" cannot both
+      # be true, and when an artifact is under test the ARTIFACT is the measurement
+      # and the declaration is the claim. The hatch stays open only where it is
+      # actually needed -- a tree that has genuinely built nothing, which is the
+      # record-consistency run CI makes and which has no artifact to pass.
+      echo "   CANNOT MEASURE: the ledger declares itself empty (# NO-IDENTITIES-YET),"
+      echo "   and yet an artifact was handed to this run:"
+      echo "     $APK_ARG"
+      echo "   Those cannot both be true. A record that has minted nothing cannot"
+      echo "   vouch for something that was minted. RECORD this artifact and remove"
+      echo "   the NO-IDENTITIES-YET line:"
+      echo "     tool/assert_version_identity.sh --record $APK_ARG"
+      rc=2; LEDGER_USABLE=0
+    else
+      echo "   measured: 0 identities, and the file declares that deliberately"
+      echo "   (# NO-IDENTITIES-YET). Nothing to collide with YET -- not a clean record."
+      echo "   This is the ONLY state in which an empty record is not a finding, and it"
+      echo "   holds only while no artifact exists to contradict it."
+    fi ;;
+esac
+
+if [ "$LEDGER_USABLE" -eq 1 ]; then
 echo "-- R3 record consistency"
 if check_ledger_consistency "$BODY"; then
   echo "   OK  $(printf '%s\n' "$BODY" | awk 'NF' | wc -l) recorded identities, no unacknowledged collision"
 else
   rc=1
 fi
+fi
 
-if [ -n "$APK_ARG" ]; then
+if [ "$LEDGER_USABLE" -eq 1 ] && [ "$MODE" != "collision" ] && [ -f "$REPO_ROOT/pubspec.yaml" ]; then
+  echo "-- R4 mint target (the code THIS TREE is about to mint)"
+  if check_mint_target "$(pubspec_build_number "$(cat "$REPO_ROOT/pubspec.yaml")")" "$BODY"; then
+    echo "   OK  +$(pubspec_build_number "$(cat "$REPO_ROOT/pubspec.yaml")") is not on record as ambiguous"
+  else
+    rc=1
+  fi
+fi
+
+if [ -n "$APK_ARG" ] && [ "$LEDGER_USABLE" -eq 0 ]; then
+  echo "-- R2 collision (the artifact under test against the record)"
+  echo "   NOT RUN: there is no record to compare this artifact against."
+  echo "   $APK_ARG"
+  echo "   UNVERIFIED, never cleared. This is the state that used to print OK."
+elif [ -n "$APK_ARG" ]; then
   echo "-- R2 collision (the artifact under test against the record)"
   if [ ! -f "$APK_ARG" ]; then
     echo "   FAIL: no such artifact: $APK_ARG"; rc=1
@@ -441,7 +712,24 @@ if [ -n "$APK_ARG" ]; then
       echo "   $APK_ARG"
       echo "   code=$c  signer=${s:0:16}…  sha256=$h"
       if check_code_collision "$c" "$s" "$h" "$BODY"; then
-        echo "   OK  versionCode $c names these bytes and no others on record"
+        # Two different states of knowledge; they used to share one sentence.
+        case "$(identity_record_state "$c" "$s" "$h" "$BODY")" in
+          affirmed)
+            echo "   OK  versionCode $c is ON RECORD naming exactly these bytes, and no others." ;;
+          absent-signer)
+            echo "   NOT ON RECORD: signer ${s:0:16}… appears on NO row of the ledger at all."
+            echo "       No collision -- and nothing affirmed either. This ledger records"
+            echo "       RELEASE identities only (see its header), so a debug-signed"
+            echo "       artifact belongs nowhere in it and must NOT be --recorded."
+            echo "       It also cannot install over a release build: different certificate." ;;
+          *)
+            echo "   NEW versionCode $c is on NO ROW of the record. No collision --"
+            echo "       and nothing affirmed either: the record has never seen this code."
+            echo "       RECORD it before this artifact goes anywhere:"
+            echo "         tool/assert_version_identity.sh --record $APK_ARG"
+            echo "       and COMMIT the ledger. An unrecorded artifact is one nothing can"
+            echo "       compare the NEXT build against." ;;
+        esac
       else
         rc=1
       fi
@@ -474,6 +762,58 @@ if [ "${#SCAN_DIRS[@]}" -gt 0 ]; then
       else
         echo "   ^ these are REAL FILES, not a record. Nothing acknowledged them."
         rc=1
+      fi
+      # ---- CORROBORATION, both directions. Added 2026-09-21 because this seat
+      # typed a PLAUSIBLE BUT INVENTED sha256 tail into the ledger while repairing
+      # it, and caught it only by re-reading its own measurement. Nothing in this
+      # file could have caught that: every assertion here compares the record
+      # against ITSELF or against one artifact, so a row that corresponds to no
+      # bytes anywhere is invisible to all three.
+      #
+      # This REPORTS, it does not gate, and the distinction is deliberate: a
+      # recorded artifact that has since been deleted or cleaned is the normal case,
+      # not a defect, and failing on it would redden honest runs until someone
+      # switched the gate off (V20). What it buys is that an uncorroborated row is
+      # SAID OUT LOUD in the one mode whose whole job is reading real bytes, instead
+      # of sitting in the record looking exactly like a measured one.
+      if [ "${LEDGER_USABLE:-0}" -eq 1 ]; then
+        corr=0; uncorr=0; uncorr_rows=""
+        while IFS= read -r row; do
+          [ -n "$row" ] || continue
+          lc="$(printf '%s' "$row" | cut -f1)"; lh="$(printf '%s' "$row" | cut -f3)"
+          [ -n "$lh" ] || continue
+          if awk -F'\t' -v h="$lh" '$3==h {f=1} END{exit !f}' "$inv"; then
+            corr=$((corr+1))
+          else
+            uncorr=$((uncorr+1)); uncorr_rows="$uncorr_rows   code $lc  ${lh:0:16}…"$'\n'
+          fi
+        done <<< "$BODY"
+        echo "   corroborated: $corr of $((corr+uncorr)) recorded identities were found as real bytes under ${SCAN_DIRS[*]}"
+        if [ "$uncorr" -gt 0 ]; then
+          echo "   NOT corroborated by this scan ($uncorr) — normal if the artifact was cleaned,"
+          echo "   and the ONLY signal there is if a row was never measured in the first place:"
+          printf '%s' "$uncorr_rows"
+        fi
+        # And the other direction: bytes on disk that the record has never heard of.
+        # Counted ONLY for signers the record actually tracks. This ledger is
+        # release-only by its own header, so counting debug-signed artifacts here
+        # would report a large number that is correct-by-design and means nothing --
+        # noise in the one line a reader would use to find a real gap.
+        unrec=0; unrec_rows=""
+        while IFS= read -r dl; do
+          [ -n "$dl" ] || continue
+          dc="$(printf '%s' "$dl" | cut -f1)"; ds="$(printf '%s' "$dl" | cut -f2)"; dh="$(printf '%s' "$dl" | cut -f3)"
+          printf '%s\n' "$BODY" | awk -F'\t' -v s="$ds" '$2==s {f=1} END{exit !f}' || continue
+          printf '%s\n' "$BODY" | awk -F'\t' -v h="$dh" '$3==h {f=1} END{exit !f}' \
+            || { unrec=$((unrec+1)); unrec_rows="$unrec_rows   code $dc  ${dh:0:16}…"$'\n'; }
+        done < <(sort -u -t"$(printf '\t')" -k3,3 "$inv")
+        if [ "$unrec" -eq 0 ]; then
+          echo "   unrecorded: none — every artifact on disk under a RECORDED signer is on a row"
+        else
+          echo "   ⚑ unrecorded: $unrec artifact(s) on disk under a RECORDED signer are on NO row."
+          echo "   These are real bytes nothing can compare the next build against. --record them."
+          printf '%s' "$unrec_rows"
+        fi
       fi
     fi
     rm -f "$inv"
