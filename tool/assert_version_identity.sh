@@ -88,6 +88,18 @@
 #   - `--scan` needs aapt2 AND apksigner. Without either it EXITS 2. Signer identity
 #     is the whole key; a "uniqueness" answer computed without it would be a
 #     different, weaker claim wearing this one's name.
+#   - ⚑ THE SIGNER AXIS RESTS ON apksigner ALONE, AND THAT IS UNVERIFIED BY A SECOND
+#     IMPLEMENTATION. Stated plainly rather than left implied, because the entire
+#     (versionCode, SIGNER) keying -- the decision that a debug build at the same
+#     code is not a collision -- rests on one tool's answer. Measured 2026-09-21 in
+#     this environment: `keytool -printcert -jarfile <apk>` prints "Not a signed jar
+#     file" AND EXITS 0 -- the same success-shaped failure this file exists to stop,
+#     in a third-party tool, so it cannot be used even as a cross-check without
+#     reading its stdout rather than its status. `jarsigner` is not installed. The
+#     artifacts carry ZERO v1 (META-INF/*.RSA|DSA|EC) blocks, so they are v2/v3-signed
+#     only and keytool structurally cannot read them. NO SECOND IMPLEMENTATION IS
+#     AVAILABLE HERE. Every signer value in the ledger and every keying decision
+#     built on one is therefore UNVERIFIED by an independent reader, never *cleared*.
 #
 # USAGE
 #   tool/assert_version_identity.sh                      # R1 + R3 for this repo
@@ -240,6 +252,17 @@ check_ledger_consistency() {
 #   (V20). A code on record as `ambiguous` can NEVER be legitimately minted again --
 #   that is what the marker means -- so this is always-true, not a heuristic.
 #
+#   ⚑ THE BOUND, stated because it was true from the first line and unwritten until
+#   an independent certification asked for it in so many words. R4 catches the
+#   RE-MINTING of a code ALREADY MARKED `ambiguous`. IT DOES NOT CATCH THE CREATION
+#   OF THE FIRST AMBIGUITY. Build twice at a code that is clean on the record and R4
+#   is silent both times: nothing is marked ambiguous until a second byte-set has
+#   already been minted and somebody has recorded and acknowledged it. That is
+#   INHERENT, not a defect -- `ambiguous` is a human acknowledgement of a collision
+#   that already happened, so a check keyed on it is a check on the SECOND offence
+#   onward by construction. The first offence is caught by R2 at upload time and by
+#   --scan from the byte side, and it is NOT caught at build time by anything here.
+#
 #   WHAT IT DOES NOT REACH, and no guard in this repo can: a clone that does not
 #   HAVE this commit has none of these assertions. The nested clone does not contain
 #   assert_version_identity.sh at all. That is a distribution fact, not a design gap,
@@ -296,7 +319,42 @@ ledger_state() {
   [ -r "$path" ] || { echo "unreadable"; return 0; }
   raw="$(cat "$path" 2>/dev/null)" || { echo "unreadable"; return 0; }
   body="$(ledger_body "$raw")"
-  if [ -n "$(printf '%s' "$body" | tr -d '[:space:]')" ]; then echo "rows"; return 0; fi
+  if [ -n "$(printf '%s' "$body" | tr -d '[:space:]')" ]; then
+    # ⚑ THE FOURTH DOOR, 2026-09-21: present, readable, TRACKED -- and UNPARSEABLE.
+    # Until this check existed the question asked here was "can I READ this file?"
+    # and never "can I PARSE its rows?", while every assertion in this file splits
+    # on TAB. Convert the tabs to spaces -- an editor with expandtab, a paste
+    # through a terminal -- and the file still DISPLAYS fourteen rows, still carries
+    # the release signer on every one of them (grep counts 14), and this function
+    # said `rows`. Measured on the real collider at code 9:
+    #
+    #   committed ledger ...... COLLISION, rc 1
+    #   all tabs -> spaces ..... rc 0, "signer appears on NO row of the ledger at
+    #                            all" -- false of all fourteen rows
+    #   ONE row mangled ........ rc 0, "OK versionCode 9 is ON RECORD naming exactly
+    #                            these bytes, and no others" -- the guard's STRONGEST
+    #                            POSITIVE state, declaring uniqueness while the row
+    #                            that disproves it sits one line away in the SAME FILE
+    #
+    # It disables R2, R3 and R4 in one stroke. Measured: the whitespace split sees
+    # 14 rows, the tab split sees 0 keys, 0 signer matches, 0 ambiguous markers, and
+    # NF on the first row is 1.
+    #
+    # The defect PREDATES the fail-closed repair -- the old guard returns rc 0 on the
+    # same mangled file, verified against ee2cc33. What the repair changed is the
+    # CONFIDENCE of the false sentence: the `affirmed` state added to cure the
+    # previous finding is what delivers this falsehood, with exactly the authority
+    # that fix was meant to supply.
+    #
+    # The check can never be legitimately false. This file's own format is five
+    # tab-separated fields and ledger_body has already stripped comments and blanks,
+    # so every surviving line MUST split into at least three. A row that does not is
+    # not a row this guard can read, whatever it looks like on screen.
+    if [ "$(printf '%s\n' "$body" | awk -F'\t' 'NF<3 {c++} END{print c+0}')" -eq 0 ]; then
+      echo "rows"; return 0
+    fi
+    echo "malformed"; return 0
+  fi
   if printf '%s\n' "$raw" | grep -q '^[[:space:]]*#[[:space:]]*NO-IDENTITIES-YET:'; then
     echo "declared-empty"; return 0
   fi
@@ -433,6 +491,7 @@ self_test() {
   # ---- THE FAIL-OPEN, 2026-09-21. Proven to FAIL before it is believed fixed.
   # Refuted on V14 by an independent certification and reproduced by this seat on the
   # real collider: with the ledger absent the guard exited 0 over dfac31a4… at code 9.
+  local SELF; SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
   local LD_MISSING LD_EMPTY LD_DECLARED LD_ROWS LD_TMPDIR
   LD_TMPDIR="$(mktemp -d)"
   LD_MISSING="$LD_TMPDIR/there-is-no-such-file.txt"
@@ -446,9 +505,32 @@ self_test() {
   t "a DECLARED-empty ledger is distinguished"    0 test "$(ledger_state "$LD_DECLARED")" = "declared-empty"
   t "a populated ledger is 'rows'"                0 test "$(ledger_state "$LD_ROWS")"     = "rows"
 
+  # ---- THE FOURTH DOOR: present, readable, tracked -- and UNPARSEABLE.
+  # A ledger whose tabs became spaces still DISPLAYS its rows and still greps for the
+  # signer on every one, while every assertion that splits on tab sees nothing.
+  local LD_MANGLED LD_ONEBAD
+  LD_MANGLED="$LD_TMPDIR/mangled.txt"; printf '%s\n' "$LED_HELD" | tr '\t' ' ' > "$LD_MANGLED"
+  LD_ONEBAD="$LD_TMPDIR/onebad.txt"
+  { printf '%s\n' "$LED_BOTH_MARKED" | head -1 | tr '\t' ' '
+    printf '%s\n' "$LED_BOTH_MARKED" | tail -1; } > "$LD_ONEBAD"
+  t "a TAB-MANGLED ledger is 'malformed', not 'rows'" 0 \
+      test "$(ledger_state "$LD_MANGLED")" = "malformed"
+  t "ONE mangled row makes the whole file 'malformed'" 0 \
+      test "$(ledger_state "$LD_ONEBAD")" = "malformed"
+  t "the mangled file still LOOKS like a record (the reason this is invisible)" 0 \
+      test "$(grep -c "$SIGNER" "$LD_MANGLED")" = "1"
+  t "a 3-field row is enough to parse (the minimum, not the format)" 0 \
+      test "$(ledger_state <(printf '9\t%s\t%s\n' "$SIGNER" "$SHA_HELD"))" = "rows"
+  t "THE REFUTED STATE: a mangled ledger -> rc 2, NOT a green run" 2 \
+      env VERSION_IDENTITY_LEDGER="$LD_MANGLED" bash "$SELF" --collision --apk "$SELF"
+  t "a mangled ledger reddens the record-only run CI makes" 2 \
+      env VERSION_IDENTITY_LEDGER="$LD_MANGLED" bash "$SELF" --collision
+  # The count that REASSURES must come from the same parser as the counts that DECIDE.
+  t "the printed identity count uses the TAB split, not whitespace" 0 \
+      test "$(printf '%s\n' "$(ledger_body "$(cat "$LD_MANGLED")")" | awk -F'\t' 'NF>=3' | wc -l)" = "0"
+
   # END TO END, on the REAL 2026-09-20 collider identity, through main().
   # This is the exact run that printed OK and exited 0 before the repair.
-  local SELF; SELF="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
   t "THE REFUTED STATE: missing ledger + the real collider -> rc 2, NOT 0" 2 \
       env VERSION_IDENTITY_LEDGER="$LD_MISSING" bash "$SELF" --collision --apk "$SELF"
   t "empty ledger + an artifact -> rc 2, NOT 0" 2 \
@@ -464,6 +546,10 @@ self_test() {
   # seat's own repair on 2026-09-21 before this case existed.
   t "the DECLARED-empty hatch is REFUSED once an artifact is in hand" 2 \
       env VERSION_IDENTITY_LEDGER="$LD_DECLARED" bash "$SELF" --collision --apk "$SELF"
+  # ...and through --scan too, which is the OTHER way an artifact enters evidence.
+  # The bound keyed on --apk alone until 2026-09-21 and so did not say what it claimed.
+  t "the hatch is REFUSED through --scan as well as --apk" 2 \
+      env VERSION_IDENTITY_LEDGER="$LD_DECLARED" bash "$SELF" --scan "$LD_TMPDIR"
   # V20 again: a real record must still go green, or the gate gets switched off.
   t "a populated ledger still passes cleanly"       0 \
       env VERSION_IDENTITY_LEDGER="$LD_ROWS" bash "$SELF" --collision
@@ -636,6 +722,18 @@ case "$LEDGER_STATE" in
     echo "-- ledger"
     echo "   CANNOT MEASURE: ledger exists but could not be read: $LEDGER"
     rc=2; LEDGER_USABLE=0 ;;
+  malformed)
+    echo "-- ledger"
+    echo "   CANNOT MEASURE: $LEDGER is present and readable, and its rows DO NOT PARSE."
+    echo "   This file is TAB-separated and every assertion here splits on tab. These"
+    echo "   lines carry fewer than three tab-separated fields, so they are invisible"
+    echo "   to R2, R3 and R4 while still LOOKING like a record on screen:"
+    printf '%s\n' "$(ledger_body "$(cat "$LEDGER" 2>/dev/null)")" \
+      | awk -F'\t' 'NF<3 {printf "     line %d (%d field%s): %.72s…\n", NR, NF, (NF==1?"":"s"), $0}' \
+      | head -8
+    echo "   Most often an editor with expandtab, or a paste through a terminal."
+    echo "   Restore the tabs. Do NOT trust a green run over this file."
+    rc=2; LEDGER_USABLE=0 ;;
   empty)
     echo "-- ledger"
     echo "   CANNOT MEASURE: ledger $LEDGER holds no identity, and does not say why."
@@ -645,7 +743,16 @@ case "$LEDGER_STATE" in
     rc=2; LEDGER_USABLE=0 ;;
   declared-empty)
     echo "-- ledger"
-    if [ -n "$APK_ARG" ]; then
+    # ⚑ BOUND TIGHTENED 2026-09-21. The rationale below says the hatch holds "only
+    # where no artifact is under test" -- and the code keyed on $APK_ARG alone,
+    # while --scan supplies artifacts through SCAN_DIRS. Measured: with this hatch
+    # and `--scan /home/komada/work`, the run printed "measured: 0 identities, and
+    # the file declares that deliberately" over 25 artifacts read off the disk.
+    # Not a fail-open -- the byte-side consistency check still fired rc 1 -- but the
+    # bound did not say what it claimed, and a bound that overstates itself is the
+    # thing a later reader trusts instead of checking. Either path putting an
+    # artifact in evidence now contradicts the declaration.
+    if [ -n "$APK_ARG" ] || [ "${#SCAN_DIRS[@]}" -gt 0 ]; then
       # ⚑ THE ESCAPE HATCH IS NOT A BYPASS, and it took a mutation run against this
       # seat's OWN repair to see that it was one. A declared-empty ledger silences
       # R2 exactly the way a MISSING one did: re-run the three real colliders with
@@ -659,12 +766,13 @@ case "$LEDGER_STATE" in
       # actually needed -- a tree that has genuinely built nothing, which is the
       # record-consistency run CI makes and which has no artifact to pass.
       echo "   CANNOT MEASURE: the ledger declares itself empty (# NO-IDENTITIES-YET),"
-      echo "   and yet an artifact was handed to this run:"
-      echo "     $APK_ARG"
+      echo "   and yet this run has an artifact in evidence:"
+      [ -n "$APK_ARG" ] && echo "     under test: $APK_ARG"
+      [ "${#SCAN_DIRS[@]}" -gt 0 ] && echo "     scanning:   ${SCAN_DIRS[*]}"
       echo "   Those cannot both be true. A record that has minted nothing cannot"
-      echo "   vouch for something that was minted. RECORD this artifact and remove"
+      echo "   vouch for something that was minted. RECORD what exists and remove"
       echo "   the NO-IDENTITIES-YET line:"
-      echo "     tool/assert_version_identity.sh --record $APK_ARG"
+      [ -n "$APK_ARG" ] && echo "     tool/assert_version_identity.sh --record $APK_ARG"
       rc=2; LEDGER_USABLE=0
     else
       echo "   measured: 0 identities, and the file declares that deliberately"
@@ -677,7 +785,12 @@ esac
 if [ "$LEDGER_USABLE" -eq 1 ]; then
 echo "-- R3 record consistency"
 if check_ledger_consistency "$BODY"; then
-  echo "   OK  $(printf '%s\n' "$BODY" | awk 'NF' | wc -l) recorded identities, no unacknowledged collision"
+  # Counted with the SAME tab split every assertion decides on. It used to be
+  # counted with `awk NF` -- a WHITESPACE split -- so the number that reassured a
+  # reader came from one parser and every number that decided came from another,
+  # and only the reassuring one was ever printed. On a tab-mangled ledger that line
+  # read "OK 14 recorded identities" while R2, R3 and R4 were each seeing zero.
+  echo "   OK  $(printf '%s\n' "$BODY" | awk -F'\t' 'NF>=3' | wc -l) recorded identities, no unacknowledged collision"
 else
   rc=1
 fi
@@ -769,6 +882,28 @@ if [ "${#SCAN_DIRS[@]}" -gt 0 ]; then
       # file could have caught that: every assertion here compares the record
       # against ITSELF or against one artifact, so a row that corresponds to no
       # bytes anywhere is invisible to all three.
+      #
+      # ⚑ RULED 2026-09-21: THIS CHECK SHARES A PARSER WITH THE THING IT CORROBORATES,
+      # AND IT DOES NOT NEED A SECOND ONE. The objection is real -- a value typed in
+      # that also destroys the tab delimiters defeats this check in the same stroke
+      # it defeats R2. The answer is NOT a duplicate text parser:
+      #   - a second parser must agree with the first about what a row IS, so keeping
+      #     the two in sync is a fresh defect surface, and the second would itself
+      #     need validating. That regresses, it does not terminate.
+      #   - the correct primitive is to REFUSE TO TRUST THE PARSE UNTIL ITS SHAPE IS
+      #     VALIDATED. ledger_state() now asks the tab split itself whether it yielded
+      #     three fields on every surviving row. A broken parser cannot hide from a
+      #     check on its own output SHAPE, because the failure IS the shape.
+      #   - measured: with the ledger tab-mangled the run exits 2 at the ledger gate
+      #     and this block never executes. Corroboration is no longer reachable over
+      #     a parse nobody validated.
+      #   - and the divergence is gone at the source: the identity count printed by
+      #     R3 now comes from the SAME tab split every assertion decides on.
+      # WHERE THE REAL INDEPENDENCE LIVES, and it is not in the text: the BYTE side.
+      # $inv is built by aapt2 + apksigner + sha256sum and shares nothing with the
+      # ledger parser -- it still read artifacts off the disk on the mangled file.
+      # This check's whole value is comparing those two populations, so its second
+      # opinion is the bytes, and duplicating the text reader would add none.
       #
       # This REPORTS, it does not gate, and the distinction is deliberate: a
       # recorded artifact that has since been deleted or cleaned is the normal case,
