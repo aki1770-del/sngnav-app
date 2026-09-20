@@ -19,8 +19,25 @@ import 'package:sngnav_app/widgets/advisory_cards.dart';
 import 'render_see_env.dart';
 
 const Key _shot = Key('hie-r116-30-shot');
-const String _out = '/home/komada/Documents/LLMnotebooks/toyota flutter '
-    'masterplan/outputs/hie/r116_30_glance_and_her_ground_2026_09_20/frames';
+// ⛑ 2026-09-20, AAE, during the D18 integration. This was an ABSOLUTE PATH
+// into the AUTHOR'S HOME -- '/home/komada/Documents/LLMnotebooks/toyota flutter
+// masterplan/outputs/hie/r116_30_glance_and_her_ground_2026_09_20/frames'. On a
+// GitHub runner `Directory(_out).createSync` below raised
+// `PathAccessException: Creation failed, path = '/home/komada' (OS Error:
+// Permission denied, errno = 13)` and took the whole suite red (run 35499938116).
+// It passed on the authoring machine because there that path IS the author's home.
+//
+// Changed to the pattern the SIBLING test in this very directory already uses and
+// which is green on CI: her_dot_glance_capture_test.dart:62,
+// `const _outDir = String.fromEnvironment('HER_DOT_GLANCE_OUT')`, writing frames
+// only when it is given somewhere to write. NO ASSERTION IN THIS FILE IS
+// TOUCHED -- the probe still renders and still measures every banner; only the
+// evidence dump is now opt-in.
+//
+// To dump the frames where they were authored:
+//   flutter test test/render_see/hie_r116_30_probe_test.dart \
+//     --dart-define=HIE_R116_30_OUT=/abs/path/to/outputs/hie/r116_30_.../frames
+const String _out = String.fromEnvironment('HIE_R116_30_OUT');
 
 double _lin(int c) {
   final v = c / 255.0;
@@ -151,7 +168,7 @@ void main() {
     await loadCjkFamily('Roboto', japaneseFontSearchOrder());
     await loadBundledSymbolsFont();
     await loadMaterialIconsFont();
-    Directory(_out).createSync(recursive: true);
+    if (_out.isNotEmpty) Directory(_out).createSync(recursive: true);
   });
 
   Future<void> shoot(WidgetTester tester, String name) async {
@@ -160,7 +177,9 @@ void main() {
       final img = await b.toImage(pixelRatio: 1.0);
       final png = await img.toByteData(format: ui.ImageByteFormat.png);
       final rgba = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
-      File('$_out/$name.png').writeAsBytesSync(png!.buffer.asUint8List());
+      if (_out.isNotEmpty) {
+        File('$_out/$name.png').writeAsBytesSync(png!.buffer.asUint8List());
+      }
       final out = (rgba!.buffer.asUint32List(), img.width, img.height);
       img.dispose();
       return out;
