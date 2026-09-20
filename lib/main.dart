@@ -305,6 +305,33 @@ bool _advisoryInForce(Advisory a, DateTime now, DateTime? lastFreshAt) {
         a,
   ];
   if (retained.isEmpty) return (result: fresh, retained: false);
+  // Feed-health rides through the rebuild too, from BOTH sides.
+  //
+  // `staleSources` is what excludes a dead publisher's warning from the rung
+  // (advisory_axis.dart) and what draws the 「気象情報の更新が止まっています」
+  // banner over every row (advisory_cards.dart). It defaults to const [], so a
+  // rebuild that omits it does not merely lose a field — it silently REVIVES
+  // the corpse: the 88-day-old 雷注意報 sets the rung again and fires the
+  // audio + haptic, and the one line saying the feed stopped moving vanishes
+  // at the exact moment the data is oldest.
+  //
+  // FRESH side: sources that answered this cycle and measured themselves
+  // stale. PRIOR side: a source whose document was measured stale last cycle
+  // and has now ERRORED cannot report anything this cycle (the aggregator
+  // records staleness only for a provider that answered), yet its warning is
+  // exactly what we are retaining. That is Akita's own shape — JMA the only
+  // covering publisher, its document frozen since May, the next fetch failing.
+  // So a staleness entry is carried forward for any source with a RETAINED
+  // advisory, and a fresh measurement always wins over a carried one.
+  //
+  // The carried `age` was measured at the PRIOR read, so it under-reports by
+  // up to kSlowHazardRetainWindow (60 min). That is deliberate: the age is
+  // carried, never recomputed — this result holds no clock and must not
+  // acquire one (AdvisoryFeedStaleness's own contract), and against a document
+  // 88 days old an hour is noise, while reporting an unmeasured quantity as
+  // measured is the defect this whole path exists to stop.
+  final retainedSources = {for (final a in retained) a.source};
+  final freshStaleSources = {for (final s in fresh.staleSources) s.source};
   return (
     result: AdvisoryAggregateResult(
       advisories: [...fresh.advisories, ...retained],
@@ -314,6 +341,13 @@ bool _advisoryInForce(Advisory a, DateTime now, DateTime? lastFreshAt) {
       // that drops it destroys the evidence the all-clear gate reads.
       // Retention changes WHAT was seen, never WHO was asked.
       sourcesQueried: fresh.sourcesQueried,
+      staleSources: [
+        ...fresh.staleSources,
+        for (final s in prior.staleSources)
+          if (retainedSources.contains(s.source) &&
+              !freshStaleSources.contains(s.source))
+            s,
+      ],
     ),
     retained: true,
   );
@@ -363,6 +397,11 @@ AdvisoryAggregateResult? cullExpiredRetainedAdvisories(
     // B04-2 — the cull drops EXPIRED hazards; it does not re-run the
     // lookup. Who was asked is unchanged, so the provenance rides through.
     sourcesQueried: result.sourcesQueried,
+    // Same reason, same field-by-field discipline: the cull re-reads no
+    // publisher document, so what was measured stale is still measured stale.
+    // Kept even when the cull empties the list — a frozen source with zero
+    // advisories left is precisely the shape the banner exists for.
+    staleSources: result.staleSources,
   );
 }
 
