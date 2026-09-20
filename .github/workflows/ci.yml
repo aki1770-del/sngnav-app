@@ -415,6 +415,18 @@ jobs:
           bash tool/selftest-hermeticity-guard.sh --self-test
           bash tool/selftest-hermeticity-guard.sh
 
+      # A versionCode's whole job is to name ONE artifact, and until 2026-09-20
+      # nothing asserted that it did. Two codes were already carrying several
+      # distinct byte-sets under one release certificate by the time anyone looked.
+      # This runs the RECORD half here: a checkout has no build/ directory, so the
+      # parity half passes trivially and what CI actually enforces is that
+      # tool/minted_version_identities.txt never gains a collision nobody has
+      # acknowledged. The guard's own --self-test is already run by the hermeticity
+      # step above, which discovers every tool/*.sh -- so it is armed twice over,
+      # and neither arming depends on someone remembering to add a step.
+      - name: Version identity (a versionCode must name one set of bytes)
+        run: bash tool/assert_version_identity.sh
+
       - name: Tile archive identity (every shipped .mbtiles must not lie about itself)
         run: |
           shopt -s nullglob
