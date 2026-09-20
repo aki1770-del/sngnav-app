@@ -417,18 +417,64 @@ if [ -f "$APK" ] && check_artifact_readable "$APK" "APK"; then
   APK="$(cd "$(dirname "$APK")" && pwd)/$(basename "$APK")"
   HAVE_APK=1
 fi
+# `stat -Lc%s`, not `stat -c%s`: GNU stat does NOT follow a symlink by default, so
+# a symlinked artifact was reported at the size of the LINK (82 bytes for a 45 MB
+# bundle) while sha256sum, which DOES follow, printed the target's real digest. A
+# block whose entire job is to say "this is the file this run is about" must not
+# misstate the file. Found 2026-09-20 by a test fixture that symlinked its inputs.
 echo "-- artifacts under test (this is the file this run is about)"
 echo "   AAB: $AAB"
-echo "        $(stat -c%s "$AAB") bytes  sha256=$(sha256sum "$AAB" | cut -c1-64)"
+echo "        $(stat -Lc%s "$AAB") bytes  sha256=$(sha256sum "$AAB" | cut -c1-64)"
 if [ "$HAVE_APK" -eq 1 ]; then
   echo "   APK: $APK"
-  echo "        $(stat -c%s "$APK") bytes  sha256=$(sha256sum "$APK" | cut -c1-64)"
+  echo "        $(stat -Lc%s "$APK") bytes  sha256=$(sha256sum "$APK" | cut -c1-64)"
 else
   echo "   APK: ABSENT ($APK) — gates 2, 4 and 5 are UNVERIFIED, not clear."
 fi
 
 fails=0
 note() { echo "  $1"; }
+
+# --- PRE-GATE: does this tree's build output agree with this tree's pubspec?
+#
+# Not a gate — a REFUSAL, and it runs before any gate is allowed to speak about a
+# file. Measured 2026-09-20: a worktree whose pubspec.yaml read `version: 0.0.2+10`
+# held a build output whose output-metadata.json read `"versionCode": 9`. The
+# worktree changed branches; build/ did not. That directory ANSWERS 10 TO A READER
+# AND 9 TO A PHONE — and +10 had never been built, so it is exactly where a person
+# or a glob goes looking for "the +10 artifact", and would ship a 9 labelled 10.
+#
+# This is the same shape as the 2026-09-16 defect recorded at the head of this file:
+# a stale artifact in the build directory, read as though it were yours. That one
+# was closed by NAMING the file under test. Naming it is not enough when the name
+# is right and the CONTENTS are from another commit. So: a directory that disagrees
+# with itself is not something to report. It is something to refuse to read out of.
+VERSION_IDENTITY="$REPO_ROOT/tool/assert_version_identity.sh"
+if [ -x "$VERSION_IDENTITY" ]; then
+  echo "-- pre-gate  build output vs the pubspec beside it"
+  if parity_out="$(bash "$VERSION_IDENTITY" --parity 2>&1)"; then
+    printf '%s\n' "$parity_out" | sed 's/^/  /'
+  else
+    printf '%s\n' "$parity_out" | sed 's/^/  /'
+    case "$AAB$APK" in
+      "$REPO_ROOT"*)
+        echo
+        echo "  REFUSED. The artifact under test came out of a build directory that does"
+        echo "  not agree with the tree beside it. Nothing below would be about the commit"
+        echo "  you think it is. Run: flutter clean && flutter build appbundle --release"
+        exit 1 ;;
+      *)
+        note "this tree's build output is stale, and the artifact under test is NOT from"
+        note "it. Counted as a failure anyway: a run cannot describe a tree it disagrees"
+        note "with. Clean it before trusting anything this script says about this repo."
+        fails=$((fails+1)) ;;
+    esac
+  fi
+else
+  echo "-- pre-gate  build output vs pubspec: SCRIPT ABSENT at $VERSION_IDENTITY"
+  note "UNVERIFIED, not clear. A missing check is not a passing one."
+  fails=$((fails+1))
+fi
 
 # --- gate 1: the BUNDLE's own signature (this is the uploaded artifact)
 echo "-- gate 1/5  signature of the BUNDLE"
@@ -478,7 +524,24 @@ else
   note "FAIL: could not extract libs from the bundle"; fails=$((fails+1))
 fi
 
-# --- gate 4: versionCode not already spent
+# --- gate 4: versionCode names ONE artifact, and has not been spent
+#
+# ⚑ SCOPE WIDENED 2026-09-20. Until today this gate asked ONE question — "has Play
+# consumed this code?" — against tool/play_uploaded_version_codes.txt. That file
+# holds ZERO integers, and it is hand-appended, so empty proves only that nobody
+# appended. The gate therefore PASSED, and reported OK while doing it, on:
+#
+#   - versionCode 9 carrying TWO different sets of bytes under the SAME release
+#     certificate (94,655,315 B across three ABIs, and 59,155,229 B arm64-only),
+#     the second built 28 minutes after +10 was already minted to prevent exactly
+#     that. Both report "9" to a phone.
+#   - versionCode 2 carrying FIVE distinct byte-sets under that certificate — and 2
+#     is a code a device actually reported back, so "the phone reports 2" never
+#     identified which bytes were on it.
+#
+# "Has Play consumed it" and "does it name one artifact" are different questions,
+# and only the first was ever asked. This gate's SCOPE was wrong, not its absence,
+# so it is widened here rather than answered by a second gate somewhere else.
 echo "-- gate 4/5  versionCode"
 vc="$(printf '%s\n' "${badging:-}" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" | head -1)"
 used="$( [ -f "$LEDGER" ] && grep -E '^[0-9]+$' "$LEDGER" || true )"
@@ -487,6 +550,22 @@ if check_version_code "$vc" "$used"; then
   note "    AFTER a successful upload, append $vc to $LEDGER and commit it."
 else
   fails=$((fails+1))
+fi
+# 4b — and does that code name ONE artifact? Keyed on (versionCode, SIGNER): same
+# certificate + same code = mutually substitutable on a device.
+if [ "$HAVE_APK" -eq 0 ]; then
+  note "FAIL: no APK beside this bundle — uniqueness UNVERIFIED, not clear."
+  fails=$((fails+1))
+elif [ ! -x "$VERSION_IDENTITY" ]; then
+  note "FAIL: $VERSION_IDENTITY absent — uniqueness UNVERIFIED, not clear."
+  fails=$((fails+1))
+else
+  if uniq_out="$(bash "$VERSION_IDENTITY" --collision --apk "$APK" 2>&1)"; then
+    printf '%s\n' "$uniq_out" | grep -v '^== version identity' | sed 's/^/  /'
+  else
+    printf '%s\n' "$uniq_out" | grep -v '^== version identity' | sed 's/^/  /'
+    fails=$((fails+1))
+  fi
 fi
 
 # --- gate 5: what we DECLARE vs what the artifact SHIPS

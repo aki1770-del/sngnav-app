@@ -1,0 +1,49 @@
+# minted_version_identities.txt — which bytes each versionCode actually names.
+#
+# A versionCode's whole job is to identify ONE artifact. Nothing in this repo
+# checked that it did, so nothing noticed when it stopped being true. This file is
+# the record; tool/assert_version_identity.sh is the check that reads it, and
+# tool/preflight_play_upload.sh gate 4 refuses an upload that contradicts it.
+#
+# FORMAT, tab-separated:
+#   versionCode <TAB> signer-cert-sha256 <TAB> artifact-sha256 <TAB> status <TAB> note
+#
+# KEYED ON (versionCode, SIGNER). Same package + same certificate + same code means
+# two files are mutually substitutable on a device, and no record can tell them
+# apart by number. A debug-signed build at the same code cannot install over a
+# release-signed one, so it is not the same failure and is not recorded here.
+# Only RELEASE-signed identities (CN=SNGNav Upload) belong in this file.
+#
+# STATUS
+#   minted     this code names these bytes, and no others we have found.
+#   ambiguous  this code names MORE THAN ONE set of bytes. It can never be
+#              uploaded: whichever one Play took, no record could say which one a
+#              phone then held. Marking it is a human acknowledgement, not a
+#              repair -- bytes that exist cannot be un-made.
+#
+# APPEND with:  tool/assert_version_identity.sh --record <file.apk>
+# and COMMIT it. An unrecorded artifact is one nothing can compare against -- the
+# same weakness that left tool/play_uploaded_version_codes.txt holding zero
+# integers while nine codes had been minted.
+#
+# Seeded 2026-09-20 by reading 36 APKs off this disk with aapt2 + apksigner.
+# 13 distinct release-signed identities across 8 codes. Two codes are ambiguous:
+#   code 2 -- FIVE distinct byte-sets, and 2 is a code a device actually reported
+#             back, so "the phone reports 2" never identified which bytes it held.
+#   code 9 -- TWO distinct byte-sets, 28 minutes apart, the second on a branch that
+#             never took the +10 bump that had already been minted to prevent it.
+# code 10 appears nowhere: it was minted into pubspec.yaml and has never been built.
+#
+2	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	43bb7e9f4b42cbfe1afb7270974469185c0e67d0e6cc16718ecc480538e307a0	ambiguous	0.0.5+2, tree ee70e97, release hold
+2	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	9d278dd21008af3335be3e196cc8b0a49e0ba99ca5763663123838941ad2718f	ambiguous	0.0.5+2, release candidate 2026-08-31
+2	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	a663a36b6bf82bbd7027d5b86a7b6caab6726300d11be5d343930e9a87eebc64	ambiguous	0.0.5+2, a build output, no release hold beside it
+2	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	b0640dfbc2c5b63e035f3c86f59b653838e5e2e64d43d773aa2c632cd90fe485	ambiguous	0.0.5+2, tree 4d591cf, release hold
+2	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	fdce8cf841067291a69812158c554c8999b794b5e9dc0ff58d0c344fee4bf00f	ambiguous	0.0.5+2, tree 1c5291b, release hold
+3	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	d5a5e4622097e7ee40ee1dfc787395c6e067b2f35b37bc360627b6dee3feec17	minted	0.0.2+3, tree 0bc7351
+4	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	9a8503e6059875425735e9ae256080f37fc010c76d96acc65ab15e666b971278	minted	0.0.2+4, tree eedd04e
+5	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	b37c2fdbc8b21c68bfa78a877ebb552fc04fde8b2e32c8d193197fe7be17d39a	minted	0.0.2+5, tree e7e21af
+6	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	ac1babe424721af26fef425c85f12fd1d0cfc56ae5e2a2e4f3bae291246f7100	minted	0.0.2+6, tree 5e8000c - a device reported this code back
+7	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	e335101c39d988e6eb53a1ca44e32a960fad67130577ddadebdd21867f00e263	minted	0.0.2+7, tree 88ad249 - a device reported this code back
+8	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	98604a05bb2a4ee92d55af9b907c61b9c96bd8bd03fbf258d75ae7209d2c6bc1	minted	0.0.2+8, tree 24c7bf1
+9	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	1e7a3fad26d5c7e1e9d457ed0f48453c012b85e4719737db47b229d8ae1582d7	ambiguous	0.0.2+9, tree 04ca782, 3 ABIs, 94,655,315 B - the HELD release
+9	6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14	dfac31a4cbef64a7f640cdab5a8de14dcbef78fca61fcba220f0c9c5d36d8fff	ambiguous	0.0.2+9, tree d6b6880, arm64 ONLY, 59,155,229 B - built 28 min AFTER +10 was minted
