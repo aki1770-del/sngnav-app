@@ -35,6 +35,19 @@ import '../l10n/app_localizations.dart';
 /// amber-brown measures ~7.9:1 on #FFF8E1.
 const Color kCautionTextOnAmber = Color(0xFF6B4600);
 
+/// The feed-health banner's fill — amber at 12% alpha, so it sits a little
+/// DARKER than the card surface it composites over (measured on the rendered
+/// pixels 2026-09-20: #F2EADA, L 0.828, against the card's #F0F4F8, L 0.900).
+///
+/// Named because a second widget now shares it. When the feed-health banner
+/// and the retained-age label are BOTH on screen, the label takes this fill
+/// instead of its own opaque `amber.shade50` (#FFF8E1, L 0.938). Two amber
+/// fills that differ by 1.126:1 do not read as two blocks — they read as one
+/// slab, and the eye then takes the loudest line in it. Making them literally
+/// the same fill stops pretending they are separate and turns the pair into
+/// one block with a headline and a subline.
+const Color kStaleFeedFill = Color(0x1FFFA000);
+
 /// Same floor for the orange-tinted staleness surface
 /// (`Colors.orange.shade50`, #FFF3E0): `orange.shade900` (#E65100) is ~3.5:1
 /// there; this dark orange-brown measures ~7.1:1.
@@ -185,8 +198,21 @@ class AdvisoryCards extends StatelessWidget {
                 : 'The weather feed has stopped updating '
                   '(${_worstStaleAgeText(r, isJa)}). Anything below may be out '
                   'of date, and no warning shown does not mean it is safe.',
-            fill: const Color(0x1FFFA000),
-            color: const Color(0xFFB26A00),
+            fill: kStaleFeedFill,
+            // Was #B26A00 at w400. RENDERED 2026-09-20 in the state the
+            // retention fix newly makes reachable (banner AND retained label
+            // on screen together): that pair measured 3.544:1 on this fill —
+            // BELOW the 4.5:1 body-text floor — while the retained label below
+            // it sat at 7.903:1 in w600. The publisher's 88-day clock was the
+            // quiet line and our own 10-minute fetch clock was the loud one,
+            // so the number she takes away in a glance was the wrong one.
+            // #6B4600 is this file's existing caution ink and measures 7.019:1
+            // here. It stays LIGHTER than the advisory headline's #171C1F
+            // (L 0.0751 vs 0.0111) at one size smaller, so the comment above
+            // still holds: this must not shout over a warning in force, and
+            // it does not.
+            color: kCautionTextOnAmber,
+            weight: FontWeight.w600,
           ),
         // B04 / B04-2 — the all-clear line is a POSITIVE claim ("no
         // advisories are in force"), and it is a claim about COMPLETENESS:
@@ -271,12 +297,34 @@ class AdvisoryCards extends StatelessWidget {
         else ...[
           // Retained (stale) hazard data carries a visible age label;
           // trust the hazard, but never let it masquerade as current.
+          //
+          // ⚑ TWO CLOCKS, AND ONLY ONE OF THEM IS THE HAZARD.
+          // This label reports OUR fetch clock ("fetched 10 minutes ago").
+          // The banner above reports the PUBLISHER'S clock ("stopped updating
+          // about 88 days ago"). When both are on screen the publisher's is
+          // the one she must take away, and until 2026-09-20 this label was
+          // the loud one: opaque brighter fill, w600, and its sentence opens
+          // with 未更新 / "Stale —", so the fast reading composed
+          // "not updated — 10 minutes" over a document three months old.
+          // Rendered and seen at the phone's geometry; the frames are in this
+          // seat's record.
+          //
+          // So when `hasStaleSource` is true this label becomes the SUBLINE of
+          // the block above: same fill, regular weight, no separating margin.
+          // It is not hidden — it is provenance and she is owed it — it simply
+          // stops outranking the older fact. ALONE (a plain fetch failure,
+          // publisher healthy) it is the only staleness line on the surface
+          // and keeps its original opaque fill and w600.
           if (retainedAgeMinutes != null)
             Container(
               key: const Key('advisory-retained-stale'),
-              padding: const EdgeInsets.all(6),
-              margin: const EdgeInsets.only(bottom: 4),
-              color: Colors.amber.shade50,
+              // Subordinate: the banner's own horizontal padding, so the two
+              // share one left edge. Alone: unchanged.
+              padding: r.hasStaleSource
+                  ? const EdgeInsets.fromLTRB(8, 6, 8, 8)
+                  : const EdgeInsets.all(6),
+              margin: EdgeInsets.only(bottom: r.hasStaleSource ? 0 : 4),
+              color: r.hasStaleSource ? kStaleFeedFill : Colors.amber.shade50,
               // liveRegion — current→stale is a safety-relevant transition;
               // announce it. Contrast + size: this label's entire job is
               // stopping stale hazard data from masquerading as current, so
@@ -284,13 +332,47 @@ class AdvisoryCards extends StatelessWidget {
               // 13 px, up from 11).
               child: Semantics(
                 liveRegion: true,
-                child: Text(
-                  l.advisoryRetainedStale(retainedAgeMinutes!),
-                  style: const TextStyle(
-                    color: kCautionTextOnAmber,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Subordinate only: an invisible copy of the banner's own
+                    // ⚠, kept at full size so this line's text starts on the
+                    // banner text's left edge at ANY text scale and in any
+                    // face. Measured before this was added: the subline began
+                    // 20 logical px LEFT of the headline's text — left of even
+                    // the ⚠ itself — so its first word 未更新 jutted out and
+                    // read as the start of a new block. A hard-coded indent
+                    // would drift the moment the glyph, size or scale changes;
+                    // reserving the real glyph's box cannot.
+                    if (r.hasStaleSource) ...[
+                      ExcludeSemantics(
+                        child: Visibility(
+                          visible: false,
+                          maintainSize: true,
+                          maintainAnimation: true,
+                          maintainState: true,
+                          child: Text(
+                            kGlyphTransientUnknown,
+                            style: TextStyle(
+                                color: kCautionTextOnAmber, fontSize: 13),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Expanded(
+                      child: Text(
+                        l.advisoryRetainedStale(retainedAgeMinutes!),
+                        style: TextStyle(
+                          color: kCautionTextOnAmber,
+                          fontSize: 13,
+                          fontWeight: r.hasStaleSource
+                              ? FontWeight.w400
+                              : FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -506,6 +588,10 @@ Widget _honestyBanner({
   required String text,
   required Color fill,
   required Color color,
+  // Default w400 so the three transient/chronic banners are untouched. Only
+  // the feed-health banner passes w600, because it is the only one of the four
+  // that can appear ABOVE another amber block carrying a second, smaller age.
+  FontWeight weight = FontWeight.w400,
 }) =>
     Container(
       key: key,
@@ -526,7 +612,8 @@ Widget _honestyBanner({
             Expanded(
               child: Text(
                 text,
-                style: TextStyle(color: color, fontSize: 13),
+                style:
+                    TextStyle(color: color, fontSize: 13, fontWeight: weight),
               ),
             ),
           ],
