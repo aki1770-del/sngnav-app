@@ -40,7 +40,7 @@ description: >-
 # the English voice says "fairly strong wind" for the lower wind band, and the
 # black-ice row says what was measured) and plain words in the source's comments
 # and test names. A different artifact, so a different versionCode.
-version: 0.0.2+8
+version: 0.0.2+9
 publish_to: 'none'
 
 environment:
