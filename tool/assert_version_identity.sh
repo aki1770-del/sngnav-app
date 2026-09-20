@@ -88,18 +88,37 @@
 #   - `--scan` needs aapt2 AND apksigner. Without either it EXITS 2. Signer identity
 #     is the whole key; a "uniqueness" answer computed without it would be a
 #     different, weaker claim wearing this one's name.
-#   - ⚑ THE SIGNER AXIS RESTS ON apksigner ALONE, AND THAT IS UNVERIFIED BY A SECOND
-#     IMPLEMENTATION. Stated plainly rather than left implied, because the entire
-#     (versionCode, SIGNER) keying -- the decision that a debug build at the same
-#     code is not a collision -- rests on one tool's answer. Measured 2026-09-21 in
-#     this environment: `keytool -printcert -jarfile <apk>` prints "Not a signed jar
-#     file" AND EXITS 0 -- the same success-shaped failure this file exists to stop,
-#     in a third-party tool, so it cannot be used even as a cross-check without
-#     reading its stdout rather than its status. `jarsigner` is not installed. The
-#     artifacts carry ZERO v1 (META-INF/*.RSA|DSA|EC) blocks, so they are v2/v3-signed
-#     only and keytool structurally cannot read them. NO SECOND IMPLEMENTATION IS
-#     AVAILABLE HERE. Every signer value in the ledger and every keying decision
-#     built on one is therefore UNVERIFIED by an independent reader, never *cleared*.
+#   - THE SIGNER AXIS IS CONFIRMED BY A SECOND AND THIRD IMPLEMENTATION.
+#     ⚑ THIS BOUND SAID THE OPPOSITE UNTIL 2026-09-21, AND THE CLAIM WAS WRONG.
+#     It read: "the signer axis rests on apksigner alone... NO SECOND IMPLEMENTATION
+#     IS AVAILABLE HERE... UNVERIFIED by an independent reader." Each premise under
+#     it was true -- keytool DOES print "Not a signed jar file" and exit 0, jarsigner
+#     IS absent, the artifacts DO carry zero v1 blocks -- and the conclusion did not
+#     follow from them. What was surveyed was TOOLS THAT READ APK SIGNATURES. What
+#     was never attempted was WRITING THE READ, and python3 with the `cryptography`
+#     library sat on this machine the entire time. An absence of tools is not an
+#     absence of a second opinion; it is an absence of having looked for one.
+#
+#     Measured 2026-09-21 over ALL 40 artifacts of this package, two readers that
+#     share no code with apksigner and none with each other's central idea:
+#       PATH A  EOCD -> central-directory offset -> "APK Sig Block 42" magic ->
+#               id-value pairs -> v2 (0x7109871a) / v3 (0xf05368c0) -> signers ->
+#               signed data -> certificates -> sha256 of the first DER certificate.
+#       PATH B  no structure walk at all: scan the tail for DER SEQUENCE headers and
+#               keep whatever an X.509 parser accepts as a certificate.
+#     RESULT: 40/40 agree with apksigner on BOTH paths. 0 mismatches, 0 unreadable.
+#     Path B is the load-bearing one -- it knows nothing of the signing-block format,
+#     so its agreement is not a shared misreading of a spec.
+#
+#     The residual that REMAINS, stated so this bound does not over-correct in the
+#     other direction: all three readers agree on WHICH CERTIFICATE IS PRESENT. None
+#     of them verifies that the signature over the APK's contents is VALID -- that
+#     the bytes were actually signed by that key rather than a certificate being
+#     carried alongside unrelated content. apksigner does check that; this file never
+#     asked it to, and the two readers above do not. For THIS guard's question --
+#     does one versionCode name one set of bytes under one signing identity -- cert
+#     identity is the whole key and that is what is confirmed. A claim that an
+#     artifact is VALIDLY signed is a different claim and is NOT made here.
 #
 # USAGE
 #   tool/assert_version_identity.sh                      # R1 + R3 for this repo
@@ -285,6 +304,73 @@ ledger_body() {
   printf '%s\n' "$1" | sed 's/[[:space:]]*#.*$//' | awk 'NF'
 }
 
+# $1 = ledger body. Echoes one line per DEFECTIVE row, empty when every row is
+# well formed. This is the format predicate, and it is TOTAL with respect to the
+# format rather than partial.
+#
+# ⚑ THE FIFTH DOOR, 2026-09-21. The first version of this check counted FIELDS and
+# never looked at their CONTENT, and a field count is a PARTIAL predicate. Three
+# single-field edits to one row -- the code to a letter, the signer to empty, the
+# hash to empty -- each leave the file splitting into five tab fields on every line
+# with ZERO lines under the threshold, and on each the guard returned
+#     OK  versionCode 9 is ON RECORD naming exactly these bytes, and no others
+# at rc 0. Reproduced here before repairing, with the same surgical signature as the
+# delimiter mangle: BLIND to exactly the collider whose row was damaged, still
+# biting the other two.
+#
+# It is not contrived. This file is hand-edited by design, and this seat has already
+# recorded running a diff with the wrong awk field index against it -- a script with
+# that index that WRITES produces precisely this shape.
+#
+# ⚑ AND IT IS THE COUNTER-EXAMPLE TO THIS FILE'S OWN ARGUMENT. Round three ruled
+# that a second parser is unnecessary because "a broken parser cannot hide from a
+# check on its own output shape, because the failure IS the shape". That survives,
+# but only to the STRENGTH OF THE SHAPE PREDICATE: a parse failure with the right
+# field count and the wrong content wears a CORRECT shape. The argument terminates
+# only when the predicate is TOTAL. So the repair is not a second parser -- it is a
+# COMPLETE one. Still one parser, still terminating.
+#
+# Every clause is always true of an honest record, so none can redden a legitimate
+# run (V20): the format is defined at the head of the ledger as
+#   versionCode <TAB> signer-sha256 <TAB> artifact-sha256 <TAB> status <TAB> note
+# a sha256 is 64 lowercase hex characters by construction, a versionCode is an
+# integer by Android's own definition, and `status` is a CLOSED set of two words
+# this file defines. Length+charclass rather than an interval regex so the check
+# does not depend on which awk is installed.
+ledger_row_defects() {
+  printf '%s\n' "$1" | awk -F'\t' '
+    NF < 4 {
+      printf "  line %d: %d tab-separated field(s), need at least 4 (code, signer, sha, status)\n", NR, NF; next }
+    $1 !~ /^[0-9]+$/ {
+      printf "  line %d: versionCode %s is not an integer\n", NR, ($1=="" ? "<empty>" : "\""$1"\"") }
+    (length($2) != 64 || $2 !~ /^[0-9a-f]+$/) {
+      printf "  line %d: signer is not a 64-char lowercase sha256 (length %d)\n", NR, length($2) }
+    (length($3) != 64 || $3 !~ /^[0-9a-f]+$/) {
+      printf "  line %d: artifact hash is not a 64-char lowercase sha256 (length %d)\n", NR, length($3) }
+    ($4 != "minted" && $4 != "ambiguous") {
+      printf "  line %d: status %s is not one of: minted, ambiguous\n", NR, ($4=="" ? "<empty>" : "\""$4"\"") }
+  '
+}
+
+# ⚑ THE HATCH BOUND, as a PREDICATE rather than an inline test, 2026-09-21.
+# $1 = ledger state, $2 = non-empty if an artifact is under test, $3 = scan-dir count.
+# Returns 0 when the declared-empty hatch must be REFUSED.
+#
+# Extracted because the test that guarded this bound COULD NOT FAIL. It drove the
+# whole script with `--scan <empty dir>`, and an empty scan directory returns rc 2
+# on its own -- so the assertion was satisfied by the empty directory rather than by
+# the hatch, and removing the bound entirely left the suite green. It also reached
+# find_aapt2/find_apksigner and made this guard the one OUTSIDE-REPO entry in
+# selftest-hermeticity-guard.sh. A bound whose test passes for another reason is not
+# guarded, and a test that leaves the repo's own hermeticity instrument red is worse
+# than no test. Driving the predicate directly fixes both: it fails when the bound is
+# removed, and it touches no SDK.
+hatch_refused() {
+  local state="$1" has_apk="$2" nscan="$3"
+  [ "$state" = "declared-empty" ] || return 1
+  [ -n "$has_apk" ] || [ "${nscan:-0}" -gt 0 ]
+}
+
 # $1 = ledger path. Echoes the state of the RECORD ITSELF, which is a measurement
 # and therefore a function --self-test can drive, not an inline test nobody has
 # watched fail.
@@ -350,7 +436,7 @@ ledger_state() {
     # tab-separated fields and ledger_body has already stripped comments and blanks,
     # so every surviving line MUST split into at least three. A row that does not is
     # not a row this guard can read, whatever it looks like on screen.
-    if [ "$(printf '%s\n' "$body" | awk -F'\t' 'NF<3 {c++} END{print c+0}')" -eq 0 ]; then
+    if [ -z "$(ledger_row_defects "$body")" ]; then
       echo "rows"; return 0
     fi
     echo "malformed"; return 0
@@ -519,8 +605,34 @@ self_test() {
       test "$(ledger_state "$LD_ONEBAD")" = "malformed"
   t "the mangled file still LOOKS like a record (the reason this is invisible)" 0 \
       test "$(grep -c "$SIGNER" "$LD_MANGLED")" = "1"
-  t "a 3-field row is enough to parse (the minimum, not the format)" 0 \
-      test "$(ledger_state <(printf '9\t%s\t%s\n' "$SIGNER" "$SHA_HELD"))" = "rows"
+  # ---- THE FIFTH DOOR: right field COUNT, wrong field CONTENT.
+  # Each of these splits into five tab fields on every line with none under the
+  # threshold, and each was accepted as `rows` until the predicate became total.
+  local LD_OK LD_BADCODE LD_BADSIGNER LD_BADHASH LD_BADSTATUS
+  LD_OK="$(printf '9\t%s\t%s\tminted\tnote' "$SIGNER" "$SHA_HELD")"
+  t "a well-formed row has NO defects"        0 test -z "$(ledger_row_defects "$LD_OK")"
+  LD_BADCODE="$(printf 'X\t%s\t%s\tminted\tnote' "$SIGNER" "$SHA_HELD")"
+  LD_BADSIGNER="$(printf '9\t\t%s\tminted\tnote' "$SHA_HELD")"
+  LD_BADHASH="$(printf '9\t%s\t\tminted\tnote' "$SIGNER")"
+  LD_BADSTATUS="$(printf '9\t%s\t%s\tprobably\tnote' "$SIGNER" "$SHA_HELD")"
+  t "THE FIFTH DOOR a: a non-integer versionCode is a defect" 0 \
+      test -n "$(ledger_row_defects "$LD_BADCODE")"
+  t "THE FIFTH DOOR b: an empty signer is a defect"           0 \
+      test -n "$(ledger_row_defects "$LD_BADSIGNER")"
+  t "THE FIFTH DOOR c: an empty artifact hash is a defect"    0 \
+      test -n "$(ledger_row_defects "$LD_BADHASH")"
+  t "a status outside the closed set is a defect"             0 \
+      test -n "$(ledger_row_defects "$LD_BADSTATUS")"
+  t "a 63-char hash is a defect (length, not just charclass)" 0 \
+      test -n "$(ledger_row_defects "$(printf '9\t%s\t%s\tminted\tn' "$SIGNER" "${SHA_HELD:0:63}")")"
+  t "an UPPERCASE hash is a defect (the record is lowercase)" 0 \
+      test -n "$(ledger_row_defects "$(printf '9\t%s\t%s\tminted\tn' "$SIGNER" "$(printf '%s' "$SHA_HELD" | tr a-f A-F)")")"
+  t "the REAL committed ledger has no row defect"             0 \
+      test -z "$(ledger_row_defects "$(ledger_body "$(cat "$(dirname "$SELF")/minted_version_identities.txt")")")"
+  t "a content-damaged ledger is 'malformed', not 'rows'"     0 \
+      test "$(ledger_state <(printf '%s\n' "$LD_BADCODE"))" = "malformed"
+  t "a 4-field well-formed row parses (note is optional)"     0 \
+      test "$(ledger_state <(printf '9\t%s\t%s\tminted\n' "$SIGNER" "$SHA_HELD"))" = "rows"
   t "THE REFUTED STATE: a mangled ledger -> rc 2, NOT a green run" 2 \
       env VERSION_IDENTITY_LEDGER="$LD_MANGLED" bash "$SELF" --collision --apk "$SELF"
   t "a mangled ledger reddens the record-only run CI makes" 2 \
@@ -547,9 +659,21 @@ self_test() {
   t "the DECLARED-empty hatch is REFUSED once an artifact is in hand" 2 \
       env VERSION_IDENTITY_LEDGER="$LD_DECLARED" bash "$SELF" --collision --apk "$SELF"
   # ...and through --scan too, which is the OTHER way an artifact enters evidence.
-  # The bound keyed on --apk alone until 2026-09-21 and so did not say what it claimed.
-  t "the hatch is REFUSED through --scan as well as --apk" 2 \
-      env VERSION_IDENTITY_LEDGER="$LD_DECLARED" bash "$SELF" --scan "$LD_TMPDIR"
+  #
+  # ⚑ DRIVEN AS A PREDICATE, 2026-09-21, because the test that used to sit here
+  # COULD NOT FAIL. It ran `--scan <empty dir>`, which returns rc 2 on its own for
+  # having found no artifacts -- so the assertion was satisfied by the empty
+  # directory and not by the hatch, and deleting the bound left this suite GREEN.
+  # It also reached find_aapt2/find_apksigner, which made this guard the single
+  # OUTSIDE-REPO entry in selftest-hermeticity-guard.sh while its own record claimed
+  # 8/8. These drive the decision itself: delete the `|| [ "${nscan:-0}" -gt 0 ]`
+  # clause and case 2 goes red immediately.
+  t "hatch REFUSED when an artifact is under test"        0 hatch_refused declared-empty "/some.apk" 0
+  t "hatch REFUSED when --scan puts artifacts in evidence" 0 hatch_refused declared-empty "" 3
+  t "hatch REFUSED when BOTH"                             0 hatch_refused declared-empty "/some.apk" 3
+  t "hatch ALLOWED with no artifact anywhere (V20: fresh tree CI)" 1 hatch_refused declared-empty "" 0
+  t "hatch clause does not fire on a populated ledger"     1 hatch_refused rows "/some.apk" 3
+  t "hatch clause does not fire on a missing ledger"       1 hatch_refused missing "/some.apk" 3
   # V20 again: a real record must still go green, or the gate gets switched off.
   t "a populated ledger still passes cleanly"       0 \
       env VERSION_IDENTITY_LEDGER="$LD_ROWS" bash "$SELF" --collision
@@ -726,12 +850,11 @@ case "$LEDGER_STATE" in
     echo "-- ledger"
     echo "   CANNOT MEASURE: $LEDGER is present and readable, and its rows DO NOT PARSE."
     echo "   This file is TAB-separated and every assertion here splits on tab. These"
-    echo "   lines carry fewer than three tab-separated fields, so they are invisible"
-    echo "   to R2, R3 and R4 while still LOOKING like a record on screen:"
-    printf '%s\n' "$(ledger_body "$(cat "$LEDGER" 2>/dev/null)")" \
-      | awk -F'\t' 'NF<3 {printf "     line %d (%d field%s): %.72s…\n", NR, NF, (NF==1?"":"s"), $0}' \
-      | head -8
-    echo "   Most often an editor with expandtab, or a paste through a terminal."
+    echo "   rows do not match the format, so they are invisible to R2, R3 and R4"
+    echo "   while still LOOKING like a record on screen:"
+    ledger_row_defects "$(ledger_body "$(cat "$LEDGER" 2>/dev/null)")" | head -8
+    echo "   Most often an editor with expandtab, a paste through a terminal, or a"
+    echo "   script writing this file with the wrong field index."
     echo "   Restore the tabs. Do NOT trust a green run over this file."
     rc=2; LEDGER_USABLE=0 ;;
   empty)
@@ -752,7 +875,7 @@ case "$LEDGER_STATE" in
     # bound did not say what it claimed, and a bound that overstates itself is the
     # thing a later reader trusts instead of checking. Either path putting an
     # artifact in evidence now contradicts the declaration.
-    if [ -n "$APK_ARG" ] || [ "${#SCAN_DIRS[@]}" -gt 0 ]; then
+    if hatch_refused "$LEDGER_STATE" "$APK_ARG" "${#SCAN_DIRS[@]}"; then
       # ⚑ THE ESCAPE HATCH IS NOT A BYPASS, and it took a mutation run against this
       # seat's OWN repair to see that it was one. A declared-empty ledger silences
       # R2 exactly the way a MISSING one did: re-run the three real colliders with
