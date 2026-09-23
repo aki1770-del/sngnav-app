@@ -47,6 +47,21 @@ enum ConsentComposition {
 /// The cost that rides with it: `_shareLocation` carries NO in-app consent
 /// dialog, so the next thing after her tap is the OS permission prompt, and the
 /// app's own account of where her coordinates go is now a card further on.
+/// ⚑ AAA RULED ON THIS CONSTANT, 2026-09-23, AND DECLINED TO MOVE IT. Its
+/// sentence, recorded verbatim from its own record
+/// (`outputs/automotive-adas-analyst/r119_consent_reorder_safety_ruling_2026_09_23.md` §6)
+/// rather than paraphrased by the seat the ruling constrains:
+///
+/// > Ruled by AAA 2026-09-23 under the D-VGC177-3 driver-dignity delegation.
+/// > `separated` STANDS — not because separation is right, but because adjacency
+/// > was never what made her consent informed. Measured: the control sits at
+/// > 552–600 dp and the words at 1020 dp (1306 dp under a measured whiteout),
+/// > against the 721 dp her phone gives the page; `_shareLocation` has no
+/// > affirmative in-app consent act, so no arrangement of this prose constitutes
+/// > consent. This constant is not the loom. It moves only when the affirmative
+/// > consent act exists, and then it stops mattering.
+///
+/// The affirmative consent act itself is AAE's, not this seat's.
 const ConsentComposition kDeclaredConsentComposition =
     ConsentComposition.separated;
 
@@ -109,5 +124,17 @@ double disclosureGapBelowControlDp(WidgetTester tester) {
       .pixels;
   final control = tester.getRect(find.byKey(kShareControlKey));
   final disclosure = tester.getRect(find.byKey(kDisclosureKey));
+  // Printed in parts, because a single figure I could not decompose would be a
+  // number I cannot explain, and this seat has had one of those before.
+  // ⚑ The first version of this print emitted its own source text -- literal
+  // ${...} -- because my shell heredoc mangled the escaping. An instrument that
+  // prints its own recipe instead of a measurement is the same family as one
+  // that prints a success-shaped value.
+  final controlBottom = control.bottom + scroll;
+  final disclosureTop = disclosure.top + scroll;
+  // ignore: avoid_print
+  print('CONSENT-GAP PARTS: control bottom=${controlBottom.toStringAsFixed(0)}dp'
+      ' disclosure top=${disclosureTop.toStringAsFixed(0)}dp'
+      ' scroll=${scroll.toStringAsFixed(0)}dp');
   return (disclosure.top + scroll) - (control.bottom + scroll);
 }

@@ -2983,6 +2983,144 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ⚑ THE RUNG IS FIRST INSIDE THIS CARD SINCE 2026-09-23, AND THE
+        // REASON IS A MEASUREMENT, NOT A PREFERENCE. Rendered by AAA under a
+        // measured whiteout and re-rendered here: the rung sat 125 dp BELOW the
+        // 721 dp her phone gives the page — not because the card was low, but
+        // because the rung was the FOURTH element inside it, behind the
+        // description, the share hint and the no-position line. The page order
+        // was not the defect; this internal order was. The rung, its reasons and
+        // its unknowns travel together, above the prose that explains them.
+        //
+        // Measured after the move, whiteout with no share: the rung is at
+        // 688-714 dp, FULLY on her 721 dp first screen, with nothing on the page
+        // moved. AAA's arithmetic said 692-718; the render says 688-714.
+        if (advice != null) ...[
+          // The caution headline banner: coloured by rung, AND ruled by rung.
+          // The rule is inside the clip so it takes the card's own radius on
+          // the leading edge; a left-only border cannot be used here because
+          // BoxDecoration forbids a non-uniform border with a borderRadius.
+          // IntrinsicHeight is what lets the rule run the banner's full height
+          // without the Row needing a bounded one inside a scroll view.
+          Container(
+            key: const Key('drive-hud-caution-banner'),
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: bannerColor,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (rungRuleWidth > 0)
+                    Container(
+                      key: const Key('drive-hud-rung-rule'),
+                      width: rungRuleWidth,
+                      color: textColor,
+                    ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            // The rung itself, keyed (2026-09-15): tests that searched
+                            // the whole screen for rung words read any text naming a
+                            // rung as the rung.
+                            key: const Key('drive-hud-rung'),
+                            _driveHudText.actionHeadline(
+                              effective ?? advice.action,
+                              l.locale.languageCode,
+                              advisoryUnconfirmed: advisoryUnconfirmed,
+                              measuredUnconfirmed: measuredUnconfirmed,
+                              calmNoteInForce: calmNoteInForce,
+                            ),
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if ((effective ?? advice.action) !=
+                              DriveAction.continueDriving) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              _driveHudText.spokenGuidance(
+                                  effective ?? advice.action, l.locale.languageCode),
+                              style: TextStyle(color: textColor, fontSize: 14),
+                            ),
+                          ],
+                          if (advice.compounding) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              l.driveHudCompoundingNote,
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Why (reasons) + first-class unknowns, localized for the driver.
+          if (advice.reasons.isNotEmpty)
+            _kv(
+              l.driveHudReasonsLabel,
+              [
+                for (final r in advice.reasons)
+                  _driveHudText.reasonLabel(r, l.locale.languageCode)
+              ].join(' · '),
+            ),
+          // The package's own unknowns PLUS the app-owned ones it has no
+          // channel for (advisory-lookup completeness, measured-feed
+          // liveness). One row, one convention — an outage is STATED here, not
+          // left to be inferred from a silent hazard floor.
+          if (advice.unknowns.isNotEmpty || appUnknowns.isNotEmpty)
+            _kv(
+              l.driveHudUnknownsLabel,
+              [
+                for (final u in advice.unknowns)
+                  _driveHudText.unknownLabel(u, l.locale.languageCode),
+                for (final u in appUnknowns) appUnknownLabel(u, l),
+              ].join(' · '),
+            ),
+          if (advice.sightStoppingSpeedHintMps != null)
+            _kv(
+              l.driveHudGuideSpeedLabel,
+              _driveHudText.sightHintLabel(
+                  advice.sightStoppingSpeedHintMps!, l.locale.languageCode),
+            ),
+          const SizedBox(height: 8),
+          // Announce status — honest reach bounds, keyed on the EFFECTIVE rung
+          // AND on whether the rung LANE actually speaks it. A measured-hazard
+          // floor (or an unknown-visibility-only heightened) is shown+coloured
+          // but NOT spoken by this channel — the watch channel speaks the specific
+          // hazard — so it must not falsely claim it auto-fired.
+          Text(
+            key: const Key('drive-hud-announce-status'),
+            switch (effective ?? advice.action) {
+              DriveAction.considerStopping => l.driveHudAnnounceCritical,
+              DriveAction.heightenedCaution =>
+                _driveHud.effectiveRungIsSpokenByRung
+                    ? l.driveHudAnnounceWarning
+                    : l.driveHudAnnounceRaisedNotSpoken,
+              DriveAction.continueDriving => l.driveHudAnnounceContinue,
+            },
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+          ),
+          const SizedBox(height: 12),
+        ],
         // Tier-1 voice-channel hardening — shown while the LAST announce could
         // not be verified as delivered (the platform never reported the
         // utterance complete). Cleared on the next verified speak. This chip
@@ -3185,132 +3323,6 @@ class _HomePageState extends State<HomePage> {
                   fontWeight: FontWeight.w600),
             ),
           ),
-        if (advice != null) ...[
-          SizedBox(height: rungFromTestValue ? 4 : 8),
-          // The caution headline banner: coloured by rung, AND ruled by rung.
-          // The rule is inside the clip so it takes the card's own radius on
-          // the leading edge; a left-only border cannot be used here because
-          // BoxDecoration forbids a non-uniform border with a borderRadius.
-          // IntrinsicHeight is what lets the rule run the banner's full height
-          // without the Row needing a bounded one inside a scroll view.
-          Container(
-            key: const Key('drive-hud-caution-banner'),
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: bannerColor,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (rungRuleWidth > 0)
-                    Container(
-                      key: const Key('drive-hud-rung-rule'),
-                      width: rungRuleWidth,
-                      color: textColor,
-                    ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            // The rung itself, keyed (2026-09-15): tests that searched
-                            // the whole screen for rung words read any text naming a
-                            // rung as the rung.
-                            key: const Key('drive-hud-rung'),
-                            _driveHudText.actionHeadline(
-                              effective ?? advice.action,
-                              l.locale.languageCode,
-                              advisoryUnconfirmed: advisoryUnconfirmed,
-                              measuredUnconfirmed: measuredUnconfirmed,
-                              calmNoteInForce: calmNoteInForce,
-                            ),
-                            style: TextStyle(
-                              color: textColor,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          if ((effective ?? advice.action) !=
-                              DriveAction.continueDriving) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              _driveHudText.spokenGuidance(
-                                  effective ?? advice.action, l.locale.languageCode),
-                              style: TextStyle(color: textColor, fontSize: 14),
-                            ),
-                          ],
-                          if (advice.compounding) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              l.driveHudCompoundingNote,
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Why (reasons) + first-class unknowns, localized for the driver.
-          if (advice.reasons.isNotEmpty)
-            _kv(
-              l.driveHudReasonsLabel,
-              [
-                for (final r in advice.reasons)
-                  _driveHudText.reasonLabel(r, l.locale.languageCode)
-              ].join(' · '),
-            ),
-          // The package's own unknowns PLUS the app-owned ones it has no
-          // channel for (advisory-lookup completeness, measured-feed
-          // liveness). One row, one convention — an outage is STATED here, not
-          // left to be inferred from a silent hazard floor.
-          if (advice.unknowns.isNotEmpty || appUnknowns.isNotEmpty)
-            _kv(
-              l.driveHudUnknownsLabel,
-              [
-                for (final u in advice.unknowns)
-                  _driveHudText.unknownLabel(u, l.locale.languageCode),
-                for (final u in appUnknowns) appUnknownLabel(u, l),
-              ].join(' · '),
-            ),
-          if (advice.sightStoppingSpeedHintMps != null)
-            _kv(
-              l.driveHudGuideSpeedLabel,
-              _driveHudText.sightHintLabel(
-                  advice.sightStoppingSpeedHintMps!, l.locale.languageCode),
-            ),
-          const SizedBox(height: 8),
-          // Announce status — honest reach bounds, keyed on the EFFECTIVE rung
-          // AND on whether the rung LANE actually speaks it. A measured-hazard
-          // floor (or an unknown-visibility-only heightened) is shown+coloured
-          // but NOT spoken by this channel — the watch channel speaks the specific
-          // hazard — so it must not falsely claim it auto-fired.
-          Text(
-            key: const Key('drive-hud-announce-status'),
-            switch (effective ?? advice.action) {
-              DriveAction.considerStopping => l.driveHudAnnounceCritical,
-              DriveAction.heightenedCaution =>
-                _driveHud.effectiveRungIsSpokenByRung
-                    ? l.driveHudAnnounceWarning
-                    : l.driveHudAnnounceRaisedNotSpoken,
-              DriveAction.continueDriving => l.driveHudAnnounceContinue,
-            },
-            style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
-          ),
-        ],
         const SizedBox(height: 6),
         // Where each thing on the card comes from, in the app's language.
         Text(

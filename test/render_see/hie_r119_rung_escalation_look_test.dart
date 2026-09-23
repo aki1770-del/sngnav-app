@@ -40,6 +40,11 @@ import 'render_see_env.dart';
 
 const String _out = String.fromEnvironment('HIE_R119_RUNG_OUT');
 
+/// Her phone's page area, inherited from a device frame (HIE bylaws HIE-14) and
+/// NOT re-measured here. The fold verdict this probe prints is stated against
+/// it, and against the PAGE coordinate only.
+const double _phoneFoldDp = 721;
+
 final _start = DateTime.utc(2026, 1, 14, 21);
 var _now = _start;
 int? _visibility = 20000;
@@ -219,8 +224,19 @@ void main() {
           'banner=${tester.getRect(banner).width.toStringAsFixed(0)}x'
           '${tester.getRect(banner).height.toStringAsFixed(0)}dp');
 
+      // Page coordinate FIRST, while nothing has scrolled.
+      final scrollBefore = tester
+          .state<ScrollableState>(find.byType(Scrollable).first)
+          .position
+          .pixels;
+      final pageTopBeforeScroll =
+          tester.getRect(banner).top + scrollBefore;
       await tester.ensureVisible(banner);
       await tester.pump();
+      final scrollAfter = tester
+          .state<ScrollableState>(find.byType(Scrollable).first)
+          .position
+          .pixels;
       final rb = tester.renderObject<RenderRepaintBoundary>(
           find.byType(RepaintBoundary).first);
       final img = await rb.toImage(pixelRatio: 2.0);
@@ -232,12 +248,32 @@ void main() {
       // summary and no exit code -- HIE-13's await, a third time. The screen
       // PNG plus the banner's measured rect, printed below, is everything the
       // crop needs, and a shell doing it cannot hang a test.
+      // ⚑⚑ THIS BLOCK PRINTS A CROP RECTANGLE, AND IT MAY NEVER AGAIN PRINT
+      // ANYTHING THAT READS AS A PAGE POSITION. The version before 2026-09-23
+      // called `ensureVisible(banner)` and THEN printed `top=56.0dp`. That is a
+      // SCROLLED coordinate — where the banner sits on screen after the rig
+      // scrolled it into view — and it reads exactly like a fold measurement.
+      // It is not one. AAA rendered the same banner without scrolling and found
+      // the rung 125 dp BELOW her fold while this probe was printing 56.
+      // A measurement wearing the costume of a different measurement is worse
+      // than no measurement, because it is quoted.
+      // So: the PAGE position is taken BEFORE any scrolling, the scroll offset
+      // is printed beside the screen rect, and the screen rect is labelled as a
+      // crop box and nothing else. The fold verdict comes from the page figure.
+      // ignore: avoid_print
+      print('R119rung PAGE $name: rung top='
+          '${pageTopBeforeScroll.toStringAsFixed(0)}dp of her page '
+          '(fold ${_phoneFoldDp.toStringAsFixed(0)}dp) -> '
+          '${pageTopBeforeScroll < _phoneFoldDp ? "ON her first screen" : "BELOW her fold"}'
+          '  [page coordinate, measured BEFORE any scroll]');
       final r2 = tester.getRect(banner);
       // ignore: avoid_print
-      print('R119rung RECT $name: left=${r2.left.toStringAsFixed(1)}dp '
-          'top=${r2.top.toStringAsFixed(1)}dp '
-          'right=${r2.right.toStringAsFixed(1)}dp '
-          'bottom=${r2.bottom.toStringAsFixed(1)}dp (screen coords, dpr2)');
+      print('R119rung CROPBOX $name: left=${r2.left.toStringAsFixed(1)} '
+          'top=${r2.top.toStringAsFixed(1)} right=${r2.right.toStringAsFixed(1)} '
+          'bottom=${r2.bottom.toStringAsFixed(1)} dp AFTER ensureVisible, at '
+          'scrollOffset=${scrollAfter.toStringAsFixed(0)}dp — THIS IS A CROP BOX '
+          'FOR THE PNG, NOT A PAGE POSITION. Do not quote its top as a fold '
+          'figure; the page figure is the line above.');
       img.dispose();
 
     });
