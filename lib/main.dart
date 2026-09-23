@@ -3699,6 +3699,75 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const _Banner(),
+            // ⚑ RAISED ABOVE THE MAP 2026-09-23. These rows are PRE-drive:
+            // each one tells her that a channel she will rely on is already
+            // dead, before she starts. They used to render under
+            // _herStatusLine(), which carries ~356 dp of consent and egress
+            // prose, so on her own phone (1080x2340 @ DPR 2.75, viewport
+            // 768 dp) they sat 144, 202 and 260 dp BELOW THE FOLD — and below
+            // it precisely in the not-yet-shared state, which is the state she
+            // opens the app in.
+            //
+            // MEASURED, and this is the whole reason: a phone with no offline
+            // Japanese voice AND no vibrator AND media muted rendered a first
+            // screen BYTE-IDENTICAL to an all-clear one — two sha256 captures
+            // of the same bytes, `cmp` identical. Three dead channels looked
+            // exactly like three live ones. For a deaf or hard-of-hearing
+            // driver the tactile row is not the second channel, it is the only
+            // one, and it was the one furthest down.
+            //
+            // The map stays on the first screen, which was its own 2026-09-13
+            // decision: all three rows together are ~190 dp, so the map still
+            // ends inside the fold. Nothing moves at all when the channels are
+            // healthy — every row here is conditional, so the healthy first
+            // screen is unchanged and only the degraded one differs. That
+            // difference is the point.
+            // Pre-drive voice-channel caution, in the consent/status
+            // region she reads BEFORE driving. Rendered ONLY on a
+            // proven-degraded verdict (jaNetworkOnly / noJaVoice);
+            // unknown and offlineJaReady show nothing.
+            if (_voiceLaneVerdict == VoiceLaneVerdict.jaNetworkOnly ||
+                _voiceLaneVerdict == VoiceLaneVerdict.noJaVoice) ...[
+              const SizedBox(height: 8),
+              _voiceLaneCautionRow(),
+            ],
+            // Pre-drive TACTILE caution (safety review 2026-08-22), in the
+            // same region she reads BEFORE driving, on a `false` answer
+            // only. `null` (unreadable / off-mobile / test) renders
+            // NOTHING: a caution about a device that may vibrate
+            // perfectly well is a false alarm on the channel that can
+            // least afford one.
+            if (_hapticAvailable == false) ...[
+              const SizedBox(height: 8),
+              _hapticUnavailableCautionRow(),
+            ],
+            // Tier-2 — media-volume-zero caution, same pre-drive
+            // voice-channel region. Rendered ONLY on a proven-muted probe
+            // reading (null probe = NOTHING). Acknowledgment collapses
+            // it to a compact line; it never blocks the drive and we
+            // never touch her volume.
+            if (_audioReadiness?.mediaMuted ?? false) ...[
+              const SizedBox(height: 8),
+              if (_mediaMutedAcked)
+                _mediaMutedAckedLine()
+              else
+                _mediaMutedCautionRow(),
+              // ⚑ The muted caution names vibration as attempted, and
+              // she taps a button to continue without spoken alerts. If
+              // the tactile channel is not landing either, say so in the
+              // same glance — and after her tap too, since the state
+              // outlives the row she accepted it in.
+              //
+              // SUPPRESSED when the pre-drive caution already told her
+              // this device has NO vibrator: "could not be verified" is
+              // strictly weaker than "has none", and saying both on one
+              // glance surface is noise, not honesty. A device that HAS
+              // a vibrator and lost the cue still gets this line.
+              if (_hapticUnverified.value && _hapticAvailable != false) ...[
+                const SizedBox(height: 6),
+                _hapticUnverifiedInMutedNote(),
+              ],
+            ],
             // The map first, directly under the banner (2026-09-13): below the
             // developer panels it sat at 4314 px of an 852 px phone screen,
             // and she would have scrolled past fourteen cards to find herself.
@@ -3748,52 +3817,6 @@ class _HomePageState extends State<HomePage> {
                   ],
                   const SizedBox(height: 8),
                   _herStatusLine(),
-                  // Pre-drive voice-channel caution, in the consent/status
-                  // region she reads BEFORE driving. Rendered ONLY on a
-                  // proven-degraded verdict (jaNetworkOnly / noJaVoice);
-                  // unknown and offlineJaReady show nothing.
-                  if (_voiceLaneVerdict == VoiceLaneVerdict.jaNetworkOnly ||
-                      _voiceLaneVerdict == VoiceLaneVerdict.noJaVoice) ...[
-                    const SizedBox(height: 8),
-                    _voiceLaneCautionRow(),
-                  ],
-                  // Pre-drive TACTILE caution (safety review 2026-08-22), in the
-                  // same region she reads BEFORE driving, on a `false` answer
-                  // only. `null` (unreadable / off-mobile / test) renders
-                  // NOTHING: a caution about a device that may vibrate
-                  // perfectly well is a false alarm on the channel that can
-                  // least afford one.
-                  if (_hapticAvailable == false) ...[
-                    const SizedBox(height: 8),
-                    _hapticUnavailableCautionRow(),
-                  ],
-                  // Tier-2 — media-volume-zero caution, same pre-drive
-                  // voice-channel region. Rendered ONLY on a proven-muted probe
-                  // reading (null probe = NOTHING). Acknowledgment collapses
-                  // it to a compact line; it never blocks the drive and we
-                  // never touch her volume.
-                  if (_audioReadiness?.mediaMuted ?? false) ...[
-                    const SizedBox(height: 8),
-                    if (_mediaMutedAcked)
-                      _mediaMutedAckedLine()
-                    else
-                      _mediaMutedCautionRow(),
-                    // ⚑ The muted caution names vibration as attempted, and
-                    // she taps a button to continue without spoken alerts. If
-                    // the tactile channel is not landing either, say so in the
-                    // same glance — and after her tap too, since the state
-                    // outlives the row she accepted it in.
-                    //
-                    // SUPPRESSED when the pre-drive caution already told her
-                    // this device has NO vibrator: "could not be verified" is
-                    // strictly weaker than "has none", and saying both on one
-                    // glance surface is noise, not honesty. A device that HAS
-                    // a vibrator and lost the cue still gets this line.
-                    if (_hapticUnverified.value && _hapticAvailable != false) ...[
-                      const SizedBox(height: 6),
-                      _hapticUnverifiedInMutedNote(),
-                    ],
-                  ],
                 ],
               ),
             ),
