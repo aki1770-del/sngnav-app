@@ -2942,8 +2942,31 @@ class _HomePageState extends State<HomePage> {
           advice?.reasons.contains(CautionReason.positionUncertain) ?? false,
     );
 
-    final (Color bannerColor, Color textColor) = switch (effective) {
-      DriveAction.considerStopping => (Colors.red.shade100, Colors.red.shade900),
+    // ⚑ THE THIRD ELEMENT IS A NON-COLOUR CHANNEL, AND IT IS WHY IT IS HERE.
+    // Measured 2026-09-23 (HIE R119) from the SDK on disk and confirmed on the
+    // rendered pixels: as fills alone these three rungs are
+    //   停車の検討 vs 注意して走行   1.200:1   (20 grey levels of 255)
+    //   注意して走行 vs 特段の注意なし 1.011:1   (ONE grey level of 255)
+    // against a 3.0:1 non-text floor. In colour the three read clearly and the
+    // ink is 4.67:1 and 7.90:1 — the care is real. With hue gone, which is what
+    // a sun-washed panel and a colour-vision-deficient driver both have, the
+    // caution rung and the all-clear share a ground, and the two rungs that
+    // decide whether she keeps driving differ by hue and by words alone.
+    //
+    // So the rung now also carries a LEADING RULE whose WIDTH escalates. Width
+    // is geometry: it survives losing colour entirely. It is drawn in the
+    // rung's own ink, so it is dark on a light fill in every rung that has one.
+    // Chosen over an icon deliberately: a glyph that fails to load renders as
+    // nothing, and nothing looks like a clean design (HIE-2 #4, and HIE-15's
+    // negative control could not prove the bundled symbol face on a device).
+    // A rectangle cannot fail that way.
+    final (Color bannerColor, Color textColor, double rungRuleWidth) =
+        switch (effective) {
+      DriveAction.considerStopping => (
+          Colors.red.shade100,
+          Colors.red.shade900,
+          20.0,
+        ),
       DriveAction.heightenedCaution => (
           Colors.amber.shade100,
           // amber.shade900 on amber.shade100 measures ~2.4:1 — below the app's
@@ -2951,9 +2974,10 @@ class _HomePageState extends State<HomePage> {
           // (注意して走行) a black-ice / reduced-visibility watch raises. The
           // already-defined dark amber-brown measures ~7.9:1 on the amber tint,
           // so headline + body both clear ≥4.5:1 at one glance.
-          kCautionTextOnAmber
+          kCautionTextOnAmber,
+          8.0,
         ),
-      _ => (Colors.grey.shade200, Colors.grey.shade800),
+      _ => (Colors.grey.shade200, Colors.grey.shade800, 0.0),
     };
 
     return Column(
@@ -3163,57 +3187,80 @@ class _HomePageState extends State<HomePage> {
           ),
         if (advice != null) ...[
           SizedBox(height: rungFromTestValue ? 4 : 8),
-          // The caution headline banner, coloured by rung.
+          // The caution headline banner: coloured by rung, AND ruled by rung.
+          // The rule is inside the clip so it takes the card's own radius on
+          // the leading edge; a left-only border cannot be used here because
+          // BoxDecoration forbids a non-uniform border with a borderRadius.
+          // IntrinsicHeight is what lets the rule run the banner's full height
+          // without the Row needing a bounded one inside a scroll view.
           Container(
             key: const Key('drive-hud-caution-banner'),
             width: double.infinity,
-            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: bannerColor,
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  // The rung itself, keyed (2026-09-15): tests that searched
-                  // the whole screen for rung words read any text naming a
-                  // rung as the rung.
-                  key: const Key('drive-hud-rung'),
-                  _driveHudText.actionHeadline(
-                    effective ?? advice.action,
-                    l.locale.languageCode,
-                    advisoryUnconfirmed: advisoryUnconfirmed,
-                    measuredUnconfirmed: measuredUnconfirmed,
-                    calmNoteInForce: calmNoteInForce,
-                  ),
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                if ((effective ?? advice.action) !=
-                    DriveAction.continueDriving) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    _driveHudText.spokenGuidance(
-                        effective ?? advice.action, l.locale.languageCode),
-                    style: TextStyle(color: textColor, fontSize: 14),
-                  ),
-                ],
-                if (advice.compounding) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    l.driveHudCompoundingNote,
-                    style: TextStyle(
+            clipBehavior: Clip.antiAlias,
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (rungRuleWidth > 0)
+                    Container(
+                      key: const Key('drive-hud-rung-rule'),
+                      width: rungRuleWidth,
                       color: textColor,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                    ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            // The rung itself, keyed (2026-09-15): tests that searched
+                            // the whole screen for rung words read any text naming a
+                            // rung as the rung.
+                            key: const Key('drive-hud-rung'),
+                            _driveHudText.actionHeadline(
+                              effective ?? advice.action,
+                              l.locale.languageCode,
+                              advisoryUnconfirmed: advisoryUnconfirmed,
+                              measuredUnconfirmed: measuredUnconfirmed,
+                              calmNoteInForce: calmNoteInForce,
+                            ),
+                            style: TextStyle(
+                              color: textColor,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if ((effective ?? advice.action) !=
+                              DriveAction.continueDriving) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              _driveHudText.spokenGuidance(
+                                  effective ?? advice.action, l.locale.languageCode),
+                              style: TextStyle(color: textColor, fontSize: 14),
+                            ),
+                          ],
+                          if (advice.compounding) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              l.driveHudCompoundingNote,
+                              style: TextStyle(
+                                color: textColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
-              ],
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -4707,6 +4754,14 @@ class _HomePageState extends State<HomePage> {
               title: AppL10n.of(context).driveHudTitle,
               child: _driveHudPanel(),
             ),
+            // The first-launch data-handling disclosures, moved here from
+            // inside the map card 2026-09-23 so the caution card is not 1008 dp
+            // down her page. `_locationDisclosureBlock()` carries the reason
+            // and the consent cost; it returns null once she has shared.
+            if (_locationDisclosureBlock() case final d?) ...[
+              const SizedBox(height: 16),
+              d,
+            ],
             const SizedBox(height: 16),
             _section(
               title: AppL10n.of(context).routeSectionTitle,
@@ -6152,12 +6207,87 @@ class _HomePageState extends State<HomePage> {
   bool get _herFixNotGivenToDriveBrain =>
       _herHeldEvent != null && identical(_herFix, _herHeldEvent);
 
+  /// The first-launch state: she has started no share and no mock is running.
+  ///
+  /// One definition, read by BOTH the status line and the disclosure block
+  /// below it, so the two cannot drift apart into a page that offers the
+  /// button without the words or the words without the button.
+  bool get _beforeAnyShare => _herSub == null && !_isMockPosition;
+
+  /// The two data-handling disclosures, MOVED OUT of the map card 2026-09-23
+  /// (HIE R119) on the Chair-lane ruling that her page must reach a road-state
+  /// card sooner.
+  ///
+  /// WHY, and the measurement that decided it. At her phone's width the page is
+  /// 3203 dp — 4.44 of her own 721 dp screens — and the caution card began at
+  /// 1008 dp. These two blocks are 208 dp and 144 dp; with the alpha banner they
+  /// put 714 characters of OUR prose above her first road-state word, which is
+  /// five characters long. Nothing stating a road condition was above her fold.
+  ///
+  /// ⚑ WHAT THIS COSTS, STATED HERE RATHER THAN DISCOVERED LATER. The comment
+  /// this replaces read: "the localized disclosure sits here so she can read
+  /// WHERE her coordinates go BEFORE she grants". When this block first moved
+  /// (2026-09-23) the share control started the share directly, so the next
+  /// thing after her tap was the OS permission prompt and the page was the
+  /// only place she could read where her coordinates go. Since then
+  /// 現在地を共有 opens a consent dialog that carries [AppL10n.locationDisclosure]
+  /// word for word and needs her tap before any OS prompt
+  /// (`_promptLocationConsent`), so where her coordinates go is read at the
+  /// act, not inferred from being nearby. What this block alone still carries
+  /// is [AppL10n.egressDisclosure], the app's other connections, which the
+  /// dialog does not show; it is now one card further from the control. That
+  /// cost is smaller than it was and it is not zero, and it is named here
+  /// rather than absorbed.
+  /// ⚑ AND IT IS A TITLED CARD BECAUSE HER PAGE'S OWN GUARD SAID SO. Moved out
+  /// as a bare untitled `Card`, `home_card_titles_words_test.dart` read the
+  /// 359-character paragraph as the card's title and failed. It was right: every
+  /// other card on this page says what it is in her language. The guard was not
+  /// weakened to fit the move; the card got a title.
+  Widget? _locationDisclosureBlock() {
+    if (!_beforeAnyShare) return null;
+    final l = AppL10n.of(context);
+    return _section(
+      title: l.outboundDataSectionTitle,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Each paragraph is its own semantics node (2026-09-25): a Card
+          // merges every child that is not, and a screen reader would hear
+          // these as part of the card's title.
+          Semantics(
+            container: true,
+            child: Text(
+              key: const Key('location-disclosure'),
+              l.locationDisclosure,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+            ),
+          ),
+          const SizedBox(height: 4),
+          // B27+B30 — the REST of the real wire: the OSRM route egress
+          // (consent-gated pre-send), the online tile fallback
+          // (tile.openstreetmap.org sees viewport tiles + IP), and the
+          // network-TTS possibility. The coordinates-story she decides with
+          // must not omit an egress that exists.
+          Semantics(
+            container: true,
+            child: Text(
+              key: const Key('egress-disclosure'),
+              l.egressDisclosure,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _herStatusLine() {
     final l = AppL10n.of(context);
     // Initial state: no mode active. Deny-by-default — nothing touches GPS
-    // until the driver's deliberate tap. The localized disclosure sits here so she can
-    // read WHERE her coordinates go BEFORE she grants (task 3).
-    if (_herSub == null && !_isMockPosition) {
+    // until the driver's deliberate tap. The disclosure that used to sit here
+    // is now `_locationDisclosureBlock()`, below the caution card; the reason
+    // and its cost are recorded there.
+    if (_beforeAnyShare) {
       // Ladder fix (a) — ladder_out/api30/02b_location_consent.png showed
       // the status line ("Location not yet shared.") crammed into a
       // one-syllable-wide column beside the two consent buttons. The most
@@ -6324,29 +6454,11 @@ class _HomePageState extends State<HomePage> {
               child: Text(l.locationOpenOsSettings),
             ),
           ),
-          const SizedBox(height: 4),
-          Semantics(
-            container: true,
-            child: Text(
-              key: const Key('location-disclosure'),
-              l.locationDisclosure,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-            ),
-          ),
-          const SizedBox(height: 4),
-          // B27+B30 — the REST of the real wire, on the same card: the OSRM
-          // route egress (consent-gated pre-send), the online tile fallback
-          // (tile.openstreetmap.org sees viewport tiles + IP), and the
-          // network-TTS possibility. The coordinates-story she decides with
-          // must not omit an egress that exists.
-          Semantics(
-            container: true,
-            child: Text(
-              key: const Key('egress-disclosure'),
-              l.egressDisclosure,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-            ),
-          ),
+          // Where her coordinates go, and the app's other connections, stood
+          // here until 2026-09-23. They are now `_locationDisclosureBlock()`,
+          // below the caution card, each still its own semantics node. Since
+          // 2026-09-23 the share control opens a consent dialog that carries
+          // where her coordinates go verbatim, before any OS prompt.
         ],
       );
     }

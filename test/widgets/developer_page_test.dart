@@ -31,6 +31,24 @@ import '../support/fake_alert_actuators.dart';
 List<String> _herTitles(AppL10n l) => [
       l.mapSectionTitle,
       l.driveHudTitle,
+      // 2026-09-23 — the first-launch data-handling card (HIE R119). DECLARED
+      // here, never worked around: this guard exists so that adding a card to
+      // the driver's page is a deliberate act, and it caught this one too.
+      // It is not a NEW card of content — its two paragraphs stood inside the
+      // map card, untitled, until this date. They were moved OUT because they
+      // are 352 dp of our prose, and with the alpha banner they put 714
+      // characters above her first road-state word, which is five characters
+      // long; the caution card began at 1008 dp of a 3203 dp page, 1.4 of her
+      // own screens down. Measured after the move: the caution card's title is
+      // at 648 dp, above her 721 dp fold.
+      // ⚑ HANDED ON, NOT ABSORBED: the card is BELOW the caution card, so the
+      // app's own account of where her coordinates go is no longer adjacent to
+      // 現在地を共有, and `_shareLocation` has no in-app consent dialog — the
+      // next thing after her tap is the OS prompt. Whether that trade is right
+      // is not for this test to decide.
+      // It renders ONLY before she has shared (`_beforeAnyShare`), which is the
+      // state every launch in this file is in.
+      l.outboundDataSectionTitle,
       l.routeSectionTitle,
       l.maneuverSectionTitle,
       l.akitaObservationSectionTitle,

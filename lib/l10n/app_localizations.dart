@@ -2394,6 +2394,19 @@ class AppL10n {
   String get advisoriesSectionTitle =>
       _ja ? '発表中の警報・注意報' : 'Warnings and advisories in force';
 
+  /// Title of the first-launch data-handling card (HIE R119, 2026-09-23).
+  ///
+  /// The two disclosures under it stood inside the map card until this date,
+  /// untitled, above everything about the road. Moved out, they need a title:
+  /// her page's own convention is that every card says what it is in her
+  /// language, and `home_card_titles_words_test.dart` enforces it — it read
+  /// the 359-character paragraph as a title and failed, correctly, when the
+  /// block was first moved as an untitled Card. It names what BOTH paragraphs
+  /// are about — her coordinates, and the routes, tiles and voice that also
+  /// leave the phone — rather than only the first.
+  String get outboundDataSectionTitle =>
+      _ja ? '端末の外へ出る情報' : 'What leaves your phone';
+
   // ===== The development page (2026-09-15) =====
   //
   // The eleven cards above from 運転者のタイプ to 地図の描画と通信量の試験 are not on
