@@ -20,7 +20,11 @@ import 'package:sngnav_app/main.dart';
 
 void main() {
   Future<void> pumpAndReveal(WidgetTester tester) async {
-    await tester.pumpWidget(const SngnavApp(locale: Locale('en')));
+    await tester.pumpWidget(const SngnavApp(
+      // Not about the consent act; that is guarded in
+      // test/widgets/location_consent_act_and_privacy_surface_test.dart.
+      locationConsent: true,
+locale: Locale('en')));
     await tester.pump();
     await tester.ensureVisible(find.byKey(const Key('share-location-button')));
     await tester.pump();

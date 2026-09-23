@@ -55,6 +55,10 @@ void main() {
     now = start;
     final positions = StreamController<PositionFix>.broadcast();
     await tester.pumpWidget(SngnavApp(
+      // Not about the consent act; that is guarded in
+      // test/widgets/location_consent_act_and_privacy_surface_test.dart.
+      locationConsent: true,
+
       actuators: FakeAlertActuators(),
       locale: locale,
       clock: () => now,

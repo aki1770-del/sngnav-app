@@ -108,7 +108,9 @@ import 'services/jma_forecast_fetch.dart';
 import 'services/staleness_policy.dart';
 import 'services/forecast_validity.dart' show ForecastHazardKind;
 import 'services/trip_hazard_memory.dart';
+import 'services/location_consent.dart';
 import 'services/route_consent.dart';
+import 'services/privacy_policy.dart';
 import 'services/jma_advisory_provider_factory.dart';
 import 'services/audio_readiness.dart';
 import 'services/haptic_readiness.dart';
@@ -699,6 +701,7 @@ class SngnavApp extends StatelessWidget {
     this.routingEngineFactory,
     this.advisoryProviders,
     this.developerPageEntry,
+    this.locationConsent,
   });
 
   final AlertActuators? actuators;
@@ -747,6 +750,21 @@ class SngnavApp extends StatelessWidget {
   /// Asks for the development page's entry in her app bar (null ->
   /// [kDeveloperPageFromEnvironment]). A release build ignores it.
   final bool? developerPageEntry;
+
+  /// Pre-seeds the location-share consent answer (null -> ask her, which is
+  /// what production does).
+  ///
+  /// The same injection idiom as [actuators], [jmaFetch] and [positionSource],
+  /// and it exists for the same reason: 36 test files drive the share to reach
+  /// what happens AFTER it starts, and their subject is not the consent act.
+  /// Making each of them click through a dialog would couple 36 files to a
+  /// surface none of them is testing.
+  ///
+  /// `true` means "assume she already agreed". It is never a default: the
+  /// production path passes null, and the act itself is guarded on the real
+  /// path by test/widgets/location_consent_act_and_privacy_surface_test.dart,
+  /// which passes null and fails if the gate is removed.
+  final bool? locationConsent;
 
   @override
   Widget build(BuildContext context) {
@@ -801,6 +819,7 @@ class SngnavApp extends StatelessWidget {
         routingEngineFactory: routingEngineFactory,
         advisoryProviders: advisoryProviders,
         developerPageEntry: developerPageEntry,
+        locationConsent: locationConsent,
       ),
     );
   }
@@ -827,6 +846,7 @@ class HomePage extends StatefulWidget {
     this.routingEngineFactory,
     this.advisoryProviders,
     this.developerPageEntry,
+    this.locationConsent,
   });
 
   /// Injectable actuator layer (null -> [defaultAlertActuators]).
@@ -895,6 +915,9 @@ class HomePage extends StatefulWidget {
   /// Asks for the development page's entry in her app bar (null ->
   /// [kDeveloperPageFromEnvironment]). A release build ignores it.
   final bool? developerPageEntry;
+
+  /// Pre-seeded location-share consent (null -> ask). See [SngnavApp.locationConsent].
+  final bool? locationConsent;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -1422,6 +1445,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _seedLocationConsent();
     // WS5 — construct the actuator layer + announcer. Hold the screen awake
     // while this navigation surface is active so a driver glancing at a live
     // hazard never finds a dark screen. Foreground-only: released in dispose;
@@ -3356,6 +3380,109 @@ class _HomePageState extends State<HomePage> {
   /// in the flutter_test zone, so an unbounded await deadlocks there too.
   /// On timeout the choice degrades honestly to in-RAM for this run (she is
   /// asked again next launch — a repeated question, never a hung screen).
+  // ---- LOCATION-SHARE CONSENT (2026-09-23) ---------------------------
+  // Her answer for this session, and whether the persisted one has been read.
+  // Same two-field idiom as the OSRM pair, deliberately: this IS that pattern,
+  // moved onto the larger egress it was missing from.
+  bool? _locationConsent;
+  bool _locationConsentLoaded = false;
+
+  /// Apply [HomePage.locationConsent] once, at init. A seeded answer means the
+  /// store is never consulted and the act never raised.
+  void _seedLocationConsent() {
+    final seeded = widget.locationConsent;
+    if (seeded == null) return;
+    _locationConsent = seeded;
+    _locationConsentLoaded = true;
+  }
+
+  Future<LocationConsentStore?> _locationConsentStore() async {
+    try {
+      final dir = await getApplicationDocumentsDirectory()
+          .timeout(const Duration(seconds: 2));
+      return LocationConsentStore(
+        file: File('${dir.path}/${LocationConsentStore.fileName}'),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The affirmative act. Returns true ONLY when she has agreed — this session
+  /// or in a remembered answer. A dismissal is not a decision and is not a yes.
+  ///
+  /// Mirrors [_ensureRouteConsent] line for line, including its hang-bounds: a
+  /// wedged disk read must never leave her holding a button that does nothing.
+  Future<bool> _ensureLocationConsent() async {
+    if (!_locationConsentLoaded) {
+      final store = await _locationConsentStore();
+      bool? persisted;
+      try {
+        persisted = await store?.load().timeout(const Duration(seconds: 2));
+      } catch (_) {
+        persisted = null;
+      }
+      if (persisted != null) _locationConsent = persisted;
+      _locationConsentLoaded = true;
+    }
+    final existing = _locationConsent;
+    if (existing != null) return existing;
+    if (!mounted) return false;
+    final granted = await _promptLocationConsent();
+    if (granted == null) return false; // dismissed - not a decision.
+    // ONLY A YES IS REMEMBERED, and this is where it differs from the OSRM
+    // pair on purpose. A remembered NO would trap her: the route question has
+    // a visible "change your choice" affordance beside its declined state, and
+    // the share control has none, so a persisted refusal would leave her with
+    // a button that silently does nothing and no way back. She is asked again
+    // next time she taps, which is a repeated question and never a lock-out.
+    if (!granted) return false;
+    _locationConsent = true;
+    unawaited(_locationConsentStore().then((s) => s?.save(true)));
+    return true;
+  }
+
+  /// The dialog CARRIES THE DISCLOSURE ITSELF, verbatim: the body is
+  /// [AppL10n.locationDisclosure], the same reviewed text the page shows. The
+  /// act and the thing consented to are one surface, which is the whole
+  /// correction — no new policy language is written here.
+  Future<bool?> _promptLocationConsent() {
+    final l = AppL10n.of(context);
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.locationConsentTitle),
+        content: SingleChildScrollView(
+          child: Text(
+            l.locationDisclosure,
+            key: const Key('location-consent-body'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            key: const Key('location-consent-decline'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.locationConsentDecline),
+          ),
+          FilledButton(
+            key: const Key('location-consent-accept'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l.locationConsentAccept),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// What her tap on the share control now runs. The share does not start
+  /// unless the act returned a yes; a decline or a dismissal starts nothing
+  /// and the OS permission prompt is never reached.
+  Future<void> _onShareLocationPressed() async {
+    final granted = await _ensureLocationConsent();
+    if (!mounted || !granted) return;
+    _shareLocation();
+  }
+
   Future<RouteConsentStore?> _routeConsentStore() async {
     try {
       final dir = await getApplicationDocumentsDirectory()
@@ -5285,7 +5412,10 @@ class _HomePageState extends State<HomePage> {
               children: [
                 TextButton(
                   key: const Key('share-location-button'),
-                  onPressed: _shareLocation,
+                  // Gated on the affirmative act since 2026-09-23. It was
+                  // `_shareLocation` directly: a bare button whose next step
+                  // was the OS prompt, with the disclosure merely nearby.
+                  onPressed: _onShareLocationPressed,
                   child: Text(l.shareMyLocation),
                 ),
                 // The Akita mock position is on the development page
@@ -6494,15 +6624,101 @@ class _Footer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        key: const Key('page-foot'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            key: const Key('page-foot'),
         // In her language since 2026-09-15, keeping what she needs: routes do
         // not consider snow, and where routes and weather observations come
         // from. The package names are on the development page.
-        AppL10n.of(context).pageFoot(appVersion),
-        // shade600 measured 4.39:1 on the page ground (2026-09-15); 5.90:1 now.
-        style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
-        textAlign: TextAlign.center,
+            AppL10n.of(context).pageFoot(appVersion),
+            // shade600 measured 4.39:1 on the page ground (2026-09-15); 5.90:1 now.
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+          // The in-app privacy surface. Play requires a privacy policy link OR
+          // TEXT inside the app itself, unconditionally; measured 2026-09-23,
+          // this app carried neither and the only occurrence of the phrase
+          // anywhere was a comment in AndroidManifest.xml.
+          TextButton(
+            key: const Key('privacy-policy-link'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PrivacyPolicyPage(),
+              ),
+            ),
+            child: Text(AppL10n.of(context).privacyPolicyLinkLabel),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The bundled privacy policy, shown in full.
+///
+/// It renders the document in `docs/store/privacy_policy_ja.md` — the SAME file
+/// that is published, bundled as an asset rather than transcribed, so the text
+/// she reads and the text on the public page cannot drift apart. It needs no
+/// network, which is the point for the driver this app is for.
+class PrivacyPolicyPage extends StatefulWidget {
+  const PrivacyPolicyPage({super.key, this.loader});
+
+  /// Injectable for tests; null uses the real bundled asset.
+  final Future<String?> Function()? loader;
+
+  @override
+  State<PrivacyPolicyPage> createState() => _PrivacyPolicyPageState();
+}
+
+class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
+  late final Future<String?> _text =
+      (widget.loader ?? loadPrivacyPolicy)();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(l.privacyPolicyTitle)),
+      body: FutureBuilder<String?>(
+        future: _text,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final body = snap.data;
+          if (body == null) {
+            // An honest failure line, never an empty page: a policy screen with
+            // no terms on it reads as a policy with no terms.
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                key: const Key('privacy-policy-unavailable'),
+                l.privacyPolicyUnavailable(kPrivacyPolicyRepoUrl),
+              ),
+            );
+          }
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SelectableText(
+                  body,
+                  key: const Key('privacy-policy-text'),
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                SelectableText(
+                  key: const Key('privacy-policy-source'),
+                  l.privacyPolicySource(kPrivacyPolicyRepoUrl),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

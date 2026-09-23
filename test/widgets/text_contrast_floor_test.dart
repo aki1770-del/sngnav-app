@@ -93,6 +93,10 @@ void main() {
           'all at or above the floor', (tester) async {
         final l = AppL10n(Locale(lang));
         await tester.pumpWidget(SngnavApp(
+      // Not about the consent act; that is guarded in
+      // test/widgets/location_consent_act_and_privacy_surface_test.dart.
+      locationConsent: true,
+
           locale: Locale(lang),
           actuators: FakeAlertActuators(),
           voiceLaneReader: () async => VoiceLaneVerdict.jaNetworkOnly,
@@ -186,6 +190,10 @@ void main() {
       final positions = StreamController<PositionFix>.broadcast();
       addTearDown(positions.close);
       await tester.pumpWidget(SngnavApp(
+      // Not about the consent act; that is guarded in
+      // test/widgets/location_consent_act_and_privacy_surface_test.dart.
+      locationConsent: true,
+
         locale: Locale(lang),
         actuators: FakeAlertActuators(),
         positionSource: () => positions.stream,

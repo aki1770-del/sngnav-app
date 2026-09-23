@@ -83,6 +83,10 @@ void main() {
         'the agreed label and value', (tester) async {
       final positions = StreamController<PositionFix>.broadcast();
       await tester.pumpWidget(SngnavApp(
+      // Not about the consent act; that is guarded in
+      // test/widgets/location_consent_act_and_privacy_surface_test.dart.
+      locationConsent: true,
+
         actuators: FakeAlertActuators(),
         locale: const Locale('en'),
         clock: () => DateTime.utc(2026, 1, 14, 21),

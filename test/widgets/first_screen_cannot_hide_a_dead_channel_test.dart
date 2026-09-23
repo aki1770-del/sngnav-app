@@ -23,7 +23,6 @@
 library;
 
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -71,6 +70,10 @@ Future<Uint8List> _frame(WidgetTester tester, {required bool channelsDead}) asyn
   await tester.pumpWidget(RepaintBoundary(
     key: _boundary,
     child: SngnavApp(
+      // Not about the consent act; that is guarded in
+      // test/widgets/location_consent_act_and_privacy_surface_test.dart.
+      locationConsent: true,
+
       locale: const Locale('ja'),
       actuators: FakeAlertActuators(),
       clock: () => _clock,

@@ -757,6 +757,42 @@ class AppL10n {
           'network voice, the spoken text may pass through the OS voice '
           'vendor.';
 
+  // ===== Location-share consent (2026-09-23) =====
+  //
+  // The BODY of this dialog is [locationDisclosure], verbatim — the reviewed
+  // text the page already showed. Only the question and the two answers are new
+  // words, and they are UI labels, not policy language.
+
+  String get locationConsentTitle =>
+      _ja ? '現在地の共有について' : 'Sharing your location';
+
+  String get locationConsentAccept =>
+      _ja ? '同意して共有する' : 'Agree and share';
+
+  /// Declining starts nothing. The OS permission prompt is never reached.
+  String get locationConsentDecline => _ja ? '共有しない' : 'Do not share';
+
+  // ===== Privacy policy, in the app (2026-09-23) =====
+
+  String get privacyPolicyLinkLabel =>
+      _ja ? 'プライバシーポリシー' : 'Privacy policy';
+
+  String get privacyPolicyTitle =>
+      _ja ? 'プライバシーポリシー' : 'Privacy policy';
+
+  /// Shown under the bundled text: the same document, published.
+  String privacyPolicySource(String url) => _ja
+      ? 'この文書は本アプリに同梱された原文です。公開版: $url'
+      : 'This is the document bundled with the app. Published copy: $url';
+
+  /// The asset could not be read. It names where the document is instead of
+  /// leaving a blank page that reads as a policy with no terms.
+  String privacyPolicyUnavailable(String url) => _ja
+      ? '同梱のプライバシーポリシーを読み込めませんでした。'
+          '公開版はこちらで読めます: $url'
+      : 'The bundled privacy policy could not be read. '
+          'The published copy is here: $url';
+
   // ===== OSRM pre-send route consent (B27) — ja-primary, asked ONCE =====
 
   String get routeConsentTitle =>
