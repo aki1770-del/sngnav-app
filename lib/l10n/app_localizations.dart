@@ -488,6 +488,22 @@ class AppL10n {
       ? '凍結の表示はテスト値です（路面は測定していません）'
       : 'The ice mark is a test value; the road was not measured.';
 
+  /// The twin of [maneuverTestRoadConditionInForce]: the icy mark rests on a
+  /// MEASURED radiative-frost watch. Exactly one of the two renders.
+  ///
+  /// IT STILL SAYS THE ROAD WAS NOT MEASURED, and that is the point of the
+  /// wording rather than an oversight. The watch is an INFERENCE from JMA's
+  /// measured air temperature and humidity through the catalog's shared
+  /// radiative-frost classifier; no instrument touched the road surface, and
+  /// JMA never stated the road is frozen. README.md holds the app to
+  /// "a derived inference, labeled as such — never presented as a JMA
+  /// statement", so this line names what WAS measured and what was not, in one
+  /// sentence, instead of trading one overstatement for another.
+  String get maneuverMeasuredRoadIceInForce => _ja
+      ? '凍結の表示は気象庁の気温・湿度からの推定です（路面は測定していません）'
+      : 'The ice mark is inferred from measured JMA air temperature and '
+          'humidity; the road surface itself was not measured.';
+
   /// The label over the visibility demo override.
   String get driveHudVisibilityOverrideLabel => _ja
       ? '視程デモ上書き（既定：ライブ／未計測 — 合成クリアなし）'

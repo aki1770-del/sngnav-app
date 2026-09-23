@@ -609,6 +609,22 @@ FeedLossVerdict feedLossVerdict({
   return FeedLossRetainedQuiet(ageMinutes: ageMinutes);
 }
 
+/// Where the icy-turn mark's truth comes from.
+///
+/// The mark and the spoken line are the same shape either way; what differs is
+/// what her card is ENTITLED to say about the road, and whether the voice
+/// carries the test-value prefix.
+enum _IcyTurnSource {
+  /// No ice reaches the next turn.
+  none,
+
+  /// A MEASURED radiative-frost watch, from the live JMA observation.
+  measured,
+
+  /// The simulated road condition, which only the development page can set.
+  testValue,
+}
+
 class SngnavApp extends StatelessWidget {
   /// [actuators] is injectable so tests (and future device harnesses) can
   /// supply a fake/real actuator layer; production leaves it null and the app
@@ -3506,16 +3522,57 @@ class _HomePageState extends State<HomePage> {
   /// through OsrmRoutingEngine so we get the parsed maneuver list too.
   static const String _osrmDemoBaseUrl = 'https://router.project-osrm.org';
 
-  /// Whether the next maneuver coincides with an ice / low-visibility hazard, so
-  /// the icy-turn advisory should be coupled onto the narration. Reuses the
-  /// app's existing road-surface condition AND the live drive-HUD advice
-  /// (visibility + area-advisory fusion) — no new hazard source.
-  bool _maneuverCoincidesWithHazard() {
+  /// Where the icy-turn mark on the next maneuver comes from — a MEASURED
+  /// watch, a test value, or nothing.
+  ///
+  /// WHAT THIS FIXES, 2026-09-23. Until today the only input was [_condition],
+  /// the simulated road surface, whose ONLY setter is the dropdown inside
+  /// [_developerSections] and whose page [_developerPageOffered] hard-gates on
+  /// `!kReleaseMode`. So in the SIGNED build [_condition] is permanently
+  /// [RoadSurfaceCondition.unknown], [isSlipperySurface] is always false, and
+  /// the icy mark was STRUCTURALLY UNREACHABLE on her phone — while her own
+  /// page, one card above, was painting 路面凍結のおそれ from a MEASURED JMA
+  /// reading. Two things that were already true, failing to meet. This is not
+  /// a new hazard source; it is the one she is already being shown.
+  ///
+  /// WHY [InvisibleIceWatchResult.watch]: it is the measured radiative-frost
+  /// window — the road looks wet or dry and is frozen — which is exactly the
+  /// surprise a per-turn mark exists for. It is also the value the app ALREADY
+  /// treats as a firing hazard: [_currentMeasuredHazard] passes this same
+  /// comparison as `blackIceFiring`. Nothing is escalated that was not already
+  /// raising the eyes-off rung.
+  ///
+  /// WHY [InvisibleIceWatchResult.subZeroFrozen] IS DELIBERATELY NOT HERE —
+  /// restraint, not oversight. The coupling raises the maneuver to
+  /// [AlertSeverity.critical] (services/maneuver_narration.dart), which fires
+  /// audio AND haptic and bypasses the density cap. A safety-review decision of
+  /// 2026-07-23 holds that sub-zero must NOT raise the caution rung, because
+  /// below zero the ice is EXPECTED rather than a surprise and a rung every
+  /// cold morning is cry-wolf; the app gives it a calm chip instead
+  /// ([calmNoteInForce], the `subzero-frozen-chip`). Coupling it here would
+  /// reverse that decision on the LOUDER channel, on every turn of every cold
+  /// morning. Whether it should couple is a real question and it is not this
+  /// seat's to close — it is recorded here rather than decided quietly.
+  ///
+  /// STALENESS NEEDS NO GATE HERE, and that is measured rather than assumed:
+  /// on a failed read [_refreshJma] sets [_invisibleIceResult] to
+  /// [InvisibleIceWatchResult.unknown], so a stale reading can never hold this
+  /// true. The invariant is stated at [_currentMeasuredHazard] and reused here,
+  /// not duplicated.
+  ///
+  /// PRECEDENCE: a measured watch outranks a test value, because when it fires
+  /// the mark IS justified by an observation. A test value can still raise the
+  /// mark on its own, and then the card says so.
+  _IcyTurnSource _icyTurnSource() {
+    if (_invisibleIceResult == InvisibleIceWatchResult.watch) {
+      return _IcyTurnSource.measured;
+    }
     // Couple the icy-turn advisory ONLY on a genuinely slippery surface — NOT
     // on any heightened-caution state. A dry-road gpsSuspect must never raise a
     // false CRITICAL "the turn may be icy / 路面が凍結"; low visibility is warned
     // separately by the drive HUD, not mis-narrated as ice here.
-    return isSlipperySurface(_condition);
+    if (isSlipperySurface(_condition)) return _IcyTurnSource.testValue;
+    return _IcyTurnSource.none;
   }
 
   /// Narrate the next maneuver through the drive HUD's announcer, GATED on the
@@ -3524,13 +3581,18 @@ class _HomePageState extends State<HomePage> {
   void _narrateNextManeuver() {
     final next = _nextManeuver;
     if (next == null) return;
+    final icySource = _icyTurnSource();
     final decision = _driveHud.narrateNextManeuver(
       next,
-      icyTurn: _maneuverCoincidesWithHazard(),
+      icyTurn: icySource != _IcyTurnSource.none,
       positionIsThisShares: _driveHudPositionIsThisDrives,
-      // Nothing measured reaches the icy coupling: its one input is the
-      // simulated road condition (2026-09-16).
-      icyTurnFromTestValue: true,
+      // The spoken test-value prefix belongs to a value nobody measured. Until
+      // 2026-09-23 this was hardcoded `true`, which was correct while the
+      // simulated condition was the only input. A MEASURED radiative-frost
+      // watch must not carry it: prefixing a real observation with "test value"
+      // is the same defect as calling a test value measured, pointed the other
+      // way.
+      icyTurnFromTestValue: icySource == _IcyTurnSource.testValue,
     );
     setState(() => _lastManeuverNarration = decision);
   }
@@ -5526,9 +5588,10 @@ class _HomePageState extends State<HomePage> {
     // ended or refused (2026-09-15).
     final mode =
         _driveHudPositionIsThisDrives ? _driveHud.estimate?.mode : null;
-    final icy = _maneuverCoincidesWithHazard();
+    final icySource = _icyTurnSource();
     final preview = _driveHud.previewNextManeuver(next,
-        icyTurn: icy, positionIsThisShares: _driveHudPositionIsThisDrives);
+        icyTurn: icySource != _IcyTurnSource.none,
+        positionIsThisShares: _driveHudPositionIsThisDrives);
 
     // The banner's state in the app's language (2026-09-15). Until then it was
     // the gate's internal name and an English reason in every language; the
@@ -5623,13 +5686,26 @@ class _HomePageState extends State<HomePage> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                // Nothing measured reaches this mark: the only input is the
-                // simulated road condition (2026-09-16). Words to be decided.
-                Text(
-                  key: const Key('maneuver-test-road-condition'),
-                  l.maneuverTestRoadConditionInForce,
-                  style: TextStyle(color: fg, fontSize: 12),
-                ),
+                // THE MARK'S PROVENANCE, in the same glance as the mark.
+                // Until 2026-09-23 this line said "test value" unconditionally,
+                // which was true while a test value was the only thing that
+                // could reach the mark. A measured radiative-frost watch can
+                // now, and telling her the road was not measured when it WAS
+                // would be this same defect inverted. Exactly one of the two
+                // renders, and which one is the answer to "why am I being told
+                // this turn is icy?".
+                if (icySource == _IcyTurnSource.measured)
+                  Text(
+                    key: const Key('maneuver-measured-road-ice'),
+                    l.maneuverMeasuredRoadIceInForce,
+                    style: TextStyle(color: fg, fontSize: 12),
+                  )
+                else
+                  Text(
+                    key: const Key('maneuver-test-road-condition'),
+                    l.maneuverTestRoadConditionInForce,
+                    style: TextStyle(color: fg, fontSize: 12),
+                  ),
               ],
             ],
           ),
