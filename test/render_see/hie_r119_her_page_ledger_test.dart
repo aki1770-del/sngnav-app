@@ -24,7 +24,6 @@ library;
 
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -63,15 +62,6 @@ JmaObservation _clearObs() => JmaObservation(
       fetchedAt: DateTime(2026, 7, 15, 6, 30),
     );
 
-double _lin(int c) {
-  final v = c / 255.0;
-  return v <= 0.03928 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4) as double;
-}
-
-final List<double> _lut = List.generate(256, _lin);
-double _lum(int r, int g, int b) =>
-    0.2126 * _lut[r] + 0.7152 * _lut[g] + 0.0722 * _lut[b];
-
 void _write(String name, Uint8List bytes) {
   if (_out.isEmpty) {
     // ignore: avoid_print
@@ -82,6 +72,37 @@ void _write(String name, Uint8List bytes) {
   File('$_out/$name').writeAsBytesSync(bytes);
   // ignore: avoid_print
   print('R119: wrote $name (${bytes.length} bytes)');
+}
+
+
+/// ⚑⚑ THIS PROBE DOES NOT RUN IN THE SUITE, AND HERE IS WHY IT MUST NOT.
+///
+/// Measured 2026-09-23: run inside a bare `flutter test` this file times out —
+/// `TimeoutException after 0:10:00`. Its stalls are real and recorded (a second
+/// `pumpWidget` of the app in one file, and a `jumpTo` + `pump` loop that never
+/// returns), and I worked around them by running each state in its own process.
+/// **What I did not do was connect "it stalls" to "and therefore it fails the
+/// suite I am committing it into."** It went in at `9a41c0f`, and the app's CI
+/// job runs a bare `flutter test`, so it would have taken CI red and added ~10
+/// minutes per case. Caught by reading the FINAL summary of a full run
+/// (`+1348 -12`) after having reported a mid-run progress line (`-8`) as the
+/// verdict — the same success-shaped-value family, in my own reporting.
+///
+/// It is a MEASUREMENT PROBE, not a guard: it asserts nothing about the app and
+/// only produces frames and figures. So it is gated ON PURPOSE rather than
+/// deleted, and it says out loud that it did not run:
+///
+///   flutter test THIS_FILE --dart-define=HIE_R119_PROBES=1
+///
+/// ⚑ The stall itself is NOT FIXED. Running it needs `--plain-name` for one case.
+const bool _runProbes = bool.fromEnvironment('HIE_R119_PROBES');
+
+void _announceSkipped(String what) {
+  // ignore: avoid_print
+  print('R119 PROBE NOT RUN: $what. This is a measurement probe, not a guard, '
+      'and it STALLS in a shared process (measured: 10-minute timeout). '
+      'It measured nothing here, which is not the same as passing. '
+      'Re-run with --dart-define=HIE_R119_PROBES=1 and --plain-name for one case.');
 }
 
 void main() {
@@ -146,6 +167,10 @@ void main() {
   };
 
   testWidgets('HER PAGE LEDGER at her phone geometry', (tester) async {
+    if (!_runProbes) {
+      _announceSkipped('hie_r119_her_page_ledger_test.dart');
+      return;
+    }
     tester.view.devicePixelRatio = 2.0;
     tester.view.physicalSize = const Size(_w * 2, _h * 2);
     addTearDown(tester.view.resetPhysicalSize);
