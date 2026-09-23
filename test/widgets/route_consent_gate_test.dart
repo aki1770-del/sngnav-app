@@ -107,9 +107,6 @@ void main() {
     // The path back from a remembered "no".
     expect(find.byKey(const Key('route-consent-change')), findsOneWidget);
 
-    // Drain the fire-and-forget persist's store-construction timeout timer
-    // (2 s) so teardown sees no pending timers.
-    await tester.pump(const Duration(seconds: 3));
   });
 
   testWidgets(
@@ -143,9 +140,6 @@ void main() {
     expect(find.byKey(const Key('route-consent-declined')), findsNothing);
     expect(find.byKey(const Key('route-fetch-failed')), findsOneWidget);
 
-    // Drain the fire-and-forget persist timers (decline + accept each start
-    // a 2 s store-construction timeout) so teardown sees no pending timers.
-    await tester.pump(const Duration(seconds: 3));
   });
 
   testWidgets('dismissing the dialog is "not now": no fetch, and the next '

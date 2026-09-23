@@ -3450,14 +3450,24 @@ class _HomePageState extends State<HomePage> {
   /// A store whose only write is `true` is a record ABOUT her that she cannot
   /// touch.
   ///
-  /// SCOPE, stated so it is not over-read: this clears OUR consent, which is
-  /// the only consent that covers what we actually do with her position — the
-  /// tile service seeing her viewport and address, a coordinate query to a
-  /// service in another country, spoken text possibly routed through the
-  /// platform voice vendor, and a fetch roughly every ten minutes while she is
-  /// stopped. The operating system's permission says only "allow location" and
-  /// cannot represent any of that. It does NOT revoke the OS permission; the
-  /// row beside this control names that route and offers it.
+  /// SCOPE — CORRECTED 2026-09-23, and the first version of this paragraph
+  /// was wrong in our favour. It said our consent "covers what we actually do
+  /// with her position" and listed the tile service seeing her viewport and
+  /// address, spoken text possibly routed through the platform voice vendor, a
+  /// coordinate query to a service in another country, and a ten-minute fetch
+  /// — implying ours is WIDER than the platform's permission.
+  ///
+  /// Measured: `_locationConsent` appears nowhere outside main.dart and
+  /// nowhere in lib/services, lib/actuators, lib/voice or lib/akita_map. It
+  /// gates exactly ONE thing — [_shareLocation], the position stream — and
+  /// every egress it authorizes needs the OS permission first. The tile
+  /// requests and the voice path are not gated by it at all. Ours is a SUBSET
+  /// by effect, not a superset.
+  ///
+  /// What is true, and what the shipped words actually say, is narrower: they
+  /// are two SEPARATE CONTROLS, and only one of them is ours. This one does
+  /// not revoke the OS permission; the row beside it names that route and
+  /// offers it.
   Future<void> _withdrawLocationConsent() async {
     setState(() {
       _locationConsent = null;
@@ -3585,10 +3595,27 @@ class _HomePageState extends State<HomePage> {
     _shareLocation();
   }
 
-  Future<RouteConsentStore?> _routeConsentStore() async {
+  /// [hangBound] arms a timeout — and a timeout ARMS A TIMER. Same rule and
+  /// same parameter as [_locationConsentStore]; pass null from any path
+  /// nothing waits on.
+  ///
+  /// ⚑ THIS IS THE THIRD TIME I HAVE FIXED THIS ONE DEFECT. I fixed the
+  /// location store's `load()` call, then the location store's own directory
+  /// read after 116 tests failed, and did not look here — where the identical
+  /// unconditional bound sat on two fire-and-forget saves. VDE found it by
+  /// deleting a hand-written `await tester.pump(Duration(seconds: 3))` from
+  /// route_consent_gate_test.dart and watching the file go red with "A Timer
+  /// is still pending even after the widget tree was disposed". The leak was
+  /// being contained by every future author of a route-consent test
+  /// remembering to drain it by hand. That is the operator standing where a
+  /// machine should be.
+  Future<RouteConsentStore?> _routeConsentStore({
+    Duration? hangBound = const Duration(seconds: 2),
+  }) async {
     try {
-      final dir = await getApplicationDocumentsDirectory()
-          .timeout(const Duration(seconds: 2));
+      final future = getApplicationDocumentsDirectory();
+      final dir =
+          hangBound == null ? await future : await future.timeout(hangBound);
       return RouteConsentStore(
         file: File('${dir.path}/${RouteConsentStore.fileName}'),
       );
@@ -3628,7 +3655,7 @@ class _HomePageState extends State<HomePage> {
     // or wedged disk write must not hold the route (or the honest decline
     // render) hostage. Worst case the write is lost and she is asked again
     // next launch — a repeated question, never a hung screen.
-    unawaited(_routeConsentStore().then((store) => store?.save(granted)));
+    unawaited(_routeConsentStore(hangBound: null).then((store) => store?.save(granted)));
     return granted;
   }
 
@@ -3647,7 +3674,7 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     setState(() => _osrmConsent = granted);
     if (granted != null) {
-      unawaited(_routeConsentStore().then((store) => store?.save(granted)));
+      unawaited(_routeConsentStore(hangBound: null).then((store) => store?.save(granted)));
     }
   }
 

@@ -782,12 +782,20 @@ class AppL10n {
       ? '同意を取り消しました。次に共有するときにもう一度おたずねします。'
       : 'Consent withdrawn. You will be asked again the next time you share.';
 
-  /// Names the route we do NOT control. Our consent and the platform's
-  /// permission are different subject matters: ours covers the tile service
-  /// seeing her viewport and address, a coordinate query to a service in
-  /// another country, spoken text possibly routed through the platform voice
-  /// vendor, and a fetch roughly every ten minutes while stopped. The system
-  /// prompt says only "allow location" and can represent none of that.
+  /// Names the route we do NOT control.
+  ///
+  /// ⚑ THE STRING BELOW IS ACCURATE; THIS COMMENT WAS NOT, and it is corrected
+  /// 2026-09-23 rather than quietly rewritten. It claimed our consent covers
+  /// more than the platform's permission — the tile service, the voice vendor,
+  /// a cross-border query, a ten-minute fetch. Measured: `_locationConsent`
+  /// gates exactly one thing, the position stream, and every egress it
+  /// authorizes requires the OS permission first; the tile and voice paths are
+  /// not gated by it at all.
+  ///
+  /// The shipped words never said that. They say the device permission is
+  /// revoked in system settings and is a SEPARATE THING from this app's
+  /// consent — two separate controls, which is true. The overstatement lived
+  /// only in the engineering record, which is where it would have been reused.
   String get locationOsPermissionRoute => _ja
       ? '端末が許可している位置情報そのものは、端末の設定から取り消せます。'
           'これはこのアプリの同意とは別のものです。'

@@ -463,7 +463,14 @@ Stream<PositionFix> herPositionStream({
 /// permission is revoked.
 ///
 /// It lives here and not in the widget layer on purpose: every `Geolocator.*`
-/// call in this app is inside this library, and that containment is checked.
+/// call in this app is inside this library, and that containment is checked by
+/// test/architectural/geolocator_calls_are_contained_test.dart.
+///
+/// ⚑ That last clause was FALSE when I first wrote it, 2026-09-23: nothing
+/// checked it, and I wrote the words in the same change that relied on them.
+/// A reader told the machine has it covered stops being the last line of
+/// defence and does not know they have stopped. The guard now exists and is
+/// proven to fail on a second library reaching the platform API.
 /// Putting one call in main.dart to save an import would have broken the one
 /// property that makes the position surface auditable.
 ///

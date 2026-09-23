@@ -306,12 +306,15 @@ void main() {
 /// it") applies word for word to the remembered YES, and was not turned around
 /// until AAA turned it.
 ///
-/// AND THE TWO CONSENTS ARE DIFFERENT SUBJECT MATTERS. Ours covers the tile
-/// service seeing her viewport and address, a coordinate query to a service in
-/// another country, spoken text possibly routed through the platform voice
-/// vendor, and a fetch roughly every ten minutes while she is stopped. The
-/// system prompt says only "allow location". So the only consent that reaches
-/// our actual egresses was the one she could never withdraw.
+/// THE TWO CONSENTS ARE SEPARATE CONTROLS — and the first version of this
+/// paragraph claimed more than that, in our favour. It said ours covers what
+/// the platform's permission cannot: the tile service, the voice vendor, a
+/// cross-border query, a ten-minute fetch. Measured 2026-09-23:
+/// `_locationConsent` gates exactly ONE thing, the position stream, and every
+/// egress it authorizes needs the OS permission first. Ours is a subset by
+/// effect. What survives, and what these tests assert, is that they are two
+/// separate controls and only one of them was hers to withdraw — which was
+/// enough, because it was the one she could never reach.
 void _a8() {
   group('A8 — withdrawal, and the route we do not control', () {
     /// Boot with a stated consent answer. `null` = she has not been asked.
