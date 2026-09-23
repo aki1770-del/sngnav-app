@@ -244,7 +244,19 @@ void main() {
       }
       final t = find.byKey(const Key('privacy-policy-text'));
       expect(t, findsOneWidget);
-      expect(tester.widget<SelectableText>(t).data, body);
+      // Rendered as BLOCKS since 2026-09-23, so the assertion is on what she
+      // READS rather than on one widget's `data`. The heading arrives without
+      // its `#`, which is the whole point of the change.
+      expect(
+          find.descendant(
+              of: t, matching: find.textContaining('プライバシーポリシー')),
+          findsWidgets);
+      expect(find.descendant(of: t, matching: find.textContaining('#')),
+          findsNothing,
+          reason: 'she used to read the markdown source');
+      expect(find.descendant(
+              of: t, matching: find.textContaining('A term she reads.')),
+          findsOneWidget);
       expect(find.byKey(const Key('privacy-policy-source')), findsOneWidget);
     });
 
@@ -271,6 +283,8 @@ void main() {
     });
   });
 
+  _a8();
+
   test('the comment stripper removes authoring notes and nothing else', () {
     const raw = '# Title\n\n<!-- a note\nspanning lines -->\n\nA term she reads.\n';
     final out = renderPolicyForDisplay(raw);
@@ -278,5 +292,160 @@ void main() {
     expect(out, contains('A term she reads.'));
     expect(out, isNot(contains('a note')));
     expect(out, isNot(contains('<!--')));
+  });
+}
+
+/// A8 — she can take our consent back, and the app names the route to the
+/// platform permission it cannot revoke.
+///
+/// WHY. Until 2026-09-23 the store's only write was `true`. After one yes,
+/// every later launch shared on one tap with no question and there was no way
+/// inside the app to withdraw — a record about her she could not touch. The
+/// argument that refused to persist a NO ("a remembered refusal would leave
+/// her with a control that silently does nothing and no affordance to change
+/// it") applies word for word to the remembered YES, and was not turned around
+/// until AAA turned it.
+///
+/// AND THE TWO CONSENTS ARE DIFFERENT SUBJECT MATTERS. Ours covers the tile
+/// service seeing her viewport and address, a coordinate query to a service in
+/// another country, spoken text possibly routed through the platform voice
+/// vendor, and a fetch roughly every ten minutes while she is stopped. The
+/// system prompt says only "allow location". So the only consent that reaches
+/// our actual egresses was the one she could never withdraw.
+void _a8() {
+  group('A8 — withdrawal, and the route we do not control', () {
+    /// Boot with a stated consent answer. `null` = she has not been asked.
+    /// `true` = she agreed earlier, which is the state A8 exists for.
+    ///
+    /// My first draft reached that state by accepting the dialog in one launch
+    /// and re-booting to read the persisted answer. It failed: the persist is
+    /// fire-and-forget by design, so under FakeAsync the write has not landed
+    /// — the same flakiness I had already removed once from this file and then
+    /// reintroduced. The seam states the precondition instead of racing for it.
+    Future<_ShareCounter> boot(WidgetTester tester, {bool? consent,
+        Future<bool> Function()? settings}) async {
+      final c = _ShareCounter();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await tester.pumpWidget(SngnavApp(
+        locale: const Locale('ja'),
+        actuators: FakeAlertActuators(),
+        clock: () => _start,
+        jmaFetch: () async => const JmaFailure('test: no observation'),
+        positionSource: c.call,
+        locationConsent: consent,
+        openPlatformSettings: settings,
+      ));
+      for (var i = 0; i < 8; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      return c;
+    }
+
+    const withdraw = Key('location-consent-withdraw');
+
+    testWidgets('before she has consented there is nothing to take back, and '
+        'no control pretending otherwise', (tester) async {
+      final c = await boot(tester);
+      expect(find.byKey(withdraw), findsNothing,
+          reason: 'a control that undoes nothing is the defect it would fix');
+      expect(c.starts, 0);
+      await c.controller.close();
+    });
+
+    testWidgets('after a remembered yes, the way back is on her page',
+        (tester) async {
+      final c = await boot(tester, consent: true);
+      expect(find.byKey(withdraw), findsOneWidget,
+          reason: 'A8: a store whose only write is true is a record about her '
+              'she cannot touch');
+      await c.controller.close();
+    });
+
+    testWidgets('THE POINT OF A8: after withdrawing, the next tap ASKS AGAIN '
+        'and shares nothing until she answers', (tester) async {
+      final c = await boot(tester, consent: true);
+
+      // Control, asserted FIRST: with the remembered yes still in force, a tap
+      // shares on one tap with no question. That is the state A8 escapes, and
+      // pinning it here stops this test passing on a broken remembered-yes.
+      await _tapShare(tester);
+      expect(find.byKey(const Key('location-consent-accept')), findsNothing,
+          reason: 'control: a remembered yes is not re-asked');
+      expect(c.starts, 1, reason: 'control: and it shares');
+      await c.controller.close();
+
+      // Now the real case.
+      final c2 = await boot(tester, consent: true);
+      final w = find.byKey(withdraw);
+      await tester.ensureVisible(w);
+      await tester.pump();
+      await tester.tap(w);
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.byKey(const Key('location-consent-withdrawn-note')),
+          findsOneWidget,
+          reason: 'the effect is SAID, not inferred from a vanished button');
+      expect(find.byKey(withdraw), findsNothing,
+          reason: 'and there is no longer anything to take back');
+
+      final before = c2.starts;
+      await _tapShare(tester);
+      expect(find.byKey(const Key('location-consent-accept')), findsOneWidget,
+          reason: 'A8: the next tap must ASK AGAIN');
+      expect(c2.starts, before,
+          reason: 'and share NOTHING until she answers. The share counter is '
+              'asserted BESIDE the dialog, not instead of it — my own lesson '
+              'this round was that silence satisfied an assertion');
+      await c2.controller.close();
+    });
+
+    testWidgets('the app NAMES the platform route it cannot take for her, and '
+        'opens it', (tester) async {
+      var opened = 0;
+      final c = await boot(tester, settings: () async {
+        opened++;
+        return true;
+      });
+
+      final line = find.byKey(const Key('location-os-permission-route'));
+      expect(line, findsOneWidget,
+          reason: 'our consent and the OS permission are different subject '
+              'matters, and only one of them is ours to revoke');
+      expect(tester.widget<Text>(line).data, contains('端末の設定'));
+
+      final btn = find.byKey(const Key('location-open-os-settings'));
+      await tester.ensureVisible(btn);
+      await tester.pump();
+      await tester.tap(btn);
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(opened, 1, reason: 'offered directly — zero new dependencies, '
+          'geolocator 13.0.4 already exposes it');
+      expect(c.starts, 0, reason: 'naming the route starts no share');
+      await c.controller.close();
+    });
+
+    testWidgets('withdrawing OURS does not touch the platform permission, and '
+        'does not pretend to', (tester) async {
+      var opened = 0;
+      final c = await boot(tester, consent: true, settings: () async {
+        opened++;
+        return true;
+      });
+      final w = find.byKey(withdraw);
+      await tester.ensureVisible(w);
+      await tester.pump();
+      await tester.tap(w);
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(opened, 0,
+          reason: 'silently opening settings would claim a power we do not '
+              'have, and would hide that the OS permission still stands');
+      await c.controller.close();
+    });
   });
 }

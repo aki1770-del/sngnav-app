@@ -702,6 +702,7 @@ class SngnavApp extends StatelessWidget {
     this.advisoryProviders,
     this.developerPageEntry,
     this.locationConsent,
+    this.openPlatformSettings,
   });
 
   final AlertActuators? actuators;
@@ -766,6 +767,16 @@ class SngnavApp extends StatelessWidget {
   /// which passes null and fails if the gate is removed.
   final bool? locationConsent;
 
+  /// Opens the platform's own app-settings page (null -> the real
+  /// [openPlatformLocationSettings], which is the only library in this app
+  /// that touches the platform location API).
+  ///
+  /// Injectable for the same reason every other seam here is: a widget test
+  /// must never reach a real platform channel. `geolocator` is already a
+  /// direct dependency of this app and already exposes this call, so naming
+  /// the route to her costs zero new dependencies and one call.
+  final Future<bool> Function()? openPlatformSettings;
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -820,6 +831,7 @@ class SngnavApp extends StatelessWidget {
         advisoryProviders: advisoryProviders,
         developerPageEntry: developerPageEntry,
         locationConsent: locationConsent,
+        openPlatformSettings: openPlatformSettings,
       ),
     );
   }
@@ -847,6 +859,7 @@ class HomePage extends StatefulWidget {
     this.advisoryProviders,
     this.developerPageEntry,
     this.locationConsent,
+    this.openPlatformSettings,
   });
 
   /// Injectable actuator layer (null -> [defaultAlertActuators]).
@@ -918,6 +931,9 @@ class HomePage extends StatefulWidget {
 
   /// Pre-seeded location-share consent (null -> ask). See [SngnavApp.locationConsent].
   final bool? locationConsent;
+
+  /// See [SngnavApp.openPlatformSettings].
+  final Future<bool> Function()? openPlatformSettings;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -1446,6 +1462,7 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _seedLocationConsent();
+    _loadPersistedLocationConsent();
     // WS5 — construct the actuator layer + announcer. Hold the screen awake
     // while this navigation surface is active so a driver glancing at a live
     // hazard never finds a dark screen. Foreground-only: released in dispose;
@@ -3387,6 +3404,75 @@ class _HomePageState extends State<HomePage> {
   bool? _locationConsent;
   bool _locationConsentLoaded = false;
 
+  /// Read the persisted answer at startup, so the WITHDRAWAL control can be
+  /// offered without waiting for her to tap share.
+  ///
+  /// Added 2026-09-23 with the withdrawal itself: before it, `_locationConsent`
+  /// stayed null until her first tap, so a remembered yes was invisible to the
+  /// surface and there was nothing to draw a "take it back" control from.
+  /// Best-effort and non-blocking — a wedged disk must never hold her screen,
+  /// which is the same bound the act itself carries.
+  void _loadPersistedLocationConsent() {
+    if (_locationConsentLoaded) return;
+    unawaited(() async {
+      bool? persisted;
+      try {
+        final store = await _locationConsentStore(hangBound: null);
+        // NO .timeout() HERE, deliberately, and it is not an oversight I let
+        // stand: a timeout ARMS A TIMER, and this read is fired at init and
+        // may outlive the tree. It did — the widget suite caught "A Timer is
+        // still pending even after the widget tree was disposed", which is a
+        // leak I wrote. This read is best-effort background work whose only
+        // consumer is whether to DRAW a control; if it never lands,
+        // _locationConsentLoaded stays false and the act itself reads the
+        // store later under its OWN 2-second hang-bound. Nothing waits on
+        // this, so nothing needs to time it out.
+        persisted = await store?.load();
+      } catch (_) {
+        persisted = null;
+      }
+      if (!mounted || _locationConsentLoaded) return;
+      setState(() {
+        if (persisted != null) _locationConsent = persisted;
+        _locationConsentLoaded = true;
+      });
+    }());
+  }
+
+  /// Clear our record of her consent, so the next tap ASKS AGAIN.
+  ///
+  /// ⚑ WHY THIS EXISTS, and it is the argument I wrote myself and did not turn
+  /// around. [_ensureLocationConsent] refuses to persist a NO on the ground
+  /// that a remembered refusal would leave her with a control that silently
+  /// does nothing and no affordance to change it. The same sentence applies to
+  /// the remembered YES: after one yes, every later launch shared on one tap
+  /// with no question, and there was no way inside this app to take it back.
+  /// A store whose only write is `true` is a record ABOUT her that she cannot
+  /// touch.
+  ///
+  /// SCOPE, stated so it is not over-read: this clears OUR consent, which is
+  /// the only consent that covers what we actually do with her position — the
+  /// tile service seeing her viewport and address, a coordinate query to a
+  /// service in another country, spoken text possibly routed through the
+  /// platform voice vendor, and a fetch roughly every ten minutes while she is
+  /// stopped. The operating system's permission says only "allow location" and
+  /// cannot represent any of that. It does NOT revoke the OS permission; the
+  /// row beside this control names that route and offers it.
+  Future<void> _withdrawLocationConsent() async {
+    setState(() {
+      _locationConsent = null;
+      _locationConsentLoaded = true;
+      _locationConsentWithdrawn = true;
+    });
+    // Fire-and-forget, the same idiom as the grant: her answer takes effect
+    // NOW, in RAM. A lost write means she is asked again, never a hung screen.
+    unawaited(_locationConsentStore(hangBound: null).then((s) => s?.save(false)));
+  }
+
+  /// True once she has withdrawn in this session, so the surface can say so
+  /// instead of silently swapping one control for another.
+  bool _locationConsentWithdrawn = false;
+
   /// Apply [HomePage.locationConsent] once, at init. A seeded answer means the
   /// store is never consulted and the act never raised.
   void _seedLocationConsent() {
@@ -3396,10 +3482,26 @@ class _HomePageState extends State<HomePage> {
     _locationConsentLoaded = true;
   }
 
-  Future<LocationConsentStore?> _locationConsentStore() async {
+  /// [hangBound] arms a timeout — and a timeout ARMS A TIMER. Pass null from
+  /// any path nothing waits on.
+  ///
+  /// This parameter exists because of a defect I shipped and the suite caught:
+  /// [_loadPersistedLocationConsent] runs at EVERY launch and is fire-and-
+  /// forget, so an unconditional 2-second bound here left a pending timer in
+  /// every widget test that disposed sooner — 116 of them failed with "A Timer
+  /// is still pending even after the widget tree was disposed". My first fix
+  /// removed the timeout from the `load()` call and missed this one, which is
+  /// the same error twice: I patched where I had been looking rather than
+  /// where the timer was.
+  ///
+  /// The INTERACTIVE path keeps its bound, because she IS waiting on it: a
+  /// wedged disk must never leave her holding a button that does nothing.
+  Future<LocationConsentStore?> _locationConsentStore({
+    Duration? hangBound = const Duration(seconds: 2),
+  }) async {
     try {
-      final dir = await getApplicationDocumentsDirectory()
-          .timeout(const Duration(seconds: 2));
+      final future = getApplicationDocumentsDirectory();
+      final dir = hangBound == null ? await future : await future.timeout(hangBound);
       return LocationConsentStore(
         file: File('${dir.path}/${LocationConsentStore.fileName}'),
       );
@@ -3438,7 +3540,7 @@ class _HomePageState extends State<HomePage> {
     // next time she taps, which is a repeated question and never a lock-out.
     if (!granted) return false;
     _locationConsent = true;
-    unawaited(_locationConsentStore().then((s) => s?.save(true)));
+    unawaited(_locationConsentStore(hangBound: null).then((s) => s?.save(true)));
     return true;
   }
 
@@ -5418,9 +5520,46 @@ class _HomePageState extends State<HomePage> {
                   onPressed: _onShareLocationPressed,
                   child: Text(l.shareMyLocation),
                 ),
+                // Drawn ONLY while we are holding a yes. There is nothing to
+                // take back otherwise, and a control that undoes nothing is
+                // the same defect as prose that consents to nothing.
+                if (_locationConsent == true)
+                  TextButton(
+                    key: const Key('location-consent-withdraw'),
+                    onPressed: _withdrawLocationConsent,
+                    child: Text(l.locationConsentWithdraw),
+                  ),
                 // The Akita mock position is on the development page
                 // (2026-09-15); a release build never offers it.
               ],
+            ),
+          ),
+          // Said once, after she takes it back, so the control's effect is
+          // visible rather than inferred from a button disappearing.
+          if (_locationConsentWithdrawn && _locationConsent == null) ...[
+            const SizedBox(height: 4),
+            Text(
+              key: const Key('location-consent-withdrawn-note'),
+              l.locationConsentWithdrawnNote,
+              style: const TextStyle(fontSize: 11, color: kCautionTextOnAmber),
+            ),
+          ],
+          // THE OTHER HALF OF WITHDRAWAL, and it is a different subject matter
+          // from ours: the platform's permission. We cannot revoke it and we
+          // do not pretend to — the app NAMES the route and opens the page.
+          const SizedBox(height: 4),
+          Text(
+            key: const Key('location-os-permission-route'),
+            l.locationOsPermissionRoute,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              key: const Key('location-open-os-settings'),
+              onPressed: () => unawaited(
+                  (widget.openPlatformSettings ?? openPlatformLocationSettings)()),
+              child: Text(l.locationOpenOsSettings),
             ),
           ),
           const SizedBox(height: 4),
@@ -6656,6 +6795,79 @@ class _Footer extends StatelessWidget {
   }
 }
 
+/// One policy block as a widget. Selectable throughout: a policy she cannot
+/// copy is a policy she cannot take anywhere.
+Widget _policyBlock(BuildContext context, PolicyBlock block) {
+  Widget rich(String text, {double size = 13, FontWeight? weight}) =>
+      SelectableText.rich(
+        TextSpan(children: [
+          for (final r in policyInlineRuns(text))
+            TextSpan(
+              text: r.text,
+              style: TextStyle(
+                fontWeight: r.bold ? FontWeight.w700 : weight,
+              ),
+            ),
+        ]),
+        style: TextStyle(fontSize: size, fontWeight: weight),
+      );
+
+  switch (block) {
+    case PolicyHeading(:final level, :final text):
+      return Padding(
+        padding: EdgeInsets.only(top: level <= 2 ? 18 : 12, bottom: 6),
+        child: rich(text,
+            size: switch (level) { 1 => 20, 2 => 16, _ => 14 },
+            weight: FontWeight.w700),
+      );
+    case PolicyParagraph(:final text):
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: rich(text),
+      );
+    case PolicyBullet(:final text):
+      return Padding(
+        padding: const EdgeInsets.only(left: 8, bottom: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('・', style: TextStyle(fontSize: 13)),
+            Expanded(child: rich(text)),
+          ],
+        ),
+      );
+    case PolicyTable(:final rows, :final hasHeader):
+      if (rows.isEmpty) return const SizedBox.shrink();
+      final width = rows.map((r) => r.length).reduce((a, b) => a > b ? a : b);
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Table(
+          border: TableBorder.all(color: Colors.grey.shade400),
+          defaultVerticalAlignment: TableCellVerticalAlignment.top,
+          children: [
+            for (var i = 0; i < rows.length; i++)
+              TableRow(
+                decoration: hasHeader && i == 0
+                    ? BoxDecoration(color: Colors.grey.shade200)
+                    : null,
+                children: [
+                  for (var c = 0; c < width; c++)
+                    Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: rich(c < rows[i].length ? rows[i][c] : '',
+                          size: 12,
+                          weight: hasHeader && i == 0
+                              ? FontWeight.w700
+                              : null),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      );
+  }
+}
+
 /// The bundled privacy policy, shown in full.
 ///
 /// It renders the document in `docs/store/privacy_policy_ja.md` — the SAME file
@@ -6702,13 +6914,21 @@ class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
+              key: const Key('privacy-policy-text'),
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SelectableText(
-                  body,
-                  key: const Key('privacy-policy-text'),
-                  style: const TextStyle(fontSize: 13),
-                ),
+                // Rendered as BLOCKS since 2026-09-23. It used to be one
+                // SelectableText holding the markdown source, so she read `#`
+                // before every heading, `**` around every emphasis, and the
+                // two Android permission tables as rows of pipes — the part
+                // she reads to decide whether to trust us at all.
+                //
+                // The parser changes no word; the guard in
+                // test/services/privacy_policy_render_test.dart tokenises the
+                // source and the blocks and fails on any word that does not
+                // arrive.
+                for (final block in parsePolicyBlocks(body))
+                  _policyBlock(context, block),
                 const SizedBox(height: 16),
                 SelectableText(
                   key: const Key('privacy-policy-source'),

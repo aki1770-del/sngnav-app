@@ -772,6 +772,31 @@ class AppL10n {
   /// Declining starts nothing. The OS permission prompt is never reached.
   String get locationConsentDecline => _ja ? '共有しない' : 'Do not share';
 
+  /// Takes back OUR consent. Drawn only while we hold a yes.
+  String get locationConsentWithdraw =>
+      _ja ? '共有の同意を取り消す' : 'Withdraw sharing consent';
+
+  /// Said after she takes it back, so the effect is visible rather than
+  /// inferred from a control disappearing.
+  String get locationConsentWithdrawnNote => _ja
+      ? '同意を取り消しました。次に共有するときにもう一度おたずねします。'
+      : 'Consent withdrawn. You will be asked again the next time you share.';
+
+  /// Names the route we do NOT control. Our consent and the platform's
+  /// permission are different subject matters: ours covers the tile service
+  /// seeing her viewport and address, a coordinate query to a service in
+  /// another country, spoken text possibly routed through the platform voice
+  /// vendor, and a fetch roughly every ten minutes while stopped. The system
+  /// prompt says only "allow location" and can represent none of that.
+  String get locationOsPermissionRoute => _ja
+      ? '端末が許可している位置情報そのものは、端末の設定から取り消せます。'
+          'これはこのアプリの同意とは別のものです。'
+      : "The device's own location permission is revoked in the system "
+          'settings. That is a separate thing from this app\'s consent.';
+
+  String get locationOpenOsSettings =>
+      _ja ? '端末の設定を開く' : 'Open system settings';
+
   // ===== Privacy policy, in the app (2026-09-23) =====
 
   String get privacyPolicyLinkLabel =>

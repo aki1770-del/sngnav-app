@@ -28,7 +28,37 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
-    if (!cjkLoaded || !goldenPixelsComparableHere()) {
+    // ⚑ THE ICON FONT, ADDED 2026-09-23 AFTER HIE LOOKED AT THIS GOLDEN.
+    //
+    // This capture loaded CJK faces under 'Roboto' and never loaded
+    // MaterialIcons, which `flutter test` does not load by itself. So three
+    // Icons.* glyphs in the frame rendered as hollow boxes: the caution row's
+    // leading Icons.volume_off_outlined, the route-set control, and the map's
+    // station pin (a square outline where the app draws a teardrop).
+    //
+    // WHY THAT IS THE SEVERE CASE AND NOT THE MILD ONE — HIE's own rule,
+    // sharpened by this frame. The standing reading was that a glyph which
+    // fails to load renders as NOTHING, and nothing looks like a clean design.
+    // Here it rendered as an EMPTY CHECKBOX — a control affordance — at the
+    // head of a row whose subject is that her spoken warnings may not sound,
+    // in place of the one mark that said this row is about SOUND. Something
+    // wrong looking like a control is worse than something missing looking
+    // like restraint.
+    //
+    // It compounds with a property of goldens this repo already knows: a
+    // golden's null case is pixel-identical to its success case. Once boxes
+    // are in the reference, green means only "the boxes are still where they
+    // were".
+    //
+    // ⚑ KEEP SEPARATE: this is a defect in the CAPTURE, not a measurement of
+    // her device. Whether that icon renders on a real phone is a different
+    // question and this unit carries it as UNMEASURED — the bundled symbol
+    // subset has never been verified on hardware. Nothing here is evidence
+    // about her screen.
+    final iconsLoaded = await loadMaterialIconsFont();
+    if (!cjkLoaded || !iconsLoaded || !goldenPixelsComparableHere()) {
+      // Fail CLOSED, the same discipline this file already applies to CJK: a
+      // frame cut without a font it needs must never become the reference.
       installNoopGoldenComparator();
     }
     // flutter_map's built-in tile cache calls path_provider — mock it the

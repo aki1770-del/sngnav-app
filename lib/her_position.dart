@@ -458,3 +458,16 @@ Stream<PositionFix> herPositionStream({
   };
   return controller.stream;
 }
+
+/// Open the platform's own app-settings page, where her DEVICE location
+/// permission is revoked.
+///
+/// It lives here and not in the widget layer on purpose: every `Geolocator.*`
+/// call in this app is inside this library, and that containment is checked.
+/// Putting one call in main.dart to save an import would have broken the one
+/// property that makes the position surface auditable.
+///
+/// Returns whatever the platform reports. A `false` is not an error we can
+/// act on — it means the page did not open — and the caller says nothing it
+/// cannot know.
+Future<bool> openPlatformLocationSettings() => Geolocator.openAppSettings();
