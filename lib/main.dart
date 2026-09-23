@@ -2983,6 +2983,23 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // ⛑⛑ ELEVEN dp. ANYTHING ADDED TO THIS CARD IS SPENDING HER CONSENT
+        // DISCLOSURE'S LAST MARGIN, AND THIS IS WHERE YOU MEET THAT FACT.
+        //
+        // Measured 2026-09-23, on a real render with a Japanese face, in a
+        // measured whiteout with no share started: the words telling her where
+        // her coordinates go sit 710 dp below the control that sends them,
+        // against a bound of 721 dp — one screenful of her page. **11 dp of
+        // margin.** One more wrapped line of rung prose on this card carries it
+        // over, because this card grows above the disclosure.
+        //
+        // It is not a style note. `test/widgets/consent_composition_declared_test.dart`
+        // renders this exact state and FAILS when the gap passes 721 dp, and
+        // `kMaxDisclosureGapDp` in `test/support/consent_composition.dart` is
+        // the bound. Do not raise it to make a card fit: it is a driver-facing
+        // limit, and raising it once already looked tempting for a reason that
+        // turned out to be a font bug in the guard, not a real breach.
+        //
         // ⚑ THE RUNG IS FIRST INSIDE THIS CARD SINCE 2026-09-23, AND THE
         // REASON IS A MEASUREMENT, NOT A PREFERENCE. Rendered by AAA under a
         // measured whiteout and re-rendered here: the rung sat 125 dp BELOW the

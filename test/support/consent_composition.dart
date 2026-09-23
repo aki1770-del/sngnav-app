@@ -74,6 +74,18 @@ const ConsentComposition kDeclaredConsentComposition =
 /// control, and may not come to mean three.** Measured 2026-09-23, the real gap
 /// is well inside it; the band exists so that the next hand to take space from
 /// this page cannot push the words out of reach without this failing.
+/// ⛑ MEASURED MARGIN AT THIS BOUND, 2026-09-23: **11 dp**, not the 285 dp the
+/// clear state suggests. In a measured whiteout with no share the gap is
+/// **710 dp** of the 721 allowed. One more wrapped line on the caution card
+/// carries it over — the card grows above the disclosure. The same sentence is
+/// at the card itself in `lib/main.dart`, because that is where a hand adding
+/// to it will be standing.
+///
+/// ⚑ DO NOT RAISE THIS TO MAKE SOMETHING FIT. It was tempting to raise it once
+/// already, on a 726 dp reading that turned out to be this guard rendering
+/// Japanese paragraphs with no Japanese face — an instrument defect, not a real
+/// breach. Raising it would have permanently loosened a driver-facing limit to
+/// accommodate a font bug.
 const double kMaxDisclosureGapDp = 721;
 
 const Key kShareControlKey = Key('share-location-button');

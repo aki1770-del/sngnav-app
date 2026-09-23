@@ -20,6 +20,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import '../render_see/render_see_env.dart';
 import '../support/consent_composition.dart';
 import '../support/fake_alert_actuators.dart';
 
@@ -34,6 +35,24 @@ import '../support/fake_alert_actuators.dart';
 /// V9 — the operator must not be the last line of defence, the machine must
 /// catch it — and the machine had been built and then pointed away from the
 /// case. The whiteout now runs here.
+/// ⚑⚑ THIS GUARD REFUSES WITHOUT A JAPANESE FACE, AND IT DID NOT UNTIL
+/// 2026-09-23 — MY OWN RULE, NOT APPLIED TO MY NEWEST INSTRUMENT.
+///
+/// Four probes of mine already carry it verbatim: *a probe that renders kanji
+/// with no CJK face measures character count, not meaning* (HIE-18(b)). This
+/// file, written last, had no `setUpAll`, imported no render environment and
+/// loaded no face — and then pumped a Japanese locale and measured the HEIGHT
+/// of 352 dp of Japanese paragraphs drawn without Japanese glyphs.
+///
+/// What it cost, measured: without a face the whiteout gap reads **726 dp** and
+/// this guard is RED by 5; with the face it reads **710 dp** and passes by 11.
+/// Exactly 16 dp in both states, one variable. I reported 726 as a finding
+/// against my own build and it was an artefact of my own instrument.
+///
+/// ⚑ AND THE TEMPTING READING IS WRONG: a no-font figure is NOT "conservative".
+/// A missing-glyph layout can err small just as easily, and then this guard
+/// passes green while the words are genuinely out of her reach. Unmeasured is
+/// not a safe direction; it is no direction.
 DateTime _now = DateTime.utc(2026, 1, 14, 21);
 
 String _jstKey(DateTime utc) {
@@ -74,6 +93,18 @@ Future<void> _pumpHerPage(WidgetTester tester, String lang,
 }
 
 void main() {
+  setUpAll(() async {
+    final cjk = await loadDiscoveredFace('Roboto', FaceSearch.japanese);
+    if (!cjk) {
+      throw StateError(
+          'CONSENT-COMPOSITION GUARD REFUSES WITHOUT A JAPANESE FACE. Its dp '
+          'figures are measurements of PARAGRAPH HEIGHT, and Japanese '
+          'paragraphs drawn without Japanese glyphs have a different height — '
+          '16 dp of it, measured 2026-09-23. Unmeasured is not a safe '
+          'direction.\n${describeFaceSearch(FaceSearch.japanese)}');
+    }
+  });
+
   for (final lang in const ['ja', 'en']) {
     testWidgets('$lang: the page matches its DECLARED consent composition',
         (tester) async {
