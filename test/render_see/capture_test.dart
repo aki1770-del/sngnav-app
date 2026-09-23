@@ -25,6 +25,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'render_see_env.dart';
 import 'package:sngnav_app/akita_map.dart' show akitaStation;
 import 'package:sngnav_app/her_position.dart';
+
+import '../support/consent_composition.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart';
@@ -171,17 +173,60 @@ void main() {
         timestamp: at,
       );
 
-  testWidgets('01 — JA consent gate (deny-by-default)', (tester) async {
+  // ⚑⚑ WHAT THIS FRAME HOLDS CHANGED ON 2026-09-23, AND THE FINDER DID NOT
+  // NOTICE. Until that date the nearest `Column` ancestor of
+  // `location-disclosure` WAS the consent gate: the status line, the share
+  // control, and both disclosure paragraphs in one object. HIE R119 moved the
+  // paragraphs into a card of their own below the caution card, so that
+  // ancestor is now `_section`'s inner Column and holds the paragraphs ALONE.
+  //
+  // `.first` REBOUND TO THE SMALLER CONTAINER AND KEPT CAPTURING. Nothing threw
+  // and nothing failed for the reason this capture exists — only the golden
+  // pixels went red, and a `--update-goldens` sweep would have turned that green
+  // over a comment that had become false. **A capture that cannot fail for the
+  // reason it exists is not a capture**, and this is the same family as the two
+  // copies of `_driveHudPanel`'s switch that had already drifted from the file
+  // they claim to reproduce.
+  //
+  // Fixed on its own terms, and NOT by deciding the design: the subject is now
+  // ASSERTED against the page's own declaration
+  // (`test/support/consent_composition.dart`). The name and the comment state
+  // what the frame holds TODAY. Whether the control and the words should stand
+  // together is AAA's ruling; when it lands, the declaration moves and this
+  // capture's name moves with it.
+  testWidgets('01 — JA consent DISCLOSURE, alone in its own card '
+      '(deny-by-default; the control is NOT in this frame)', (tester) async {
     await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
     await tester.pump();
-    // The consent gate = the Column that holds the disclosure paragraph
-    // (buttons row + disclosure). Nothing tapped: deny-by-default.
+    // The subject is asserted, never taken by position. Today the declaration
+    // is `separated`, so the Column that holds the disclosure must NOT hold the
+    // control; if it does, this frame silently became a different picture and
+    // the test says so instead of photographing it.
     final gate = find
         .ancestor(
           of: find.byKey(const Key('location-disclosure')),
           matching: find.byType(Column),
         )
         .first;
+    final controlInFrame = find
+        .descendant(
+          of: gate,
+          matching: find.byKey(const Key('share-location-button')),
+        )
+        .evaluate()
+        .isNotEmpty;
+    expect(
+      controlInFrame,
+      kDeclaredConsentComposition == ConsentComposition.together,
+      reason: 'this capture\'s subject no longer matches its name.\n'
+          '  declared: ${kDeclaredConsentComposition.name}\n'
+          '  the share control is ${controlInFrame ? '' : 'NOT '}inside the '
+          'Column this capture photographs.\n'
+          'Rename this test and recut its golden together, or re-target it so '
+          'it holds the control and the words at once. Recutting the pixels '
+          'while this sentence still says something else produces a green '
+          'suite over a false description.',
+    );
     await captureApp(
       tester,
       target: gate,
