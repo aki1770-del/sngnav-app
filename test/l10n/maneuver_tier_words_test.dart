@@ -27,14 +27,14 @@ void main() {
     expect(ja.maneuverTierSuppressed, '読み上げません');
     expect(ja.maneuverIcyMark, '❄ 凍結のおそれ');
     expect(ja.maneuverNarrateButton, '次の案内を読み上げる');
-    expect(ja.maneuverNarrationAnnounced, '音声＋振動で知らせました。');
+    expect(ja.maneuverNarrationSent, '音声と振動に送りました。');
     expect(ja.maneuverNarrationNotSpoken, '何も読み上げていません。');
     expect(en.maneuverTierSpeak, 'Read aloud as given');
     expect(en.maneuverTierHedge, 'Read aloud with a check');
     expect(en.maneuverTierSuppressed, 'Not read aloud');
     expect(en.maneuverIcyMark, '❄ May be icy');
     expect(en.maneuverNarrateButton, 'Read the next maneuver aloud');
-    expect(en.maneuverNarrationAnnounced, 'Announced on audio + haptic.');
+    expect(en.maneuverNarrationSent, 'Sent to audio + haptic.');
     expect(en.maneuverNarrationNotSpoken, 'Nothing was read aloud.');
   });
 

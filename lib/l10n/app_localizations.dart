@@ -373,9 +373,54 @@ class AppL10n {
   String get maneuverNarrateButton =>
       _ja ? '次の案内を読み上げる' : 'Read the next maneuver aloud';
 
-  /// After her press, when the turn was announced.
-  String get maneuverNarrationAnnounced =>
-      _ja ? '音声＋振動で知らせました。' : 'Announced on audio + haptic.';
+  /// After her press, when the announcement was DISPATCHED on both channels.
+  ///
+  /// It says SENT, not told, and the distinction is the whole point. The value
+  /// behind it is `ManeuverNarration.shouldAnnounce`, which
+  /// `ManeuverNarration._announce` sets to `true` AT CONSTRUCTION
+  /// (services/maneuver_narration.dart), and
+  /// `DriveHudController.narrateNextManeuver` dispatches `unawaited(...)` and
+  /// returns the decision immediately — its own doc says "Announcing is
+  /// fire-and-forget". So the decision exists before either channel has
+  /// reported anything, and nothing about arrival is known when this renders.
+  ///
+  /// Until 2026-09-23 this line read 「音声＋振動で知らせました。」 /
+  /// "Announced on audio + haptic." — a PAST-TENSE claim of delivery on TWO
+  /// channels, produced from a pre-dispatch gate boolean. This app had already
+  /// convicted itself of exactly that chain on the drive-HUD chips (the
+  /// 2026-08-22 note in main.dart: a critical announce dispatched speech and
+  /// produced ZERO vibrations on a real device, with nothing saying so). That
+  /// correction landed on the chips; this card was not swept with it.
+  /// [maneuverNarrationDeliveryUnverified] is the other half.
+  String get maneuverNarrationSent =>
+      _ja ? '音声と振動に送りました。' : 'Sent to audio + haptic.';
+
+  /// Rendered directly beneath [maneuverNarrationSent] when a channel did not
+  /// report delivery.
+  ///
+  /// The drive-HUD chips carry these same two facts, but they render two Cards
+  /// above (Drive HUD -> Route -> Maneuver). A driver who taps the button here,
+  /// hears nothing, and reads a line on THIS card has to be told on THIS card:
+  /// two cards away is not the same glance. For a deaf or hard-of-hearing
+  /// driver the tactile row is not the second channel, it is the only one.
+  String maneuverNarrationDeliveryUnverified({
+    required bool speech,
+    required bool haptic,
+  }) {
+    if (speech && haptic) {
+      return _ja
+          ? '音声も振動も、届いたか確認できていません。'
+          : 'Neither the voice nor the vibration could be verified as delivered.';
+    }
+    if (haptic) {
+      return _ja
+          ? '振動が届いたか確認できていません。'
+          : 'The vibration could not be verified as delivered.';
+    }
+    return _ja
+        ? '音声が届いたか確認できていません。'
+        : 'The voice could not be verified as delivered.';
+  }
 
   /// After her press, when nothing was read.
   String get maneuverNarrationNotSpoken =>

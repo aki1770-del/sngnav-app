@@ -39,7 +39,9 @@ import '../support/fake_alert_actuators.dart';
 const _tierSpeak = {'ja': 'そのまま読み上げます', 'en': 'Read aloud as given'};
 const _tierSuppressed = {'ja': '読み上げません', 'en': 'Not read aloud'};
 const _button = {'ja': '次の案内を読み上げる', 'en': 'Read the next maneuver aloud'};
-const _announced = {'ja': '音声＋振動で知らせました。', 'en': 'Announced on audio + haptic.'};
+// The card says SENT, not told: `shouldAnnounce` is a pre-dispatch gate
+// verdict and the announce is fire-and-forget (F-1, 2026-09-23).
+const _announced = {'ja': '音声と振動に送りました。', 'en': 'Sent to audio + haptic.'};
 const _notSpoken = {'ja': '何も読み上げていません。', 'en': 'Nothing was read aloud.'};
 const _sectionTitle = {'ja': '次の案内', 'en': 'Next maneuver'};
 

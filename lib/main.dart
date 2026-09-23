@@ -5646,12 +5646,44 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(width: 8),
             if (_lastManeuverNarration != null)
               Expanded(
-                child: Text(
-                  key: const Key('maneuver-narration-result'),
-                  _lastManeuverNarration!.shouldAnnounce
-                      ? l.maneuverNarrationAnnounced
-                      : l.maneuverNarrationNotSpoken,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                // `shouldAnnounce` is a PRE-DISPATCH gate verdict, not a
+                // delivery report: the announce is fire-and-forget and this
+                // widget is built before either channel has answered. So the
+                // first line says SENT, and the second says what the channels
+                // did or did not report. The drive-HUD chips hold the same two
+                // facts two Cards above; a driver reading this card is not
+                // reading those.
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      key: const Key('maneuver-narration-result'),
+                      _lastManeuverNarration!.shouldAnnounce
+                          ? l.maneuverNarrationSent
+                          : l.maneuverNarrationNotSpoken,
+                      style:
+                          TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                    ),
+                    if (_lastManeuverNarration!.shouldAnnounce &&
+                        (_speechUnverified.value ||
+                            _hapticUnverified.value)) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        key: const Key(
+                            'maneuver-narration-delivery-unverified'),
+                        l.maneuverNarrationDeliveryUnverified(
+                          speech: _speechUnverified.value,
+                          haptic: _hapticUnverified.value,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: kCautionTextOnAmber,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
           ],
