@@ -11,15 +11,40 @@
     <!-- WS5 actuator channel: WAKE_LOCK holds the screen on so a driver
          glancing at a live hazard never finds a dark screen (wakelock_plus). -->
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
-    <!-- Foreground-service perms REMOVED 2026-07-10 (W3 OPS-062 entry gate):
-         they were DECLARED ONLY — no Service exists — and a manifest that
-         requests location-class capabilities it does not use is a false
-         claim to both the store review and the privacy page. When the
-         explicit, user-visible, driver-initiated ongoing-drive Service is
-         actually built, FOREGROUND_SERVICE + FOREGROUND_SERVICE_LOCATION
-         return in the same change-set — and we STILL withhold
-         ACCESS_BACKGROUND_LOCATION: no silent, notification-less background
-         location (dignity boundary, unchanged). -->
+    <!-- Foreground-service perms RETURNED 2026-09-24, on the exact condition
+         the 2026-07-10 removal set: "when the explicit, user-visible,
+         driver-initiated ongoing-drive Service is actually built,
+         FOREGROUND_SERVICE + FOREGROUND_SERVICE_LOCATION return in the same
+         change-set." They do, and this is that change-set.
+
+         The Service is NOT newly written and NOT ours: it is
+         com.baseflow.geolocator.GeolocatorLocationService, already declared
+         with android:foregroundServiceType="location" in geolocator_android's
+         own manifest and already merged into our APK (verified in
+         build/app/intermediates/merged_manifests/release/.../AndroidManifest.xml).
+         What was missing was never the Service — it was these two permissions
+         and the Dart-side AndroidSettings.foregroundNotificationConfig that
+         tells it to go foreground. That wiring is in lib/her_position.dart.
+
+         Both are load-bearing, not decorative: targetSdk is 36 (measured on
+         the installed package), and from API 34 a location-typed foreground
+         service that calls startForeground WITHOUT
+         FOREGROUND_SERVICE_LOCATION throws SecurityException. FOREGROUND_SERVICE
+         has been required since API 28.
+
+         What she gets: a drive SHE starts (the "現在地を共有" button), a
+         persistent notification she can see for as long as it runs, tapping it
+         returns her to the app, and 停止 ends the drive AND the service
+         (geolocator disables background mode when the last stream listener
+         detaches — StreamHandlerImpl.java:155).
+
+         ACCESS_BACKGROUND_LOCATION IS STILL WITHHELD. Unchanged, and not ours
+         to move: no silent, notification-less background location. The service
+         only ever runs behind a notification she started and can end. If a
+         future change wants location without that notification, it is a
+         different decision and belongs to the Chair, not to this file. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <application
         android:label="SNGNav"
         android:name="${applicationName}"
