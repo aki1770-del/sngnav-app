@@ -1765,8 +1765,13 @@ class _HomePageState extends State<HomePage> {
     // where a BuildContext exists. Without them herPositionStream falls back to
     // plain LocationSettings and the drive is foreground-only again -- so a
     // future refactor that drops this argument silently removes her warning
-    // when the screen goes off. The widget test
-    // test/her_position_foreground_service_test.dart pins it.
+    // when the screen goes off -- with a GREEN suite, which is how it was
+    // nearly lost: this comment first said a widget test pinned it, and a
+    // mutation proved otherwise (deleting the argument failed nothing). A
+    // widget test cannot reach here -- this branch runs only when
+    // HomePage.positionSource is null. The source guard at the foot of
+    // test/her_position_foreground_service_test.dart is what pins it, and
+    // it was proven to fail on that exact deletion before it was kept.
     final l = AppL10n.of(context);
     final injected = widget.positionSource;
     _herSub = (injected ??

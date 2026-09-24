@@ -19,6 +19,8 @@
 /// the new code is fine.
 library;
 
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
@@ -126,6 +128,70 @@ void main() {
       expect(driveLocationSettings().distanceFilter, 0);
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
       expect(driveLocationSettings(notification: _text).distanceFilter, 0);
+    });
+  });
+
+  // ===== THE CALL SITE, asserted mechanically =====
+  //
+  // Added 2026-09-24 after this seat's own comment in lib/main.dart claimed
+  // "the widget test test/her_position_foreground_service_test.dart pins it"
+  // and a mutation PROVED THAT FALSE: deleting the whole `driveNotification:`
+  // argument from _shareLocation left all 8 tests in this file green.
+  //
+  // Everything above tests driveLocationSettings, which is the function BELOW
+  // the wiring. The wiring itself -- that the drive actually PASSES her words
+  // -- had no instrument, and _shareLocation takes the real branch only when
+  // HomePage.positionSource is null, which no widget test in this suite does.
+  // So this is a source assertion, for the reason haptic_report_wiring_test.dart
+  // gives for its own: an instrument that could not surface the counter-example
+  // has measured nothing.
+  //
+  // What it protects: if this argument is dropped, herPositionStream falls back
+  // to plain LocationSettings, no foreground service starts, and her warning
+  // dies the moment the screen goes off -- silently, with a green suite.
+  group('the drive START passes her the notification (lib/main.dart wiring)', () {
+    final mainSource = File('lib/main.dart').readAsStringSync();
+
+    String shareLocationBody() {
+      final start = mainSource.indexOf('void _shareLocation()');
+      expect(start, isNot(-1),
+          reason: '_shareLocation was renamed or removed; re-point this guard');
+      var depth = 0;
+      var seen = false;
+      for (var i = start; i < mainSource.length; i++) {
+        final c = mainSource[i];
+        if (c == '{') {
+          depth++;
+          seen = true;
+        } else if (c == '}') {
+          depth--;
+          if (seen && depth == 0) return mainSource.substring(start, i + 1);
+        }
+      }
+      fail('could not find the end of _shareLocation');
+    }
+
+    test('_shareLocation hands driveNotification to herPositionStream', () {
+      final body = shareLocationBody();
+      expect(body, contains('herPositionStream('),
+          reason: 'the drive no longer starts the real position stream');
+      expect(body, contains('driveNotification:'),
+          reason: 'THE DEFECT: the drive starts without a foreground '
+              'notification, so her warning dies with the screen');
+    });
+
+    test('...and the words are LOCALIZED, never English-only (AAE-4 / D4)', () {
+      final body = shareLocationBody();
+      for (final getter in const [
+        'driveNotificationTitle',
+        'driveNotificationBody',
+        'driveNotificationChannel',
+      ]) {
+        expect(body, contains(getter),
+            reason: 'the ongoing notification stopped sourcing $getter from '
+                'AppL10n -- a hardcoded string here is an English-only shade '
+                'entry on a Japanese driver\'s phone');
+      }
     });
   });
 }
