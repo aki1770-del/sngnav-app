@@ -74,6 +74,10 @@ Future<FakeAlertActuators> _boot(WidgetTester t,
   await t.pumpWidget(const SizedBox.shrink());
   await t.pump();
   await t.pumpWidget(SngnavApp(
+      // Not about the consent act; that is guarded in
+      // test/widgets/location_consent_act_and_privacy_surface_test.dart.
+      locationConsent: true,
+
     actuators: a,
     locale: const Locale('ja'),
     clock: () => _now,

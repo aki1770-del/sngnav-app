@@ -111,7 +111,9 @@ import 'services/jma_forecast_fetch.dart';
 import 'services/staleness_policy.dart';
 import 'services/forecast_validity.dart' show ForecastHazardKind;
 import 'services/trip_hazard_memory.dart';
+import 'services/location_consent.dart';
 import 'services/route_consent.dart';
+import 'services/privacy_policy.dart';
 import 'services/jma_advisory_provider_factory.dart';
 import 'services/audio_readiness.dart';
 import 'services/haptic_readiness.dart';
@@ -612,6 +614,22 @@ FeedLossVerdict feedLossVerdict({
   return FeedLossRetainedQuiet(ageMinutes: ageMinutes);
 }
 
+/// Where the icy-turn mark's truth comes from.
+///
+/// The mark and the spoken line are the same shape either way; what differs is
+/// what her card is ENTITLED to say about the road, and whether the voice
+/// carries the test-value prefix.
+enum _IcyTurnSource {
+  /// No ice reaches the next turn.
+  none,
+
+  /// A MEASURED radiative-frost watch, from the live JMA observation.
+  measured,
+
+  /// The simulated road condition, which only the development page can set.
+  testValue,
+}
+
 class SngnavApp extends StatelessWidget {
   /// [actuators] is injectable so tests (and future device harnesses) can
   /// supply a fake/real actuator layer; production leaves it null and the app
@@ -686,6 +704,8 @@ class SngnavApp extends StatelessWidget {
     this.routingEngineFactory,
     this.advisoryProviders,
     this.developerPageEntry,
+    this.locationConsent,
+    this.openPlatformSettings,
   });
 
   final AlertActuators? actuators;
@@ -734,6 +754,31 @@ class SngnavApp extends StatelessWidget {
   /// Asks for the development page's entry in her app bar (null ->
   /// [kDeveloperPageFromEnvironment]). A release build ignores it.
   final bool? developerPageEntry;
+
+  /// Pre-seeds the location-share consent answer (null -> ask her, which is
+  /// what production does).
+  ///
+  /// The same injection idiom as [actuators], [jmaFetch] and [positionSource],
+  /// and it exists for the same reason: 36 test files drive the share to reach
+  /// what happens AFTER it starts, and their subject is not the consent act.
+  /// Making each of them click through a dialog would couple 36 files to a
+  /// surface none of them is testing.
+  ///
+  /// `true` means "assume she already agreed". It is never a default: the
+  /// production path passes null, and the act itself is guarded on the real
+  /// path by test/widgets/location_consent_act_and_privacy_surface_test.dart,
+  /// which passes null and fails if the gate is removed.
+  final bool? locationConsent;
+
+  /// Opens the platform's own app-settings page (null -> the real
+  /// [openPlatformLocationSettings], which is the only library in this app
+  /// that touches the platform location API).
+  ///
+  /// Injectable for the same reason every other seam here is: a widget test
+  /// must never reach a real platform channel. `geolocator` is already a
+  /// direct dependency of this app and already exposes this call, so naming
+  /// the route to her costs zero new dependencies and one call.
+  final Future<bool> Function()? openPlatformSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -788,6 +833,8 @@ class SngnavApp extends StatelessWidget {
         routingEngineFactory: routingEngineFactory,
         advisoryProviders: advisoryProviders,
         developerPageEntry: developerPageEntry,
+        locationConsent: locationConsent,
+        openPlatformSettings: openPlatformSettings,
       ),
     );
   }
@@ -814,6 +861,8 @@ class HomePage extends StatefulWidget {
     this.routingEngineFactory,
     this.advisoryProviders,
     this.developerPageEntry,
+    this.locationConsent,
+    this.openPlatformSettings,
   });
 
   /// Injectable actuator layer (null -> [defaultAlertActuators]).
@@ -882,6 +931,12 @@ class HomePage extends StatefulWidget {
   /// Asks for the development page's entry in her app bar (null ->
   /// [kDeveloperPageFromEnvironment]). A release build ignores it.
   final bool? developerPageEntry;
+
+  /// Pre-seeded location-share consent (null -> ask). See [SngnavApp.locationConsent].
+  final bool? locationConsent;
+
+  /// See [SngnavApp.openPlatformSettings].
+  final Future<bool> Function()? openPlatformSettings;
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -1439,6 +1494,8 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _seedLocationConsent();
+    _loadPersistedLocationConsent();
     // WS5 — construct the actuator layer + announcer. Hold the screen awake
     // while this navigation surface is active so a driver glancing at a live
     // hazard never finds a dark screen. Foreground-only: released in dispose;
@@ -3486,10 +3543,225 @@ class _HomePageState extends State<HomePage> {
   /// in the flutter_test zone, so an unbounded await deadlocks there too.
   /// On timeout the choice degrades honestly to in-RAM for this run (she is
   /// asked again next launch — a repeated question, never a hung screen).
-  Future<RouteConsentStore?> _routeConsentStore() async {
+  // ---- LOCATION-SHARE CONSENT (2026-09-23) ---------------------------
+  // Her answer for this session, and whether the persisted one has been read.
+  // Same two-field idiom as the OSRM pair, deliberately: this IS that pattern,
+  // moved onto the larger egress it was missing from.
+  bool? _locationConsent;
+  bool _locationConsentLoaded = false;
+
+  /// Read the persisted answer at startup, so the WITHDRAWAL control can be
+  /// offered without waiting for her to tap share.
+  ///
+  /// Added 2026-09-23 with the withdrawal itself: before it, `_locationConsent`
+  /// stayed null until her first tap, so a remembered yes was invisible to the
+  /// surface and there was nothing to draw a "take it back" control from.
+  /// Best-effort and non-blocking — a wedged disk must never hold her screen,
+  /// which is the same bound the act itself carries.
+  void _loadPersistedLocationConsent() {
+    if (_locationConsentLoaded) return;
+    unawaited(() async {
+      bool? persisted;
+      try {
+        final store = await _locationConsentStore(hangBound: null);
+        // NO .timeout() HERE, deliberately, and it is not an oversight I let
+        // stand: a timeout ARMS A TIMER, and this read is fired at init and
+        // may outlive the tree. It did — the widget suite caught "A Timer is
+        // still pending even after the widget tree was disposed", which is a
+        // leak I wrote. This read is best-effort background work whose only
+        // consumer is whether to DRAW a control; if it never lands,
+        // _locationConsentLoaded stays false and the act itself reads the
+        // store later under its OWN 2-second hang-bound. Nothing waits on
+        // this, so nothing needs to time it out.
+        persisted = await store?.load();
+      } catch (_) {
+        persisted = null;
+      }
+      if (!mounted || _locationConsentLoaded) return;
+      setState(() {
+        if (persisted != null) _locationConsent = persisted;
+        _locationConsentLoaded = true;
+      });
+    }());
+  }
+
+  /// Clear our record of her consent, so the next tap ASKS AGAIN.
+  ///
+  /// ⚑ WHY THIS EXISTS, and it is the argument I wrote myself and did not turn
+  /// around. [_ensureLocationConsent] refuses to persist a NO on the ground
+  /// that a remembered refusal would leave her with a control that silently
+  /// does nothing and no affordance to change it. The same sentence applies to
+  /// the remembered YES: after one yes, every later launch shared on one tap
+  /// with no question, and there was no way inside this app to take it back.
+  /// A store whose only write is `true` is a record ABOUT her that she cannot
+  /// touch.
+  ///
+  /// SCOPE — CORRECTED 2026-09-23, and the first version of this paragraph
+  /// was wrong in our favour. It said our consent "covers what we actually do
+  /// with her position" and listed the tile service seeing her viewport and
+  /// address, spoken text possibly routed through the platform voice vendor, a
+  /// coordinate query to a service in another country, and a ten-minute fetch
+  /// — implying ours is WIDER than the platform's permission.
+  ///
+  /// Measured: `_locationConsent` appears nowhere outside main.dart and
+  /// nowhere in lib/services, lib/actuators, lib/voice or lib/akita_map. It
+  /// gates exactly ONE thing — [_shareLocation], the position stream — and
+  /// every egress it authorizes needs the OS permission first. The tile
+  /// requests and the voice path are not gated by it at all. Ours is a SUBSET
+  /// by effect, not a superset.
+  ///
+  /// What is true, and what the shipped words actually say, is narrower: they
+  /// are two SEPARATE CONTROLS, and only one of them is ours. This one does
+  /// not revoke the OS permission; the row beside it names that route and
+  /// offers it.
+  Future<void> _withdrawLocationConsent() async {
+    setState(() {
+      _locationConsent = null;
+      _locationConsentLoaded = true;
+      _locationConsentWithdrawn = true;
+    });
+    // Fire-and-forget, the same idiom as the grant: her answer takes effect
+    // NOW, in RAM. A lost write means she is asked again, never a hung screen.
+    unawaited(_locationConsentStore(hangBound: null).then((s) => s?.save(false)));
+  }
+
+  /// True once she has withdrawn in this session, so the surface can say so
+  /// instead of silently swapping one control for another.
+  bool _locationConsentWithdrawn = false;
+
+  /// Apply [HomePage.locationConsent] once, at init. A seeded answer means the
+  /// store is never consulted and the act never raised.
+  void _seedLocationConsent() {
+    final seeded = widget.locationConsent;
+    if (seeded == null) return;
+    _locationConsent = seeded;
+    _locationConsentLoaded = true;
+  }
+
+  /// [hangBound] arms a timeout — and a timeout ARMS A TIMER. Pass null from
+  /// any path nothing waits on.
+  ///
+  /// This parameter exists because of a defect I shipped and the suite caught:
+  /// [_loadPersistedLocationConsent] runs at EVERY launch and is fire-and-
+  /// forget, so an unconditional 2-second bound here left a pending timer in
+  /// every widget test that disposed sooner — 116 of them failed with "A Timer
+  /// is still pending even after the widget tree was disposed". My first fix
+  /// removed the timeout from the `load()` call and missed this one, which is
+  /// the same error twice: I patched where I had been looking rather than
+  /// where the timer was.
+  ///
+  /// The INTERACTIVE path keeps its bound, because she IS waiting on it: a
+  /// wedged disk must never leave her holding a button that does nothing.
+  Future<LocationConsentStore?> _locationConsentStore({
+    Duration? hangBound = const Duration(seconds: 2),
+  }) async {
     try {
-      final dir = await getApplicationDocumentsDirectory()
-          .timeout(const Duration(seconds: 2));
+      final future = getApplicationDocumentsDirectory();
+      final dir = hangBound == null ? await future : await future.timeout(hangBound);
+      return LocationConsentStore(
+        file: File('${dir.path}/${LocationConsentStore.fileName}'),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The affirmative act. Returns true ONLY when she has agreed — this session
+  /// or in a remembered answer. A dismissal is not a decision and is not a yes.
+  ///
+  /// Mirrors [_ensureRouteConsent] line for line, including its hang-bounds: a
+  /// wedged disk read must never leave her holding a button that does nothing.
+  Future<bool> _ensureLocationConsent() async {
+    if (!_locationConsentLoaded) {
+      final store = await _locationConsentStore();
+      bool? persisted;
+      try {
+        persisted = await store?.load().timeout(const Duration(seconds: 2));
+      } catch (_) {
+        persisted = null;
+      }
+      if (persisted != null) _locationConsent = persisted;
+      _locationConsentLoaded = true;
+    }
+    final existing = _locationConsent;
+    if (existing != null) return existing;
+    if (!mounted) return false;
+    final granted = await _promptLocationConsent();
+    if (granted == null) return false; // dismissed - not a decision.
+    // ONLY A YES IS REMEMBERED, and this is where it differs from the OSRM
+    // pair on purpose. A remembered NO would trap her: the route question has
+    // a visible "change your choice" affordance beside its declined state, and
+    // the share control has none, so a persisted refusal would leave her with
+    // a button that silently does nothing and no way back. She is asked again
+    // next time she taps, which is a repeated question and never a lock-out.
+    if (!granted) return false;
+    _locationConsent = true;
+    unawaited(_locationConsentStore(hangBound: null).then((s) => s?.save(true)));
+    return true;
+  }
+
+  /// The dialog CARRIES THE DISCLOSURE ITSELF, verbatim: the body is
+  /// [AppL10n.locationDisclosure], the same reviewed text the page shows. The
+  /// act and the thing consented to are one surface, which is the whole
+  /// correction — no new policy language is written here.
+  Future<bool?> _promptLocationConsent() {
+    final l = AppL10n.of(context);
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.locationConsentTitle),
+        content: SingleChildScrollView(
+          child: Text(
+            l.locationDisclosure,
+            key: const Key('location-consent-body'),
+          ),
+        ),
+        actions: [
+          TextButton(
+            key: const Key('location-consent-decline'),
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(l.locationConsentDecline),
+          ),
+          FilledButton(
+            key: const Key('location-consent-accept'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(l.locationConsentAccept),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// What her tap on the share control now runs. The share does not start
+  /// unless the act returned a yes; a decline or a dismissal starts nothing
+  /// and the OS permission prompt is never reached.
+  Future<void> _onShareLocationPressed() async {
+    final granted = await _ensureLocationConsent();
+    if (!mounted || !granted) return;
+    _shareLocation();
+  }
+
+  /// [hangBound] arms a timeout — and a timeout ARMS A TIMER. Same rule and
+  /// same parameter as [_locationConsentStore]; pass null from any path
+  /// nothing waits on.
+  ///
+  /// ⚑ THIS IS THE THIRD TIME I HAVE FIXED THIS ONE DEFECT. I fixed the
+  /// location store's `load()` call, then the location store's own directory
+  /// read after 116 tests failed, and did not look here — where the identical
+  /// unconditional bound sat on two fire-and-forget saves. VDE found it by
+  /// deleting a hand-written `await tester.pump(Duration(seconds: 3))` from
+  /// route_consent_gate_test.dart and watching the file go red with "A Timer
+  /// is still pending even after the widget tree was disposed". The leak was
+  /// being contained by every future author of a route-consent test
+  /// remembering to drain it by hand. That is the operator standing where a
+  /// machine should be.
+  Future<RouteConsentStore?> _routeConsentStore({
+    Duration? hangBound = const Duration(seconds: 2),
+  }) async {
+    try {
+      final future = getApplicationDocumentsDirectory();
+      final dir =
+          hangBound == null ? await future : await future.timeout(hangBound);
       return RouteConsentStore(
         file: File('${dir.path}/${RouteConsentStore.fileName}'),
       );
@@ -3529,7 +3801,7 @@ class _HomePageState extends State<HomePage> {
     // or wedged disk write must not hold the route (or the honest decline
     // render) hostage. Worst case the write is lost and she is asked again
     // next launch — a repeated question, never a hung screen.
-    unawaited(_routeConsentStore().then((store) => store?.save(granted)));
+    unawaited(_routeConsentStore(hangBound: null).then((store) => store?.save(granted)));
     return granted;
   }
 
@@ -3548,7 +3820,7 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     setState(() => _osrmConsent = granted);
     if (granted != null) {
-      unawaited(_routeConsentStore().then((store) => store?.save(granted)));
+      unawaited(_routeConsentStore(hangBound: null).then((store) => store?.save(granted)));
     }
   }
 
@@ -3652,16 +3924,57 @@ class _HomePageState extends State<HomePage> {
   /// through OsrmRoutingEngine so we get the parsed maneuver list too.
   static const String _osrmDemoBaseUrl = 'https://router.project-osrm.org';
 
-  /// Whether the next maneuver coincides with an ice / low-visibility hazard, so
-  /// the icy-turn advisory should be coupled onto the narration. Reuses the
-  /// app's existing road-surface condition AND the live drive-HUD advice
-  /// (visibility + area-advisory fusion) — no new hazard source.
-  bool _maneuverCoincidesWithHazard() {
+  /// Where the icy-turn mark on the next maneuver comes from — a MEASURED
+  /// watch, a test value, or nothing.
+  ///
+  /// WHAT THIS FIXES, 2026-09-23. Until today the only input was [_condition],
+  /// the simulated road surface, whose ONLY setter is the dropdown inside
+  /// [_developerSections] and whose page [_developerPageOffered] hard-gates on
+  /// `!kReleaseMode`. So in the SIGNED build [_condition] is permanently
+  /// [RoadSurfaceCondition.unknown], [isSlipperySurface] is always false, and
+  /// the icy mark was STRUCTURALLY UNREACHABLE on her phone — while her own
+  /// page, one card above, was painting 路面凍結のおそれ from a MEASURED JMA
+  /// reading. Two things that were already true, failing to meet. This is not
+  /// a new hazard source; it is the one she is already being shown.
+  ///
+  /// WHY [InvisibleIceWatchResult.watch]: it is the measured radiative-frost
+  /// window — the road looks wet or dry and is frozen — which is exactly the
+  /// surprise a per-turn mark exists for. It is also the value the app ALREADY
+  /// treats as a firing hazard: [_currentMeasuredHazard] passes this same
+  /// comparison as `blackIceFiring`. Nothing is escalated that was not already
+  /// raising the eyes-off rung.
+  ///
+  /// WHY [InvisibleIceWatchResult.subZeroFrozen] IS DELIBERATELY NOT HERE —
+  /// restraint, not oversight. The coupling raises the maneuver to
+  /// [AlertSeverity.critical] (services/maneuver_narration.dart), which fires
+  /// audio AND haptic and bypasses the density cap. A safety-review decision of
+  /// 2026-07-23 holds that sub-zero must NOT raise the caution rung, because
+  /// below zero the ice is EXPECTED rather than a surprise and a rung every
+  /// cold morning is cry-wolf; the app gives it a calm chip instead
+  /// ([calmNoteInForce], the `subzero-frozen-chip`). Coupling it here would
+  /// reverse that decision on the LOUDER channel, on every turn of every cold
+  /// morning. Whether it should couple is a real question and it is not this
+  /// seat's to close — it is recorded here rather than decided quietly.
+  ///
+  /// STALENESS NEEDS NO GATE HERE, and that is measured rather than assumed:
+  /// on a failed read [_refreshJma] sets [_invisibleIceResult] to
+  /// [InvisibleIceWatchResult.unknown], so a stale reading can never hold this
+  /// true. The invariant is stated at [_currentMeasuredHazard] and reused here,
+  /// not duplicated.
+  ///
+  /// PRECEDENCE: a measured watch outranks a test value, because when it fires
+  /// the mark IS justified by an observation. A test value can still raise the
+  /// mark on its own, and then the card says so.
+  _IcyTurnSource _icyTurnSource() {
+    if (_invisibleIceResult == InvisibleIceWatchResult.watch) {
+      return _IcyTurnSource.measured;
+    }
     // Couple the icy-turn advisory ONLY on a genuinely slippery surface — NOT
     // on any heightened-caution state. A dry-road gpsSuspect must never raise a
     // false CRITICAL "the turn may be icy / 路面が凍結"; low visibility is warned
     // separately by the drive HUD, not mis-narrated as ice here.
-    return isSlipperySurface(_condition);
+    if (isSlipperySurface(_condition)) return _IcyTurnSource.testValue;
+    return _IcyTurnSource.none;
   }
 
   /// Narrate the next maneuver through the drive HUD's announcer, GATED on the
@@ -3670,13 +3983,18 @@ class _HomePageState extends State<HomePage> {
   void _narrateNextManeuver() {
     final next = _nextManeuver;
     if (next == null) return;
+    final icySource = _icyTurnSource();
     final decision = _driveHud.narrateNextManeuver(
       next,
-      icyTurn: _maneuverCoincidesWithHazard(),
+      icyTurn: icySource != _IcyTurnSource.none,
       positionIsThisShares: _driveHudPositionIsThisDrives,
-      // Nothing measured reaches the icy coupling: its one input is the
-      // simulated road condition (2026-09-16).
-      icyTurnFromTestValue: true,
+      // The spoken test-value prefix belongs to a value nobody measured. Until
+      // 2026-09-23 this was hardcoded `true`, which was correct while the
+      // simulated condition was the only input. A MEASURED radiative-frost
+      // watch must not carry it: prefixing a real observation with "test value"
+      // is the same defect as calling a test value measured, pointed the other
+      // way.
+      icyTurnFromTestValue: icySource == _IcyTurnSource.testValue,
     );
     setState(() => _lastManeuverNarration = decision);
   }
@@ -3783,6 +4101,75 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const _Banner(),
+            // ⚑ RAISED ABOVE THE MAP 2026-09-23. These rows are PRE-drive:
+            // each one tells her that a channel she will rely on is already
+            // dead, before she starts. They used to render under
+            // _herStatusLine(), which carries ~356 dp of consent and egress
+            // prose, so on her own phone (1080x2340 @ DPR 2.75, viewport
+            // 768 dp) they sat 144, 202 and 260 dp BELOW THE FOLD — and below
+            // it precisely in the not-yet-shared state, which is the state she
+            // opens the app in.
+            //
+            // MEASURED, and this is the whole reason: a phone with no offline
+            // Japanese voice AND no vibrator AND media muted rendered a first
+            // screen BYTE-IDENTICAL to an all-clear one — two sha256 captures
+            // of the same bytes, `cmp` identical. Three dead channels looked
+            // exactly like three live ones. For a deaf or hard-of-hearing
+            // driver the tactile row is not the second channel, it is the only
+            // one, and it was the one furthest down.
+            //
+            // The map stays on the first screen, which was its own 2026-09-13
+            // decision: all three rows together are ~190 dp, so the map still
+            // ends inside the fold. Nothing moves at all when the channels are
+            // healthy — every row here is conditional, so the healthy first
+            // screen is unchanged and only the degraded one differs. That
+            // difference is the point.
+            // Pre-drive voice-channel caution, in the consent/status
+            // region she reads BEFORE driving. Rendered ONLY on a
+            // proven-degraded verdict (jaNetworkOnly / noJaVoice);
+            // unknown and offlineJaReady show nothing.
+            if (_voiceLaneVerdict == VoiceLaneVerdict.jaNetworkOnly ||
+                _voiceLaneVerdict == VoiceLaneVerdict.noJaVoice) ...[
+              const SizedBox(height: 8),
+              _voiceLaneCautionRow(),
+            ],
+            // Pre-drive TACTILE caution (safety review 2026-08-22), in the
+            // same region she reads BEFORE driving, on a `false` answer
+            // only. `null` (unreadable / off-mobile / test) renders
+            // NOTHING: a caution about a device that may vibrate
+            // perfectly well is a false alarm on the channel that can
+            // least afford one.
+            if (_hapticAvailable == false) ...[
+              const SizedBox(height: 8),
+              _hapticUnavailableCautionRow(),
+            ],
+            // Tier-2 — media-volume-zero caution, same pre-drive
+            // voice-channel region. Rendered ONLY on a proven-muted probe
+            // reading (null probe = NOTHING). Acknowledgment collapses
+            // it to a compact line; it never blocks the drive and we
+            // never touch her volume.
+            if (_audioReadiness?.mediaMuted ?? false) ...[
+              const SizedBox(height: 8),
+              if (_mediaMutedAcked)
+                _mediaMutedAckedLine()
+              else
+                _mediaMutedCautionRow(),
+              // ⚑ The muted caution names vibration as attempted, and
+              // she taps a button to continue without spoken alerts. If
+              // the tactile channel is not landing either, say so in the
+              // same glance — and after her tap too, since the state
+              // outlives the row she accepted it in.
+              //
+              // SUPPRESSED when the pre-drive caution already told her
+              // this device has NO vibrator: "could not be verified" is
+              // strictly weaker than "has none", and saying both on one
+              // glance surface is noise, not honesty. A device that HAS
+              // a vibrator and lost the cue still gets this line.
+              if (_hapticUnverified.value && _hapticAvailable != false) ...[
+                const SizedBox(height: 6),
+                _hapticUnverifiedInMutedNote(),
+              ],
+            ],
             // The map first, directly under the banner (2026-09-13): below the
             // developer panels it sat at 4314 px of an 852 px phone screen,
             // and she would have scrolled past fourteen cards to find herself.
@@ -3832,52 +4219,6 @@ class _HomePageState extends State<HomePage> {
                   ],
                   const SizedBox(height: 8),
                   _herStatusLine(),
-                  // Pre-drive voice-channel caution, in the consent/status
-                  // region she reads BEFORE driving. Rendered ONLY on a
-                  // proven-degraded verdict (jaNetworkOnly / noJaVoice);
-                  // unknown and offlineJaReady show nothing.
-                  if (_voiceLaneVerdict == VoiceLaneVerdict.jaNetworkOnly ||
-                      _voiceLaneVerdict == VoiceLaneVerdict.noJaVoice) ...[
-                    const SizedBox(height: 8),
-                    _voiceLaneCautionRow(),
-                  ],
-                  // Pre-drive TACTILE caution (safety review 2026-08-22), in the
-                  // same region she reads BEFORE driving, on a `false` answer
-                  // only. `null` (unreadable / off-mobile / test) renders
-                  // NOTHING: a caution about a device that may vibrate
-                  // perfectly well is a false alarm on the channel that can
-                  // least afford one.
-                  if (_hapticAvailable == false) ...[
-                    const SizedBox(height: 8),
-                    _hapticUnavailableCautionRow(),
-                  ],
-                  // Tier-2 — media-volume-zero caution, same pre-drive
-                  // voice-channel region. Rendered ONLY on a proven-muted probe
-                  // reading (null probe = NOTHING). Acknowledgment collapses
-                  // it to a compact line; it never blocks the drive and we
-                  // never touch her volume.
-                  if (_audioReadiness?.mediaMuted ?? false) ...[
-                    const SizedBox(height: 8),
-                    if (_mediaMutedAcked)
-                      _mediaMutedAckedLine()
-                    else
-                      _mediaMutedCautionRow(),
-                    // ⚑ The muted caution names vibration as attempted, and
-                    // she taps a button to continue without spoken alerts. If
-                    // the tactile channel is not landing either, say so in the
-                    // same glance — and after her tap too, since the state
-                    // outlives the row she accepted it in.
-                    //
-                    // SUPPRESSED when the pre-drive caution already told her
-                    // this device has NO vibrator: "could not be verified" is
-                    // strictly weaker than "has none", and saying both on one
-                    // glance surface is noise, not honesty. A device that HAS
-                    // a vibrator and lost the cue still gets this line.
-                    if (_hapticUnverified.value && _hapticAvailable != false) ...[
-                      const SizedBox(height: 6),
-                      _hapticUnverifiedInMutedNote(),
-                    ],
-                  ],
                 ],
               ),
             ),
@@ -5365,12 +5706,52 @@ class _HomePageState extends State<HomePage> {
               children: [
                 TextButton(
                   key: const Key('share-location-button'),
-                  onPressed: _shareLocation,
+                  // Gated on the affirmative act since 2026-09-23. It was
+                  // `_shareLocation` directly: a bare button whose next step
+                  // was the OS prompt, with the disclosure merely nearby.
+                  onPressed: _onShareLocationPressed,
                   child: Text(l.shareMyLocation),
                 ),
+                // Drawn ONLY while we are holding a yes. There is nothing to
+                // take back otherwise, and a control that undoes nothing is
+                // the same defect as prose that consents to nothing.
+                if (_locationConsent == true)
+                  TextButton(
+                    key: const Key('location-consent-withdraw'),
+                    onPressed: _withdrawLocationConsent,
+                    child: Text(l.locationConsentWithdraw),
+                  ),
                 // The Akita mock position is on the development page
                 // (2026-09-15); a release build never offers it.
               ],
+            ),
+          ),
+          // Said once, after she takes it back, so the control's effect is
+          // visible rather than inferred from a button disappearing.
+          if (_locationConsentWithdrawn && _locationConsent == null) ...[
+            const SizedBox(height: 4),
+            Text(
+              key: const Key('location-consent-withdrawn-note'),
+              l.locationConsentWithdrawnNote,
+              style: const TextStyle(fontSize: 11, color: kCautionTextOnAmber),
+            ),
+          ],
+          // THE OTHER HALF OF WITHDRAWAL, and it is a different subject matter
+          // from ours: the platform's permission. We cannot revoke it and we
+          // do not pretend to — the app NAMES the route and opens the page.
+          const SizedBox(height: 4),
+          Text(
+            key: const Key('location-os-permission-route'),
+            l.locationOsPermissionRoute,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              key: const Key('location-open-os-settings'),
+              onPressed: () => unawaited(
+                  (widget.openPlatformSettings ?? openPlatformLocationSettings)()),
+              child: Text(l.locationOpenOsSettings),
             ),
           ),
           const SizedBox(height: 4),
@@ -5691,9 +6072,10 @@ class _HomePageState extends State<HomePage> {
     // ended or refused (2026-09-15).
     final mode =
         _driveHudPositionIsThisDrives ? _driveHud.estimate?.mode : null;
-    final icy = _maneuverCoincidesWithHazard();
+    final icySource = _icyTurnSource();
     final preview = _driveHud.previewNextManeuver(next,
-        icyTurn: icy, positionIsThisShares: _driveHudPositionIsThisDrives);
+        icyTurn: icySource != _IcyTurnSource.none,
+        positionIsThisShares: _driveHudPositionIsThisDrives);
 
     // The banner's state in the app's language (2026-09-15). Until then it was
     // the gate's internal name and an English reason in every language; the
@@ -5788,13 +6170,26 @@ class _HomePageState extends State<HomePage> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                // Nothing measured reaches this mark: the only input is the
-                // simulated road condition (2026-09-16). Words to be decided.
-                Text(
-                  key: const Key('maneuver-test-road-condition'),
-                  l.maneuverTestRoadConditionInForce,
-                  style: TextStyle(color: fg, fontSize: 12),
-                ),
+                // THE MARK'S PROVENANCE, in the same glance as the mark.
+                // Until 2026-09-23 this line said "test value" unconditionally,
+                // which was true while a test value was the only thing that
+                // could reach the mark. A measured radiative-frost watch can
+                // now, and telling her the road was not measured when it WAS
+                // would be this same defect inverted. Exactly one of the two
+                // renders, and which one is the answer to "why am I being told
+                // this turn is icy?".
+                if (icySource == _IcyTurnSource.measured)
+                  Text(
+                    key: const Key('maneuver-measured-road-ice'),
+                    l.maneuverMeasuredRoadIceInForce,
+                    style: TextStyle(color: fg, fontSize: 12),
+                  )
+                else
+                  Text(
+                    key: const Key('maneuver-test-road-condition'),
+                    l.maneuverTestRoadConditionInForce,
+                    style: TextStyle(color: fg, fontSize: 12),
+                  ),
               ],
             ],
           ),
@@ -5811,12 +6206,44 @@ class _HomePageState extends State<HomePage> {
             const SizedBox(width: 8),
             if (_lastManeuverNarration != null)
               Expanded(
-                child: Text(
-                  key: const Key('maneuver-narration-result'),
-                  _lastManeuverNarration!.shouldAnnounce
-                      ? l.maneuverNarrationAnnounced
-                      : l.maneuverNarrationNotSpoken,
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                // `shouldAnnounce` is a PRE-DISPATCH gate verdict, not a
+                // delivery report: the announce is fire-and-forget and this
+                // widget is built before either channel has answered. So the
+                // first line says SENT, and the second says what the channels
+                // did or did not report. The drive-HUD chips hold the same two
+                // facts two Cards above; a driver reading this card is not
+                // reading those.
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      key: const Key('maneuver-narration-result'),
+                      _lastManeuverNarration!.shouldAnnounce
+                          ? l.maneuverNarrationSent
+                          : l.maneuverNarrationNotSpoken,
+                      style:
+                          TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                    ),
+                    if (_lastManeuverNarration!.shouldAnnounce &&
+                        (_speechUnverified.value ||
+                            _hapticUnverified.value)) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        key: const Key(
+                            'maneuver-narration-delivery-unverified'),
+                        l.maneuverNarrationDeliveryUnverified(
+                          speech: _speechUnverified.value,
+                          haptic: _hapticUnverified.value,
+                        ),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: kCautionTextOnAmber,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
           ],
@@ -6528,15 +6955,182 @@ class _Footer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        key: const Key('page-foot'),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            key: const Key('page-foot'),
         // In her language since 2026-09-15, keeping what she needs: routes do
         // not consider snow, and where routes and weather observations come
         // from. The package names are on the development page.
-        AppL10n.of(context).pageFoot(appVersion),
-        // shade600 measured 4.39:1 on the page ground (2026-09-15); 5.90:1 now.
-        style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
-        textAlign: TextAlign.center,
+            AppL10n.of(context).pageFoot(appVersion),
+            // shade600 measured 4.39:1 on the page ground (2026-09-15); 5.90:1 now.
+            style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
+            textAlign: TextAlign.center,
+          ),
+          // The in-app privacy surface. Play requires a privacy policy link OR
+          // TEXT inside the app itself, unconditionally; measured 2026-09-23,
+          // this app carried neither and the only occurrence of the phrase
+          // anywhere was a comment in AndroidManifest.xml.
+          TextButton(
+            key: const Key('privacy-policy-link'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PrivacyPolicyPage(),
+              ),
+            ),
+            child: Text(AppL10n.of(context).privacyPolicyLinkLabel),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One policy block as a widget. Selectable throughout: a policy she cannot
+/// copy is a policy she cannot take anywhere.
+Widget _policyBlock(BuildContext context, PolicyBlock block) {
+  Widget rich(String text, {double size = 13, FontWeight? weight}) =>
+      SelectableText.rich(
+        TextSpan(children: [
+          for (final r in policyInlineRuns(text))
+            TextSpan(
+              text: r.text,
+              style: TextStyle(
+                fontWeight: r.bold ? FontWeight.w700 : weight,
+              ),
+            ),
+        ]),
+        style: TextStyle(fontSize: size, fontWeight: weight),
+      );
+
+  switch (block) {
+    case PolicyHeading(:final level, :final text):
+      return Padding(
+        padding: EdgeInsets.only(top: level <= 2 ? 18 : 12, bottom: 6),
+        child: rich(text,
+            size: switch (level) { 1 => 20, 2 => 16, _ => 14 },
+            weight: FontWeight.w700),
+      );
+    case PolicyParagraph(:final text):
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: rich(text),
+      );
+    case PolicyBullet(:final text):
+      return Padding(
+        padding: const EdgeInsets.only(left: 8, bottom: 6),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('・', style: TextStyle(fontSize: 13)),
+            Expanded(child: rich(text)),
+          ],
+        ),
+      );
+    case PolicyTable(:final rows, :final hasHeader):
+      if (rows.isEmpty) return const SizedBox.shrink();
+      final width = rows.map((r) => r.length).reduce((a, b) => a > b ? a : b);
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Table(
+          border: TableBorder.all(color: Colors.grey.shade400),
+          defaultVerticalAlignment: TableCellVerticalAlignment.top,
+          children: [
+            for (var i = 0; i < rows.length; i++)
+              TableRow(
+                decoration: hasHeader && i == 0
+                    ? BoxDecoration(color: Colors.grey.shade200)
+                    : null,
+                children: [
+                  for (var c = 0; c < width; c++)
+                    Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: rich(c < rows[i].length ? rows[i][c] : '',
+                          size: 12,
+                          weight: hasHeader && i == 0
+                              ? FontWeight.w700
+                              : null),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      );
+  }
+}
+
+/// The bundled privacy policy, shown in full.
+///
+/// It renders the document in `docs/store/privacy_policy_ja.md` — the SAME file
+/// that is published, bundled as an asset rather than transcribed, so the text
+/// she reads and the text on the public page cannot drift apart. It needs no
+/// network, which is the point for the driver this app is for.
+class PrivacyPolicyPage extends StatefulWidget {
+  const PrivacyPolicyPage({super.key, this.loader});
+
+  /// Injectable for tests; null uses the real bundled asset.
+  final Future<String?> Function()? loader;
+
+  @override
+  State<PrivacyPolicyPage> createState() => _PrivacyPolicyPageState();
+}
+
+class _PrivacyPolicyPageState extends State<PrivacyPolicyPage> {
+  late final Future<String?> _text =
+      (widget.loader ?? loadPrivacyPolicy)();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
+    return Scaffold(
+      appBar: AppBar(title: Text(l.privacyPolicyTitle)),
+      body: FutureBuilder<String?>(
+        future: _text,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          final body = snap.data;
+          if (body == null) {
+            // An honest failure line, never an empty page: a policy screen with
+            // no terms on it reads as a policy with no terms.
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                key: const Key('privacy-policy-unavailable'),
+                l.privacyPolicyUnavailable(kPrivacyPolicyRepoUrl),
+              ),
+            );
+          }
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              key: const Key('privacy-policy-text'),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Rendered as BLOCKS since 2026-09-23. It used to be one
+                // SelectableText holding the markdown source, so she read `#`
+                // before every heading, `**` around every emphasis, and the
+                // two Android permission tables as rows of pipes — the part
+                // she reads to decide whether to trust us at all.
+                //
+                // The parser changes no word; the guard in
+                // test/services/privacy_policy_render_test.dart tokenises the
+                // source and the blocks and fails on any word that does not
+                // arrive.
+                for (final block in parsePolicyBlocks(body))
+                  _policyBlock(context, block),
+                const SizedBox(height: 16),
+                SelectableText(
+                  key: const Key('privacy-policy-source'),
+                  l.privacyPolicySource(kPrivacyPolicyRepoUrl),
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

@@ -492,9 +492,54 @@ class AppL10n {
   String get maneuverNarrateButton =>
       _ja ? '次の案内を読み上げる' : 'Read the next maneuver aloud';
 
-  /// After her press, when the turn was announced.
-  String get maneuverNarrationAnnounced =>
-      _ja ? '音声＋振動で知らせました。' : 'Announced on audio + haptic.';
+  /// After her press, when the announcement was DISPATCHED on both channels.
+  ///
+  /// It says SENT, not told, and the distinction is the whole point. The value
+  /// behind it is `ManeuverNarration.shouldAnnounce`, which
+  /// `ManeuverNarration._announce` sets to `true` AT CONSTRUCTION
+  /// (services/maneuver_narration.dart), and
+  /// `DriveHudController.narrateNextManeuver` dispatches `unawaited(...)` and
+  /// returns the decision immediately — its own doc says "Announcing is
+  /// fire-and-forget". So the decision exists before either channel has
+  /// reported anything, and nothing about arrival is known when this renders.
+  ///
+  /// Until 2026-09-23 this line read 「音声＋振動で知らせました。」 /
+  /// "Announced on audio + haptic." — a PAST-TENSE claim of delivery on TWO
+  /// channels, produced from a pre-dispatch gate boolean. This app had already
+  /// convicted itself of exactly that chain on the drive-HUD chips (the
+  /// 2026-08-22 note in main.dart: a critical announce dispatched speech and
+  /// produced ZERO vibrations on a real device, with nothing saying so). That
+  /// correction landed on the chips; this card was not swept with it.
+  /// [maneuverNarrationDeliveryUnverified] is the other half.
+  String get maneuverNarrationSent =>
+      _ja ? '音声と振動に送りました。' : 'Sent to audio + haptic.';
+
+  /// Rendered directly beneath [maneuverNarrationSent] when a channel did not
+  /// report delivery.
+  ///
+  /// The drive-HUD chips carry these same two facts, but they render two Cards
+  /// above (Drive HUD -> Route -> Maneuver). A driver who taps the button here,
+  /// hears nothing, and reads a line on THIS card has to be told on THIS card:
+  /// two cards away is not the same glance. For a deaf or hard-of-hearing
+  /// driver the tactile row is not the second channel, it is the only one.
+  String maneuverNarrationDeliveryUnverified({
+    required bool speech,
+    required bool haptic,
+  }) {
+    if (speech && haptic) {
+      return _ja
+          ? '音声も振動も、届いたか確認できていません。'
+          : 'Neither the voice nor the vibration could be verified as delivered.';
+    }
+    if (haptic) {
+      return _ja
+          ? '振動が届いたか確認できていません。'
+          : 'The vibration could not be verified as delivered.';
+    }
+    return _ja
+        ? '音声が届いたか確認できていません。'
+        : 'The voice could not be verified as delivered.';
+  }
 
   /// After her press, when nothing was read.
   String get maneuverNarrationNotSpoken =>
@@ -561,6 +606,22 @@ class AppL10n {
   String get maneuverTestRoadConditionInForce => _ja
       ? '凍結の表示はテスト値です（路面は測定していません）'
       : 'The ice mark is a test value; the road was not measured.';
+
+  /// The twin of [maneuverTestRoadConditionInForce]: the icy mark rests on a
+  /// MEASURED radiative-frost watch. Exactly one of the two renders.
+  ///
+  /// IT STILL SAYS THE ROAD WAS NOT MEASURED, and that is the point of the
+  /// wording rather than an oversight. The watch is an INFERENCE from JMA's
+  /// measured air temperature and humidity through the catalog's shared
+  /// radiative-frost classifier; no instrument touched the road surface, and
+  /// JMA never stated the road is frozen. README.md holds the app to
+  /// "a derived inference, labeled as such — never presented as a JMA
+  /// statement", so this line names what WAS measured and what was not, in one
+  /// sentence, instead of trading one overstatement for another.
+  String get maneuverMeasuredRoadIceInForce => _ja
+      ? '凍結の表示は気象庁の気温・湿度からの推定です（路面は測定していません）'
+      : 'The ice mark is inferred from measured JMA air temperature and '
+          'humidity; the road surface itself was not measured.';
 
   /// The label over the visibility demo override.
   String get driveHudVisibilityOverrideLabel => _ja
@@ -903,6 +964,75 @@ class AppL10n {
           'location the file names whether the build is really there — an '
           'existence check, never a download. Only the requests are sent: no '
           'identifier, no location, no device ID.';
+
+  // ===== Location-share consent (2026-09-23) =====
+  //
+  // The BODY of this dialog is [locationDisclosure], verbatim — the reviewed
+  // text the page already showed. Only the question and the two answers are new
+  // words, and they are UI labels, not policy language.
+
+  String get locationConsentTitle =>
+      _ja ? '現在地の共有について' : 'Sharing your location';
+
+  String get locationConsentAccept =>
+      _ja ? '同意して共有する' : 'Agree and share';
+
+  /// Declining starts nothing. The OS permission prompt is never reached.
+  String get locationConsentDecline => _ja ? '共有しない' : 'Do not share';
+
+  /// Takes back OUR consent. Drawn only while we hold a yes.
+  String get locationConsentWithdraw =>
+      _ja ? '共有の同意を取り消す' : 'Withdraw sharing consent';
+
+  /// Said after she takes it back, so the effect is visible rather than
+  /// inferred from a control disappearing.
+  String get locationConsentWithdrawnNote => _ja
+      ? '同意を取り消しました。次に共有するときにもう一度おたずねします。'
+      : 'Consent withdrawn. You will be asked again the next time you share.';
+
+  /// Names the route we do NOT control.
+  ///
+  /// ⚑ THE STRING BELOW IS ACCURATE; THIS COMMENT WAS NOT, and it is corrected
+  /// 2026-09-23 rather than quietly rewritten. It claimed our consent covers
+  /// more than the platform's permission — the tile service, the voice vendor,
+  /// a cross-border query, a ten-minute fetch. Measured: `_locationConsent`
+  /// gates exactly one thing, the position stream, and every egress it
+  /// authorizes requires the OS permission first; the tile and voice paths are
+  /// not gated by it at all.
+  ///
+  /// The shipped words never said that. They say the device permission is
+  /// revoked in system settings and is a SEPARATE THING from this app's
+  /// consent — two separate controls, which is true. The overstatement lived
+  /// only in the engineering record, which is where it would have been reused.
+  String get locationOsPermissionRoute => _ja
+      ? '端末が許可している位置情報そのものは、端末の設定から取り消せます。'
+          'これはこのアプリの同意とは別のものです。'
+      : "The device's own location permission is revoked in the system "
+          'settings. That is a separate thing from this app\'s consent.';
+
+  String get locationOpenOsSettings =>
+      _ja ? '端末の設定を開く' : 'Open system settings';
+
+  // ===== Privacy policy, in the app (2026-09-23) =====
+
+  String get privacyPolicyLinkLabel =>
+      _ja ? 'プライバシーポリシー' : 'Privacy policy';
+
+  String get privacyPolicyTitle =>
+      _ja ? 'プライバシーポリシー' : 'Privacy policy';
+
+  /// Shown under the bundled text: the same document, published.
+  String privacyPolicySource(String url) => _ja
+      ? 'この文書は本アプリに同梱された原文です。公開版: $url'
+      : 'This is the document bundled with the app. Published copy: $url';
+
+  /// The asset could not be read. It names where the document is instead of
+  /// leaving a blank page that reads as a policy with no terms.
+  String privacyPolicyUnavailable(String url) => _ja
+      ? '同梱のプライバシーポリシーを読み込めませんでした。'
+          '公開版はこちらで読めます: $url'
+      : 'The bundled privacy policy could not be read. '
+          'The published copy is here: $url';
 
   // ===== OSRM pre-send route consent (B27) — ja-primary, asked ONCE =====
 

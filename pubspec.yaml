@@ -263,6 +263,12 @@ flutter:
     # tunnel styling, lakes incl. multipolygon relations, ja labels, honest
     # no-data tint. Pipeline + runbook: tool/README_TILES.md (cut pinned
     # tohoku-260709). Data (c) OpenStreetMap contributors, ODbL.
+    # The privacy policy, bundled so the app carries the TEXT and not only a
+    # link — Play requires "a privacy policy link or text within the app
+    # itself", and a link is useless to a driver in a place with no network.
+    # This points at the SOURCE document, not a copy, so the shipped text
+    # cannot drift from the published one.
+    - docs/store/privacy_policy_ja.md
     - assets/tiles/akita_offline.mbtiles
     # The Kan-Etsu / Minakami approach — Ring 1's Kanto corridor, cut by the
     # same pipeline as Akita. Bundled because Phase C puts KANTO HANDS ON

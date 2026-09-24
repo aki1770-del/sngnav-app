@@ -147,6 +147,10 @@ void main() {
 
     Future<void> boot(WidgetTester tester) async {
       await tester.pumpWidget(SngnavApp(
+      // Not about the consent act; that is guarded in
+      // test/widgets/location_consent_act_and_privacy_surface_test.dart.
+      locationConsent: true,
+
         actuators: FakeAlertActuators(),
         locale: const Locale('ja'),
         clock: () => DateTime.utc(2026, 1, 14, 21),
