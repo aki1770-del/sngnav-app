@@ -1,15 +1,23 @@
 # プライバシーポリシー — sngnav-app
 
-最終更新: 2026-08-10
+最終更新: 2026-09-24
 
 <!-- Play Console は位置情報を要求するアプリに公開されたプライバシーポリシー URL を
      求める。本ファイルはその原文（ja 主・en 全訳付き）。ホスティング先が決まったら
      そのページにこの内容を掲載する。
      OPS-062: 権限は scout_full_3 §(2)、送信先は §(3) と正確に一致させている。
-     FOREGROUND_SERVICE / FOREGROUND_SERVICE_LOCATION は本チェンジセットで
-     マニフェストから削除されるため記載しない（宣言のみ・未使用だったもの。
-     scout 062-6）。万一削除が着地しないまま公開する場合は、本ページの権限一覧を
-     マニフェストの実態に合わせて更新すること。
+     2026-09-24 AAE 更新 — 上の 2026-07-10 版はここで「FOREGROUND_SERVICE /
+     FOREGROUND_SERVICE_LOCATION は本チェンジセットでマニフェストから削除される
+     ため記載しない」と書き、同時に「万一削除が着地しないまま公開する場合は、本
+     ページの権限一覧をマニフェストの実態に合わせて更新すること」と指示していた。
+     この 2 権限は 2026-09-24 に、削除時に置かれた条件（運転者自身が開始する、
+     通知の見える常時サービスが実際に作られたとき）を満たして**戻った**。
+     指示どおり、本ページの権限一覧をマニフェストの実態に合わせて更新した。
+     出典は本日ビルドした release のマージ後マニフェスト
+     build/app/intermediates/merged_manifests/release/
+       processReleaseManifest/AndroidManifest.xml（uses-permission 7 件）。
+     ⚑ 権限が増えたときは、権限表だけでなく「収集しないもの」の記述も読み直すこと —
+     今回の 2 権限は『画面に表示されている間だけ』という文そのものを偽にした。
 
      2026-08-10 AAE 訂正（OPS-062(A) / AAE-7）— 出典を「ソースのマニフェスト」から
      「実際に配布されるマニフェスト」へ切り替えた。
@@ -32,24 +40,32 @@
 - **アカウントはありません。** 登録・ログインは不要で、個人情報の入力欄もありません。
 - **広告 SDK・解析（アナリティクス）SDK は入っていません。**
 - **本アプリ独自のサーバーはありません。** あなたのデータが「私たちのサーバー」に送られることはありません — 存在しないためです。
-- **バックグラウンドでの位置情報取得は設計上行いません。** Android の ACCESS_BACKGROUND_LOCATION 権限は要求していません。位置情報を使うのはアプリが画面に表示されている間だけです。
-  <!-- AndroidManifest.xml:6-8 -->
+- **通知の出ない、こっそりした位置情報取得は行いません。** Android の ACCESS_BACKGROUND_LOCATION 権限は要求していません。位置情報を使うのは次の 2 つの場合だけです — (1) アプリを画面に表示している間、(2) **あなた自身が「現在地を共有」を押して運転を開始したあと**、その運転が続いている間。(2) では画面を消しても、アプリを閉じても受信が続きます（雪道で画面を見ていられないときに警告を止めないためです）。ただし **その間はずっと通知が表示されます**。通知をタップして「停止」を押せば、運転と位置情報の受信が同時に終わります。**通知が出ていない状態で位置情報を取ることはありません。**
+  <!-- AndroidManifest.xml の uses-permission 7 件。ACCESS_BACKGROUND_LOCATION は
+       今も要求していない。(2) は前景サービス（geolocator の
+       GeolocatorLocationService、foregroundServiceType="location"）による。 -->
 
 ## アプリが要求する権限（Android）
 
 | 権限 | 用途 |
 |---|---|
 | INTERNET | 気象データ・経路・地図タイルの取得（下記「端末の外に出るデータ」の4つのみ） |
-| ACCESS_FINE_LOCATION | 地図上の現在地表示。**同意した場合のみ**・アプリの使用中のみ |
+| ACCESS_FINE_LOCATION | 地図上の現在地表示と、走行中の路面警告。**同意した場合のみ**。アプリの表示中、または**あなたが開始した運転中**（その間は通知が出ています） |
 | ACCESS_COARSE_LOCATION | 同上（端末が精密な位置を返せない場合の粗い位置） |
-| WAKE_LOCK | 走行中に画面を消灯させないため（走行画面の表示中のみ） |
+| WAKE_LOCK | 走行画面を表示している間、画面を消灯させないため。加えて、あなたが開始した運転中は、**画面を消していても警告が届くように**端末が眠り込むのを防ぎます |
 | VIBRATE | 危険を知らせる**振動**（前を見たまま気づけるように）。音を聞き取りにくい方・吹雪で画面を見られない場面のための channel です |
+| FOREGROUND_SERVICE | あなたが「現在地を共有」で開始した運転の間、**通知を表示したまま**位置情報の受信を続けるため。通知の出ない実行はありません |
+| FOREGROUND_SERVICE_LOCATION | 上記サービスが扱うのが位置情報であることを OS に明示するため（Android 14 以降、これが無いと運転中の受信そのものが OS に拒否されます） |
 
 <!-- 出典＝配布されるマニフェスト（マージ後）:
-     build/app/intermediates/packaged_manifests/release/
-       processReleaseManifestForPackage/AndroidManifest.xml:15,21,22,27,45
+     build/app/intermediates/merged_manifests/release/
+       processReleaseManifest/AndroidManifest.xml（uses-permission 7 件。
+       行番号は書かない — ファイルが動くと引用先が壊れるため）。
      VIBRATE の実使用: lib/actuators/mobile_alert_actuators.dart:191-192
-     （Vibration.hasVibrator / Vibration.vibrate）。宣言のみの権限ではない。 -->
+     （Vibration.hasVibrator / Vibration.vibrate）。宣言のみの権限ではない。
+     FOREGROUND_SERVICE* の実使用: lib/main.dart の _shareLocation が
+     herPositionStream に driveNotification を渡し、geolocator の
+     GeolocatorLocationService が前景で動く。宣言のみではない。 -->
 
 これ以外の権限（ストレージ・カメラ・連絡先・バックグラウンド位置情報など）は要求しません。
 
@@ -58,6 +74,16 @@
 `protectionLevel="signature"`）。これはアプリ内部の受信機を外部に公開しないための鍵であり、
 端末のデータへのアクセス権ではありません。あなたの情報には一切関係しません。
 <!-- packaged_manifests/…/AndroidManifest.xml:56-57（permission 宣言）, :59（uses-permission） -->
+
+*訂正のお知らせ（2026-09-24）: FOREGROUND_SERVICE と FOREGROUND_SERVICE_LOCATION の
+2 行を追加し、「位置情報を使うのは画面に表示されている間だけ」という記述を訂正しました。
+この 2 権限は 2026-07-10 に「宣言だけで実体が無い」として削除され、「運転者自身が開始する、
+通知の見えるサービスを実際に作ったときに同じ変更で戻す」と約束されていました。2026-09-24 に
+そのサービスが実際に動いたため、約束どおり戻っています。**機能が先に着地し、この説明が後から
+追いつく形になりました** — 本来は同じ変更で直すべきものです。アプリが新しくできるように
+なったことは、画面を消していても運転中の警告が届くことであり、**通知が出ていない状態での
+位置情報取得は、以前と同じく一切ありません。** ACCESS_BACKGROUND_LOCATION も引き続き
+要求していません。*
 
 ## 端末の外に出るデータ（この4つがすべてです）
 
@@ -102,17 +128,19 @@ sngnav-app is an advisory app that supports driving on snowy roads. We deliberat
 - **No accounts.** No registration, no login, no personal-information fields.
 - **No advertising or analytics SDKs.**
 - **No app-owned servers.** Your data is never sent to "our servers" — none exist.
-- **No background location by design.** The app does not request Android's ACCESS_BACKGROUND_LOCATION permission. Location is used only while the app is on screen.
+- **No silent background location.** The app does not request Android's ACCESS_BACKGROUND_LOCATION permission. Location is used in exactly two cases: (1) while the app is on screen, and (2) after **you yourself** start a drive with 現在地を共有 ("Share my location"), for as long as that drive lasts. In case (2) the feed continues with the screen off and the app closed — so a warning still reaches you on a snow road you cannot watch a screen on — but **an ongoing notification is shown the entire time**. Tapping it and pressing 停止 ("Stop") ends the drive and the location feed together. **There is no location collection without that notification.**
 
 ## Permissions the app requests (Android)
 
 | Permission | Purpose |
 |---|---|
 | INTERNET | Fetching weather data, routes, and map tiles (only the four flows listed below) |
-| ACCESS_FINE_LOCATION | Showing your position on the map. **Only after you consent**, and only while the app is in use |
+| ACCESS_FINE_LOCATION | Showing your position on the map, and road warnings while driving. **Only after you consent** — while the app is on screen, or during **a drive you started** (the notification is shown throughout) |
 | ACCESS_COARSE_LOCATION | Same flow (a coarse position when a precise one is unavailable) |
-| WAKE_LOCK | Keeping the screen on while the driving surface is shown |
+| WAKE_LOCK | Keeping the screen on while the driving surface is shown; and, during a drive you started, keeping the device from sleeping so that **warnings still arrive with the screen off** |
 | VIBRATE | The **haptic** hazard cue — so a warning can be noticed without looking. This is the channel for a driver who cannot hear well, or cannot look at the screen in a whiteout |
+| FOREGROUND_SERVICE | Keeping the position feed alive, **behind a notification you can see**, during a drive you started. It never runs without that notification |
+| FOREGROUND_SERVICE_LOCATION | Declaring to the OS that this service handles location. From Android 14 the OS refuses the drive-time feed without it |
 
 No other permissions (storage, camera, contacts, background location, etc.) are requested.
 
@@ -127,6 +155,15 @@ The permission was always present in the shipped app — the page had been writt
 manifest we author by hand, not from the merged manifest that is actually packaged. Nothing was
 added to the app; a permission it already requested is now stated honestly. The source for this
 table is the packaged release manifest of a build made on the date above.*
+
+*Correction note (2026-09-24): the FOREGROUND_SERVICE and FOREGROUND_SERVICE_LOCATION rows were
+added, and the sentence "location is used only while the app is on screen" was corrected. Those two
+permissions were removed on 2026-07-10 as declared-but-unused, on a written promise that they would
+return in the same change-set as a real, driver-started, notification-visible service. That service
+landed on 2026-09-24 and they returned with it. **The capability landed first and this page caught
+up afterwards** — it should have been one change. What the app can now do is keep warning you with
+the screen off during a drive you started; what has NOT changed is that **there is no location
+collection without a visible notification**, and ACCESS_BACKGROUND_LOCATION is still not requested.*
 
 ## Data that leaves your device (these four flows are all of it)
 

@@ -60,8 +60,20 @@
        AAA 実測 2026-07-11。「着地を前提」注記は解消）。
        説明読み上げのプロファイル紐づけ: main.dart:999 explainer.localeTag。
        「日本語のみ」という一括表現はしない — 正確なスコープで述べる。 -->
-- **オフラインでも音声が出るよう、端末に日本語のオフライン音声データ（テキスト読み上げ）のインストールを推奨します。** 音声データがない端末では、電波のない場所で読み上げが無音になることがあります。
-  <!-- BETA_PLAN.md:160-165 local-ja-TTS-voice 依存 -->
+- **安全にかかわる日本語の警告音声は、アプリ自身に録音して同梱しています（41 本）。端末に読み上げエンジンが 1 つも無くても、電波が無くても、この 41 本はそのまま鳴ります。**
+  端末側の読み上げ音声データのインストールは、**任意**です。入れていただくと、**経路案内や数値を含む可変の読み上げ**（同梱できない文）も音声になります。これらは端末の読み上げエンジンを使うため、エンジンや日本語音声が無い端末では無音になることがあります。
+  <!-- 2026-09-24 AAE 訂正: 旧文は「音声データがない端末では電波のない場所で読み上げが無音に
+       なることがある」とだけ書いており、同梱クリップの存在を伝えていなかった。安全中核が
+       第一者音声であることは、吹雪で端末設定を触れない運転者にとって本文級の情報。
+       測定: 2026-09-16、AVD sngnav_api30（API 30, ja-JP）で Google TTS を
+       pm disable-user（解決可能な TTS サービス 0 件）、機内モード。アプリ自身の UID が
+       MediaPlayer を生成し 95,600 フレームを再生、同梱クリップとの包絡 NCC 0.997。
+       TTS 有効時も synthesis 要求 0 件で同一波形。
+       証拠: outputs/android-app-engineer/her_map_r70_offline_voice_fix_2026_09_16_evidence/
+       01_RECORD.md 4b/4c, 30_/32_/33_。
+       ⚑ 実機ではなくエミュレータでの測定。彼女の端末での主張ではない（AAE-1）。
+       可変文が TTS に落ちることの出典: lib/voice/offline_safety_voice.dart の
+       assetFor doc（slotted / nav-class text -> the caller falls back to TTS）。 -->
 - **画面表示は日本語化を進めています。** 同意・警報・ウォッチの各表示は日本語ですが、一部にまだ英語表示が残ります。
   <!-- README.md:25; BETA_PLAN.md:218 C5 未クローズ — full-ja UI を示唆しない -->
 - **経路表示は雪を考慮しません。** 経路は道路のつながりだけを反映し、峠の冬季閉鎖・除雪状況・チェーン規制は分かりません。経路をたどる前の判断は運転者のものです。
@@ -70,7 +82,7 @@
 ### プライバシー
 
 - テレメトリ（利用状況の自動送信）はありません。アカウント登録は不要です。広告・解析 SDK は入っていません。
-- 位置情報の共有は任意（オプトイン）で、アプリの使用中のみです。座標は端末に保存されず、本アプリ独自のサーバーへ送信されることはありません（そもそもサーバーがありません）。
+- 位置情報の共有は任意（オプトイン）です。アプリを表示している間と、**あなた自身が開始した運転の間**に使います。運転中は画面を消しても受信が続きますが、**その間はずっと通知が出ており**、通知から「停止」を押せばいつでも終わります（通知の出ない位置情報取得はありません）。座標は端末に保存されず、本アプリ独自のサーバーへ送信されることはありません（そもそもサーバーがありません）。
   <!-- app_localizations.dart:136-141 の register に一致 -->
 - 不具合ログは端末内だけに保存されます（約200KB上限）。「ログを共有」を押したときだけ、端末の共有機能を通じて送られます。
   <!-- lib/services/error_log.dart:9-15 -->
@@ -88,4 +100,4 @@
 
 Alpha-stage advisory app for snow-country driving in Japan (Akita-first). Shows verbatim JMA weather observations and a clearly-labeled **derived** invisible-ice (black ice) watch — an inference, never a JMA statement; missing data reads "cannot judge", never "clear". Bundled offline OpenStreetMap basemap for Akita (© OpenStreetMap contributors, ODbL), opt-in foreground-only GPS, drive-caution HUD whose ceiling is "consider stopping" — never "turn back".
 
-**Honest bounds:** the app surfaces information only; the driver remains responsible for all driving decisions; it does not control the vehicle. Verified on a small device matrix (one physical device + emulators) — not claimable for all phones. Offline map is emulator-verified (2026-07-10 airplane-mode pass); on-device audio/haptic HEAR/FEEL still unverified. Ice-mission field verification is scheduled for first snow, ~November 2026 — the drive-loop claim and the ice-mission claim are never conflated. Spoken drive-HUD and ice-watch lines follow the device locale (ja/en); the condition-explainer announcement is driver-profile-bound (English on the foreign-tourist profile). Installing an offline Japanese TTS voice is recommended so speech works without a network. No telemetry, no accounts, no ads/analytics SDKs; crash log stays on-device (~200 KB cap) and leaves only via the user-initiated share action.
+**Honest bounds:** the app surfaces information only; the driver remains responsible for all driving decisions; it does not control the vehicle. Verified on a small device matrix (one physical device + emulators) — not claimable for all phones. Offline map is emulator-verified (2026-07-10 airplane-mode pass); on-device audio/haptic HEAR/FEEL still unverified. Ice-mission field verification is scheduled for first snow, ~November 2026 — the drive-loop claim and the ice-mission claim are never conflated. Spoken drive-HUD and ice-watch lines follow the device locale (ja/en); the condition-explainer announcement is driver-profile-bound (English on the foreign-tourist profile). The 41 Japanese safety warnings are recorded into the app and play with no TTS engine installed and no network (measured 2026-09-16 on an API-30 emulator with the only TTS package disabled: 0 synthesis requests; not measured on a physical handset). Installing an offline Japanese TTS voice is optional and covers the variable, route-guidance lines that cannot be pre-recorded. No telemetry, no accounts, no ads/analytics SDKs; crash log stays on-device (~200 KB cap) and leaves only via the user-initiated share action.

@@ -70,7 +70,7 @@
 
 **Personal info / Financial / Health / Messages / Photos & videos / Audio / Files & docs / Calendar / Contacts / Web browsing / Device or other IDs → すべて「いいえ」。**
 
-根拠: アカウント機能なし・ログインなし・個人情報入力欄なし・**広告 SDK / 解析 SDK ゼロ**・独自サーバーなし。要求している権限は INTERNET / ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION / WAKE_LOCK / VIBRATE の 5 つのみで、ストレージ・カメラ・連絡先・**バックグラウンド位置情報**は要求していない（配布マニフェスト `packaged_manifests/release/…/AndroidManifest.xml:15,21,22,27,45`（⚑ 行番号は 2026-08-24 に実ビルド成果物で再測定。旧記載の `:53` は現在 `<queries>` を指しており、主張は真・**引用先が壊れていた**。なお同マニフェストには 6 本目の `uses-permission` として `…DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`（`:75`、自己宣言・`protectionLevel="signature"`）が存在するが、AndroidX が自動生成する署名レベルの内部権限であり、ユーザーに提示されず Data safety の対象外。「5 つ」はユーザー向け `android.permission.*` の数） で確認）。
+根拠: アカウント機能なし・ログインなし・個人情報入力欄なし・**広告 SDK / 解析 SDK ゼロ**・独自サーバーなし。要求している権限は INTERNET / ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION / WAKE_LOCK / VIBRATE / FOREGROUND_SERVICE / FOREGROUND_SERVICE_LOCATION の 7 つのみで（⚑ 2026-09-24 更新: 末尾 2 件は運転者自身が開始する通知つき前景サービスの着地に伴い復活。5 → 7）、ストレージ・カメラ・連絡先・**バックグラウンド位置情報**は要求していない（配布マニフェスト `packaged_manifests/release/…/AndroidManifest.xml:15,21,22,27,45`（⚑ 行番号は 2026-08-24 に実ビルド成果物で再測定。旧記載の `:53` は現在 `<queries>` を指しており、主張は真・**引用先が壊れていた**。なお同マニフェストには 6 本目の `uses-permission` として `…DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`（`:75`、自己宣言・`protectionLevel="signature"`）が存在するが、AndroidX が自動生成する署名レベルの内部権限であり、ユーザーに提示されず Data safety の対象外。「7 つ」はユーザー向け `android.permission.*` の数） で確認）。
 
 ---
 
@@ -95,7 +95,8 @@
 | 広告の有無 | **広告なし** | SDK ゼロ（上記） |
 | コンテンツ レーティング アンケート | 未実施 | オーナーがフォーム記入（数分） |
 | 対象ユーザー層 | 未設定 | 成人向け（運転者向けアプリ）。子ども向けではない |
-| 位置情報の権限申告 | 前景のみ | バックグラウンド位置情報を要求していないため、Play の背景位置情報レビュー（重い方）は**不要** |
+| 位置情報の権限申告 | 前景のみ | バックグラウンド位置情報を要求していないため、Play の背景位置情報レビュー（重い方）は**不要**。⚑ 2026-09-24: 前景サービス（`foregroundServiceType="location"`）が実際に動くようになったが、`ACCESS_BACKGROUND_LOCATION` は依然として要求しておらず、この行の判定は変わらない |
+| 前景サービスの申告 | ⚑ **未確認 — 提出前に要確認** | API 34 以降、`FOREGROUND_SERVICE_LOCATION` を宣言するアプリは Play Console 側でも前景サービスの用途申告を求められる可能性がある。2026-09-24 に本アプリはこの権限を宣言するようになったため、**この提出義務の有無は本欄の担当が Play Console の現行要件を実地で確認すること**。AAE はマニフェストを測れるがコンソール要件は測っていない — UNVERIFIED であって clear ではない |
 | 政府アプリ / 金融機能 / 健康 | すべて該当なし | — |
 
 ---
