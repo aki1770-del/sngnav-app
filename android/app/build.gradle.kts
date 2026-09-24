@@ -70,6 +70,9 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
+        // Trusts gitignored android/local.properties; a release/profile build
+        // refuses to stamp it unless it equals pubspec.yaml -- see
+        // assertVersionIdentity below.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         // Read back at runtime through PackageManager (never a Dart
@@ -102,6 +105,97 @@ android {
                 signingConfigs.getByName("debug")
             }
         }
+    }
+}
+
+// ⚑ VERSION IDENTITY, TIER 1: a release or profile build FAILS rather than
+// stamp a versionCode pubspec.yaml does not record. Drafted by BIS (ruling
+// 2026-09-24, outputs/build-identity-steward/r121_pre_arrival_ruling_2026_09_24/
+// RULING.md §2), argued with and landed by AAE 2026-09-25.
+//
+// WHY. `versionCode = flutter.versionCode` in defaultConfig trusts
+// android/local.properties, which is gitignored. The Flutter Gradle plugin
+// takes the code SOLELY from that file and defaults an absent key to "1"
+// (flutter_tools FlutterPlugin.kt, rootProjectLocalProperties.getProperty(
+// "flutter.versionCode", "1")); the flutter tool rewrites the file from
+// pubspec.yaml only on its own build path (gradle_utils.dart
+// updateLocalProperties, inside `if (buildInfo != null)`). So `flutter build`
+// stamps the committed number and a direct `gradlew assembleRelease` stamps
+// whatever sits in the file, or 1. BIS measured 88 trees on this host with the
+// file: 75 disagree with their own pubspec and 73 would stamp 1. The worktree
+// this was written in was one of them. A versionCode names one build; 1 is on
+// no ledger row and below every code a phone has received, so it installs
+// nowhere on hers.
+//
+// WHAT. Every release or profile build, however invoked, must stamp exactly
+// the `version:` in pubspec.yaml, or it stops here. Debug builds and IDE sync
+// are NOT blocked: the ledger records release-signed identities only, and a
+// fresh clone must still sync before anyone has run `flutter build`.
+//
+// WHY A TASK, NOT A doFirst ON preReleaseBuild. AGP's pre-build task can be
+// UP-TO-DATE, and an up-to-date task runs no actions, so the check would vanish
+// on exactly the incremental build where the file went stale. A task that
+// declares no outputs is never up-to-date.
+//
+// WHY FAIL, NOT OVERRIDE (i.e. why not `versionCode = <pubspec +N>`). An
+// override would silently discard an explicit `flutter build --build-number`
+// and ship a number its operator did not ask for: a success-shaped value over a
+// failed intent (V14). Nothing in this repo passes --build-number today; if
+// something ever does, it fails loudly here and the version moves in
+// pubspec.yaml, where the ledger reads it.
+val pubspecVersion: Pair<String, String>? = run {
+    val pubspec = rootProject.file("../pubspec.yaml")
+    if (!pubspec.exists()) return@run null
+    val line = pubspec.readLines().firstOrNull { it.startsWith("version:") }
+        ?: return@run null
+    val raw = line.removePrefix("version:").substringBefore('#').trim().trim('"', '\'')
+    val plus = raw.indexOf('+')
+    if (plus <= 0 || plus == raw.length - 1) return@run null
+    Pair(raw.substring(0, plus), raw.substring(plus + 1))
+}
+val versionStampedByGradle = Pair(flutter.versionName, flutter.versionCode.toString())
+val versionCodeKeyInLocalProperties: Boolean = run {
+    val f = rootProject.file("local.properties")
+    f.exists() && Properties().apply { f.reader().use { load(it) } }
+        .containsKey("flutter.versionCode")
+}
+
+val assertVersionIdentity = tasks.register("assertVersionIdentity") {
+    group = "verification"
+    description = "Refuses a release/profile build whose version differs from pubspec.yaml."
+    val expected = pubspecVersion
+    val stamped = versionStampedByGradle
+    val keyPresent = versionCodeKeyInLocalProperties
+    doLast {
+        if (expected == null) {
+            throw GradleException(
+                "VERSION IDENTITY: pubspec.yaml has no `version: <name>+<code>` line " +
+                    "this build can read, so nothing records the versionCode it would stamp."
+            )
+        }
+        if (expected != stamped) {
+            val why = if (keyPresent) {
+                "android/local.properties holds a stale flutter.versionCode/versionName"
+            } else {
+                "android/local.properties has no flutter.versionCode, so the Flutter " +
+                    "Gradle plugin defaulted it to 1"
+            }
+            throw GradleException(
+                "VERSION IDENTITY: this build would stamp ${stamped.first}+${stamped.second} " +
+                    "but pubspec.yaml says ${expected.first}+${expected.second}: $why. " +
+                    "Build with `flutter build apk` / `flutter build appbundle` (it rewrites " +
+                    "that file from pubspec.yaml), or move the version in pubspec.yaml. " +
+                    "A versionCode names one build; this one would name the wrong one."
+            )
+        }
+        logger.lifecycle(
+            "VERSION IDENTITY OK: ${stamped.first}+${stamped.second} == pubspec.yaml"
+        )
+    }
+}
+tasks.configureEach {
+    if (name == "preReleaseBuild" || name == "preProfileBuild") {
+        dependsOn(assertVersionIdentity)
     }
 }
 
