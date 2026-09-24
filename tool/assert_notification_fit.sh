@@ -90,6 +90,24 @@ PX = 37                      # calibrated face size of both shade text rows
 BODY_BUDGET_PX = 755.0       # usable run for the body row (chevron overlaps it)
 TITLE_BUDGET_PX = 676.0      # the title row stops short of the chevron
 
+# --- SECOND FIELD, added 2026-09-25 (AAE) -------------------------------------
+# WHY: on 2026-09-25 this gate returned OK at 93.1% for a body that was CUT on a
+# real row — 「画面オフでも警告。終了はタップ→停…」, 17 of 19 characters, severing
+# 停止 mid-word. 停止 is the only way she ends the drive. A whole-string budget
+# cannot catch that: a string can sit under the budget the gate believes in and
+# still lose its tail on the row she is actually holding, and the tail is the
+# half that matters.
+#
+# So this field asks a different question, and it asks it about the WORD:
+# at the narrowest run we have ever actually observed truncating, is the stop
+# word still wholly on screen?
+#
+# BODY_BUDGET_PX above is DELIBERATELY UNCHANGED. Widening or narrowing the
+# budget to settle an argument about a string is how a measurement stops being
+# one. This adds a check; it retunes nothing.
+OBSERVED_CUT_PX = 629.0      # the 17-char prefix that DID fit on the truncating row
+STOP_WORD = {"ja": "停止", "en": "Stop"}
+
 def width(text, path):
     f = (ImageFont.truetype(path, PX, index=0) if path.endswith(".ttc")
          else ImageFont.truetype(path, PX))
@@ -126,7 +144,12 @@ if MODE == "--self-test":
     # under the old "~45 characters" rule — and it overflowed. If this gate ever
     # accepts it, the gate has reverted to counting characters.
     OLD_JA = '画面を消していても警告します。終了はタップ。'
-    NEW_JA = '画面オフでも警告。終了はタップ→停止。'
+    # The SHIPPED body. Updated 2026-09-25 with the string itself: this is the
+    # instrument's fixture, NOT the budget. The budget constant above was
+    # deliberately left alone — the string was cut on a real row while this
+    # gate said 93.1% OK, and the honest response to that is a shorter string,
+    # never a wider budget.
+    NEW_JA = '位置情報を使用中。タップ→停止。'
     ok = 0
     total = 0
     for name, s, expect_reject in (("old ja body (22 chars, overflowed)", OLD_JA, True),
@@ -157,6 +180,27 @@ check("driveNotificationTitle", *read_pair(src, "driveNotificationTitle"),
       TITLE_BUDGET_PX, failures)
 check("driveNotificationBody", *read_pair(src, "driveNotificationBody"),
       BODY_BUDGET_PX, failures)
+
+# --- the stop word must survive the cut, not merely be present ----------------
+print("\nStop word survives the narrowest observed row "
+      f"({OBSERVED_CUT_PX:.0f}px):")
+bja, ben = read_pair(src, "driveNotificationBody")
+for lang, text, font in (("ja", bja, CJK), ("en", ben, LATIN)):
+    word = STOP_WORD[lang]
+    # longest prefix that fits the observed run -- what she would actually read
+    visible = ""
+    for ch in text:
+        if width(visible + ch, font) > OBSERVED_CUT_PX:
+            break
+        visible += ch
+    survives = word in visible
+    cut = "" if visible == text else "…"
+    print(f"  {lang}  {'OK' if survives else 'CUT OFF':<8} shows: {visible}{cut}")
+    if not survives:
+        failures.append(
+            f"driveNotificationBody [{lang}] loses {word!r} at "
+            f"{OBSERVED_CUT_PX:.0f}px — she would read {visible + cut!r}, which "
+            f"never names the control that ends the drive")
 
 if failures:
     print("\nFAIL: a notification string overflows the collapsed shade:", file=sys.stderr)

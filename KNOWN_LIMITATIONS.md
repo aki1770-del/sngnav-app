@@ -182,11 +182,37 @@ English; the ja floor (BETA_PLAN C5) is in progress and is not rescope currency.
 Location is opt-in (deny-by-default consent card with a data-flow
 disclosure) and no `ACCESS_BACKGROUND_LOCATION` is requested. It is NO LONGER
 foreground-only (changed 2026-09-24): once she starts a drive, an ongoing
-foreground service keeps collecting with the screen off, behind a notification
-she can see and cannot swipe away. Nothing runs before she starts a drive.
-⚑ Known gap: showing that notification needs POST_NOTIFICATIONS on Android
-13+, which the app declares but does not yet request — so on a 13+ device the
-indicator may be absent while collection continues. The position dot carries a
+foreground service keeps collecting with the screen off, and the app posts a
+notification for the drive and does not itself withdraw it until 停止.
+Nothing runs before she starts a drive.
+⚑ Corrected 2026-09-25, on measurement: this paragraph said the notification
+was one "she cannot swipe away", and marked that "measured" from
+`setOngoing: true` — a source read, not a measurement. Measured on a secured
+Android 14 (API 34) emulator with a probe that builds the notification exactly
+as geolocator_android 4.6.2 does: (a) ONE ordinary swipe removed it while the
+foreground service stayed `isForeground=true` (positive control: the same
+gesture removed a plain notification); (b) on the locked screen it was not
+shown at all, at channel importance NONE, LOW and DEFAULT alike, and appeared
+only beside a plain, non-ongoing sibling; (c) the shade files it under
+サイレント. So on 14+ she CAN end up with location running and no notification
+in sight. After the swipe the only trace was Android's own 「1 個のアプリが
+アクティブです」 chip in the fully expanded Quick Settings. The published pages
+now say this; closing the gap is a Chair-level fork (see the setOngoing comment
+in `lib/her_position.dart` and the dignity comment in AndroidManifest.xml).
+Her phone is not that emulator: UNVERIFIED there, never *cleared*.
+⚑ Corrected 2026-09-25: this paragraph said POST_NOTIFICATIONS was declared
+"but does not yet request", and that the indicator "may be absent while
+collection continues". BOTH ARE FALSE AT HEAD and were false when written —
+the sentence came off a 153-behind lane where it was still true and landed 58
+minutes after the fix, inside the commit titled for repairing this very class.
+What is true: the app DOES request it (`_askForDriveNotificationPermission` in
+`lib/main.dart`, called from `_shareLocation` when she starts a drive), and
+until it is granted NO foreground service is started at all — the
+`driveNotification:` argument to `herPositionStream` is null when
+`_mayPostDriveNotification` is false, and the drive is screen-on only. The
+service never STARTS without a notification it can post. Because the ask is
+deliberately not awaited, the FIRST drive after a fresh install on 13+ runs
+screen-on only and her answer governs from the next one. The position dot carries a
 finite-position guard and degrades
 honestly (dead-reckoning → `lost`) rather than showing a confidently-wrong
 dot. There is no vehicle-bus (CAN/OBD) integration; sensor-grade dead

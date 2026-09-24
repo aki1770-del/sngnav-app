@@ -315,4 +315,117 @@ void main() {
       expect(m.history.map((r) => r.versionCode), containsAll(<int>[10, 11]));
     });
   });
+
+  // ===== THE HOST THAT HAS NO LITERAL =====
+  //
+  // Every other egress in this app is an https literal in lib/, which is what
+  // `tool/assert_disclosure_parity.sh` scans and what the data-safety
+  // declaration's `grep -rn "http://" lib/` looked at. The artifact host is
+  // neither: it arrives inside the fetched manifest. Both instruments are
+  // structurally blind to it, so the https property is held by refusal in the
+  // parser, and these tests are what prove the refusal actually refuses.
+  group('a manifest may not send the app to a plaintext host', () {
+    test('an http:// artifact URL is refused, and refused as noAnswer', () async {
+      final res = await checkerWith(
+        serving(manifestJson(
+          versionCode: 99,
+          artifactUrl: 'http://example.invalid/app-release.apk',
+        )),
+      ).check(manifestUrl: Uri.parse('https://h.invalid/m.json'));
+      // The whole manifest fails to parse, so this is "we did not understand
+      // the answer" -- never upToDate, and never an announcement.
+      expect(res.status, UpdateCheckStatus.noAnswer);
+      expect(res.shouldAnnounce, isFalse);
+    });
+
+    test('the SAME manifest over https announces — so the test above is '
+        'measuring the scheme and nothing else', () async {
+      final res = await checkerWith(
+        serving(manifestJson(
+          versionCode: 99,
+          artifactUrl: 'https://example.invalid/app-release.apk',
+        )),
+      ).check(manifestUrl: Uri.parse('https://h.invalid/m.json'));
+      expect(res.status, UpdateCheckStatus.updateAvailable);
+      expect(res.shouldAnnounce, isTrue);
+    });
+  });
+
+  // ===== "NEVER A DOWNLOAD" MUST HOLD ON THE HOST THAT IGNORES RANGE =====
+  //
+  // The privacy policy (flow 5) tells her the artifact step is an existence
+  // check and never a download. The fallback for a host that refuses HEAD was
+  // a one-byte ranged GET made with `get`, which reads the WHOLE body before
+  // returning -- so a host that ignores Range made the app download the
+  // artifact. These tests count what the checker pulls from such a host.
+  group('the existence check never downloads the artifact', () {
+    test('HEAD refused (405) + Range ignored (200, whole body): reachable, '
+        'and the body is NOT drained', () async {
+      final host = _RangeIgnoringHost(manifestJson(versionCode: 11));
+      final res = await checkerWith(host).check(manifestUrl: manifestUrl);
+      expect(res.status, UpdateCheckStatus.updateAvailable,
+          reason: 'a 200 to the ranged GET means the artifact is there');
+      expect(host.headSeen, isTrue,
+          reason: 'HEAD is still asked first; this test must reach the '
+              'fallback, or it measures nothing');
+      expect(host.rangedGetSeen, isTrue);
+      expect(host.chunksServedToAListener, lessThan(_RangeIgnoringHost.chunks),
+          reason: 'the checker read the whole artifact: that is a download, '
+              'and the policy says there is none');
+      expect(host.chunksServedToAListener, lessThanOrEqualTo(1));
+    });
+
+    test('the same host, answering 404 to the ranged GET: unreachable, and '
+        'nothing announced -- so the test above is measuring the body and '
+        'not a checker that says yes to everything', () async {
+      final host = _RangeIgnoringHost(manifestJson(versionCode: 11),
+          rangedStatus: 404);
+      final res = await checkerWith(host).check(manifestUrl: manifestUrl);
+      expect(res.status, UpdateCheckStatus.newerButUnreachable);
+      expect(res.shouldAnnounce, isFalse);
+    });
+  });
+}
+
+/// A host that refuses HEAD and IGNORES Range: the ranged GET is answered with
+/// [rangedStatus] and the entire artifact body, streamed in [chunks] pieces
+/// produced only while someone is listening. [chunksServedToAListener] is how
+/// much of the artifact the client actually pulled.
+class _RangeIgnoringHost extends http.BaseClient {
+  _RangeIgnoringHost(this.manifestBody, {this.rangedStatus = 200});
+
+  static const int chunks = 64;
+  static const int chunkBytes = 1024;
+
+  final String manifestBody;
+  final int rangedStatus;
+  bool headSeen = false;
+  bool rangedGetSeen = false;
+  int chunksServedToAListener = 0;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    if (request.url.path.endsWith('.json')) {
+      final bytes = utf8.encode(manifestBody);
+      return http.StreamedResponse(Stream.value(bytes), 200,
+          contentLength: bytes.length);
+    }
+    if (request.method == 'HEAD') {
+      headSeen = true;
+      return http.StreamedResponse(const Stream.empty(), 405);
+    }
+    rangedGetSeen = request.headers['Range'] == 'bytes=0-0';
+    late final StreamController<List<int>> body;
+    body = StreamController<List<int>>(onListen: () async {
+      for (var i = 0; i < chunks; i++) {
+        if (!body.hasListener) break;
+        body.add(List<int>.filled(chunkBytes, 0));
+        chunksServedToAListener++;
+        await Future<void>.delayed(Duration.zero);
+      }
+      await body.close();
+    });
+    return http.StreamedResponse(body.stream, rangedStatus,
+        contentLength: chunks * chunkBytes);
+  }
 }

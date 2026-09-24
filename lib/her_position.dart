@@ -385,6 +385,27 @@ LocationSettings driveLocationSettings({DriveNotificationText? notification}) {
       // watching, she can see that we are watching. Ending it is a different
       // act and she has it — tap the notification (geolocator builds a
       // bring-to-front intent, BackgroundNotification.java:46) then 停止.
+      //
+      // ⚑ MEASURED 2026-09-25 (AAE), AND IT BREAKS THE GUARANTEE ABOVE ON
+      // ANDROID 14+. On a secured API 34 emulator, a probe posting this exact
+      // notification (geolocator_android 4.6.2's channel, importance,
+      // visibility and setOngoing(true), as a location FGS) was REMOVED by one
+      // ordinary sideways swipe, and the foreground service stayed
+      // `isForeground=true` afterwards. Positive control: the identical
+      // gesture removed a plain notification; two earlier gestures that
+      // removed neither were discarded as instrument failures, not counted.
+      // Record flags=0x62 (ONGOING|NO_CLEAR|FOREGROUND_SERVICE) with no
+      // 0x2000 (NO_DISMISS). So from Android 14 `setOngoing` no longer ties
+      // the indicator to the collection: she can separate them with a swipe,
+      // and nothing here is told she did (geolocator sets no deleteIntent).
+      // It is KEPT TRUE: below Android 14 it is the thing this comment was
+      // written against, and dropping it cannot close the gap on 14+ — only
+      // widen it wherever it does still hold. (Which cases those are on 14+ —
+      // Android's docs name the locked phone and "Clear all" — is recalled
+      // from documentation, NOT measured here.) Closing the gap (stop the drive when the indicator is
+      // dismissed, or put it back) changes what she experiences mid-drive and
+      // is not this file's to decide: the manifest's own comment reserves
+      // "location without that notification" to the Chair.
       setOngoing: true,
       // TRUE and load-bearing. geolocator's own doc: with this false "the
       // system can still sleep and all location events will be received at

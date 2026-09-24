@@ -1,6 +1,6 @@
 # プライバシーポリシー — sngnav-app
 
-最終更新: 2026-09-24
+最終更新: 2026-09-25
 
 <!-- Play Console は位置情報を要求するアプリに公開されたプライバシーポリシー URL を
      求める。本ファイルはその原文（ja 主・en 全訳付き）。ホスティング先が決まったら
@@ -48,7 +48,7 @@
 - **アカウントはありません。** 登録・ログインは不要で、個人情報の入力欄もありません。
 - **広告 SDK・解析（アナリティクス）SDK は入っていません。**
 - **本アプリ独自のサーバーはありません。** あなたのデータが「私たちのサーバー」に送られることはありません — 存在しないためです。
-- **通知の出ない、こっそりした位置情報取得は行いません。** Android の ACCESS_BACKGROUND_LOCATION 権限は要求していません。位置情報を使うのは次の 2 つの場合だけです — (1) アプリを画面に表示している間、(2) **あなた自身が「現在地を共有」を押して運転を開始したあと**、その運転が続いている間。(2) では画面を消しても、アプリを閉じても受信が続きます（雪道で画面を見ていられないときに警告を止めないためです）。ただし **その間はずっと通知が表示されます**。通知をタップして「停止」を押せば、運転と位置情報の受信が同時に終わります。**通知が出ていない状態で位置情報を取ることはありません。**
+- **あなたが始めていない位置情報の取得は行いません。** Android の ACCESS_BACKGROUND_LOCATION 権限は要求していません。位置情報を使うのは次の 2 つの場合だけです — (1) アプリを画面に表示している間、(2) **あなた自身が「現在地を共有」を押して運転を開始したあと**、その運転が続いている間。(2) では画面を消しても、アプリを閉じても受信が続きます（雪道で画面を見ていられないときに警告を止めないためです）。運転を始めると、アプリは運転中であることを示す通知を出し、運転が終わるまで自分からは取り下げません。アプリを開いて（または通知をタップして）「停止」を押せば、運転と位置情報の受信が同時に終わります。**受信を終わらせるのは「停止」だけです。** ⚑ **ただし、この通知が見えない場合が 2 つあります（2026-09-25 訂正）。** (a) **画面をロックしている間は、ロック画面にこの通知が表示されないことがあります。** (b) **Android 14 以降では、この通知を横にスワイプして消すことができます。消しても位置情報の受信は止まりません。** どちらも、Android 14 の試験用エミュレーター（実機ではありません）で本アプリと同じ通知の設定を再現して確かめたことです — (a) ロック中の画面には表示されず、(b) スワイプで通知が消えたあとも、受信を担う前景サービスは動き続けました。お使いの機種で同じになるかは、まだ確かめていません。このページは以前、「通知が出ていない状態で位置情報を取ることはありません」「この通知は消すこともできません」と書いていました。この 2 つの場合には、どちらも正しくありませんでした。
   <!-- AndroidManifest.xml の uses-permission 7 件。ACCESS_BACKGROUND_LOCATION は
        今も要求していない。(2) は前景サービス（geolocator の
        GeolocatorLocationService、foregroundServiceType="location"）による。 -->
@@ -57,14 +57,14 @@
 
 | 権限 | 用途 |
 |---|---|
-| INTERNET | 気象データ・経路・地図タイルの取得（下記「端末の外に出るデータ」の4つのみ） |
-| ACCESS_FINE_LOCATION | 地図上の現在地表示と、走行中の路面警告。**同意した場合のみ**。アプリの表示中、または**あなたが開始した運転中**（その間は通知が出ています） |
+| INTERNET | 気象データ・経路・地図タイルの取得と、新しいビルドがあるかの確認（下記「端末の外に出るデータ」の5つのみ） |
+| ACCESS_FINE_LOCATION | 地図上の現在地表示と、走行中の路面警告。**同意した場合のみ**。アプリの表示中、または**あなたが開始した運転中**（運転中は通知を出しますが、見えない場合があります — 上の「収集しないもの」を参照） |
 | ACCESS_COARSE_LOCATION | 同上（端末が精密な位置を返せない場合の粗い位置） |
 | WAKE_LOCK | 走行画面を表示している間、画面を消灯させないため。加えて、あなたが開始した運転中は、**画面を消していても警告が届くように**端末が眠り込むのを防ぎます |
 | VIBRATE | 危険を知らせる**振動**（前を見たまま気づけるように）。音を聞き取りにくい方・吹雪で画面を見られない場面のための channel です |
-| FOREGROUND_SERVICE | あなたが「現在地を共有」で開始した運転の間、**通知を表示したまま**位置情報の受信を続けるため。通知の出ない実行はありません |
+| FOREGROUND_SERVICE | あなたが「現在地を共有」で開始した運転の間、位置情報の受信を続けるため。開始と同時に通知を出します。ただし Android 14 以降はその通知をスワイプで消すことができ、消しても受信は続きます（終わらせるのは「停止」です）。ロック中の画面には表示されないことがあります |
 | FOREGROUND_SERVICE_LOCATION | 上記サービスが扱うのが位置情報であることを OS に明示するため（Android 14 以降、これが無いと運転中の受信そのものが OS に拒否されます） |
-| POST_NOTIFICATIONS | 運転中であることを示す**あの通知そのもの**を表示するため。Android 13 以降はこの許可が無いと通知が出ません。**許可しなかった場合、アプリは前景サービスを開始しません** — 見えない通知の裏で位置情報を使うことはしないので、その場合の運転は画面を表示している間だけになります |
+| POST_NOTIFICATIONS | 運転中であることを示す**あの通知そのもの**を表示するため。Android 13 以降はこの許可が無いと通知が出ません。**許可しなかった場合、アプリは前景サービスを開始しません** — 通知を出せない状態で運転中の受信を始めることはしないので、その場合の運転は画面を表示している間だけになります |
 
 <!-- 出典＝配布されるマニフェスト（マージ後）:
      build/app/intermediates/merged_manifests/release/
@@ -95,24 +95,55 @@
 通知の見えるサービスを実際に作ったときに同じ変更で戻す」と約束されていました。2026-09-24 に
 そのサービスが実際に動いたため、約束どおり戻っています。**機能が先に着地し、この説明が後から
 追いつく形になりました** — 本来は同じ変更で直すべきものです。アプリが新しくできるように
-なったことは、画面を消していても運転中の警告が届くことであり、**通知が出ていない状態での
-位置情報取得は、以前と同じく一切ありません。** ACCESS_BACKGROUND_LOCATION も引き続き
+なったことは、画面を消していても運転中の警告が届くことであり、~~**通知が出ていない状態での
+位置情報取得は、以前と同じく一切ありません。**~~ ACCESS_BACKGROUND_LOCATION も引き続き
 要求していません。*
 
-## 端末の外に出るデータ（この4つがすべてです）
+*訂正のお知らせ（2026-09-25）: 上の取り消し線の一文は正しくありませんでした。運転中の通知は、
+ロック中の画面には表示されないことがあり、Android 14 以降ではスワイプで消せて、消しても
+受信は続きます（上の「収集しないもの」を参照）。どちらも Android 14 の試験用エミュレーターで
+確かめたことで、実機ではまだ確かめていません。*
+
+## 端末の外に出るデータ（この5つがすべてです）
 
 1. **気象庁アメダス観測値の取得** — アプリの起動時と再取得時に、あらかじめ決められた観測所 ID（秋田周辺の固定5地点）のデータを気象庁のサーバー（www.jma.go.jp）から取得します。**あなたの座標は送信されません。** 通信には連絡先として本アプリの公開リポジトリ URL を含む User-Agent が付きます（気象庁側の流量管理・セキュリティ連絡のためのもので、あなたを識別するものではありません）。
    <!-- jma_fetch.dart:24,48,134-154; main.dart:79-84 -->
 
-2. **警報・注意報の取得（同意した場合のみ）** — 現在地の共有に同意すると、走行約1kmごとに現在の座標が、**その地域を管轄する公的な気象機関のみ**に送信されます（日本国内の地点は気象庁のみ、米国内の地点は NWS のみ。管轄外の機関に座標が送信されることはありません）。座標はメモリ上でのみ扱われ、端末に保存されません。
-   <!-- main.dart:753-770; services/advisory_service.dart:12-17; provider_coverage.dart;
-        app_localizations.dart:136-148 のアプリ内開示と同内容 -->
+2. **警報・注意報の取得（同意した場合のみ）** — 現在地の共有に同意すると、走行約1kmごとに（停車中や、運転中に画面を消しているときも約10分ごとに）、**その地域を管轄する公的な気象機関のみ**に警報・注意報を問い合わせます。**日本国内では、あなたの座標は端末の外に出ません** — 端末の中で現在地から都道府県を判定し、気象庁には都道府県コード（都道府県単位のおおまかな位置に相当します）だけを送ります。**米国内では、地点の警報を得るため座標が NWS（米国国立気象局）に送信されます。** 現在地を管轄しない機関に問い合わせることはありません。座標はメモリ上でのみ扱われ、端末に保存されません。（2026-09-25 訂正: 以前は「日本国内でも座標が気象庁に送信される」と書いていましたが、これは正しくありませんでした。）
+   <!-- 出典（記号で引用）: condition_aggregator_jma 0.7.1（pubspec.lock が解決する版）の
+        jma_advisory_provider.dart — 要求 URL は `$warningJsonBaseUrl$prefectureCode.json`
+        （bosai/warning/data/r8/ = 都道府県コード）。座標→都道府県の判定は同パッケージ
+        jma_advisory_mapper.dart の境界ボックスで、端末内。米国は NWS に地点座標。
+        範囲判定は lib/services/provider_coverage.dart / advisory_service.dart の coversPoint。
+        約10分ごと: main.dart の _jmaTicker（Timer.periodic 10 分）→ _onAdvisoryRefreshTapped。
+        ⚑ 2026-09-25 訂正（AAE）: 旧文は日本でも座標を送ると書いていた。アプリ内開示
+        （AppL10n.locationDisclosure）は先に訂正され、test/l10n/consent_localization_test.dart が
+        旧主張の復活を禁じているが、その訂正がこのページに伝播していなかった（OPS-002）。
+        旧コメントの「app_localizations.dart:136-148 のアプリ内開示と同内容」は、行番号も内容の一致も偽だった。 -->
 
 3. **経路検索** — 地図上であなたが**タップして指定した**出発地・目的地の座標が、経路計算のために OSRM 公開デモサーバー（router.project-osrm.org）へ送信されます。GPS の現在地が経路検索へ自動送信されることはありません。OSRM デモサーバーは第三者が運営する公開サービスです。
    <!-- main.dart:868-885（タップ由来）, 921-926, 956（送信）。GPS 自動供給なし -->
 
 4. **地図タイルの補完取得** — 同梱のオフライン地図がカバーしない範囲を表示したとき、その部分のタイル座標（おおまかな表示領域に相当する情報）が OpenStreetMap のタイルサーバー（tile.openstreetmap.org）へ送信されます。同梱範囲内はオフラインで表示され、通信は発生しません。
    <!-- akita_map.dart:90; services/offline_basemap.dart:53-56 offline-first -->
+
+5. **新しいビルドがあるかの確認** — 最初の画面が出た直後に、公開バージョン一覧（JSON）を GitHub の配信サーバー（raw.githubusercontent.com）から取得します。**あなたの座標も、端末を識別する情報も送信しません**（リクエストに本文はありません）。本アプリはストア外配布で自動更新が無く、この確認が無いと修正を出してもお知らせする手段がありません。**確認は起動時の 1 回だけで、繰り返しません。運転中であればその 1 回も行いません。** 一覧があなたのものより新しいビルドを示したときにかぎり、**その一覧が指定した配布先 URL** へ「実際に入手できるか」の存在確認だけを送ります（ダウンロードはしません）。**この配布先のホストは一覧が指定するもので、アプリの中に固定されていません**（現在は GitHub）。アプリが何かをインストールすることはありません（REQUEST_INSTALL_PACKAGES は要求していません）。
+   <!-- services/update_check.dart: UpdateChecker.defaultManifestUrl（一覧の取得先）,
+        UpdateChecker._run の _client.get（取得）, UpdateChecker._artifactReachable（配布先の存在確認）;
+        main.dart: initState の addPostFrameCallback(_runUpdateCheck)（最初のフレーム後に実行）,
+        _runUpdateCheck の _driveActive ガード（運転中は実行しない）。
+        ⚑ 行番号ではなく記号で引用（2026-09-25）。この引用を書いている間に対象ファイルが
+        2 度ずれ、行番号が別の文を指した — 動くファイルの行番号は引用ではない。
+        ⚑「ダウンロードはしません」は 2026-09-25 まで条件付きで偽だった。HEAD を拒否する
+        配布先への代替手段（1 バイトの Range 付き GET）が `_client.get` で本文を最後まで
+        読んでいたため、Range を無視して 200 と全体を返すホストでは成果物（約 95 MB）を
+        丸ごと取得していた。現在は _artifactReachable が状態行だけを読み、本文は読まずに
+        閉じる。test/services/update_check_test.dart の「the existence check never downloads
+        the artifact」が、そのホストから引き出された量を数えて固定している。 -->
+
+**音声について（2026-09-25 追記）:** 音声警告は端末に同梱した音声を優先します。お使いの端末の音声読み上げエンジンがネットワーク音声を使う設定になっている場合、読み上げる文（路面の警告文など）が OS の音声提供元を経由することがあります。これはアプリ自身が行う通信ではありませんが、アプリ内の説明ではすでに明記しているため、このページにも書きます。
+   <!-- アプリ内開示 AppL10n.egressDisclosure の【音声】と同じ内容（test/l10n/consent_localization_test.dart が『ネットワーク音声』を固定）。
+        以前このページは、この経路を書かないまま「上記のほかに、端末の外に出るデータはありません」と言い切っていた。 -->
 
 上記のほかに、端末の外に出るデータはありません。
 
@@ -132,7 +163,7 @@
 
 # Privacy Policy — sngnav-app (English)
 
-Last updated: 2026-09-24
+Last updated: 2026-09-25
 
 sngnav-app is an advisory app that supports driving on snowy roads. We deliberately keep your data on your device wherever possible. This page explains — matching the actual code — what the app uses, what it sends, and what it does not send.
 
@@ -142,20 +173,20 @@ sngnav-app is an advisory app that supports driving on snowy roads. We deliberat
 - **No accounts.** No registration, no login, no personal-information fields.
 - **No advertising or analytics SDKs.**
 - **No app-owned servers.** Your data is never sent to "our servers" — none exist.
-- **No silent background location.** The app does not request Android's ACCESS_BACKGROUND_LOCATION permission. Location is used in exactly two cases: (1) while the app is on screen, and (2) after **you yourself** start a drive with 現在地を共有 ("Share my location"), for as long as that drive lasts. In case (2) the feed continues with the screen off and the app closed — so a warning still reaches you on a snow road you cannot watch a screen on — but **an ongoing notification is shown the entire time**. Tapping it and pressing 停止 ("Stop") ends the drive and the location feed together. **There is no location collection without that notification.**
+- **No location collection you did not start.** The app does not request Android's ACCESS_BACKGROUND_LOCATION permission. Location is used in exactly two cases: (1) while the app is on screen, and (2) after **you yourself** start a drive with 現在地を共有 ("Share my location"), for as long as that drive lasts. In case (2) the feed continues with the screen off and the app closed — so a warning still reaches you on a snow road you cannot watch a screen on. When a drive starts, the app posts a notification saying a drive is running, and the app itself does not withdraw it until the drive ends. Opening the app (or tapping the notification) and pressing 停止 ("Stop") ends the drive and the location feed together. **停止 is the only thing that ends the feed.** ⚑ **There are two cases in which you may not see that notification (corrected 2026-09-25).** (a) **While your screen is locked, the notification may not be shown on the lock screen.** (b) **On Android 14 and later you can swipe the notification away, and doing so does NOT stop the location feed.** Both were observed on an Android 14 test emulator — not a real phone — reproducing this app's notification settings: (a) it was not shown on the locked screen, and (b) after it was swiped away, the foreground service that carries the feed kept running. We have not yet confirmed either on a real phone. This page previously said "there is no location collection without that notification" and "you cannot dismiss it"; in these two cases neither was true.
 
 ## Permissions the app requests (Android)
 
 | Permission | Purpose |
 |---|---|
-| INTERNET | Fetching weather data, routes, and map tiles (only the four flows listed below) |
-| ACCESS_FINE_LOCATION | Showing your position on the map, and road warnings while driving. **Only after you consent** — while the app is on screen, or during **a drive you started** (the notification is shown throughout) |
+| INTERNET | Fetching weather data, routes and map tiles, and checking whether a newer build exists (only the five flows listed below) |
+| ACCESS_FINE_LOCATION | Showing your position on the map, and road warnings while driving. **Only after you consent** — while the app is on screen, or during **a drive you started** (a notification is posted for the drive, but there are cases where you may not see it — see the first section above) |
 | ACCESS_COARSE_LOCATION | Same flow (a coarse position when a precise one is unavailable) |
 | WAKE_LOCK | Keeping the screen on while the driving surface is shown; and, during a drive you started, keeping the device from sleeping so that **warnings still arrive with the screen off** |
 | VIBRATE | The **haptic** hazard cue — so a warning can be noticed without looking. This is the channel for a driver who cannot hear well, or cannot look at the screen in a whiteout |
-| FOREGROUND_SERVICE | Keeping the position feed alive, **behind a notification you can see**, during a drive you started. It never runs without that notification |
+| FOREGROUND_SERVICE | Keeping the position feed alive during a drive you started. A notification is posted when it starts; on Android 14 and later you can swipe that notification away and the feed continues (停止 ends it), and it may not be shown on a locked screen |
 | FOREGROUND_SERVICE_LOCATION | Declaring to the OS that this service handles location. From Android 14 the OS refuses the drive-time feed without it |
-| POST_NOTIFICATIONS | Showing **that notification itself**. From Android 13 nothing is shown without it. **If you decline, the app does not start the foreground service at all** — we will not hold your location behind a notification you cannot see, so the drive is then screen-on only |
+| POST_NOTIFICATIONS | Showing **that notification itself**. From Android 13 nothing is shown without it. **If you decline, the app does not start the foreground service at all** — it never starts drive-time collection when it cannot post that notification, so the drive is then screen-on only |
 
 No other permissions (storage, camera, contacts, **background location**, etc.) are requested.
 
@@ -177,18 +208,27 @@ permissions were removed on 2026-07-10 as declared-but-unused, on a written prom
 return in the same change-set as a real, driver-started, notification-visible service. That service
 landed on 2026-09-24 and they returned with it. **The capability landed first and this page caught
 up afterwards** — it should have been one change. What the app can now do is keep warning you with
-the screen off during a drive you started; what has NOT changed is that **there is no location
-collection without a visible notification**, and ACCESS_BACKGROUND_LOCATION is still not requested.*
+the screen off during a drive you started; ~~what has NOT changed is that **there is no location
+collection without a visible notification**, and~~ ACCESS_BACKGROUND_LOCATION is still not requested.*
 
-## Data that leaves your device (these four flows are all of it)
+*Correction note (2026-09-25): the struck-through clause above was not true. The drive notification
+may not be shown on a locked screen, and on Android 14 and later it can be swiped away while the feed
+continues (see the first section above). Both were observed on an Android 14 test emulator, not yet on
+a real phone.*
+
+## Data that leaves your device (these five flows are all of it)
 
 1. **JMA AMeDAS observation fetch** — on app start and re-fetch, the app requests data for fixed, pre-configured weather-station IDs (a five-station corridor around Akita) from the Japan Meteorological Agency servers (www.jma.go.jp). **Your coordinates are not sent.** Requests carry a User-Agent containing this app's public repository URL, so the publisher can do rate-limit accounting and reach a security contact — it does not identify you.
 
-2. **Advisory fetch (only after consent)** — if you consent to sharing your location, your current coordinates are sent about once per kilometre of travel **only to the public weather agency with jurisdiction over your area** (a point in Japan goes to the JMA only; a point in the United States goes to the NWS only; an agency that does not cover your location is never contacted). Coordinates are held in memory only and are never persisted on the device.
+2. **Advisory fetch (only after consent)** — if you consent to sharing your location, the app asks for warnings and advisories about once per kilometre of travel (and about every 10 minutes when stopped, or when driving with the screen off), **only from the public weather agency with jurisdiction over your area**. **In Japan your coordinates never leave the device**: the app works out your prefecture on the device and sends the JMA only a prefecture code (equivalent to a coarse, prefecture-level location). **In the United States your coordinates are sent to the NWS** to fetch alerts for your exact point. An agency that does not cover your location is never contacted. Coordinates are held in memory only and are never persisted on the device. (Corrected 2026-09-25: this page previously said your coordinates were sent to the JMA in Japan too. That was not true.)
 
 3. **Route lookup** — the origin and destination coordinates **you tap on the map** are sent to the public OSRM demo router (router.project-osrm.org) to compute a route. Your GPS position is never fed to the router automatically. The OSRM demo server is a third-party public service.
 
 4. **Map-tile fallback** — when you view an area the bundled offline basemap does not cover, the tile coordinates for that area (roughly equivalent to a coarse viewport location) are sent to the OpenStreetMap tile server (tile.openstreetmap.org). Areas within the bundled coverage render offline with no network traffic.
+
+5. **Update check** — just after the first screen appears, the app fetches a published version list (JSON) from GitHub's raw content server (raw.githubusercontent.com). **No coordinates and no device identifier are sent** — the request has no body. This app is distributed outside any store and has no auto-update, so without this check there is nothing to tell you a fix exists. **The check happens once per launch and is not repeated; if a drive is in progress it is skipped entirely.** Only when the list names a build newer than yours, the app sends an existence check — never a download — to **the download URL that list specifies**, so it never announces a build you cannot actually get. **That host comes from the list and is not fixed inside the app** (today it is GitHub). The app installs nothing (REQUEST_INSTALL_PACKAGES is not requested).
+
+**About voice (added 2026-09-25):** Spoken alerts prefer the audio bundled on the device. If your device's text-to-speech engine is set to use a network voice, the text being spoken (such as a road warning) may pass through the OS voice vendor. This is not a connection the app makes itself, but the in-app disclosure already says so, and this page now says it too.
 
 Nothing else leaves the device.
 

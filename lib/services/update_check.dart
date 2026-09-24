@@ -143,15 +143,36 @@ class UpdateChecker {
       final dir = await getApplicationSupportDirectory();
       final f = File('${dir.path}/$_overrideFileName');
       if (f.existsSync()) {
-        final u = Uri.tryParse(f.readAsStringSync().trim());
-        if (u != null && u.isAbsolute && (u.scheme == 'https' || u.scheme == 'http')) {
+        // https only, for the same reason the manifest's artifact URL is:
+        // see UpdateManifest._httpUri. A persisted override is not a reason to
+        // drop to plaintext.
+        final u = _httpsOnly(f.readAsStringSync());
+        if (u != null) {
           return u;
         }
       }
     } catch (_) {
       // Fall through to the compiled default.
     }
-    return Uri.tryParse(defaultManifestUrl);
+    // The compiled default is checked too, and for a reason found while
+    // closing the gap above: this value is overridable at BUILD time with
+    // `--dart-define=SNGNAV_UPDATE_MANIFEST_URL=...`, and this return
+    // originally handed back whatever parsed. Refusing a plaintext artifact URL
+    // while a `--dart-define` could still point the manifest fetch itself at
+    // `http://` would have left the published "all traffic is https" statement
+    // resting on a build flag nobody checks.
+    return _httpsOnly(defaultManifestUrl);
+  }
+
+  /// An absolute https URL with a host, or null. Same predicate as
+  /// `UpdateManifest._httpUri`, applied to the manifest location rather than to
+  /// the artifact.
+  static Uri? _httpsOnly(String raw) {
+    final u = Uri.tryParse(raw.trim());
+    if (u == null || !u.isAbsolute) return null;
+    if (u.scheme != 'https') return null;
+    if (u.host.isEmpty) return null;
+    return u;
   }
 
   static const String _dismissedFileName = 'update_dismissed_code.txt';
@@ -331,11 +352,28 @@ class UpdateChecker {
       return false;
     }
     try {
-      final ranged = await _client.get(artifact, headers: const {
-        'Range': 'bytes=0-0',
-      });
-      return ranged.statusCode == 206 ||
+      // ⚑ THE BODY IS NEVER READ (2026-09-25, AAE). This used to be
+      // `_client.get(artifact, headers: {'Range': 'bytes=0-0'})`, and `get`
+      // reads EVERY byte of the response before it returns. A host that
+      // ignores Range answers with 200 and the whole artifact, so on exactly
+      // the host this fallback exists for, the "probe" downloaded ~95 MB --
+      // over her rural cell, and past the 6 s budget, because `.timeout` in
+      // [check] abandons the Future, not the transfer. The published policy
+      // says this step is an existence check and "never a download"
+      // (docs/store/privacy_policy_ja.md, flow 5). The status line is the
+      // whole answer, so the stream is cancelled unread and that sentence is
+      // true by construction rather than by the host's good manners.
+      final request = http.Request('GET', artifact)
+        ..headers['Range'] = 'bytes=0-0';
+      final ranged = await _client.send(request);
+      final reachable = ranged.statusCode == 206 ||
           (ranged.statusCode >= 200 && ranged.statusCode < 300);
+      try {
+        await ranged.stream.listen(null).cancel();
+      } catch (_) {
+        // Closing an abandoned body must not turn "reachable" into "not".
+      }
+      return reachable;
     } catch (_) {
       return false;
     }

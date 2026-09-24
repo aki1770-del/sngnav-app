@@ -21,7 +21,7 @@
 | Play の質問 | 回答 | 根拠 |
 |---|---|---|
 | このアプリはユーザーデータを収集または共有しますか | **はい** | 位置情報が端末外に出る経路が 3 つある（§2） |
-| 収集するユーザーデータはすべて転送時に暗号化されますか | **はい** | 送信先 4 つすべて `https://` — `jma_fetch.dart`, `jma_forecast_fetch.dart`, `advisory_service.dart`, `akita_map.dart`。平文 `http://` の送信先は 0 件（`grep -rn "http://" lib/` で確認、2026-08-10） |
+| 収集するユーザーデータはすべて転送時に暗号化されますか | **はい** | 送信先 5 つすべて `https://` — `jma_fetch.dart`, `jma_forecast_fetch.dart`, `advisory_service.dart`, `akita_map.dart`, **`update_check.dart`（2026-09-25 追加。5 件目、従前この欄から漏れていた）**。⚑ **根拠を grep から制約に変更（2026-09-25）。** 旧根拠は `grep -rn "http://" lib/`（2026-08-10）だったが、更新確認は配布先ホストを**取得した一覧の中から**受け取るため `lib/` に URL リテラルが無く、grep も `tool/assert_disclosure_parity.sh` の egress スキャナも**構造的に見えない**。そこで `UpdateManifest._httpUri` が `https` 以外を**拒否**するようにし、`test/services/update_check_test.dart` の陰性対照 2 件で「`http://` は拒否・同一 manifest の `https://` は通過」を固定した。この欄は走査結果ではなく**コード上の制約**に依拠する |
 | ユーザーがデータの削除を要求する手段を提供していますか | **いいえ（ただし理由あり）** | アカウントもサーバーも存在しないため、削除すべき保管データが我々の側に無い。端末内のファイルはアンインストールで消える。フォームの自由記述に「アカウント・サーバーなし／端末内のみ／アンインストールで削除」と書く |
 
 ---
@@ -40,7 +40,7 @@
 
 **端末外に出る 3 経路（これがすべて）:**
 
-1. **警報・注意報の取得** — 同意した場合のみ、走行約 1 km ごとに現在座標を、その地域を管轄する公的気象機関のみへ送信（日本＝気象庁、米国＝NWS）。`main.dart:753-770` / `services/advisory_service.dart:12-17` / `services/provider_coverage.dart`
+1. **警報・注意報の取得** — 同意した場合のみ、走行約 1 km ごと（停車中・画面オフの運転中も約 10 分ごと）に、その地域を管轄する公的気象機関のみへ問い合わせる。**日本＝気象庁へは、端末内で判定した都道府県コードだけ（座標は送らない。都道府県単位のおおまかな位置 → 2-2 の Approximate にも当たる）。米国＝NWS へは地点座標（→ この 2-1 の Precise）。** 出典は記号で: `condition_aggregator_jma` 0.7.1 の `jma_advisory_provider.dart`（要求 URL `$warningJsonBaseUrl$prefectureCode.json`）、範囲判定 `services/provider_coverage.dart` / `advisory_service.dart` の `coversPoint`。⚑ **2026-09-25 訂正（AAE）:** 旧記述は「日本でも現在座標を気象庁へ送信」だった。アプリ内開示（`AppL10n.locationDisclosure`）とコードの両方に反する。**Play への回答（Precise = Collected/Shared はい）は変わらない** — 米国の NWS 経路と下の経路検索が、正確な座標を端末外に出すため。
 2. **経路検索** — ユーザーが**地図をタップして指定した**出発地・目的地の座標を OSRM 公開デモサーバー (`router.project-osrm.org`) へ。**GPS 現在地は経路検索へ自動送信されない。** `main.dart:868-885, 921-926, 956`
 3. **地図タイルの補完** — 同梱オフライン地図の範囲外を表示したときのみ、タイル座標を `tile.openstreetmap.org` へ（→ 2-2 の Approximate 扱い）。`akita_map.dart:90` / `services/offline_basemap.dart:53-56`
 

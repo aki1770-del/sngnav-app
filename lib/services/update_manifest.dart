@@ -165,15 +165,31 @@ class UpdateManifest {
   static bool _isHex64(String s) =>
       s.length == 64 && RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(s);
 
-  /// Accepts only an absolute http/https URL with a host. A relative, `file:`,
-  /// `intent:` or `javascript:` URL is refused rather than resolved.
+  /// Accepts only an absolute **https** URL with a host. A relative, `file:`,
+  /// `intent:`, `javascript:` — or plain `http:` — URL is refused rather than
+  /// resolved.
+  ///
+  /// ⚑ https, NOT http, and the reason is a claim we already publish.
+  /// `docs/store/data_safety_declaration.md` answers Play's "is all user data
+  /// encrypted in transit" with YES, and its evidence was
+  /// `grep -rn "http://" lib/`. THIS HOST HAS NO LITERAL IN `lib/`: it arrives
+  /// inside the fetched manifest and is contacted by
+  /// `UpdateChecker._artifactReachable`. A grep over source — and equally the egress scanner
+  /// in `tool/assert_disclosure_parity.sh`, which reads URL literals — is
+  /// structurally blind to it, so neither instrument could ever have caught an
+  /// `http://` artifact URL. Accepting one would have made a published
+  /// statement false with nothing on our side able to see it.
+  ///
+  /// So the property is held HERE, by refusal, instead of being asserted
+  /// downstream by a scan that cannot reach it (V15 — best is *cannot be done
+  /// wrong*; a scanner that cannot see the field is *found downstream*).
   static Uri? _httpUri(Object? raw) {
     if (raw is! String) return null;
     final s = raw.trim();
     if (s.isEmpty) return null;
     final uri = Uri.tryParse(s);
     if (uri == null || !uri.isAbsolute) return null;
-    if (uri.scheme != 'http' && uri.scheme != 'https') return null;
+    if (uri.scheme != 'https') return null;
     if (uri.host.isEmpty) return null;
     return uri;
   }

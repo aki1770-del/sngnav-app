@@ -141,6 +141,11 @@ void main() {
       // If she could swipe this away, location would keep being collected with
       // no visible sign of it — the "silent, notification-less background
       // location" the manifest's dignity boundary forbids.
+      // ⚑ 2026-09-25: this pins the ARGUMENT, not the guarantee. On a
+      // secured Android 14 emulator one swipe removed a notification built
+      // exactly this way while the foreground service kept running (see the
+      // setOngoing comment in lib/her_position.dart). A green here does NOT
+      // mean she cannot separate the indicator from the collection on 14+.
       expect(config.setOngoing, isTrue);
     });
 

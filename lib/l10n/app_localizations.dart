@@ -129,9 +129,63 @@ class AppL10n {
   /// already states in both tongues, and the same word the in-app control
   /// carries (`stop`, above). Three surfaces sent her looking for that word
   /// and the only one in her hand at that moment did not say it.
+  /// ⚑ SHORTENED AND WEAKENED ON PURPOSE, 2026-09-25. Two separate defects,
+  /// one string.
+  ///
+  /// (1) IT WAS CUT WHERE IT MATTERS MOST. At her geometry the row rendered
+  ///     「画面オフでも警告。終了はタップ→停…」 — 17 of 19 characters, losing
+  ///     止。 and severing 停止 mid-word. 停止 is the word every other surface
+  ///     sends her looking for and the only way she ends the drive. The fit
+  ///     gate PASSED that string at 93.1% of a 755px budget, because the
+  ///     budget came from a shade screenshot that is not her phone. The string
+  ///     is what moved; the budget was left alone deliberately — it is a
+  ///     measurement, and tuning a measurement to fit a string is how the
+  ///     string wins an argument it should lose. The ja body is now ~592px,
+  ///     comfortably inside the ~629px run her own truncation actually
+  ///     demonstrated, and 停止 sits well before the cut in both readings.
+  ///
+  /// (2) THE FIRST SENTENCE PROMISED WHAT THIS SURFACE CANNOT DELIVER.
+  ///     「画面オフでも警告。」 describes the screen-off condition — and is
+  ///     printed in a notification that is not shown in that condition.
+  ///     MEASURED, not read from source: on a secured Android 14 emulator,
+  ///     a lone ongoing FGS notification built exactly as geolocator_android
+  ///     4.6.2 builds it was ABSENT from the lock screen — at channel
+  ///     importance NONE, LOW and DEFAULT alike, so importance is not the
+  ///     lever — and appeared only when a plain, non-ongoing notification
+  ///     from the same app was posted beside it (AAE lock probe 2026-09-24,
+  ///     re-measured 2026-09-25). The shade files it under サイレント.
+  ///     ⚑ This comment said until 2026-09-25 that "Android filters
+  ///     minimum-importance notifications" — a mechanism read off the
+  ///     source that the same probe had already falsified the day before.
+  ///     HER phone is not that emulator: UNVERIFIED there, never *cleared*
+  ///     (docs/DEVICE_VERIFICATION.md, Lock screen).
+  ///
+  ///     So the body no longer promises a behaviour; it states a condition
+  ///     that is true whenever these words can be read at all — location is in
+  ///     use right now — and how to end it. THIS IS NOT A WEAKENED INDICATOR:
+  ///     `setOngoing` is untouched (the `setOngoing: true` argument in
+  ///     driveLocationSettings, her_position.dart) and the sentence that was
+  ///     removed was a claim, never the indicator. Naming the collection
+  ///     outright is what the privacy policy promises this notification does;
+  ///     promising a warning was not.
+  ///     ⚑ And `setOngoing` itself holds less than the code assumed: on the
+  ///     same Android 14 emulator ONE ordinary swipe removed this
+  ///     notification while the foreground service kept running (positive
+  ///     control: the identical gesture removed a plain notification). See
+  ///     the setOngoing comment in her_position.dart.
+  ///
+  /// THE PROMISE — unchanged and still not in doubt. The body once said "Tap
+  /// to end." / 「終了はタップ。」 Tapping does NOT end it. geolocator's content
+  /// intent is buildBringToFrontIntent() (BackgroundNotification.java:46, set
+  /// at :89), and geolocator_android 4.6.2 — the version pubspec.lock
+  /// resolves — has no addAction anywhere, so the notification cannot carry a
+  /// Stop button at all. The tap opens the app and location keeps running. The
+  /// real sequence is tap, then 停止: the same two steps `locationDisclosure`
+  /// already states in both tongues, and the same word the in-app control
+  /// carries (`stop`, above).
   String get driveNotificationBody => _ja
-      ? '画面オフでも警告。終了はタップ→停止。'
-      : 'Warns with the screen off. Tap, then Stop.';
+      ? '位置情報を使用中。タップ→停止。'
+      : 'Location in use. Tap, then Stop.';
 
   String get driveNotificationChannel =>
       _ja ? '運転中の位置情報' : 'Location while driving';
@@ -714,8 +768,10 @@ class AppL10n {
           '米国国立気象局（NWS）へ送信されます。'
           '現在地を管轄しない気象機関へ問い合わせることはありません。'
           '共有は任意です。運転を開始すると、アプリを閉じて画面を消していても'
-          '継続します。その間は通知が表示され続けます — '
-          '終了するには通知をタップして「停止」を押してください。'
+          '継続します。運転中は通知を出しますが、ロック中の画面には表示されない'
+          'ことがあり、Android 14 以降はスワイプで消せます。消しても受信は'
+          '止まりません — 終了するには、アプリを開いて（または通知をタップして）'
+          '「停止」を押してください。'
           '位置情報は端末に保存されず、'
           '本アプリ独自のサーバーへ送信されることもありません。'
       : 'When you share your location, it is used to fetch nearby weather '
@@ -731,9 +787,11 @@ class AppL10n {
           'are sent to the NWS to fetch alerts for your exact point. A '
           'service that does not cover your location is never contacted. '
           'Sharing is opt-in. Once you start a drive it keeps going with the '
-          'app closed and the screen off, and a notification stays on your '
-          'phone for the whole time it is running — tap it, then Stop, to end '
-          "it. Your location is never stored on the device or sent to this "
+          'app closed and the screen off. A notification is posted for the '
+          'drive, but it may not show on a locked screen, and from Android 14 '
+          'you can swipe it away — that does not stop the drive. To end it, '
+          'open the app (or tap the notification), then Stop. '
+          "Your location is never stored on the device or sent to this "
           "app's own servers.";
 
   // ===== Other-egress disclosure (B27 + B30) — the rest of the wire =====
@@ -823,9 +881,11 @@ class AppL10n {
           '【音声】音声警告は端末に同梱した音声を優先します。端末の音声エンジンが'
           'ネットワーク音声を使う場合、読み上げる文がOSの音声提供元を'
           '経由することがあります。'
-          '【更新確認】アプリを前面に戻したとき（走行中は行いません）、'
+          '【更新確認】アプリを起動するたびに 1 回（走行中は行いません）、'
           'raw.githubusercontent.com から更新情報ファイルを取得します。'
-          '送るのは取得要求だけです。識別子・位置情報・端末IDは'
+          'より新しいビルドが載っていたときに限り、そのファイルが示す配布先に、'
+          '入手できるかどうかの確認だけを送ります（ダウンロードはしません）。'
+          '送るのは要求だけです。識別子・位置情報・端末IDは'
           '一切送信しません。'
       : 'The only other times this app talks to the outside: '
           'Route calculation — the origin and destination you tap are sent to '
@@ -837,7 +897,12 @@ class AppL10n {
           'the bundled on-device audio; if the device speech engine uses a '
           'network voice, the spoken text may pass through the OS voice '
           'vendor. '
-          'Update check — when you bring the app back to the foreground (never while driving), it fetches a version file from raw.githubusercontent.com. Only the request is sent: no identifier, no location, no device ID.';
+          'Update check — once each time the app starts (never while driving), '
+          'it fetches a version file from raw.githubusercontent.com. Only if '
+          'that file lists a newer build does it also ask the download '
+          'location the file names whether the build is really there — an '
+          'existence check, never a download. Only the requests are sent: no '
+          'identifier, no location, no device ID.';
 
   // ===== OSRM pre-send route consent (B27) — ja-primary, asked ONCE =====
 

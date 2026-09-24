@@ -58,7 +58,20 @@
          to move: no silent, notification-less background location. The service
          only ever runs behind a notification she started and can end. If a
          future change wants location without that notification, it is a
-         different decision and belongs to the Chair, not to this file. -->
+         different decision and belongs to the Chair, not to this file.
+
+         ⚑ 2026-09-25 (AAE), MEASURED: that last guarantee does not hold on
+         Android 14+, and no change of ours broke it — the platform did. On a
+         secured API 34 emulator, a notification built exactly as this app's
+         is (geolocator_android 4.6.2, setOngoing true, location FGS) was
+         removed by ONE ordinary swipe and the service stayed foreground; and
+         on the locked screen it was not shown at all. So today, on 14+, she
+         can end up with location running and no notification — the state
+         the sentence above reserves to the Chair. Nothing here decides it:
+         the published pages now SAY it (privacy policy, store listing, the
+         in-app card), and the fork — stop the drive when she dismisses it,
+         put it back, or keep disclosing — is routed to the Chair through the
+         SEO. See the setOngoing comment in lib/her_position.dart. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
 

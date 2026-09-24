@@ -77,19 +77,73 @@ landed (geolocator's own `GeolocatorLocationService`, driven by
 - [ ] ⚑ **THE NOTIFICATION ACTUALLY APPEARS ON ANDROID 13+.** This is the one
       that cannot be checked on our AVD, which is API 30 (measured 2026-09-24:
       `ro.build.version.sdk=30`) where POST_NOTIFICATIONS does not exist and
-      the notification posts freely. targetSdk is 36. On a 13+ device the
-      permission is denied by default and the app does not yet request it, so
-      the service can run with location collection and NO visible indicator —
-      the exact state the manifest, `her_position.dart` and the in-app
-      disclosure all declare forbidden. **Needs a real 13+ device. Until then
-      this row is UNVERIFIED, never *cleared*.**
+      the notification posts freely. targetSdk is 36.
+      ⚑ Corrected 2026-09-25: this row said the app "does not yet request it,
+      so the service can run with location collection and NO visible
+      indicator". That is FALSE at HEAD. The app requests it
+      (`_askForDriveNotificationPermission`, called from `_shareLocation` in
+      `lib/main.dart`), and when it cannot post, NO foreground service is
+      started — the `driveNotification:` argument is null — and the drive is
+      screen-on only. The service can never START behind a notification it
+      cannot post. (What it cannot prevent is the notification being hidden
+      or swiped away AFTER it starts — see the two rows below.)
+      What still needs a real 13+ device is the ROW BELOW, not this one.
+      **Needs a real 13+ device to watch the dialog appear and the
+      notification land. Until then this row is UNVERIFIED, never *cleared*.**
 - [ ] **Tapping the notification** — confirm it opens the app (geolocator wires
       a bring-to-front intent) and that she can then find and press 停止. It
       does NOT end the drive by itself; the shade words must not imply it does.
-- [ ] **Lock screen** — geolocator creates the channel with
-      `VISIBILITY_PRIVATE` and `IMPORTANCE_NONE`
-      (BackgroundNotification.java:69,71). Nobody has yet looked at what she
-      sees on a LOCKED phone, which is the condition the words actually name.
+- [ ] ⚑ **Lock screen — MEASURED ON AN EMULATOR, NOT ON HER PHONE.**
+      On a secured Android 14 (API 34) emulator (PIN set, `deviceLocked=1`),
+      a probe posting this app's notification exactly as geolocator_android
+      4.6.2 builds it (channel `geolocator_channel_01`, `IMPORTANCE_NONE`,
+      `VISIBILITY_PRIVATE`, `setOngoing(true)`, location FGS) was ABSENT from
+      the lock screen — no card, no shelf icon. The same run at channel
+      importance LOW and at DEFAULT: also absent. Beside a plain, non-ongoing
+      notification from the same app: both shown, auto-grouped. (AAE lock
+      probe 2026-09-24, six controlled runs; re-measured 2026-09-25, lone FGS
+      absent again.) The record's importance was 2 although the channel said
+      0, and the channel dump showed `mLockscreenVisibility=-1000`, so
+      neither source constant describes what the platform did.
+      ⚑ Corrected 2026-09-25: this row said "Android filters
+      minimum-importance notifications", "Nobody has looked", and
+      "INCONCLUSIVE" from an unset `lock_screen_show_silent_notifications`.
+      All three were wrong the moment they were written: the probe above had
+      looked the day before, and it had already falsified importance as the
+      lever. It also recorded a fix route — create `geolocator_channel_01`
+      FIRST at `IMPORTANCE_LOW` so geolocator's NONE call cannot lower it —
+      which that same probe had already run: LOW was absent too. That route
+      is withdrawn; nothing measured so far makes a LONE ongoing FGS
+      notification appear on this lock screen.
+      Consequence already taken: the notification body no longer promises
+      「画面オフでも警告」, and the privacy policy, store listing and in-app
+      card now say the notification may not show on a locked screen.
+      **Still owed: her phone, secured, locked, during a real drive.
+      UNVERIFIED there, never *cleared*.**
+- [ ] ⚑ **Swipe to dismiss — MEASURED 2026-09-25 ON AN EMULATOR: SHE CAN.**
+      Same secured API 34 emulator, same probe, unlocked: ONE sideways swipe
+      (`input swipe`, 800 ms) removed the notification from the shade, and
+      `dumpsys activity services` still reported `isForeground=true`. Positive
+      control: the identical gesture removed a plain shell notification. Two
+      earlier gestures were instrument failures and are NOT evidence: a 300 ms
+      `input swipe` registered as a TAP (it relaunched the probe), and an
+      `input motionevent` drag removed neither the probe nor the control.
+      Record flags `0x62` (ONGOING | NO_CLEAR | FOREGROUND_SERVICE), no
+      `0x2000` (NO_DISMISS). After the swipe, the only trace was Android's
+      「1 個のアプリがアクティブです」 in the fully expanded Quick Settings
+      footer; the status-bar icon was gone. The probe does not read location,
+      so whether a location status icon would remain is NOT measured.
+      Why it matters: the app is not told (geolocator sets no deleteIntent),
+      and 停止 is the only thing that ends collection — so on 14+ location can
+      keep running with nothing in the shade, the state the manifest's dignity
+      comment reserves to the Chair. The pages now disclose it. The fork (stop
+      the drive on dismissal, re-post it, or keep disclosing) changes what she
+      experiences mid-drive and is routed to the Chair through the SEO.
+      **Still owed: the real app on her phone, and one pre-14 image to bound
+      the "below 14 it cannot be swiped" half, which is recalled, not
+      measured.**
+      ⚑ Do NOT resolve this by dropping `setOngoing` — see the setOngoing
+      comment in `lib/her_position.dart`.
 - [ ] **Battery-killer audit** — the ongoing-drive notification + wakelock do not
       drain the battery unacceptably over a 1-hour drive.
 
