@@ -176,6 +176,26 @@ The instruction ("do not worry about mistakes / use loupe") called for a lasting
 
 ---
 
+## TRAP-17 — Dart never warns about a declared dependency that nothing imports, even when a comment says something does
+
+- **First observed**: 2026-09-25. `pubspec.yaml` declared `japanese_snow_vocabulary` DIRECT "because lib/services/drive_diary.dart now imports it", with a drift guard at `test/services/drive_diary_vocabulary_test.dart`. The declaration landed on 2026-08-23; the import and the guard stayed uncommitted in a working tree. For a month, zero files in `lib/` or `test/` imported the package on the line that ships.
+- **Symptom**: none. `depend_on_referenced_packages` flags an import with no declaration, never a declaration with no import, and the package still resolved transitively (via `snow_rendering`), so nothing broke. The comment read as proof of wiring.
+- **Class**: a justification that is prose, not a check; a partial landing that looks whole.
+- **Pre-flight check**: `git grep -l 'package:<dep>/' <sha> -- lib test` on the COMMIT, not the working tree, for every dependency whose comment names an importer; confirm every path a pubspec comment cites is tracked at that commit.
+- **Linked feedback memory**: none.
+
+---
+
+## TRAP-18 — a call-graph walk that treats "never referenced" as "entry point" reports dead code as reachable
+
+- **First observed**: 2026-09-25, reading `test/voice/announce_call_site_census_test.dart`'s release-reachability column (first draft): it counted any function with no referrers as an entry point, so deleting a voice's last caller would leave it "reaching release"; and it declared the developer-page roots dev-only by name, so embedding `_developerSections()` in the release page would not register.
+- **Symptom**: a voice that went quiet, or a developer page built into her screen, passes. Measured 2026-09-25 by mutation, each run to completion: with the first-draft census, commenting out the only caller of `tellWithNoShare` PASSED, and embedding `..._developerSections()` in the release page PASSED. With the corrected census, both FAIL, as do a dev-only voice gaining a release caller and the developer-page entry losing its gate.
+- **Class**: an instrument's default that sits on the success side; a seed asserted by declaration instead of measured.
+- **Pre-flight check**: before trusting a reachability walk, mutate the code both ways (delete the last caller; add a release caller) and watch it fail; treat only `main` and `@override` declarations as entry points; measure the seed's own referrers.
+- **Linked feedback memory**: none.
+
+---
+
 ## Vision attribution (file-level, 3-slot)
 
 - `sakichi_vision_id = 11` (anyone may stop the line; this trap log was installed after the instruction "do not worry about mistakes / use loupe" called for an improvement artifact)
