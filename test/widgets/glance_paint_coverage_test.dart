@@ -65,6 +65,13 @@ const String _selfPath = 'test/widgets/glance_paint_coverage_test.dart';
 const Map<String, String> kCovered = {
   'lib/widgets/advisory_cards.dart':
       'test/widgets/advisory_card_contrast_floor_test.dart',
+  // 2026-09-24 AAE: this register fired on update_notice.dart the turn it was
+  // written. The guard samples the raster and measures THE GATE in ink -- zero
+  // ink while driving, zero ink once dismissed -- which is the pixel form of
+  // WDA's Item 1 refusal. LEGIBILITY IS NOT COVERED AND IS NOT CLAIMED: that
+  // is HIE's, and this surface is PROVISIONAL pending WDA's verdict on it.
+  'lib/widgets/update_notice.dart':
+      'test/widgets/update_notice_pixel_guard_test.dart',
 };
 
 /// lib path -> why it has NO PIXEL-SAMPLING guard, and what DOES cover it.

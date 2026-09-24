@@ -4,4 +4,13 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- DEBUG ONLY. Permits cleartext HTTP so the update route can be proven
+         against a local manifest + artifact server on the emulator's host
+         (10.0.2.2), which is the only way to demonstrate the route at all:
+         there is no publicly retrievable artifact for this app anywhere
+         (PDS measured 0 releases, 0 tags, 0 tracked APKs on 2026-09-24).
+         This overlay does NOT apply to release: the release manifest has no
+         cleartext permission and the production manifest URL is https. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

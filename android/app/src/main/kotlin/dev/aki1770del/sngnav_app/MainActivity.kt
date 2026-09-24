@@ -76,6 +76,90 @@ class MainActivity : FlutterActivity() {
             }
         }
 
+        // ------------------------------------------------------------------
+        // BUILD IDENTITY -- "which artifact is this, actually?"
+        //
+        // BIS ruled 2026-09-24 that a versionCode does NOT name a build: as of
+        // that day versionCode 2 carried SEVEN distinct release-signed
+        // byte-sets under one upload certificate, all mutually installable
+        // over each other on her phone. `package_info_plus` is confirmed as
+        // the read but REJECTED as sufficient alone, and two alongside-values
+        // are required. This channel supplies both.
+        //
+        // A-1 selfSha256 -- SHA-256 of applicationInfo.sourceDir, the APK's own
+        //     bytes. Derived from NOTHING BUT THE ARTIFACT: no injection, no
+        //     operator step, no file to forget, no permission. V15 tier 1,
+        //     *cannot be done wrong*. Computed off the main thread and cached
+        //     for the process: BIS measured 636-950 ms over the real 50 MB APK
+        //     on this emulator, which is far too long to sit on a frame.
+        //     BOUND (BIS): sourceDir is the BASE split. Under an AAB with
+        //     splits this names only part of what is installed; splitSourceDirs
+        //     are folded in below in a defined order so the value stays honest,
+        //     and a multi-split install is reported by count.
+        //
+        // A-2 gitSha -- read back from the manifest meta-data gradle stamped,
+        //     through PackageManager, NOT from a Dart constant.
+        // ------------------------------------------------------------------
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "sngnav/build_identity",
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "read" -> {
+                    // Answer on a worker thread: hashing ~50 MB must never
+                    // touch the frame pump of a surface she drives on.
+                    Thread {
+                        val payload = try {
+                            val ai = applicationInfo
+                            // Defined order: base first, then any splits
+                            // sorted, so the digest is reproducible.
+                            val parts = mutableListOf<String>()
+                            ai.sourceDir?.let { parts.add(it) }
+                            ai.splitSourceDirs?.let { parts.addAll(it.sorted()) }
+                            val md = java.security.MessageDigest.getInstance("SHA-256")
+                            val buf = ByteArray(1 shl 16)
+                            for (path in parts) {
+                                java.io.FileInputStream(path).use { ins ->
+                                    while (true) {
+                                        val n = ins.read(buf)
+                                        if (n <= 0) break
+                                        md.update(buf, 0, n)
+                                    }
+                                }
+                            }
+                            val hex = md.digest().joinToString("") {
+                                "%02x".format(it)
+                            }
+                            val meta = packageManager.getApplicationInfo(
+                                packageName,
+                                android.content.pm.PackageManager.GET_META_DATA,
+                            ).metaData
+                            mapOf(
+                                "selfSha256" to hex,
+                                "artifactCount" to parts.size,
+                                "gitSha" to (meta?.getString(
+                                    "dev.aki1770del.sngnav_app.gitSha",
+                                ) ?: "UNKNOWN"),
+                            )
+                        } catch (e: Exception) {
+                            // A build that cannot name itself must still drive
+                            // her home. Null selfSha256 is the honest third
+                            // state; the Dart side renders UNIDENTIFIED BUILD
+                            // and refuses to compare, rather than guessing.
+                            android.util.Log.w(
+                                "SngnavBuildIdentity",
+                                "could not read build identity: " +
+                                    "${e.javaClass.simpleName}: ${e.message}",
+                            )
+                            null
+                        }
+                        runOnUiThread { result.success(payload) }
+                    }.start()
+                }
+                else -> result.notImplemented()
+            }
+        }
+
         // The offline MOUTH — plays a bundled ja safety phrase from the APK.
         //
         // WHY FIRST-PARTY: the safety voice was briefly routed through the

@@ -121,6 +121,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- BIS A-2: the commit this artifact was built from, stamped by
+             gradle at build time. Read back via PackageManager
+             (GET_META_DATA) so the app's identity comes from the installed
+             package record rather than a compiled-in Dart constant. -->
+        <meta-data
+            android:name="dev.aki1770del.sngnav_app.gitSha"
+            android:value="${gitSha}" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

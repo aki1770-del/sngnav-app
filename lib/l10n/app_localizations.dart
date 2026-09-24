@@ -754,6 +754,64 @@ class AppL10n {
   //   and its selected voice is network-bound (voice_lane_readiness.dart
   //   reads exactly this), the spoken text may route via the OS voice vendor.
 
+  // ---------------------------------------------------------------------
+  // Update notice (services/update_check.dart). QUIET BY CONSTRUCTION: this
+  // copy renders in a scrolled panel, never as a dialog, toast, snackbar,
+  // overlay or notification, never with sound or haptic, and never while a
+  // drive is active. ⛑ PROVISIONAL pending WDA's verdict on the surface.
+  // ---------------------------------------------------------------------
+
+  /// Section title for the update notice.
+  String get updateSectionTitle =>
+      _ja ? '新しいビルドがあります' : 'A newer build exists';
+
+  /// The running build's own identity, read from the installed artifact.
+  String updateRunningBuild(String display) =>
+      _ja ? '現在のビルド: $display' : 'Running build: $display';
+
+  /// Honest line when the app could not read its own identity.
+  String get updateRunningBuildUnknown => _ja
+      ? '現在のビルドを読み取れませんでした'
+      : 'Could not read which build this is';
+
+  /// When the self-hash did not answer, the version pair is all we have and
+  /// it does NOT name one artifact (BIS: seven byte-sets shared one code).
+  String updateRunningBuildUnidentified(String pair) => _ja
+      ? '現在のビルド: $pair（この番号だけでは特定できません）'
+      : 'Running build: $pair (UNIDENTIFIED — this number alone does not '
+          'name one build)';
+
+  /// The announcement. Names the build; promises nothing about it.
+  String updateAvailableLine(String display) => _ja
+      ? '$display が公開されています。'
+      : 'Build $display has been published.';
+
+  /// ⚑ The bound rides the announcement (OPS-069(B)). This file says a build
+  /// EXISTS. It does not say it is better, tested, or safe to drive with.
+  String get updateExistenceBound => _ja
+      ? 'これは新しいビルドが「存在する」ことのみをお知らせしています。'
+          '内容が良いか、試験済みか、運転に適するかは述べていません。'
+      : 'This says only that a newer build EXISTS. It does not say it is '
+          'better, tested, or safe to drive with.';
+
+  /// How the holder gets it. We do NOT install it: no
+  /// REQUEST_INSTALL_PACKAGES, no download, no launcher.
+  String get updateHowToGet => _ja
+      ? 'ご自身のブラウザで下記を開くと入手できます。インストールは端末が行います。'
+      : 'Open the link below in your own browser to get it. '
+          'Your device performs the install.';
+
+  /// The signer bound — the app cannot check it, and Android's refusal is
+  /// silent, so he is told in advance rather than left to a bare failure.
+  String get updateSignerBound => _ja
+      ? 'お使いのビルドと署名鍵が異なる場合、端末が更新を拒否します。'
+          'その拒否に説明は表示されません。'
+      : 'If the build you hold was signed with a different key, your device '
+          'will refuse the update, and that refusal will not explain itself.';
+
+  /// Dismiss action.
+  String get updateDismiss => _ja ? '閉じる' : 'Dismiss';
+
   String get egressDisclosure => _ja
       ? 'このほかに端末の外と通信するのは次の場合のみです。'
           '【経路計算】地図で選んだ出発地と目的地の座標は、確認画面で同意した'
@@ -765,6 +823,10 @@ class AppL10n {
           '【音声】音声警告は端末に同梱した音声を優先します。端末の音声エンジンが'
           'ネットワーク音声を使う場合、読み上げる文がOSの音声提供元を'
           '経由することがあります。'
+          '【更新確認】アプリを前面に戻したとき（走行中は行いません）、'
+          'raw.githubusercontent.com から更新情報ファイルを取得します。'
+          '送るのは取得要求だけです。識別子・位置情報・端末IDは'
+          '一切送信しません。'
       : 'The only other times this app talks to the outside: '
           'Route calculation — the origin and destination you tap are sent to '
           'the public OSRM demo server (router.project-osrm.org) only after '
@@ -774,7 +836,8 @@ class AppL10n {
           'the visible area and your IP address. Voice — spoken alerts prefer '
           'the bundled on-device audio; if the device speech engine uses a '
           'network voice, the spoken text may pass through the OS voice '
-          'vendor.';
+          'vendor. '
+          'Update check — when you bring the app back to the foreground (never while driving), it fetches a version file from raw.githubusercontent.com. Only the request is sent: no identifier, no location, no device ID.';
 
   // ===== OSRM pre-send route consent (B27) — ja-primary, asked ONCE =====
 

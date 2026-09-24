@@ -28,7 +28,7 @@ import 'package:condition_aggregator/condition_aggregator.dart'
         AdvisoryAggregateResult,
         AdvisoryProviderError,
         AdvisorySource;
-import 'package:flutter/foundation.dart' show kReleaseMode;
+import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -95,12 +95,14 @@ import 'services/advisory_axis.dart';
 import 'services/advisory_service.dart';
 import 'services/app_unknowns.dart';
 import 'services/drive_hud_controller.dart';
+import 'services/update_check.dart';
 import 'services/drive_safety_fusion.dart' show measuredConditionRaisesCaution;
 import 'services/visibility_for_caution.dart';
 import 'services/error_log.dart';
 import 'services/log_share.dart';
 import 'services/drive_diary.dart';
 import 'services/drive_hud_localizer.dart';
+import 'widgets/update_notice.dart';
 import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
 import 'services/turmoil_watch.dart';
@@ -1226,6 +1228,36 @@ class _HomePageState extends State<HomePage> {
   PositionFix? _herFix;
   StreamSubscription<PositionFix>? _herSub;
 
+  // ------------------------------------------------------------------
+  // Update route -- the ANNOUNCING half (services/update_check.dart).
+  //
+  // This app is sideloaded. Nothing hands its holder a new build, there is no
+  // store, no auto-update and NO RECALL VEHICLE AT ALL: until something in the
+  // app tells him, a fix we shipped reaches him only if he happens to look.
+  // V45 -- invention that does not reach the market is not yet complete.
+  //
+  // OFF THE STARTUP PATH BY CONSTRUCTION. Nothing here is awaited in main()
+  // or initState. The first check rides a post-frame callback, so the first
+  // frame of map content is already on screen before a packet moves;
+  // subsequent checks fire only on foreground RESUME. If it never answers --
+  // the normal case in a snow dead-zone -- nothing changes and the driver is
+  // told nothing, exactly as if this feature were absent.
+  //
+  // NEVER WHILE DRIVING: `_driveActive` gates both the FETCH and the SURFACE.
+  // ------------------------------------------------------------------
+  UpdateChecker? _updateChecker;
+  UpdateCheckResult? _updateResult;
+  int? _updateDismissedVersionCode;
+
+  /// The app-level truth of "she is driving": the live position stream is
+  /// subscribed. WDA named `StreamSubscription<Position>? sub` at
+  /// `lib/her_position.dart:222`, which is a FUNCTION-LOCAL inside
+  /// `herPositionStream()` and cannot carry a getter -- there is no object to
+  /// hang one on. `_herSub` is this app's subscription to that same stream and
+  /// is the observable form of the state she named. Required (not optional) on
+  /// [UpdateNotice], so it can be mis-wired but never forgotten.
+  bool get _driveActive => _herSub != null;
+
   /// Whether an event in THIS sharing session became the position
   /// controller's trusted anchor ([anchorsThisSession]). False when sharing
   /// starts; set only in [_onPositionEvent]. The controller is not reset on
@@ -1550,6 +1582,51 @@ class _HomePageState extends State<HomePage> {
     // while she is parked must drop, not render as current indefinitely.
     _advisoryExpiryTicker =
         Timer.periodic(const Duration(minutes: 1), (_) => _advisoryExpiryTick());
+    // Update route -- first check AFTER the first frame is on screen.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runUpdateCheck());
+  }
+
+  /// Restores a dismissal the holder already made, so it SURVIVES a restart.
+  Future<void> _loadUpdateDismissal() async {
+    final code = await UpdateChecker.readDismissedVersionCode();
+    if (!mounted || code == null) return;
+    setState(() => _updateDismissedVersionCode = code);
+  }
+
+  /// One update check. Best-effort, unawaited, never retried, silent on
+  /// failure. The one `catch` is belt-and-braces for the widget layer itself:
+  /// [UpdateChecker.check] already resolves every failure to a status, and a
+  /// build that cannot ask whether a newer build exists must still drive HER
+  /// home.
+  Future<void> _runUpdateCheck() async {
+    if (!mounted) return;
+    if (_driveActive) return; // she is driving: not now, and not on resume
+    try {
+      await _loadUpdateDismissal();
+      final checker = _updateChecker ??= UpdateChecker();
+      final url = await UpdateChecker.resolveManifestUrl();
+      final result = await checker.check();
+      // DEBUG BUILDS ONLY. The negative controls of this route are decisions,
+      // not absences: "nothing appeared" is indistinguishable from "it never
+      // ran". This line is how a decision is SEEN. `kDebugMode` keeps it out
+      // of anything a holder runs, and it carries no identifiers.
+      if (kDebugMode) {
+        debugPrint(
+          'SNGNAV_UPDATE_CHECK status=${result.status.name} '
+          'running=${result.running.display} '
+          'knows_self=${result.running.isKnown} '
+          'identified=${result.running.isFullyIdentified} '
+          'offers=${result.available?.display ?? "-"} '
+          'published=${result.runningIsPublished} '
+          'announce=${result.shouldAnnounce} '
+          'manifest=$url',
+        );
+      }
+      if (!mounted) return;
+      setState(() => _updateResult = result);
+    } catch (_) {
+      // Silent by contract: no banner, no log to the driver, no retry.
+    }
   }
 
   /// Stationary expiry — one tick: cull expired advisories from a
@@ -1767,6 +1844,7 @@ class _HomePageState extends State<HomePage> {
     _driveHud.removeListener(_onDriveHudChanged);
     _driveHud.dispose();
     _herSub?.cancel();
+    _updateChecker?.dispose();
     _telemetrySub?.cancel();
     _telemetry.dispose();
     _glanceBudgetSub?.cancel();
@@ -3859,6 +3937,25 @@ class _HomePageState extends State<HomePage> {
               child: _diaryPanel(),
             ),
             const SizedBox(height: 16),
+            // Update notice -- renders nothing unless a NEWER build exists AND
+            // its artifact answered a reachability probe AND its package
+            // matches AND no drive is active AND he has not already dismissed
+            // that exact versionCode. Last thing before the footer: he scrolls
+            // to it; it never comes to him.
+            // PROVISIONAL pending WDA's verdict on the surface.
+            UpdateNotice(
+              result: _updateResult,
+              driving: _driveActive,
+              dismissedVersionCode: _updateDismissedVersionCode,
+              onDismiss: () {
+                final code = _updateResult?.available?.versionCode;
+                if (code == null) return;
+                setState(() => _updateDismissedVersionCode = code);
+                // Survives the restart: once he has said "not this one",
+                // this build never asks him again (WDA Item 1).
+                unawaited(UpdateChecker.persistDismissedVersionCode(code));
+              },
+            ),
             const _Footer(),
           ],
         ),
