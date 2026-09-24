@@ -22,9 +22,11 @@ library;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sngnav_app/her_position.dart';
+import 'package:sngnav_app/services/notification_permission.dart';
 
 const _text = DriveNotificationText(
   title: '運転中 — 路面の警告を監視しています',
@@ -192,6 +194,103 @@ void main() {
                 'AppL10n -- a hardcoded string here is an English-only shade '
                 'entry on a Japanese driver\'s phone');
       }
+    });
+  });
+
+  // ===== THE NOTIFICATION SHE CAN SEE =====
+  //
+  // Added 2026-09-24 after going and looking at the shade on AVD sng_arc
+  // (API 34, Android 14), this app at targetSdk 36, POST_NOTIFICATIONS declared
+  // NOWHERE.
+  //
+  // The service started perfectly. `dumpsys activity services` gave
+  // isForeground=true, types=00000008 (location), no SecurityException. Every
+  // instrument that looks at the SERVICE said success.
+  //
+  // The notification did not exist. `dumpsys notification` gave
+  // numEnqueuedByApp=1, numPostedByApp=0, numBlocked=1; the package appeared
+  // ZERO times in the Notification List; and the expanded shade, captured as a
+  // screenshot, held no entry from this app. The status bar showed the location
+  // pin -- so the OS told her something held her location, and nothing told her
+  // what it was or how to end it.
+  //
+  // That is strictly worse than the defect this change set out to fix: a
+  // service behind an invisible notification IS the "silent, notification-less
+  // background location" the manifest, the privacy policy and the 2026-07-10
+  // removal each promised would never happen.
+  //
+  // After declaring and requesting it, re-measured on the same emulator:
+  // DENIED -> no foreground service at all (isForeground absent); GRANTED ->
+  // "Driving - watching the road for you / Warns with the screen off. Tap to
+  // end." visible in the shade.
+  //
+  // These tests pin the fail-closed DIRECTION, which is the part a future
+  // change can silently lose.
+  group('the ongoing service may not exist unless she can SEE it', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+
+    void answerRead(Map<String, Object?>? reply, {Object? throwIt}) {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(NotificationPermission.channel,
+              (MethodCall call) async {
+        if (throwIt != null) throw throwIt;
+        return reply;
+      });
+    }
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(NotificationPermission.channel, null);
+    });
+
+    test('granted AND enabled -> she can be told, so the service may run',
+        () async {
+      answerRead(
+          {'granted': true, 'enabled': true, 'needsRuntimeRequest': true});
+      expect((await NotificationPermission.read()).canPostToHer, isTrue);
+    });
+
+    test('permission granted but notifications switched OFF in Settings -> NO',
+        () async {
+      answerRead(
+          {'granted': true, 'enabled': false, 'needsRuntimeRequest': true});
+      expect((await NotificationPermission.read()).canPostToHer, isFalse,
+          reason: 'she can turn notifications off for the app at any API '
+              'level, and a permission check alone reads that as fine — the '
+              'service would then run behind nothing she can see');
+    });
+
+    test('she declined the runtime permission -> NO', () async {
+      answerRead(
+          {'granted': false, 'enabled': true, 'needsRuntimeRequest': true});
+      expect((await NotificationPermission.read()).canPostToHer, isFalse);
+    });
+
+    test('the platform THROWS -> NO, never a yes', () async {
+      answerRead(null,
+          throwIt: PlatformException(code: 'boom', message: 'no channel'));
+      expect((await NotificationPermission.read()).canPostToHer, isFalse,
+          reason: 'a platform we cannot ask is not a platform that said yes');
+      expect(await NotificationPermission.request(), isFalse);
+    });
+
+    test('a malformed reply is not read as permission', () async {
+      answerRead(<String, Object?>{});
+      expect((await NotificationPermission.read()).canPostToHer, isFalse);
+    });
+
+    test(
+        'and a NO becomes plain LocationSettings — no foreground service, '
+        'not a silent one', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final settings = driveLocationSettings(notification: null);
+      expect(
+          settings is AndroidSettings
+              ? settings.foregroundNotificationConfig
+              : null,
+          isNull,
+          reason: 'THE DEFECT: she would be driving with location held behind '
+              'a notification the OS silently dropped');
     });
   });
 }

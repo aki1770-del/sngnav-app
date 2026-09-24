@@ -87,6 +87,7 @@ import 'services/offline_basemap.dart';
 import 'l10n/app_localizations.dart';
 import 'corridor_row.dart';
 import 'her_position.dart';
+import 'services/notification_permission.dart';
 import 'jma_fetch.dart';
 import 'route_act.dart';
 import 'route_fetch.dart';
@@ -1451,6 +1452,12 @@ class _HomePageState extends State<HomePage> {
     // so a MID-DRIVE mute or voice-pack change is detected, not just a
     // pre-drive one.
     _probeAlertChannelReadiness();
+    // Can the ongoing-drive notification actually reach her shade? READ only:
+    // this never shows a dialog, because a permission prompt the instant she
+    // opens the app, before she has asked for anything, is an interruption
+    // with no context. The ASK happens when she starts a drive, and it does
+    // not block the drive -- see _shareLocation.
+    unawaited(_refreshDriveNotificationPermission());
     _audioReadinessTicker = Timer.periodic(
       const Duration(seconds: 45),
       (_) => _probeAlertChannelReadiness(),
@@ -1628,6 +1635,42 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  /// Whether the ongoing-drive notification can actually be SEEN by her.
+  ///
+  /// False until proven otherwise, and false is the safe value: it means the
+  /// drive runs screen-on only rather than putting a foreground service behind
+  /// a notification the OS will silently drop (measured on API 34, 2026-09-24 —
+  /// see lib/services/notification_permission.dart).
+  bool _mayPostDriveNotification = false;
+
+  /// True once she has been asked, so a decline is not re-asked every drive.
+  bool _driveNotificationAsked = false;
+
+  /// Non-prompting read of the notification permission.
+  Future<void> _refreshDriveNotificationPermission() async {
+    final state = await NotificationPermission.read();
+    if (!mounted) return;
+    if (state.canPostToHer != _mayPostDriveNotification) {
+      setState(() => _mayPostDriveNotification = state.canPostToHer);
+    }
+  }
+
+  /// Ask her, at most once, and NEVER on the path that starts her drive.
+  ///
+  /// Deliberately not awaited by [_shareLocation]: an ask that never answers
+  /// (a channel that does not reply, an activity torn down while the dialog is
+  /// up) must not be able to stop the position feed from starting. The feed is
+  /// the safety function; the notification is what makes the SERVICE honest.
+  /// So this drive runs with whatever we already know, and her answer governs
+  /// from the next one.
+  void _askForDriveNotificationPermission() {
+    if (_driveNotificationAsked || _mayPostDriveNotification) return;
+    _driveNotificationAsked = true;
+    unawaited(NotificationPermission.request().then((_) {
+      if (mounted) unawaited(_refreshDriveNotificationPermission());
+    }));
+  }
+
   void _probeAlertChannelReadiness() {
     _applyProbe<VoiceLaneVerdict>(
       (widget.voiceLaneReader ?? readVoiceLaneReadiness)(),
@@ -1773,14 +1816,22 @@ class _HomePageState extends State<HomePage> {
     // test/her_position_foreground_service_test.dart is what pins it, and
     // it was proven to fail on that exact deletion before it was kept.
     final l = AppL10n.of(context);
+    // Ask, but do not wait: see _askForDriveNotificationPermission. THIS drive
+    // uses what is already known, so a silent platform can never strand her on
+    // a share control that does nothing.
+    _askForDriveNotificationPermission();
     final injected = widget.positionSource;
     _herSub = (injected ??
             () => herPositionStream(
-                  driveNotification: DriveNotificationText(
-                    title: l.driveNotificationTitle,
-                    body: l.driveNotificationBody,
-                    channelName: l.driveNotificationChannel,
-                  ),
+                  // null when she cannot see it: no foreground service rather
+                  // than one behind an invisible notification.
+                  driveNotification: _mayPostDriveNotification
+                      ? DriveNotificationText(
+                          title: l.driveNotificationTitle,
+                          body: l.driveNotificationBody,
+                          channelName: l.driveNotificationChannel,
+                        )
+                      : null,
                   onPlatformStreamSubscribed: () {
                     if (mounted && session == _herShareSession) {
                       _herPositionStreamSubscribedAt = _now();

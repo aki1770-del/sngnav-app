@@ -476,6 +476,21 @@ Stream<PositionFix> herPositionStream({
         ));
         return;
       }
+      // The notification decision is NOT made here, and that is deliberate.
+      //
+      // It used to be: this line awaited NotificationPermission.request()
+      // before subscribing. MEASURED 2026-09-24 under the widget-test binding,
+      // an unmocked platform channel NEVER COMPLETES -- so the ask never
+      // answered, the position stream was never subscribed, and eight existing
+      // widget tests went from green to "subscribed 0 times". That is not a
+      // test artefact. On a real phone the same shape is a channel that does
+      // not answer (an activity torn down while the dialog is up), and the
+      // consequence is that she taps the share control and HER DRIVE NEVER
+      // STARTS, silently. A notification is a comfort; the position feed is the
+      // safety function. The comfort must never be able to block the function.
+      //
+      // So the caller decides beforehand and passes either the words or null.
+      // See resolveDriveNotification above and its caller in lib/main.dart.
       sub = (positionStream ??
               () => Geolocator.getPositionStream(
                     locationSettings: driveLocationSettings(

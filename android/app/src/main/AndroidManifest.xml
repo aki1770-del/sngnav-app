@@ -61,6 +61,33 @@
          different decision and belongs to the Chair, not to this file. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+
+    <!-- POST_NOTIFICATIONS: the notification is the ONLY thing that makes the
+         foreground service above honest, and without this permission it does
+         not exist for her.
+
+         MEASURED 2026-09-24 on AVD sng_arc (API 34, Android 14) with this app
+         at targetSdk 36, BEFORE this line was added. The service started
+         cleanly (dumpsys showed isForeground=true, types=00000008 for
+         location, and no SecurityException) and the notification was BLOCKED:
+         dumpsys notification gave numEnqueuedByApp=1, numPostedByApp=0,
+         numBlocked=1, our package appeared 0 times in the Notification List,
+         and the expanded shade (screenshot) held no entry from this app at all.
+         The location pin appeared in the status bar. So the OS told her that
+         SOMETHING was using her location, and nothing told her what it was,
+         that we were watching the road for her, or how to stop it.
+
+         That is the failure this permission exists to prevent, and it is worse
+         than the one we set out to fix: a service running behind a notification
+         she cannot see is the "silent, notification-less" collection that the
+         comment above, the privacy policy and the 2026-07-10 removal all
+         promised would never happen.
+
+         Since API 33 an app targeting 33+ must hold this at RUNTIME; the
+         declaration alone is not enough, which is why lib/main.dart asks for it
+         before a drive starts and DOES NOT start the foreground service if she
+         says no. Declared unconditionally: the OS ignores it below API 33. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="SNGNav"
         android:name="${applicationName}"

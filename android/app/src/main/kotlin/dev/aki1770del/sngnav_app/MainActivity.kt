@@ -1,8 +1,11 @@
 package dev.aki1770del.sngnav_app
 
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.AudioManager
+import android.os.Build
 import android.speech.tts.TextToSpeech
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -25,6 +28,13 @@ import io.flutter.plugin.common.MethodChannel
 /// project owner, never an engineering default. No permissions, no state, no
 /// coroutines: a synchronous main-thread read, answered inline.
 class MainActivity : FlutterActivity() {
+    /// The one outstanding POST_NOTIFICATIONS ask, held between requestPermissions
+    /// and its callback. Exactly one may be in flight: a second ask while one is
+    /// pending is answered false rather than queued, because two system dialogs
+    /// stacked over a driver who is trying to start a drive is not a consent
+    /// surface, it is an obstacle.
+    private var pendingNotificationPermission: MethodChannel.Result? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(
@@ -254,5 +264,95 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        // THE NOTIFICATION SHE CAN SEE -- the permission that decides whether
+        // the ongoing-drive service is honest or invisible.
+        //
+        // Measured 2026-09-24 on AVD sng_arc (API 34) at targetSdk 36, before
+        // this existed: the foreground service started fine and its notification
+        // was BLOCKED (numEnqueuedByApp=1, numPostedByApp=0, numBlocked=1; no
+        // entry in the shade). She would have had location running with nothing
+        // on screen naming it or ending it. See AndroidManifest.xml.
+        //
+        // READ-ONLY where it can be: `read` never prompts. `request` prompts
+        // once and answers what she said. Neither decides anything -- the Dart
+        // side decides, and its rule is that a denied notification means NO
+        // foreground service, not a silent one.
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "sngnav/notification_permission",
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "read" -> {
+                    val nm: NotificationManager =
+                        getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    // Two DIFFERENT questions, both of which can silence her:
+                    //  - granted: the API-33 runtime permission.
+                    //  - enabled: notifications switched off for the app in
+                    //    Settings, which is possible at ANY api level and which
+                    //    the permission check alone reads as fine.
+                    val granted: Boolean =
+                        Build.VERSION.SDK_INT < 33 ||
+                            checkSelfPermission(
+                                "android.permission.POST_NOTIFICATIONS",
+                            ) == PackageManager.PERMISSION_GRANTED
+                    result.success(
+                        mapOf(
+                            "granted" to granted,
+                            "enabled" to nm.areNotificationsEnabled(),
+                            "needsRuntimeRequest" to (Build.VERSION.SDK_INT >= 33),
+                        ),
+                    )
+                }
+                "request" -> {
+                    if (Build.VERSION.SDK_INT < 33) {
+                        // No runtime permission exists below 33; the channel
+                        // answers the QUESTION ("can we post?"), not the API.
+                        val nm: NotificationManager =
+                            getSystemService(Context.NOTIFICATION_SERVICE)
+                                as NotificationManager
+                        result.success(nm.areNotificationsEnabled())
+                        return@setMethodCallHandler
+                    }
+                    if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") ==
+                        PackageManager.PERMISSION_GRANTED
+                    ) {
+                        result.success(true)
+                        return@setMethodCallHandler
+                    }
+                    if (pendingNotificationPermission != null) {
+                        result.success(false)
+                        return@setMethodCallHandler
+                    }
+                    pendingNotificationPermission = result
+                    requestPermissions(
+                        arrayOf("android.permission.POST_NOTIFICATIONS"),
+                        POST_NOTIFICATIONS_REQUEST,
+                    )
+                }
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray,
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != POST_NOTIFICATIONS_REQUEST) return
+        val granted: Boolean =
+            grantResults.isNotEmpty() &&
+                grantResults[0] == PackageManager.PERMISSION_GRANTED
+        // A dismissed dialog returns an EMPTY grantResults, which is a denial
+        // for our purposes: she was not asked-and-agreed, so the service must
+        // not start behind an invisible notification.
+        pendingNotificationPermission?.success(granted)
+        pendingNotificationPermission = null
+    }
+
+    companion object {
+        private const val POST_NOTIFICATIONS_REQUEST = 4331
     }
 }

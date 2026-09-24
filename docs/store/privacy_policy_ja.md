@@ -56,6 +56,7 @@
 | VIBRATE | 危険を知らせる**振動**（前を見たまま気づけるように）。音を聞き取りにくい方・吹雪で画面を見られない場面のための channel です |
 | FOREGROUND_SERVICE | あなたが「現在地を共有」で開始した運転の間、**通知を表示したまま**位置情報の受信を続けるため。通知の出ない実行はありません |
 | FOREGROUND_SERVICE_LOCATION | 上記サービスが扱うのが位置情報であることを OS に明示するため（Android 14 以降、これが無いと運転中の受信そのものが OS に拒否されます） |
+| POST_NOTIFICATIONS | 運転中であることを示す**あの通知そのもの**を表示するため。Android 13 以降はこの許可が無いと通知が出ません。**許可しなかった場合、アプリは前景サービスを開始しません** — 見えない通知の裏で位置情報を使うことはしないので、その場合の運転は画面を表示している間だけになります |
 
 <!-- 出典＝配布されるマニフェスト（マージ後）:
      build/app/intermediates/merged_manifests/release/
@@ -141,6 +142,7 @@ sngnav-app is an advisory app that supports driving on snowy roads. We deliberat
 | VIBRATE | The **haptic** hazard cue — so a warning can be noticed without looking. This is the channel for a driver who cannot hear well, or cannot look at the screen in a whiteout |
 | FOREGROUND_SERVICE | Keeping the position feed alive, **behind a notification you can see**, during a drive you started. It never runs without that notification |
 | FOREGROUND_SERVICE_LOCATION | Declaring to the OS that this service handles location. From Android 14 the OS refuses the drive-time feed without it |
+| POST_NOTIFICATIONS | Showing **that notification itself**. From Android 13 nothing is shown without it. **If you decline, the app does not start the foreground service at all** — we will not hold your location behind a notification you cannot see, so the drive is then screen-on only |
 
 No other permissions (storage, camera, contacts, background location, etc.) are requested.
 

@@ -70,7 +70,7 @@
 
 **Personal info / Financial / Health / Messages / Photos & videos / Audio / Files & docs / Calendar / Contacts / Web browsing / Device or other IDs → すべて「いいえ」。**
 
-根拠: アカウント機能なし・ログインなし・個人情報入力欄なし・**広告 SDK / 解析 SDK ゼロ**・独自サーバーなし。要求している権限は INTERNET / ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION / WAKE_LOCK / VIBRATE / FOREGROUND_SERVICE / FOREGROUND_SERVICE_LOCATION の 7 つのみで（⚑ 2026-09-24 更新: 末尾 2 件は運転者自身が開始する通知つき前景サービスの着地に伴い復活。5 → 7）、ストレージ・カメラ・連絡先・**バックグラウンド位置情報**は要求していない（配布マニフェスト `packaged_manifests/release/…/AndroidManifest.xml:15,21,22,27,45`（⚑ 行番号は 2026-08-24 に実ビルド成果物で再測定。旧記載の `:53` は現在 `<queries>` を指しており、主張は真・**引用先が壊れていた**。なお同マニフェストには 6 本目の `uses-permission` として `…DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`（`:75`、自己宣言・`protectionLevel="signature"`）が存在するが、AndroidX が自動生成する署名レベルの内部権限であり、ユーザーに提示されず Data safety の対象外。「7 つ」はユーザー向け `android.permission.*` の数） で確認）。
+根拠: アカウント機能なし・ログインなし・個人情報入力欄なし・**広告 SDK / 解析 SDK ゼロ**・独自サーバーなし。要求している権限は INTERNET / ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION / WAKE_LOCK / VIBRATE / FOREGROUND_SERVICE / FOREGROUND_SERVICE_LOCATION / POST_NOTIFICATIONS の 8 つのみで（⚑ 2026-09-24 更新: 末尾 3 件は運転者自身が開始する通知つき前景サービスの着地に伴うもの。5 → 8。POST_NOTIFICATIONS は実機 API 34 での測定により追加 — これが無いと前景サービスの通知が黙って破棄され、運転者に何も見えないまま位置情報だけが使われる状態になった）、ストレージ・カメラ・連絡先・**バックグラウンド位置情報**は要求していない（配布マニフェスト `packaged_manifests/release/…/AndroidManifest.xml:15,21,22,27,45`（⚑ 行番号は 2026-08-24 に実ビルド成果物で再測定。旧記載の `:53` は現在 `<queries>` を指しており、主張は真・**引用先が壊れていた**。なお同マニフェストには 6 本目の `uses-permission` として `…DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`（`:75`、自己宣言・`protectionLevel="signature"`）が存在するが、AndroidX が自動生成する署名レベルの内部権限であり、ユーザーに提示されず Data safety の対象外。「8 つ」はユーザー向け `android.permission.*` の数） で確認）。
 
 ---
 
