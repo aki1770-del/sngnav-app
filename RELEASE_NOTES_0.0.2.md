@@ -1,7 +1,9 @@
 # SNGNav 0.0.2 — honest bounds
 
-**Read this before you install it.** Everything here was measured on 2026-09-18, and the
-things this build has NOT been shown to do are listed as plainly as the things it has.
+**Read this before you install it.** Everything here was measured on 2026-09-18 unless a
+passage carries a later date, and the things this build has NOT been shown to do are listed as
+plainly as the things it has. **Two passages carry corrections dated 2026-09-24; each says what
+it corrects rather than replacing it silently.**
 
 `0.0.2+3` · package `dev.aki1770del.sngnav_app` · versionName `0.0.2`, versionCode `3`
 (read from the built artifact with `aapt2 dump badging`, not from the source tree).
@@ -14,8 +16,14 @@ The previous number in this repo was `0.0.5`. Nothing was ever released under it
 repo has **one tag in its life** and `tool/play_uploaded_version_codes.txt` holds **zero**
 consumed versionCodes. `0.0.5` was a build counter, not a release sequence.
 
-**0.0.2 is the second build ever to reach a real person's phone, and the first to reach
-the driver this app is for.** The sequence starts where reach starts.
+**0.0.2 is the second build ever to reach a real person's phone.** The first was `0.0.5+2`,
+hand-installed on 2026-09-17; `0.0.2+6` and then `0.0.2+7` followed on 2026-09-19. The sequence
+starts where reach starts.
+
+⚑ **Corrected 2026-09-24.** This paragraph previously ended *"and the first to reach the
+driver this app is for."* That was not true when it was written and it is not true now. Every
+install of every build of this app has landed on **one phone — the maintainer's own, by his own
+hand.** **No build has yet reached the driver this app is built for, or any second person.**
 
 **versionCode went 2 → 3, and that direction is not optional.** Android enforces
 monotonicity on versionCode, never on the displayed name. A phone already holding an
@@ -46,7 +54,7 @@ Two consequences, stated because they are yours to carry, not ours:
 | **Her position dot, from a real Android GPS fix** | **SEEN on a physical phone** — a Mi Note 10 Pro, 2026-09-17. The map had said 「現在地 不明 · 最後の位置 なし」 while the phone held a valid fix; after the fix it showed the position. ⚑ **The build that was installed was not this one.** It carried byte-identical position code (`lib/her_position.dart`, blob `d20c9279`, unchanged from that build through to this release), but it was a different artifact. |
 | **The offline voice actually being HEARD** | **NOT VERIFIED.** What is verified is narrower and mechanical: every one of the 40 clips the voice asks Android to open is present, uncompressed and openable **inside this APK** — checked by reading the built artifact, not the source. Whether a person hears it come out of a speaker has not been observed. |
 | **The haptic actually being FELT** | **NOT VERIFIED, and cannot be from here.** The available emulator (`sngnav_api30`) reports `hasVibrator()` false and runs with `-no-audio`. A pass on that emulator would mean nothing, so none was taken. |
-| **This exact artifact on any phone** | **NO.** No build of 0.0.2 has been installed on any device by anyone. |
+| **This exact artifact (`0.0.2+3`) on any phone** | **NO — and that part stands.** `0.0.2+3` has never been installed on any device. ⚑ **Corrected 2026-09-24:** this cell previously read *"No build of 0.0.2 has been installed on any device by anyone."* That stopped being true on 2026-09-19 — the day after this file was written — and stood here uncorrected for nearly five days. **Later builds of 0.0.2 did reach a phone:** `0.0.2+6`, and then `0.0.2+7` (`lastUpdateTime` 2026-09-19 22:07:01 JST), installed by the maintainer's own hand on his Mi Note 10 Pro and read back from the phone afterwards. **Every measurement in this file was taken on `+3`, and none of them has been re-measured on either of those builds.** |
 
 **An unverified line above is not a line that failed. It is a line nobody has stood in front
 of.** They are written separately on purpose, because an absent verdict reads exactly like a
