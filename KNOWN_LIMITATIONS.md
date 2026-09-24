@@ -180,8 +180,14 @@ English; the ja floor (BETA_PLAN C5) is in progress and is not rescope currency.
 ## GPS honesty; no background location
 
 Location is opt-in (deny-by-default consent card with a data-flow
-disclosure), foreground-only by design — no `ACCESS_BACKGROUND_LOCATION` is
-requested. The position dot carries a finite-position guard and degrades
+disclosure) and no `ACCESS_BACKGROUND_LOCATION` is requested. It is NO LONGER
+foreground-only (changed 2026-09-24): once she starts a drive, an ongoing
+foreground service keeps collecting with the screen off, behind a notification
+she can see and cannot swipe away. Nothing runs before she starts a drive.
+⚑ Known gap: showing that notification needs POST_NOTIFICATIONS on Android
+13+, which the app declares but does not yet request — so on a 13+ device the
+indicator may be absent while collection continues. The position dot carries a
+finite-position guard and degrades
 honestly (dead-reckoning → `lost`) rather than showing a confidently-wrong
 dot. There is no vehicle-bus (CAN/OBD) integration; sensor-grade dead
 reckoning is out of scope for this app today.

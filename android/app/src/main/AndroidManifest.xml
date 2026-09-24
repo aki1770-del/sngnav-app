@@ -87,6 +87,13 @@
          declaration alone is not enough, which is why lib/main.dart asks for it
          before a drive starts and DOES NOT start the foreground service if she
          says no. Declared unconditionally: the OS ignores it below API 33. -->
+    <!-- CT 2026-09-24, reconciling AAE's 3ce5de6 onto this line. AAE's version of
+         this comment said the request was "OWED and needs a dependency decision".
+         That is retired: the commit above wired the request as a first-party
+         MethodChannel with NO new dependency, and made the degrade fail-closed.
+         ONE fact from AAE's text is kept because it is not stated anywhere else:
+         geolocator_android 4.6.2's own manifest declares only the Service, never
+         this permission — so nothing upstream will ever supply it for us. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="SNGNav"

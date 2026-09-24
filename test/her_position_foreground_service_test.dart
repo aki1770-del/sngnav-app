@@ -23,16 +23,37 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/widgets.dart' show Locale;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sngnav_app/her_position.dart';
+import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/services/notification_permission.dart';
 
-const _text = DriveNotificationText(
-  title: '運転中 — 路面の警告を監視しています',
-  body: '画面を消していても警告します。終了するにはタップして「停止」。',
-  channelName: '運転中の位置情報',
-);
+/// THE WORDS SHE ACTUALLY GETS — not a copy of them.
+///
+/// This file used to declare its own `const _text` fixture and then assert
+/// `expect(config.notificationText, contains('停止'))` against it. That assertion
+/// could only ever pass: the fixture was the first draft of the string, it
+/// contained 停止, and the string we SHIP did not. The test guaranteed a word
+/// that never reached her shade.
+///
+/// It is the same defect class as 666df5b in this same round — "the comment
+/// said a test pinned the wiring; deleting the wiring failed nothing" — one
+/// file over: an assertion pointed at our description of the thing instead of
+/// the thing. So the fixture is DELETED rather than corrected. There is now
+/// one source for these words, and it is the source `main.dart` reads.
+///
+/// Built exactly as `_shareLocation` builds it (main.dart, the
+/// `driveNotification:` argument): same three getters, same order.
+DriveNotificationText _shipped(String languageCode) {
+  final l = AppL10n(Locale(languageCode));
+  return DriveNotificationText(
+    title: l.driveNotificationTitle,
+    body: l.driveNotificationBody,
+    channelName: l.driveNotificationChannel,
+  );
+}
 
 void main() {
   tearDown(() => debugDefaultTargetPlatformOverride = null);
@@ -55,7 +76,7 @@ void main() {
     setUp(() => debugDefaultTargetPlatformOverride = TargetPlatform.android);
 
     test('carries a foreground notification config when given her words', () {
-      final settings = driveLocationSettings(notification: _text);
+      final settings = driveLocationSettings(notification: _shipped('ja'));
       expect(settings, isA<AndroidSettings>());
       final config =
           (settings as AndroidSettings).foregroundNotificationConfig;
@@ -66,20 +87,55 @@ void main() {
 
     test('the notification says what is running and how to end it, in her '
         'language — never an English-only surface (AAE-4 / D4)', () {
-      final config = (driveLocationSettings(notification: _text)
+      final config = (driveLocationSettings(notification: _shipped('ja'))
               as AndroidSettings)
           .foregroundNotificationConfig!;
-      expect(config.notificationTitle, _text.title);
-      expect(config.notificationText, _text.body);
-      expect(config.notificationChannelName, _text.channelName);
-      // The body must tell her how to stop it. A notification she cannot
-      // dismiss and cannot end is surveillance, not a warning service.
-      expect(config.notificationText, contains('停止'));
+      expect(config.notificationTitle, _shipped('ja').title);
+      expect(config.notificationText, _shipped('ja').body);
+      expect(config.notificationChannelName, _shipped('ja').channelName);
     });
+
+    // THE WORD, IN BOTH TONGUES, TIED TO THE CONTROL IT NAMES.
+    //
+    // The body must send her to the control that actually exists, by the name
+    // that control actually carries. `AppL10n.stop` is what the button renders
+    // (main.dart, the TextButton beside the status line), so the notification
+    // is asserted against THAT getter rather than against a literal — rename
+    // the button and this fails, which is the point. Both locales, because
+    // the defect this replaces was invisible in exactly one of them.
+    for (final lang in ['ja', 'en']) {
+      test('the $lang body names the stop control by the same word the button '
+          'carries (AAE-4 / D4)', () {
+        final config = (driveLocationSettings(notification: _shipped(lang))
+                as AndroidSettings)
+            .foregroundNotificationConfig!;
+        expect(
+          config.notificationText,
+          contains(AppL10n(Locale(lang)).stop),
+          reason: 'the in-app disclosure tells her to tap the notification '
+              'then press this word; if the notification never says it, she '
+              'is hunting for a control nothing named',
+        );
+      });
+
+      test('the $lang body does not promise that a tap ends it', () {
+        final body = (driveLocationSettings(notification: _shipped(lang))
+                as AndroidSettings)
+            .foregroundNotificationConfig!
+            .notificationText;
+        // geolocator's content intent is buildBringToFrontIntent()
+        // (BackgroundNotification.java:46, set at :89) — the tap OPENS the app
+        // and location keeps running. A body that says "Tap to end" /
+        // 「終了はタップ」 names a one-step action she cannot perform, and she
+        // is left believing she stopped something that is still running.
+        expect(body, isNot(contains('Tap to end')));
+        expect(body, isNot(contains('終了はタップ。')));
+      });
+    }
 
     test('setOngoing is true — the indicator cannot be separated from the '
         'collection', () {
-      final config = (driveLocationSettings(notification: _text)
+      final config = (driveLocationSettings(notification: _shipped('ja'))
               as AndroidSettings)
           .foregroundNotificationConfig!;
       // If she could swipe this away, location would keep being collected with
@@ -90,7 +146,7 @@ void main() {
 
     test('enableWakeLock is true — a batch of fixes delivered after the pass '
         'is a transcript, not a warning', () {
-      final config = (driveLocationSettings(notification: _text)
+      final config = (driveLocationSettings(notification: _shipped('ja'))
               as AndroidSettings)
           .foregroundNotificationConfig!;
       expect(config.enableWakeLock, isTrue);
@@ -115,7 +171,7 @@ void main() {
     test('desktop/test targets get plain LocationSettings — no mobile-only '
         'plugin is touched, so the render-SEE ceiling stays intact', () {
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-      final settings = driveLocationSettings(notification: _text);
+      final settings = driveLocationSettings(notification: _shipped('ja'));
       expect(settings, isNot(isA<AndroidSettings>()));
       expect(settings.accuracy, LocationAccuracy.high);
       expect(settings.distanceFilter, 0);
@@ -126,10 +182,10 @@ void main() {
     test('distanceFilter stays 0 on both paths, so absence of fixes still '
         'MEANS blackout rather than a parked car', () {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      expect(driveLocationSettings(notification: _text).distanceFilter, 0);
+      expect(driveLocationSettings(notification: _shipped('ja')).distanceFilter, 0);
       expect(driveLocationSettings().distanceFilter, 0);
       debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-      expect(driveLocationSettings(notification: _text).distanceFilter, 0);
+      expect(driveLocationSettings(notification: _shipped('ja')).distanceFilter, 0);
     });
   });
 

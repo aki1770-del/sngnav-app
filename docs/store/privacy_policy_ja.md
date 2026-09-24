@@ -30,7 +30,15 @@
        processReleaseManifestForPackage/AndroidManifest.xml:15,21,22,27,45
      （aapt2 dump badging でも同一を確認）。
      権限を足したのではない — 前から入っていたものを、初めて正直に書いた。
-     以後この表を更新するときは、必ずマージ後のマニフェストを読むこと。 -->
+     以後この表を更新するときは、必ずマージ後のマニフェストを読むこと。
+
+     2026-09-24 CT 追記（AAE 3ce5de6 の統合時）— AAE 版はこの 2026-08-10 の
+     ブロックごと削除していた。削除すると『authored マニフェストを読むな、
+     マージ後を読め』という指示そのものが消え、VIBRATE 行が再び落ちる。残す。
+     AAE 版から持ち越した唯一の行: 権限表とマニフェストの一致は
+     tool/assert_disclosure_parity.sh が機械的に検査する（ただし同スクリプトが
+     読むのは authored マニフェストであり、マージ後ではない — VIBRATE のように
+     プラグイン由来で増える権限は検査できない。honest bound）。 -->
 
 本アプリ（sngnav-app）は、雪道の運転を支えるための情報アプリです。私たちは、あなたのデータをできる限り端末の外に出さない設計を選んでいます。このページは、アプリが何を使い、何を送り、何を送らないかを、実際のコードのとおりに説明するものです。
 
@@ -64,11 +72,16 @@
        行番号は書かない — ファイルが動くと引用先が壊れるため）。
      VIBRATE の実使用: lib/actuators/mobile_alert_actuators.dart:191-192
      （Vibration.hasVibrator / Vibration.vibrate）。宣言のみの権限ではない。
+     ⚑ 上の『7 件』は 2026-09-24 16:49 のビルド成果物の実測値であり、
+     そのビルドは POST_NOTIFICATIONS 追加より前の系統のものである。
+     本チェンジセットの authored マニフェストは 8 件（CT 実測）。
+     マージ後マニフェストの再ビルドと再計数は AAE に owed — 未計測のまま
+     数字を書き換えることはしない。
      FOREGROUND_SERVICE* の実使用: lib/main.dart の _shareLocation が
      herPositionStream に driveNotification を渡し、geolocator の
      GeolocatorLocationService が前景で動く。宣言のみではない。 -->
 
-これ以外の権限（ストレージ・カメラ・連絡先・バックグラウンド位置情報など）は要求しません。
+これ以外の権限（ストレージ・カメラ・連絡先・**バックグラウンド位置情報**など）は要求しません。
 
 なお、ビルドの都合で `dev.aki1770del.sngnav_app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`
 という**アプリ自身にしか効かない権限**が1つ自動生成されます（AndroidX が付与するもので、
@@ -119,7 +132,7 @@
 
 # Privacy Policy — sngnav-app (English)
 
-Last updated: 2026-08-10
+Last updated: 2026-09-24
 
 sngnav-app is an advisory app that supports driving on snowy roads. We deliberately keep your data on your device wherever possible. This page explains — matching the actual code — what the app uses, what it sends, and what it does not send.
 
@@ -144,7 +157,7 @@ sngnav-app is an advisory app that supports driving on snowy roads. We deliberat
 | FOREGROUND_SERVICE_LOCATION | Declaring to the OS that this service handles location. From Android 14 the OS refuses the drive-time feed without it |
 | POST_NOTIFICATIONS | Showing **that notification itself**. From Android 13 nothing is shown without it. **If you decline, the app does not start the foreground service at all** — we will not hold your location behind a notification you cannot see, so the drive is then screen-on only |
 
-No other permissions (storage, camera, contacts, background location, etc.) are requested.
+No other permissions (storage, camera, contacts, **background location**, etc.) are requested.
 
 One further permission is generated automatically by the build and is listed here for
 completeness: `dev.aki1770del.sngnav_app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. AndroidX

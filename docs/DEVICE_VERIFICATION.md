@@ -54,19 +54,42 @@ Andon, not a footnote.
 - [ ] **Wakelock holds under Doze / battery-saver** — verify on a device in
       battery-saver mode; document any OEM (e.g. aggressive Chinese-ROM) killer.
 - [ ] **Released when the surface leaves** — backgrounding the app releases the
-      wakelock (foreground-only contract; no silent battery drain).
+      SCREEN wakelock. NOTE (2026-09-24): the drive's foreground service also
+      sets geolocator's `enableWakeLock: true`, a CPU wakelock with a different
+      lifetime — it is held for the whole drive, screen off included, and is
+      released when the last position-stream listener detaches. Check both.
 - [ ] **Single owner** — only ONE actuator toggles the wakelock (WS6 injects the
       app's single actuator; the controller never resolves its own). No
       double-hold / double-release.
 
 ## Foreground-service / long-drive reality
 
+THIS SECTION'S PREMISE CHANGED 2026-09-24. It read "today the app is
+foreground-only"; that is no longer true. The ongoing-drive foreground service
+landed (geolocator's own `GeolocatorLocationService`, driven by
+`driveLocationSettings`), so the checks below are now LIVE, not hypothetical.
+
 - [ ] **Multi-hour screen-off drive** — a true hours-long drive with the screen
-      off would need a foreground service; today the app is foreground-only.
-      Verify the app is NOT silently killed mid-drive, and that a future
-      foreground service uses a **user-visible ongoing-drive notification**
+      off. Verify the app is NOT silently killed mid-drive, and that the
+      ongoing-drive notification is **actually visible for the whole of it**
       (FOREGROUND_SERVICE_LOCATION) — **never silent background location**
       (no ACCESS_BACKGROUND_LOCATION; refused for dignity).
+- [ ] ⚑ **THE NOTIFICATION ACTUALLY APPEARS ON ANDROID 13+.** This is the one
+      that cannot be checked on our AVD, which is API 30 (measured 2026-09-24:
+      `ro.build.version.sdk=30`) where POST_NOTIFICATIONS does not exist and
+      the notification posts freely. targetSdk is 36. On a 13+ device the
+      permission is denied by default and the app does not yet request it, so
+      the service can run with location collection and NO visible indicator —
+      the exact state the manifest, `her_position.dart` and the in-app
+      disclosure all declare forbidden. **Needs a real 13+ device. Until then
+      this row is UNVERIFIED, never *cleared*.**
+- [ ] **Tapping the notification** — confirm it opens the app (geolocator wires
+      a bring-to-front intent) and that she can then find and press 停止. It
+      does NOT end the drive by itself; the shade words must not imply it does.
+- [ ] **Lock screen** — geolocator creates the channel with
+      `VISIBILITY_PRIVATE` and `IMPORTANCE_NONE`
+      (BackgroundNotification.java:69,71). Nobody has yet looked at what she
+      sees on a LOCKED phone, which is the condition the words actually name.
 - [ ] **Battery-killer audit** — the ongoing-drive notification + wakelock do not
       drain the battery unacceptably over a 1-hour drive.
 

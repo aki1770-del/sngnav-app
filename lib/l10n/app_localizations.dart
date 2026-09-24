@@ -84,18 +84,54 @@ class AppL10n {
   String get driveNotificationTitle =>
       _ja ? '運転中 — 路面の警告を監視しています' : 'Driving — watching the road for you';
 
-  /// SHORT ON PURPOSE, and the length was measured on the device, not guessed.
+  /// SHORT ON PURPOSE, and the budget is a WIDTH, not a character count.
+  ///
   /// The collapsed shade gives this one line and truncates the rest with an
   /// ellipsis. The first draft read "You will be warned with the screen off.
   /// Tap here, then Stop, to end it." and rendered as "You will be warned with
   /// the screen off. Tap here, then .." — cutting off the half that tells her
-  /// how to END it, which is the half the dignity boundary rests on. A widget
-  /// test could not have caught that: it is a property of the system shade, not
-  /// of our tree. Keep this under ~45 characters in EN, and re-look at the
-  /// shade if it changes.
+  /// how to END it, which is the half the dignity boundary rests on.
+  ///
+  /// THE REASON THIS CHANGED IS THE SECOND PARAGRAPH, NOT THE FIRST. Width is
+  /// why the rule below changed; a false promise is why the WORDS changed.
+  ///
+  /// WIDTH — TWO MEASUREMENTS THAT DISAGREE, BOTH RECORDED. HIE, rendering
+  /// against a real shade screenshot's geometry, put the ja body at 799px
+  /// against a 755px usable run (the expand-chevron overlaps the text rows)
+  /// and predicted she loses 「ップ。」. AAE re-measured independently with the
+  /// same fonts and got 805px — agreeing on the STRING to within 1% — then
+  /// went to the one attached device (API 30 AVD, 1080x2340, 440dpi, ja-JP)
+  /// and measured a real truncating notification row in a screencap: face
+  /// ~38-39px, usable run x=57..1013, about 956px. At that face the old ja
+  /// body is ~838px and FITS, with headroom. **So the truncation is NOT
+  /// confirmed on the only device we have.** It is a DIFFERENCE, not a
+  /// refutation: HIE's capture had a chevron narrowing the row, this one did
+  /// not, and both can be true of different devices, font scales and header
+  /// lengths. Neither of us has seen HER phone, and nobody has seen the LOCK
+  /// SCREEN, which is the condition these words actually name.
+  ///
+  /// What survives regardless: the old rule's UNIT was wrong. "Under ~45
+  /// characters in EN" cannot see a Japanese string at all — the ja body was
+  /// 22 characters, half the limit, and renders wider than the 38-character
+  /// English one, because a full-width CJK glyph is about two Latin ones. So
+  /// the budget is a WIDTH now, checked in both locales by
+  /// `tool/assert_notification_fit.sh` against the NARROWER of the two
+  /// observed runs. Being under a budget we are not sure of is cheap; being
+  /// over one is the instruction she loses.
+  ///
+  /// THE PROMISE — and this one is not in doubt. The body used to say "Tap to
+  /// end." / 「終了はタップ。」 Tapping does NOT end it. geolocator's content
+  /// intent is buildBringToFrontIntent() (BackgroundNotification.java:46, set
+  /// at :89), and geolocator_android 4.6.2 — the version pubspec.lock
+  /// resolves — has no addAction anywhere, so the notification cannot carry a
+  /// Stop button at all. The tap opens the app and location keeps running. The
+  /// real sequence is tap, then 停止: the same two steps `locationDisclosure`
+  /// already states in both tongues, and the same word the in-app control
+  /// carries (`stop`, above). Three surfaces sent her looking for that word
+  /// and the only one in her hand at that moment did not say it.
   String get driveNotificationBody => _ja
-      ? '画面を消していても警告します。終了はタップ。'
-      : 'Warns with the screen off. Tap to end.';
+      ? '画面オフでも警告。終了はタップ→停止。'
+      : 'Warns with the screen off. Tap, then Stop.';
 
   String get driveNotificationChannel =>
       _ja ? '運転中の位置情報' : 'Location while driving';
