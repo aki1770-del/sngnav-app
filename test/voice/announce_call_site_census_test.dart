@@ -158,9 +158,14 @@ void _citationsByFunction() {
 // `_announceCurrentAlert` holds its one registered announce() call, the count
 // matched, the suite stayed green, and the only widget that calls it sits
 // inside `_developerSections()`, which `_developerPageOffered` hard-gates on
-// `!kReleaseMode` (lib/main.dart). So 30 of the bundled road-surface clips
-// -- every line carrying アイスバーン / 圧雪 / シャーベット / 凍結 -- are
-// speakable only in a build she will never hold. The bundled mouth was
+// `!kReleaseMode` (lib/main.dart). So 30 of the 41 bundled clips -- the
+// road-surface alerts -- are speakable only in a build she will never hold.
+// Counted 2026-09-25: 21 of those 30 name アイスバーン / 圧雪 / シャーベット /
+// 凍結 (the other 9 are wet-road and loose-gravel lines), and every bundled
+// clip that names 圧雪 or シャーベット is among them, so no release build SPEAKS
+// either word (her diary chips still SHOW them). She does hear
+// ブラックアイスバーン and 凍結 in release, from the two measured warnings
+// (invisible ice, sub-zero). The bundled mouth was
 // complete; the path to her mouth was not, and nothing said so.
 //
 // This column pins the fact rather than ruling on it. It does NOT assert that
