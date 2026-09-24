@@ -147,6 +147,24 @@ jobs:
       - name: Assert Android manifest perms + voice-channel <queries> (dead-app blocker guard)
         run: bash tool/assert_manifest_perms.sh
 
+      # ⛑ ARMED 2026-09-24, FBR. The disclosure-parity gate was written the
+      # same day and NOTHING RAN IT: zero references in this workflow and zero in
+      # preflight, while its older sibling assert_manifest_perms.sh ran in all
+      # three jobs. A gate nobody runs is not a gate -- the operator stays the
+      # last line of defence, which is precisely what the gate was written to
+      # end. Built is not armed, and the distance between them is where the
+      # defect lived. Armed in all three jobs, to match the sibling exactly.
+      #
+      # It reds this tree today, naming raw.githubusercontent.com: the update
+      # check is a fifth network egress and the privacy policy still tells her
+      # four flows are all of it. THAT RED IS CORRECT. Do not disarm the gate to
+      # get green -- name the flow on the page, and the gate clears itself.
+      - name: Disclosure parity self-test (the loom proves itself before it judges)
+        run: bash tool/assert_disclosure_parity.sh --self-test
+
+      - name: Assert permission + EGRESS parity with the privacy policy (consent-truth gate)
+        run: bash tool/assert_disclosure_parity.sh
+
       # ⚑ REPRODUCTION-REVIEW FINDING F5, 2026-08-16 — flutter-action MOVED HERE, from ABOVE the
       # dead-app assert. The correction note above this assert claimed the tile
       # pipeline could no longer hide it; true, and insufficient. The SDK download is
@@ -490,6 +508,24 @@ jobs:
       - name: Assert Android manifest perms + voice-channel <queries> (dead-app blocker guard)
         run: bash tool/assert_manifest_perms.sh
 
+      # ⛑ ARMED 2026-09-24, FBR. The disclosure-parity gate was written the
+      # same day and NOTHING RAN IT: zero references in this workflow and zero in
+      # preflight, while its older sibling assert_manifest_perms.sh ran in all
+      # three jobs. A gate nobody runs is not a gate -- the operator stays the
+      # last line of defence, which is precisely what the gate was written to
+      # end. Built is not armed, and the distance between them is where the
+      # defect lived. Armed in all three jobs, to match the sibling exactly.
+      #
+      # It reds this tree today, naming raw.githubusercontent.com: the update
+      # check is a fifth network egress and the privacy policy still tells her
+      # four flows are all of it. THAT RED IS CORRECT. Do not disarm the gate to
+      # get green -- name the flow on the page, and the gate clears itself.
+      - name: Disclosure parity self-test (the loom proves itself before it judges)
+        run: bash tool/assert_disclosure_parity.sh --self-test
+
+      - name: Assert permission + EGRESS parity with the privacy policy (consent-truth gate)
+        run: bash tool/assert_disclosure_parity.sh
+
       # REPRODUCTION-REVIEW ROUND 3 / F5 residual B: moved BELOW the dead-app assert, to match
       # the `test` job. The SDK download is the heaviest and most
       # network-fragile step and the assert needs nothing from it.
@@ -581,6 +617,24 @@ jobs:
 
       - name: Assert Android manifest perms + voice-channel <queries> (dead-app blocker guard)
         run: bash tool/assert_manifest_perms.sh
+
+      # ⛑ ARMED 2026-09-24, FBR. The disclosure-parity gate was written the
+      # same day and NOTHING RAN IT: zero references in this workflow and zero in
+      # preflight, while its older sibling assert_manifest_perms.sh ran in all
+      # three jobs. A gate nobody runs is not a gate -- the operator stays the
+      # last line of defence, which is precisely what the gate was written to
+      # end. Built is not armed, and the distance between them is where the
+      # defect lived. Armed in all three jobs, to match the sibling exactly.
+      #
+      # It reds this tree today, naming raw.githubusercontent.com: the update
+      # check is a fifth network egress and the privacy policy still tells her
+      # four flows are all of it. THAT RED IS CORRECT. Do not disarm the gate to
+      # get green -- name the flow on the page, and the gate clears itself.
+      - name: Disclosure parity self-test (the loom proves itself before it judges)
+        run: bash tool/assert_disclosure_parity.sh --self-test
+
+      - name: Assert permission + EGRESS parity with the privacy policy (consent-truth gate)
+        run: bash tool/assert_disclosure_parity.sh
 
       # REPRODUCTION-REVIEW ROUND 3 / F5 residual B: moved BELOW the dead-app assert, to match
       # the `test` job. The SDK download is the heaviest and most
