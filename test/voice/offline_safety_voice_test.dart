@@ -83,7 +83,8 @@ void main() {
     test('lookup is exact — a near-miss resolves to NOTHING, never to the '
         'wrong warning', () {
       // The REAL live black-ice line the app emits (snow_rendering
-      // invisibleBlackIceAnnouncement.jaSpokenText, main.dart:1161).
+      // invisibleBlackIceAnnouncement.jaSpokenText, main.dart
+      // _announceWatchTransitions).
       final real = kOfflineSafetyVoiceJa['black_ice_live']!;
       expect(OfflineSafetyVoice.assetFor(real), isNotNull);
 

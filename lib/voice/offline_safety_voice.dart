@@ -17,14 +17,24 @@
 /// cannot say "black ice" the way the app says it is not a mouth.
 ///
 /// THIS SET IS DERIVED FROM THE RUNTIME EMISSIONS — every announce() call site,
-/// enumerated by CALLING the production builders (not grepping):
-///   main.dart:1419  AlertExplainer.forConditionAndProfile(c, p).action  (30)
-///                   = 6 warning/critical conditions x 5 ja driver profiles;
-///                     both selectable by the driver in the app's dropdowns
-///   drive_hud_controller.dart:189  DriveHudLocalizer.spokenGuidance()    (2)
-///   main.dart:1161  invisibleBlackIceAnnouncement.jaSpokenText           (1)
-///   main.dart:1172  turmoilSpokenText(...)                               (3)
-///   main.dart:1218  kConditionsUnknownJaSpokenText                       (1)
+/// enumerated by CALLING the production builders (not grepping). Cited BY
+/// FUNCTION: the line numbers that stood here until 2026-09-25 had all rotted,
+/// and test/voice/announce_call_site_census_test.dart pins these names.
+///   main.dart _announceCurrentAlert  AlertExplainer
+///                   .forConditionAndProfile(c, p).action                (30)
+///                   = 6 warning/critical conditions x 5 ja driver profiles,
+///                     both chosen on the DEVELOPER page's dropdowns; the
+///                     condition is `simulatedRoadConditionSectionTitle`'s —
+///                     a chosen value, never a measured one.
+///                   ⛑ NOT SPEAKABLE IN A RELEASE BUILD. Bundled, but the only
+///                     caller sits behind `!kReleaseMode`; the census's
+///                     release-reachability column fails if that changes.
+///   drive_hud_controller.dart _maybeAnnounce / tellWithNoShare
+///                   DriveHudLocalizer.spokenGuidance()                   (2)
+///   main.dart _announceWatchTransitions
+///                   invisibleBlackIceAnnouncement.jaSpokenText           (1)
+///                   turmoilSpokenText(...)                               (3)
+///                   kConditionsUnknownJaSpokenText                       (1)
 ///   main.dart _fireChannelCheck  AppL10n.channelCheckSpokenLine (ja)      (1)
 ///                   the warning-channel check's own line, added 2026-09-19
 /// `test/voice/runtime_voice_coverage_test.dart` RE-DERIVES that list on every
@@ -43,7 +53,7 @@
 ///    offline. Recorded bound, not a claim.
 ///  - NAV-class lines (58 static maneuver strings, ManeuverNarrator) are NOT
 ///    bundled. They exist ONLY when a live OSRM route was fetched over the
-///    network (lib/route_fetch.dart:50) — in the dead zone this mouth exists
+///    network (main.dart `_osrmDemoBaseUrl`) — in the dead zone this mouth exists
 ///    for, there is no route, so there is no maneuver to speak. If routing ever
 ///    goes offline, these 58 must be rendered too.
 ///
@@ -62,8 +72,10 @@ library;
 // ignore_for_file: lines_longer_than_80_chars
 const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   // --- Road-surface alerts, spoken VERBATIM from the catalog explainer
-  // (main.dart:1419). 6 conditions x 5 ja profiles. These are the lines the driver
-  // actually hears about the road she cannot see.
+  // (main.dart _announceCurrentAlert). 6 conditions x 5 ja profiles.
+  // ⛑ She does NOT hear these in a release build: their only caller is on the
+  // developer page, keyed off a SIMULATED road condition. Bundled so a debug
+  // build speaks them offline; see the census's release-reachability column.
   'alert_wet_ageing_rural':
       '路面が濡れています。気温が0°Cより高くても路面は先に冷えて凍り、ブラックアイスバーンになることがあります。橋やトンネル出口で速度を落としてください',
   'alert_wet_snow_zone_experienced':
@@ -133,13 +145,15 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   'alert_loose_gravel_agricultural_forestry':
       '砂利路面（通常運用範囲）、後続車に小石注意',
 
-  // --- Caution-rung guidance (drive_hud_controller.dart:189).
+  // --- Caution-rung guidance (drive_hud_controller.dart _maybeAnnounce /
+  // tellWithNoShare).
   'guidance_heightened_caution':
       '速度を落とし、車間を広げて、前方に注意してください。',
   'guidance_consider_stopping':
       '安全にできるときは、安全な場所での停車も選べます。',
 
-  // --- The live invisible-black-ice announcement (main.dart:1161).
+  // --- The live invisible-black-ice announcement (main.dart
+  // _announceWatchTransitions).
   'black_ice_live':
       'ブラックアイスバーンに注意。路面は濡れて見えても、凍結しているおそれがあります。急ハンドル、急ブレーキは厳禁。速度を落としてください。',
 
@@ -150,7 +164,8 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   'sub_zero_frozen_live':
       '気温が0°C以下です。橋の上やトンネルの出口では、路面が凍結している可能性があります。速度を落とし、急ブレーキ・急ハンドルは避けてください。',
 
-  // --- Measured-turmoil cautions: rain / wind / both (main.dart:1172).
+  // --- Measured-turmoil cautions: rain / wind / both (main.dart
+  // _announceWatchTransitions).
   'turmoil_rain_and_wind':
       '強い雨と強めの風を観測しています。視界の悪化と横風のおそれがあります。速度を落とし、車間距離をとって慎重に運転してください。',
   'turmoil_rain':
@@ -158,7 +173,8 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   'turmoil_wind':
       '強めの風を観測しています。横風に流されるおそれがあります。ハンドルをしっかり握り、速度を落としてください。',
 
-  // --- The honest-absence line (main.dart:1218). The MOST important entry:
+  // --- The honest-absence line (main.dart _announceWatchTransitions). The MOST
+  // important entry:
   // it is what she hears when we know nothing.
   'conditions_unknown':
       '路面状況を取得できていません。見える範囲で運転してください。',

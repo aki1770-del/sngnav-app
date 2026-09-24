@@ -10,19 +10,37 @@
 /// This guard enumerates what the app can ACTUALLY pass to
 /// `AlertActuators.speak()` at runtime — by CALLING the real builders at the
 /// real call sites — and asserts the bundled mouth covers the SAFETY-CLASS
-/// ones. It is derived from the announce() call graph, measured 2026-07-12:
+/// ones. It is derived from the announce() call graph, first measured
+/// 2026-07-12 and cited BY FUNCTION since 2026-09-25:
 ///
-///   main.dart:1161  invisibleBlackIceAnnouncement.jaSpokenText      STATIC
-///   main.dart:1172  turmoilSpokenText(state, ja: true)              STATIC ×3
-///   main.dart:1218  kConditionsUnknownJaSpokenText                  STATIC
-///   main.dart:1240  staleInvisibleBlackIceSpokenText(hourJst:)      SLOTTED
-///   main.dart:1419  AlertExplainer.forConditionAndProfile(c,p).action STATIC ×N
-///   drive_hud_controller.dart:189  DriveHudLocalizer.spokenGuidance() STATIC ×2
-///   drive_hud_controller.dart:233  ManeuverNarrator.decide().text   STATIC ×N (nav-class)
+///   main.dart _announceWatchTransitions
+///       invisibleBlackIceAnnouncement.jaSpokenText                  STATIC
+///       turmoilSpokenText(state, ja: true)                          STATIC ×3
+///       kConditionsUnknownJaSpokenText                              STATIC
+///       staleInvisibleBlackIceSpokenText(hourJst:)                  SLOTTED
+///   main.dart _announceCurrentAlert
+///       AlertExplainer.forConditionAndProfile(c,p).action           STATIC ×N
+///       ⛑ NOT REACHABLE IN A RELEASE BUILD — its only caller sits inside
+///       `_developerSections()`, gated on `!kReleaseMode`. Pinned by
+///       announce_call_site_census_test.dart, which fails if that changes.
+///   drive_hud_controller.dart _maybeAnnounce / tellWithNoShare
+///       DriveHudLocalizer.spokenGuidance()                          STATIC ×2
+///   drive_hud_controller.dart narrateNextManeuver
+///       ManeuverNarrator.decide().text                     STATIC ×N (nav-class)
+///
+/// ⛑ THESE WERE LINE NUMBERS UNTIL 2026-09-25, AND ALL SEVEN HAD ROTTED.
+/// Measured that day: not one of main.dart lines 1161, 1172, 1218, 1240 or
+/// 1419, nor drive_hud_controller.dart lines 189 or 233, still held what it
+/// claimed — 1419, the
+/// road-surface site, had become a doc comment about advisory retention. A
+/// line number in a moving file is not a citation: it points somewhere whether
+/// or not it is true, so a reader who follows it is misled rather than
+/// stopped. The function names above are pinned by the census test, which
+/// fails when one gains, loses or stops holding its announce() call.
 ///
 /// SLOTTED strings cannot be pre-rendered — recorded, never claimed.
 /// NAV-class strings exist only when a LIVE OSRM route was fetched over the
-/// network (lib/route_fetch.dart:50 — `https://router.project-osrm.org`), so
+/// network (main.dart `_osrmDemoBaseUrl` — `https://router.project-osrm.org`), so
 /// they cannot arise in the dead zone this mouth exists for. They are the
 /// recorded, measured remainder — see `kNavClassRemainder` below.
 library;
@@ -53,10 +71,12 @@ import 'package:localization_fallback/localization_fallback.dart'
 Set<String> emittableSafetyStaticJa() {
   final out = <String>{};
 
-  // (1) main.dart:1419 — the road-surface alert, spoken VERBATIM from the
-  // catalog explainer, for every (condition, profile) the driver can select in
-  // the app's own dropdowns (main.dart:1504 / :1530), gated on >= warning
-  // (AlertAnnouncer.announce) and on the explainer's own ja locale.
+  // (1) main.dart _announceCurrentAlert — the road-surface alert, spoken
+  // VERBATIM from the catalog explainer, for every (condition, profile) the
+  // DEVELOPER page's dropdowns can choose (the condition is
+  // `simulatedRoadConditionSectionTitle`'s: a chosen value, never a measured
+  // one), gated on >= warning (AlertAnnouncer.announce) and on the explainer's
+  // own ja locale. ⛑ Emittable in a debug build only — see the header.
   for (final c in RoadSurfaceCondition.values) {
     if (severityForCondition(c).index < AlertSeverity.warning.index) continue;
     for (final p in DriverProfile.values) {
@@ -66,7 +86,8 @@ Set<String> emittableSafetyStaticJa() {
     }
   }
 
-  // (2) drive_hud_controller.dart:189 — the caution-rung guidance line.
+  // (2) drive_hud_controller.dart _maybeAnnounce / tellWithNoShare — the
+  // caution-rung guidance line.
   const localizer = DriveHudLocalizer();
   for (final a in DriveAction.values) {
     if (a.index < DriveAction.heightenedCaution.index) continue;
@@ -74,7 +95,8 @@ Set<String> emittableSafetyStaticJa() {
     if (s.isNotEmpty) out.add(s);
   }
 
-  // (3) main.dart:1161 — the live invisible-black-ice announcement.
+  // (3) main.dart _announceWatchTransitions — the live invisible-black-ice
+  // announcement.
   out.add(snow_rendering.invisibleBlackIceAnnouncement.jaSpokenText);
 
   // (3b) _announceWatchTransitions — the live SUB-ZERO frozen-surface warning
@@ -83,7 +105,8 @@ Set<String> emittableSafetyStaticJa() {
   // silence on a frozen road.
   out.add(subZeroFrozenSpokenText(ja: true));
 
-  // (4) main.dart:1172 — the measured-turmoil caution lines (rain / wind /
+  // (4) main.dart _announceWatchTransitions — the measured-turmoil caution
+  // lines (rain / wind /
   // both are the only announcing states; anything else returns null).
   for (final rain in TurmoilChannel.values) {
     for (final wind in TurmoilChannel.values) {
@@ -100,7 +123,7 @@ Set<String> emittableSafetyStaticJa() {
     }
   }
 
-  // (5) main.dart:1218 — the honest-absence line.
+  // (5) main.dart _announceWatchTransitions — the honest-absence line.
   out.add(kConditionsUnknownJaSpokenText);
 
   // (5b) The test-value prefix, spoken as its own utterance by
