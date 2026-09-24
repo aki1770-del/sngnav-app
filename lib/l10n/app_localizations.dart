@@ -70,6 +70,35 @@ class AppL10n {
   /// action as [stop]; "Stop" would be offered for a session that never
   /// started, beside words saying the app has no access (decided 2026-09-13).
   String get close => _ja ? '閉じる' : 'Close';
+  // ===== Ongoing-drive notification (the foreground service she can SEE) =====
+  //
+  // These three are the ONLY thing standing between "we are watching the road
+  // for her while the phone is in her pocket" and "we are tracking her". They
+  // are read in the shade, at a glance, by a driver who did not go looking for
+  // them — so they say what is running, and how to end it, in that order.
+  //
+  // Localized because AAE-4 makes it a D4 breach not to be: an English-only
+  // ongoing notification on a Japanese driver's phone is the app telling her
+  // it is doing something and not telling her what.
+
+  String get driveNotificationTitle =>
+      _ja ? '運転中 — 路面の警告を監視しています' : 'Driving — watching the road for you';
+
+  /// SHORT ON PURPOSE, and the length was measured on the device, not guessed.
+  /// The collapsed shade gives this one line and truncates the rest with an
+  /// ellipsis. The first draft read "You will be warned with the screen off.
+  /// Tap here, then Stop, to end it." and rendered as "You will be warned with
+  /// the screen off. Tap here, then .." — cutting off the half that tells her
+  /// how to END it, which is the half the dignity boundary rests on. A widget
+  /// test could not have caught that: it is a property of the system shade, not
+  /// of our tree. Keep this under ~45 characters in EN, and re-look at the
+  /// shade if it changes.
+  String get driveNotificationBody => _ja
+      ? '画面を消していても警告します。終了はタップ。'
+      : 'Warns with the screen off. Tap to end.';
+
+  String get driveNotificationChannel =>
+      _ja ? '運転中の位置情報' : 'Location while driving';
 
   // ===== Live position / mid-drive status =====
 
@@ -619,8 +648,17 @@ class AppL10n {
   //   set (AMeDAS + forecast via _refreshJma, warning via the advisory refresh)
   //   also fires on a 10-minute foreground ticker (_jmaTicker, main.dart) even
   //   while stopped. Coordinates are held only in memory, never persisted,
-  //   never sent to any server this app runs (there is none). Foreground-only
-  //   per AndroidManifest.xml.
+  //   never sent to any server this app runs (there is none).
+  //
+  //   SCOPE CHANGED 2026-09-24 and this copy changed WITH it, in the same
+  //   change-set, because otherwise it would be the false claim: a drive she
+  //   starts now continues with the app backgrounded and the screen off, via
+  //   geolocator's foreground service behind a persistent notification
+  //   (lib/her_position.dart). It is still NOT background location:
+  //   ACCESS_BACKGROUND_LOCATION remains withheld, nothing starts without her
+  //   tapping 現在地を共有, and the notification cannot be separated from the
+  //   collection. "Foreground-only per AndroidManifest.xml" used to be the
+  //   whole story and is no longer; saying so is the point of this comment.
   //
   // BOTH locales state both regional facts: locale is NOT location — a
   // Japanese-reading driver in the US would hit the NWS point path, so the ja
@@ -634,11 +672,15 @@ class AppL10n {
           '都道府県コードによる警報・注意報、地域のアメダス観測、'
           '都道府県の予報を要求します。いずれも都道府県・地域単位の公開データで、'
           '正確な座標は送信しません。警報・注意報は走行約1kmごとに更新され、'
-          'これらの取得は使用中であれば停車していても約10分ごとに行われます。'
+          'これらの取得は、停車中でも、また運転中に画面を消していても、'
+          '約10分ごとに行われます。'
           'アメリカ合衆国内では、地点の警報を取得するため座標が'
           '米国国立気象局（NWS）へ送信されます。'
           '現在地を管轄しない気象機関へ問い合わせることはありません。'
-          '共有は任意で、アプリの使用中のみ行われ、位置情報は端末に保存されず、'
+          '共有は任意です。運転を開始すると、アプリを閉じて画面を消していても'
+          '継続します。その間は通知が表示され続けます — '
+          '終了するには通知をタップして「停止」を押してください。'
+          '位置情報は端末に保存されず、'
           '本アプリ独自のサーバーへ送信されることもありません。'
       : 'When you share your location, it is used to fetch nearby weather '
           'advisories. In Japan your coordinates never leave the device: the '
@@ -648,13 +690,15 @@ class AppL10n {
           'forecast for your prefecture — all prefecture- or region-keyed '
           'public data, so your exact coordinates are not sent. The warning '
           'file is refreshed about once per kilometre of travel; all three '
-          'are re-requested about every 10 minutes while the app is open, '
-          'even when stopped. In the United States your coordinates '
+          'are re-requested about every 10 minutes — when stopped, and when '
+          'driving with the screen off. In the United States your coordinates '
           'are sent to the NWS to fetch alerts for your exact point. A '
           'service that does not cover your location is never contacted. '
-          'Sharing is opt-in, happens only while the app is open, and your '
-          "location is never stored on the device or sent to this app's own "
-          'servers.';
+          'Sharing is opt-in. Once you start a drive it keeps going with the '
+          'app closed and the screen off, and a notification stays on your '
+          'phone for the whole time it is running — tap it, then Stop, to end '
+          "it. Your location is never stored on the device or sent to this "
+          "app's own servers.";
 
   // ===== Other-egress disclosure (B27 + B30) — the rest of the wire =====
   //

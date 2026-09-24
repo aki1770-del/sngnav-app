@@ -1761,9 +1761,21 @@ class _HomePageState extends State<HomePage> {
     // equally when a dead vibrator matters, for the driver who has nothing
     // else).
     _probeAlertChannelReadiness();
+    // The ongoing-drive notification's words, resolved HERE because this is
+    // where a BuildContext exists. Without them herPositionStream falls back to
+    // plain LocationSettings and the drive is foreground-only again -- so a
+    // future refactor that drops this argument silently removes her warning
+    // when the screen goes off. The widget test
+    // test/her_position_foreground_service_test.dart pins it.
+    final l = AppL10n.of(context);
     final injected = widget.positionSource;
     _herSub = (injected ??
             () => herPositionStream(
+                  driveNotification: DriveNotificationText(
+                    title: l.driveNotificationTitle,
+                    body: l.driveNotificationBody,
+                    channelName: l.driveNotificationChannel,
+                  ),
                   onPlatformStreamSubscribed: () {
                     if (mounted && session == _herShareSession) {
                       _herPositionStreamSubscribedAt = _now();

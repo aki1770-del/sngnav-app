@@ -27,6 +27,8 @@ library;
 
 import 'dart:async';
 import 'package:flutter/services.dart' show MissingPluginException;
+import 'package:flutter/foundation.dart'
+    show TargetPlatform, defaultTargetPlatform;
 import 'package:geolocator/geolocator.dart';
 
 sealed class PositionFix {
@@ -302,11 +304,107 @@ PositionFix fixFromSample({
 /// MUST be called from a user-gesture handler (button onPressed). Modern
 /// browsers refuse permission prompts outside a user gesture; calling
 /// this from initState() will silently fail without prompting.
+/// The ongoing-drive notification's words, resolved by the caller so they are
+/// LOCALIZED (AAE-4: an English-only surface for a Japanese driver is a D4
+/// breach). `her_position.dart` has no `BuildContext`, so `main.dart` passes
+/// `AppLocalizations`' strings in rather than this file inventing English.
+class DriveNotificationText {
+  const DriveNotificationText({
+    required this.title,
+    required this.body,
+    required this.channelName,
+  });
+
+  /// One line she reads at a glance in the shade.
+  final String title;
+
+  /// What it is doing and how to end it.
+  final String body;
+
+  /// The channel name as it appears in Android's own app-settings list.
+  final String channelName;
+}
+
+/// The location settings for a live drive.
+///
+/// **Android: this is the ongoing-drive foreground service.** Passing a
+/// [ForegroundNotificationConfig] is what makes geolocator's already-declared
+/// `GeolocatorLocationService` call `startForeground` (StreamHandlerImpl.java:130
+/// on listen, `disableBackgroundMode` at :155 on cancel). No Service is written
+/// here: one already existed in the plugin and already merged into our APK —
+/// the re-entrancy test (CLAUDE.md §11 test 3) says wire the primitive that
+/// exists, do not invent a second one.
+///
+/// **Why it is needed at all.** Without it the drive is a plain background app:
+/// Android throttles background location for apps with no foreground service,
+/// the process sits at a cached/previous-app oom adjustment and is a kill
+/// candidate, and Doze defers its timers. So the warning she needs reaches her
+/// only while she is *holding the phone and looking at it* — the condition an
+/// elderly rural driver fails most.
+///
+/// **What it deliberately does NOT do.** It does not survive her never having
+/// started a drive, and it must not: `ACCESS_BACKGROUND_LOCATION` stays
+/// withheld and the service exists only behind a notification she started and
+/// can end.
+///
+/// [notification] null (or any non-Android target) yields plain
+/// [LocationSettings] — desktop, web and tests are untouched, and the
+/// render-SEE ceiling stays intact.
+LocationSettings driveLocationSettings({DriveNotificationText? notification}) {
+  const accuracy = LocationAccuracy.high;
+  // 0, deliberately (was 5 m): a displacement filter suppresses delivery while
+  // stationary, so "no fix arrived lately" would be ambiguous between a real
+  // GPS blackout and a parked car. With time-cadence delivery, absence of fixes
+  // MEANS blackout — which is what lets the app's blackout watchdog degrade the
+  // honest dot (trusted → dead-reckoning → lost) instead of crying wolf at
+  // every red light. Delivery-rate only: the GPS radio duty cycle is set by
+  // accuracy, not by this filter.
+  const distanceFilter = 0;
+
+  if (notification == null ||
+      defaultTargetPlatform != TargetPlatform.android) {
+    return const LocationSettings(
+      accuracy: accuracy,
+      distanceFilter: distanceFilter,
+    );
+  }
+
+  return AndroidSettings(
+    accuracy: accuracy,
+    distanceFilter: distanceFilter,
+    foregroundNotificationConfig: ForegroundNotificationConfig(
+      notificationTitle: notification.title,
+      notificationText: notification.body,
+      notificationChannelName: notification.channelName,
+      // TRUE, and the dignity reasoning runs the opposite way to the obvious
+      // one. `setOngoing: false` would let her swipe the notification away —
+      // and then location keeps being collected with NO visible indicator,
+      // which is exactly the "silent, notification-less background location"
+      // the manifest's dignity boundary forbids. Ongoing means the indicator
+      // cannot be separated from the collection: for as long as we are
+      // watching, she can see that we are watching. Ending it is a different
+      // act and she has it — tap the notification (geolocator builds a
+      // bring-to-front intent, BackgroundNotification.java:46) then 停止.
+      setOngoing: true,
+      // TRUE and load-bearing. geolocator's own doc: with this false "the
+      // system can still sleep and all location events will be received at
+      // once when the system wakes up again." A batch of hazard fixes
+      // delivered after the pass is not a warning, it is a transcript.
+      // WAKE_LOCK is already declared in AndroidManifest.xml.
+      enableWakeLock: true,
+      // FALSE: her worst case is the network being gone. We hold no Wi-Fi
+      // radio for a drive that is designed to work without one.
+      enableWifiLock: false,
+    ),
+  );
+}
+
 Stream<PositionFix> herPositionStream({
   Future<bool> Function()? isServiceEnabled,
   Future<LocationPermission> Function()? checkPermission,
   Future<LocationPermission> Function()? requestPermission,
   Stream<Position> Function()? positionStream,
+  DriveNotificationText? driveNotification,
   Duration platformCallTimeout = const Duration(seconds: 10),
   Duration permissionRequestTimeout = const Duration(minutes: 2),
   void Function()? onPlatformStreamSubscribed,
@@ -380,19 +478,8 @@ Stream<PositionFix> herPositionStream({
       }
       sub = (positionStream ??
               () => Geolocator.getPositionStream(
-                    locationSettings: const LocationSettings(
-                      accuracy: LocationAccuracy.high,
-                      // 0, deliberately (was 5 m): a displacement filter
-                      // suppresses delivery while stationary, so "no fix
-                      // arrived lately" would be ambiguous between a real
-                      // GPS blackout and a parked car. With time-cadence
-                      // delivery, absence of fixes MEANS blackout — which is
-                      // what lets the app's blackout watchdog degrade the
-                      // honest dot (trusted → dead-reckoning → lost) instead
-                      // of crying wolf at every red light. Delivery-rate
-                      // only: the GPS radio duty cycle is set by accuracy,
-                      // not by this filter.
-                      distanceFilter: 0,
+                    locationSettings: driveLocationSettings(
+                      notification: driveNotification,
                     ),
                   ))()
           .listen(
