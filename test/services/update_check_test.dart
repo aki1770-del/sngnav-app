@@ -772,6 +772,218 @@ void main() {
     });
   });
 
+  // ===== THE READER'S OWN PROMISES, EACH HELD BY A PROBE =====
+  //
+  // Written by an independent hand, not by the reader's author: the build
+  // reproducer's round-4b mutation corpus (2026-09-25) kept each check's text
+  // and changed what it MEANS -- what equality compares, how far it follows,
+  // which failures it catches, how long it waits. Ten such mutants passed the
+  // group above, every one of its tests green, and nothing else in test/ runs
+  // the reader. Re-measured at e293819, the integration line this group lands
+  // on: still 10 of 10 survivors, although 21 redirect tests had been added
+  // since. Each probe below states one property the reader's own comments
+  // claim; each passed on the unmutated reader and failed on exactly its own
+  // mutant, and on no other. They are behaviour, not code anchors, so they
+  // survive a refactor that keeps the promise.
+  group('the address reader keeps the promises its comments make', () {
+    final stored = useFreshSupportDir();
+
+    String at({Object? named, int code = 11, String pkg = kPkg}) =>
+        manifestJson(versionCode: code, manifestUrlField: named, pkg: pkg);
+
+    // Mutant X1: the self-name check compares the host alone. The default
+    // host, raw.githubusercontent.com, is shared by every GitHub user, and
+    // the only "other address" fixture above differs in host AND path, so it
+    // pinned neither.
+    test('P1: a home naming ANOTHER PATH on the SAME host is not stored',
+        () async {
+      const sameHostElsewhere =
+          'https://new.example.test/elsewhere/update_manifest.json';
+      final asked = <String>[];
+      final r = await checkerWith(hosts({
+        oldAddr: () => ok(at(named: newAddr)),
+        newAddr: () => ok(at(named: sameHostElsewhere)),
+        artifact: () => ok(''),
+      }, asked)).check(manifestUrl: Uri.parse(oldAddr));
+      expect(asked, contains('GET $newAddr'));
+      expect(r.address, ManifestAddress.unverified);
+      expect(stored().existsSync(), isFalse);
+    });
+
+    // Mutant X3, the mirror of X1: the self-name check compares the path
+    // alone.
+    test('P3: a home naming the SAME PATH on ANOTHER host is not stored',
+        () async {
+      const otherHostSamePath =
+          'https://elsewhere.example.test/sngnav/update_manifest.json';
+      final asked = <String>[];
+      final r = await checkerWith(hosts({
+        oldAddr: () => ok(at(named: newAddr)),
+        newAddr: () => ok(at(named: otherHostSamePath)),
+        artifact: () => ok(''),
+      }, asked)).check(manifestUrl: Uri.parse(oldAddr));
+      expect(asked, contains('GET $newAddr'));
+      expect(r.address, ManifestAddress.unverified);
+      expect(stored().existsSync(), isFalse);
+    });
+
+    // Mutant X2: "unchanged" is decided by host alone. A move to a new path
+    // on the same host is the likeliest real move (a branch or repository
+    // rename on raw.githubusercontent.com), and under X2 it is never fetched
+    // and reports "unchanged": a nothing-to-do that is really a failure.
+    test('P2: a move to a new path on the same host is fetched and learned',
+        () async {
+      const sameHostMove = 'https://example.test/v2/update_manifest.json';
+      final asked = <String>[];
+      final r = await checkerWith(hosts({
+        oldAddr: () => ok(at(named: sameHostMove)),
+        sameHostMove: () => ok(at(named: sameHostMove)),
+        artifact: () => ok(''),
+      }, asked)).check(manifestUrl: Uri.parse(oldAddr));
+      expect(asked, contains('GET $sameHostMove'));
+      expect(r.address, ManifestAddress.learned);
+      expect(stored().readAsStringSync(), sameHostMove);
+    });
+
+    // Mutant X4: a home that points on is followed a second hop. "One hop
+    // only" must hold even when the next address WOULD verify; the fixture
+    // above left the next address unserved, so a follower that failed there
+    // looked exactly like a reader that refused to follow.
+    test('P4: a home that points on is NOT followed, even to an address that '
+        'would verify', () async {
+      const next = otherAddr;
+      final asked = <String>[];
+      final r = await checkerWith(hosts({
+        oldAddr: () => ok(at(named: newAddr)),
+        newAddr: () => ok(at(named: next)),
+        next: () => ok(at(named: next)),
+        artifact: () => ok(''),
+      }, asked)).check(manifestUrl: Uri.parse(oldAddr));
+      expect(asked, isNot(contains('GET $next')));
+      expect(r.address, ManifestAddress.unverified);
+      expect(stored().existsSync(), isFalse);
+    });
+
+    // Mutant X5: the reader's catch is narrowed to TimeoutException. A new
+    // host that THROWS (DNS failure, TLS failure, a lapsed domain) would then
+    // throw out of check(), and _runUpdateCheck in lib/main.dart drops a
+    // throwing check whole, updateAvailable included. The fixtures above
+    // fail by status, by body and by hanging; none throws.
+    test('P5: a new address whose host THROWS costs the move, never the '
+        'answer, and check() does not throw', () async {
+      final asked = <String>[];
+      final r = await checkerWith(hosts({
+        oldAddr: () => ok(at(named: newAddr)),
+        artifact: () => ok(''),
+        // newAddr deliberately unserved: hosts() throws for it.
+      }, asked)).check(manifestUrl: Uri.parse(oldAddr));
+      expect(asked, contains('GET $newAddr'));
+      expect(r.status, UpdateCheckStatus.updateAvailable);
+      expect(r.address, ManifestAddress.unverified);
+      expect(stored().existsSync(), isFalse);
+    });
+
+    // Mutant X6: the reader's budget is five timeouts instead of one. The
+    // check() comment promises "up to one more [timeout] later"; the hang
+    // test above allows 2 s against a 300 ms timeout, 6.7 times over.
+    test('P6: a hanging new address costs at most one more timeout', () async {
+      const t = Duration(milliseconds: 300);
+      final checker = UpdateChecker(
+        client: hosts({
+          oldAddr: () => ok(at(named: newAddr)),
+          newAddr: () async {
+            await Future<void>.delayed(const Duration(seconds: 3));
+            return ok(at(named: newAddr));
+          },
+          artifact: () => ok(''),
+        }, <String>[]),
+        readIdentity: () async => running,
+        timeout: t,
+      );
+      final sw = Stopwatch()..start();
+      final r = await checker.check(manifestUrl: Uri.parse(oldAddr));
+      sw.stop();
+      expect(r.address, ManifestAddress.unverified);
+      // One timeout for the answer, one for the reader, and slack.
+      expect(sw.elapsed, lessThan(t * 2 + const Duration(milliseconds: 400)),
+          reason: 'took ${sw.elapsedMilliseconds} ms');
+    });
+
+    // Mutant X7: the new address may answer any non-error status. "A new
+    // address must answer 200 itself": a 3xx is not an answer, whatever its
+    // body says. The 301 fixture above had an EMPTY body, so a reader that
+    // parsed a 3xx body failed to parse it and ended unverified either way.
+    test('P7: a 301 whose BODY is a self-naming manifest is still not an '
+        'answer', () async {
+      final r = await checkerWith(hosts({
+        oldAddr: () => ok(at(named: newAddr)),
+        newAddr: () => http.Response(at(named: newAddr), 301, headers: {
+              'location': 'http://new.example.test/sngnav/update_manifest.json',
+            }),
+        artifact: () => ok(''),
+      }, <String>[])).check(manifestUrl: Uri.parse(oldAddr));
+      expect(r.address, ManifestAddress.unverified);
+      expect(stored().existsSync(), isFalse);
+    });
+
+    // Mutant X8: the copy that attaches the reader's state turns
+    // runningIsPublished null ("could not ask") into false ("not published").
+    // Only `isTrue` was ever asserted above.
+    test('P8: without a self-hash, runningIsPublished stays null through the '
+        'reader', () async {
+      const unhashed = BuildIdentity(
+        versionName: '0.0.2',
+        versionCode: 10,
+        packageName: kPkg,
+      );
+      final r = await checkerWith(
+        hosts({
+          oldAddr: () => ok(at()),
+          artifact: () => ok(''),
+        }, <String>[]),
+        id: unhashed,
+      ).check(manifestUrl: Uri.parse(oldAddr));
+      expect(r.status, UpdateCheckStatus.updateAvailable);
+      expect(r.runningIsPublished, isNull,
+          reason: 'could not ask is not "not published"');
+    });
+
+    // Mutant X9: a dead STORED address falls back to the compiled default.
+    // resolveManifestUrl refuses that on purpose: an address we moved away
+    // from may later be served by someone else. No test ran check() against
+    // a dead stored address.
+    test('P9: a dead STORED address does not fall back to the compiled '
+        'default', () async {
+      const dead = 'https://moved.example.test/m.json';
+      stored().writeAsStringSync(dead);
+      const def = UpdateChecker.defaultManifestUrl;
+      final asked = <String>[];
+      final r = await checkerWith(hosts({
+        dead: () => http.Response('', 404),
+        def: () => ok(at()),
+        artifact: () => ok(''),
+      }, asked)).check();
+      expect(asked, isNot(contains('GET $def')));
+      expect(r.status, UpdateCheckStatus.noAnswer);
+    }, skip: gatedDefault == null ? 'needs an https compiled default' : false);
+
+    // Mutant X10: the reader is skipped when the newer build is unreachable.
+    // A host migration is exactly when the old artifact goes away, so the
+    // holder in mid-move would never be told the new address. Every fixture
+    // above served the artifact, or was up to date.
+    test('P10: the address is learned even when the newer build is '
+        'unreachable (a migration, mid-move)', () async {
+      final r = await checkerWith(hosts({
+        oldAddr: () => ok(at(named: newAddr)),
+        newAddr: () => ok(at(named: newAddr)),
+        artifact: () => http.Response('', 404),
+      }, <String>[])).check(manifestUrl: Uri.parse(oldAddr));
+      expect(r.status, UpdateCheckStatus.newerButUnreachable);
+      expect(r.address, ManifestAddress.learned);
+      expect(stored().readAsStringSync(), newAddr);
+    });
+  });
+
   // ===== "NEVER A DOWNLOAD" MUST HOLD ON THE HOST THAT IGNORES RANGE =====
   //
   // The privacy policy (flow 5) tells her the artifact step is an existence
