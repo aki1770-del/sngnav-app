@@ -17,6 +17,18 @@
 /// its own stop, in the order the card draws it, and the card's own label no
 /// longer carries any of them. It does NOT mean anyone has listened with a
 /// screen reader on a device.
+///
+/// THE ORDER CHANGED 2026-09-25, on a screen review's ruling: status line,
+/// then 現在地を共有 (with the withdraw button beside it), then the drive
+/// sentences, then the rest. With the sentences above it the control sat below
+/// her first screen at text size 1.3. So she now hears the control before the
+/// drive sentences on the card; the consent dialog, which the control opens,
+/// still reads them before either answer (the last test below).
+///
+/// The dialog is also named by its title now, rather than by 「通知」; that is
+/// held by dialogs_named_by_their_titles_test.dart, which walks the whole
+/// semantics tree. This file's simulated traversal does not visit the node
+/// that names a route.
 library;
 
 import 'dart:async';
@@ -152,8 +164,8 @@ void main() {
       final positions = await boot(tester, lang);
       _readInOrder(tester, l, [
         (l.locationNotShared, 'the status line', paragraph: true),
-        (l.driveDisclosure, 'the drive sentences', paragraph: true),
         (l.shareMyLocation, 'the share button', paragraph: false),
+        (l.driveDisclosure, 'the drive sentences', paragraph: true),
         (
           l.locationOsPermissionRoute,
           'the platform permission sentence',
@@ -172,9 +184,9 @@ void main() {
       final semantics = tester.ensureSemantics();
       final positions = await boot(tester, lang, consent: true);
       _readInOrder(tester, l, [
-        (l.driveDisclosure, 'the drive sentences', paragraph: true),
         (l.shareMyLocation, 'the share button', paragraph: false),
         (l.locationConsentWithdraw, 'the withdraw button', paragraph: false),
+        (l.driveDisclosure, 'the drive sentences', paragraph: true),
         (
           l.locationOsPermissionRoute,
           'the platform permission sentence',
@@ -210,6 +222,9 @@ void main() {
           'the withdrawal note',
           paragraph: true,
         ),
+        // The note is under the control whose effect it reports, above the
+        // drive sentences.
+        (l.driveDisclosure, 'the drive sentences', paragraph: true),
         (
           l.locationOsPermissionRoute,
           'the platform permission sentence',

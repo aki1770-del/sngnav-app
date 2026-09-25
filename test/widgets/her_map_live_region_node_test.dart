@@ -13,7 +13,7 @@
 /// * The flag sits on a node of its own, labelled exactly the state's words,
 ///   which are already on screen: 位置情報オフ / No location access, 現在地不明 /
 ///   Position unknown (a share with no position 60 s after the subscription),
-///   位置情報はまだ共有されていません。 / Location not yet shared.
+///   位置情報は共有されていません。 / Location is not being shared.
 /// * The card's node never carries the flag.
 /// * The line under the map is not announced.
 ///
@@ -129,8 +129,8 @@ void main() {
       (tester) async {
     final semantics = tester.ensureSemantics();
     for (final (lang, words) in const [
-      ('ja', '位置情報はまだ共有されていません。'),
-      ('en', 'Location not yet shared.'),
+      ('ja', '位置情報は共有されていません。'),
+      ('en', 'Location is not being shared.'),
     ]) {
       final positions = await _boot(tester, lang: lang);
       final live = _liveLabels(tester);

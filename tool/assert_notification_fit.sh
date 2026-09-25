@@ -76,6 +76,36 @@
 #   direction: it predicts a cut no later than the device makes one. No MIUI
 #   shade, which is HER phone's, has been measured at any scale.
 #
+# THE TITLE'S OWN ROW, added 2026-09-25 (a dignity review's finding).
+#
+#   WHY: the title was checked at text scale 1.0 only, as one string against a
+#   fixed budget; the scale axis above covered the body alone. That is how a
+#   title cut at 1.3 passed. On Android 14 the collapsed row puts the title,
+#   a bullet, the time since posting and the expand arrow on ONE line, and a
+#   screen review saw the title cut at its end at 1.3, 1.5 and 2.0. The end
+#   was the half that said what is in use. Vision 9: the machine must catch
+#   this, not a reviewer.
+#
+#   THE ROW MODEL is built from the UI dumps of that review (Android 14
+#   emulator, 1080 px wide at 440 dpi), kept with the project's review records:
+#   the title starts at x=187, the time ends at x=876, and a 12 px gap sits on
+#   each side of the bullet. A title that does not fit is cut to what is left
+#   after the time. The time's width is the reason this model carries a STAMP:
+#   「現在」, 「59 分」, 「9 時間」, and the widest a drive can show, 「23 時間」.
+#   The self-test reproduces the six title boxes of that review to within 2 px
+#   and its three Japanese rows character for character; for English it must
+#   never show more than the device did.
+#
+#   WHAT IT GATES, and a difference with what was asked. Asked: the title
+#   survives through text size 1.5 at the widest stamp. The model says it does
+#   not in Japanese: at 1.5 with a two-digit hour the time is one digit wider,
+#   and 「位置情報を使用中」 is cut to 「位置情報を使…」, which is also what the
+#   reviewer's own arithmetic said. So the gate holds the WHOLE title through
+#   1.5 while the time reads under ten hours, the whole title through 1.3 at
+#   every time, and through 1.5 at every time the words that name the thing
+#   in use (位置情報 / Location). English stays whole through 1.5 at every
+#   time. Scales 1.8 and 2.0 are reported, not gated.
+#
 # Usage:  tool/assert_notification_fit.sh [--self-test]
 # Exit:   0 = every string fits | 1 = a string overflows, or the instrument is
 #         not available (this gate FAILS CLOSED: an unmeasurable string is not
@@ -157,6 +187,15 @@ def pick(cands, what):
 
 CJK, LATIN = pick(CJK_CANDIDATES, "CJK"), pick(LATIN_CANDIDATES, "Latin")
 LATIN_IS_ROBOTO = os.path.basename(LATIN) == "Roboto-Regular.ttf"
+# The title's Latin is measured with Roboto MEDIUM: the English title the
+# review dumped at 1.0 is 422 px; Medium gives 420.6 and Regular 416.2. Where
+# Medium is missing, DejaVu, which is wider: under it the title can only look
+# longer, so a pass holds.
+TITLE_LATIN = pick(
+    [os.path.join(os.path.dirname(p), "Roboto-Medium.ttf")
+     for p in sdk_roboto_candidates()]
+    + ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
+    "Latin (title)")
 PX = 37                      # calibrated face size of both shade text rows
 BODY_BUDGET_PX = 755.0       # usable run for the body row (chevron overlaps it)
 TITLE_BUDGET_PX = 676.0      # the title row stops short of the chevron
@@ -195,6 +234,81 @@ def width(text, path):
         _FONTS[path] = (ImageFont.truetype(path, PX, index=0) if path.endswith(".ttc")
                         else ImageFont.truetype(path, PX))
     return _FONTS[path].getlength(text)
+
+# --- FOURTH FIELD, added 2026-09-25: the title's own row on Android 14 --------
+# See the header, THE TITLE'S OWN ROW. Widths here are in px on her screen.
+A14_ROW_PX = 876.0 - 187.0 - 2 * 12.0   # title start to time end, less gaps
+A14_DENSITY = 2.75                       # 440 dpi
+# Android 14's non-linear font scaling: (title 14 sp, time 12 sp) at each
+# scale, as dp. Recalled from AOSP's FontScaleConverterFactory, NOT read from
+# it here; the self-test checks the result against the review's dumps at 1.3,
+# 1.5 and 2.0. 1.15 and 1.8 are not observed.
+A14_SP = {1.0: (14.0, 12.0), 1.15: (16.4, 13.8), 1.3: (18.8, 15.6),
+          1.5: (22.0, 18.0), 1.8: (24.4, 21.6), 2.0: (26.0, 24.0)}
+# The dumped whole titles at 1.0 are up to 1.4% wider than this model draws
+# them (479 px against 472.5 in Japanese). The model widens every title by
+# that much, and cuts with a full-width ellipsis: both the cautious direction.
+A14_WIDENING = 0.014
+A14_STAMPS_UNDER_TEN_HOURS = ("現在", "59 分", "9 時間")
+A14_WIDEST_STAMP = "23 時間"
+TITLE_GATED_SCALES = (1.0, 1.15, 1.3, 1.5)
+TITLE_KEEPS = {"ja": "位置情報", "en": "Location"}
+
+_ADV = {}
+def adv_em(ch, path):
+    """Advance of one character in em, from a 1000 px face."""
+    key = (ch, path)
+    if key not in _ADV:
+        f = (ImageFont.truetype(path, 1000, index=0) if path.endswith(".ttc")
+             else ImageFont.truetype(path, 1000))
+        _ADV[key] = f.getlength(ch) / 1000.0
+    return _ADV[key]
+
+def a14_width_em(text, latin):
+    """CJK from the CJK face (full width in every face we use); the rest,
+    Latin, digits, spaces and punctuation, from [latin]."""
+    return sum(adv_em(c, CJK if ord(c) >= 0x2E80 else latin) for c in text)
+
+def a14_title_box(scale, stamp):
+    """What the collapsed row leaves the title, beside [stamp], at [scale]."""
+    time_px = A14_SP[scale][1] * A14_DENSITY
+    return A14_ROW_PX - (adv_em("•", LATIN) + a14_width_em(stamp, LATIN)) * time_px
+
+def a14_title_shows(text, scale, stamp):
+    """The title as the Android 14 row would draw it: whole, or cut with an
+    ellipsis."""
+    box = a14_title_box(scale, stamp)
+    em = A14_SP[scale][0] * A14_DENSITY
+    def px(t):
+        return a14_width_em(t, TITLE_LATIN) * em * (1 + A14_WIDENING)
+    if px(text) <= box:
+        return text
+    shown = ""
+    for ch in text:
+        if px(shown + ch) + em > box:
+            break
+        shown += ch
+    return shown + "…"
+
+def title_axis_failures(tja, ten):
+    """What the title gate refuses, as sentences; empty when it passes."""
+    out = []
+    for lang, text in (("ja", tja), ("en", ten)):
+        for sc in TITLE_GATED_SCALES:
+            for stamp in A14_STAMPS_UNDER_TEN_HOURS + (A14_WIDEST_STAMP,):
+                shows = a14_title_shows(text, sc, stamp)
+                whole_owed = stamp != A14_WIDEST_STAMP or sc <= 1.3
+                if whole_owed and shows != text:
+                    out.append(
+                        f"driveNotificationTitle [{lang}] is cut at text size "
+                        f"{sc} beside '{stamp}': she would read {shows!r}")
+                if TITLE_KEEPS[lang] not in shows:
+                    out.append(
+                        f"driveNotificationTitle [{lang}] loses "
+                        f"{TITLE_KEEPS[lang]!r} at text size {sc} beside "
+                        f"'{stamp}': she would read {shows!r}, which no longer "
+                        f"names what is in use")
+    return out
 
 def visible_at(text, font, scale, run_px=OBSERVED_CUT_PX):
     """What a truncating row shows of `text` at text scale `scale`.
@@ -312,6 +426,47 @@ if MODE == "--self-test":
         report(not lost,
                f"new {lang} body keeps {STOP_WORD[lang]!r} at every scale "
                f"{SCALES}: lost at {lost or 'none'}")
+    # --- the title's own row, proven on the review's Android 14 dumps --------
+    # (lang, scale, the time the row showed, the title the row drew, the title
+    # box the dump measured). The title is the one shipped before 2026-09-25.
+    OLD_TITLE = {"ja": "運転中 — 位置情報を使用中", "en": "Driving — location in use"}
+    SEEN_TITLES = (
+        ("ja", 1.3, "現在", "運転中 — 位置情報を…", 564),
+        ("ja", 1.5, "2 時間", "運転中 — 位置情…", 508),
+        ("ja", 2.0, "2 時間", "運転中 — 位…", 458),
+        ("en", 1.3, "現在", "Driving — location in u…", 564),
+        ("en", 1.5, "1 分", "Driving — location i…", 558),
+        ("en", 2.0, "1 分", "Driving — locat…", 524),
+    )
+    for lang, sc, stamp, seen, box_px in SEEN_TITLES:
+        box = a14_title_box(sc, stamp)
+        report(abs(box - box_px) <= 2.0,
+               f"title box {lang} x{sc} beside '{stamp}': model {box:.1f} px, "
+               f"dump {box_px} px")
+        got = a14_title_shows(OLD_TITLE[lang], sc, stamp)
+        if lang == "ja":
+            report(got == seen,
+                   f"row model reproduces the ja title row at {sc}: model "
+                   f"{got!r}, seen {seen!r}")
+        else:
+            # English is not reproduced to the letter; it must never show more.
+            report(seen.rstrip("…").startswith(got.rstrip("…")),
+                   f"row model shows no more of the en title than the device at "
+                   f"{sc}: model {got!r}, seen {seen!r}")
+    # The defect this field exists for: the title a 1.0-only check passed.
+    old_fails = title_axis_failures(OLD_TITLE["ja"], OLD_TITLE["en"])
+    report(any("at text size 1.3" in f and "[ja]" in f for f in old_fails),
+           f"the previous title is refused at 1.3, the cut a 1.0-only check "
+           f"passed ({len(old_fails)} refusals)")
+    # And the title now shipped, as a fixture: whole under ten hours through
+    # 1.5; beside the widest time at 1.5 the Japanese is cut and keeps 位置情報.
+    NEW_TITLE = {"ja": "位置情報を使用中", "en": "Location in use"}
+    report(not title_axis_failures(NEW_TITLE["ja"], NEW_TITLE["en"]),
+           "the new title passes the title axis")
+    cut = a14_title_shows(NEW_TITLE["ja"], 1.5, A14_WIDEST_STAMP)
+    report(cut != NEW_TITLE["ja"] and TITLE_KEEPS["ja"] in cut,
+           f"beside '{A14_WIDEST_STAMP}' at 1.5 the ja title is cut and keeps "
+           f"位置情報: {cut!r} (a stated bound, not a pass)")
     print(f"SELF-TEST: {ok}/{total} PASS")
     sys.exit(0 if ok == total else 1)
 
@@ -342,17 +497,23 @@ for lang, text, font in (("ja", bja, CJK), ("en", ben, LATIN)):
                 f"{sc} ({basis}) — she would read {shown + cut!r}, which never "
                 f"names the control that ends the drive")
 
-# --- the title, reported per scale and NOT gated -------------------------------
-# The title now carries "location in use". It is reported so a reader sees what
-# survives, and it is not gated: no control lives in it. Its row model uses the
-# title's own whole-row budget. At the top scales the Japanese title is cut
-# inside 位置情報; that is a stated bound, not a pass.
-print("\nTitle as a truncating row would show it (reported, not gated):")
-for lang, text, font in (("ja", tja, CJK), ("en", ten, LATIN)):
+# --- the title on its own row, gated (see the header) ---------------------------
+print("\nTitle on the Android 14 row, beside the time since posting "
+      f"(gated through {TITLE_GATED_SCALES[-1]}; whole under ten hours, "
+      f"{'/'.join(TITLE_KEEPS.values())} at every time):")
+for lang, text in (("ja", tja), ("en", ten)):
     for sc in SCALES:
-        shown = visible_at(text, font, sc, run_px=TITLE_BUDGET_PX - ELLIPSIS_PX)
-        cut = "" if shown == text else "…"
-        print(f"  {lang}  x{sc:<4} shows: {shown}{cut}")
+        row = " | ".join(
+            f"{stamp}: {a14_title_shows(text, sc, stamp)}"
+            for stamp in A14_STAMPS_UNDER_TEN_HOURS + (A14_WIDEST_STAMP,))
+        gated = "gated" if sc in TITLE_GATED_SCALES else "reported"
+        print(f"  {lang}  x{sc:<4} [{gated}] {row}")
+failures.extend(title_axis_failures(tja, ten))
+
+# The title's API 30 row report that stood here until 2026-09-25 is removed: it
+# drew the title with no time beside it, showed the previous title whole at
+# 1.3 while an Android 14 row cut it there, and so reported, beside a pass, a
+# row no device showed.
 
 if failures:
     print("\nFAIL: a notification string overflows the collapsed shade:", file=sys.stderr)

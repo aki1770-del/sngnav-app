@@ -66,6 +66,7 @@ import 'package:voice_guidance/voice_guidance.dart'
 
 import 'dart:async';
 import 'dart:io' show File;
+import 'dart:math' as math;
 import 'dart:ui' show FrameTiming;
 
 import 'package:path_provider/path_provider.dart'
@@ -118,6 +119,7 @@ import 'services/privacy_policy.dart';
 import 'services/jma_advisory_provider_factory.dart';
 import 'services/audio_readiness.dart';
 import 'services/haptic_readiness.dart';
+import 'services/app_task.dart';
 import 'services/voice_lane_readiness.dart';
 import 'package:snow_rendering/snow_rendering.dart'
     show invisibleBlackIceAnnouncement;
@@ -512,8 +514,9 @@ final class FeedLossForecastMemory extends FeedLossVerdict {
   /// the screen a deaf / HoH / en-reading driver depends on.
   final String line;
 
-  /// When WE captured the forecast (before departure) — the timestamp the
-  /// visible card must carry so she knows this is plan-time knowledge.
+  /// When WE captured the forecast (at launch, or during a drive once the
+  /// held memory is 3 hours old) — the timestamp the visible card must
+  /// carry so she knows when it was learned.
   final DateTime capturedAt;
 
   /// True when the voice channel utters [line] (ja surface + bundled mouth
@@ -1498,6 +1501,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _appLifecycle = AppLifecycleListener(onResume: _onAppResumed);
     _seedLocationConsent();
     _loadPersistedLocationConsent();
     // WS5 — construct the actuator layer + announcer. Hold the screen awake
@@ -1923,7 +1927,85 @@ class _HomePageState extends State<HomePage> {
     _herMapController.dispose();
     _movingReadings.dispose();
     _developerPageRevision.dispose();
+    _appLifecycle?.dispose();
     super.dispose();
+  }
+
+  // ------------------------------------------------------------------
+  // 停止 ON THE SCREEN SHE RETURNS TO (2026-09-25).
+  //
+  // The drive notification says 「タップ→「停止」で終了」: tap, then 停止. The
+  // tap brings the running app forward where she left it, and this page is
+  // one long scroll: measured on an Android 14 emulator, after she had read
+  // down the page 停止 was about four screens away from where the tap put her.
+  // A stop that costs a search is a stop she may give up on, in a moving car.
+  //
+  // So whenever the app comes back to the foreground during a drive, 停止 is
+  // brought onto her screen, and only if it is not already there: a return
+  // that already shows it moves nothing. The page goes to its top, where the
+  // map, her position and 停止 sit together, when that shows 停止; at a text
+  // size where the top does not reach it, the page moves the least that does.
+  // It fires on every resume, not only after the app was hidden, so the tap
+  // from the shade pulled down over the running app is covered too.
+  // test/widgets/stop_is_on_the_screen_she_returns_to_test.dart holds the
+  // rule; test/widgets/stop_brought_into_view_on_return_test.dart its edges.
+  //
+  // A 停止 pinned to the bottom of the screen during a drive was the other
+  // design. It was not taken: it puts two 停止 on the first screen at the top
+  // of the page, and it spends frame height for the whole drive.
+  // ------------------------------------------------------------------
+  AppLifecycleListener? _appLifecycle;
+
+  /// The 停止 under the map while a drive runs. Only that one control carries
+  /// this key.
+  final GlobalKey _driveStopKey = GlobalKey(debugLabel: 'drive-stop');
+
+  void _onAppResumed() {
+    if (!mounted || !_driveActive) return;
+    // Measured after the frame the resume produces: while the app was in the
+    // background no frames were drawn, so the layout may be out of date now.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bringDriveStopIntoView());
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _bringDriveStopIntoView() {
+    if (!mounted || !_driveActive) return;
+    final stopContext = _driveStopKey.currentContext;
+    if (stopContext == null) return;
+    final stop = stopContext.findRenderObject();
+    final scrollable = Scrollable.maybeOf(stopContext);
+    final viewport = scrollable?.context.findRenderObject();
+    if (stop is! RenderBox ||
+        !stop.attached ||
+        !stop.hasSize ||
+        scrollable == null ||
+        viewport is! RenderBox ||
+        !viewport.hasSize) {
+      return;
+    }
+    final position = scrollable.position;
+    final media = MediaQuery.of(context);
+    final viewTop = viewport.localToGlobal(Offset.zero).dy;
+    // The system navigation bar covers the bottom of the page: 停止 under it
+    // is on the page but not on her screen.
+    final screenBottom = math.min(
+      viewTop + viewport.size.height,
+      media.size.height - media.viewPadding.bottom,
+    );
+    final at = stop.localToGlobal(Offset.zero) & stop.size;
+    if (at.top >= viewTop && at.bottom <= screenBottom) return;
+    // Where 停止's bottom sits on the page, and how much of the page fits.
+    // When the top of the page does not reach it, it is lifted a little clear
+    // of the navigation bar rather than left touching it.
+    const clearOfNavigationBar = 8.0;
+    final bottomOnPage = at.bottom - viewTop + position.pixels;
+    final room = screenBottom - viewTop;
+    final target = bottomOnPage <= room
+        ? position.minScrollExtent
+        : bottomOnPage - room + clearOfNavigationBar;
+    position.jumpTo(
+      target.clamp(position.minScrollExtent, position.maxScrollExtent),
+    );
   }
 
   void _shareLocation() {
@@ -3566,9 +3648,12 @@ class _HomePageState extends State<HomePage> {
   bool? _locationConsent;
   bool _locationConsentLoaded = false;
 
-  /// She agreed once, to words that no longer describe what sharing does
-  /// ([LocationConsentRecord.isYesToOtherWords]). The dialog then says first
-  /// that the description changed, before it asks again.
+  /// She agreed once, to another revision of the words
+  /// ([LocationConsentRecord.isYesToOtherRevision]). The dialog then says
+  /// first that the description changed, before it asks again. A yes to the
+  /// current revision whose words are missing or unreadable is asked plainly:
+  /// the description has not changed, the record is damaged, and telling her
+  /// otherwise would be false (2026-09-25, a dignity review).
   bool _locationConsentAskAgain = false;
 
   /// What a stored record means here, and the ONE place that decides it: only
@@ -3586,7 +3671,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     _locationConsentAskAgain =
-        record.isYesToOtherWords(kLocationConsentRevision);
+        record.isYesToOtherRevision(kLocationConsentRevision);
   }
 
   /// Read the persisted answer at startup, so the WITHDRAWAL control can be
@@ -3782,6 +3867,16 @@ class _HomePageState extends State<HomePage> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        // SPOKEN NAME = THE TITLE (2026-09-25). With no label, Flutter names
+        // an AlertDialog with its own localized word for any alert: in
+        // Japanese that is 「通知」 (material_ja.arb, applied at
+        // material/dialog.dart:784 on Android), and TalkBack opened this
+        // dialog by saying it. In this app 通知 is the drive notification, and
+        // in a hazard app a dialog announced as 通知 can be heard as an
+        // incoming warning. The label is the title from the same record a yes
+        // stores, so the spoken name and the recorded words cannot differ. It
+        // is not a word change: the revision is untouched.
+        semanticLabel: words.title,
         title: Text(words.title),
         content: SingleChildScrollView(
           child: Column(
@@ -3809,13 +3904,20 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
+        // BOTH ANSWERS ARE THE SAME WIDGET, WITH THE SAME WEIGHT (2026-09-25,
+        // a dignity review). 同意して共有する was a filled button and
+        // 共有しない bare text: at text sizes 1.3 and 2.0 the pair stacks, and
+        // only the machine's preferred answer had a shape. Declining costs her
+        // nothing, so it must not look like less of an answer. An outlined
+        // button each, so both read as buttons at her text size. The words
+        // and their order are unchanged.
         actions: [
-          TextButton(
+          OutlinedButton(
             key: const Key('location-consent-decline'),
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(words.decline),
           ),
-          FilledButton(
+          OutlinedButton(
             key: const Key('location-consent-accept'),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(words.accept),
@@ -3924,18 +4026,22 @@ class _HomePageState extends State<HomePage> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        // Named by its own title, not by 「通知」 (see _promptLocationConsent).
+        semanticLabel: l.routeConsentTitle,
         title: Text(l.routeConsentTitle),
         content: Text(
           l.routeConsentBody,
           key: const Key('route-consent-body'),
         ),
+        // Both answers the same widget, with the same weight, as in the
+        // location consent (2026-09-25, a dignity review).
         actions: [
-          TextButton(
+          OutlinedButton(
             key: const Key('route-consent-decline'),
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(l.routeConsentDecline),
           ),
-          FilledButton(
+          OutlinedButton(
             key: const Key('route-consent-accept'),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: Text(l.routeConsentAccept),
@@ -4173,7 +4279,22 @@ class _HomePageState extends State<HomePage> {
       notGivenToDriveBrain: _herFixNotGivenToDriveBrain,
     );
 
-    return Scaffold(
+    // BACK DURING A DRIVE DOES NOT END IT (2026-09-25). Until this, Back on
+    // this page ended the drive with nothing said: with no route to pop,
+    // Flutter asks the platform to pop, which finishes the activity, and the
+    // engine, the position stream and the drive notification go with it.
+    // Measured on an Android 14 emulator; test/widgets/drive_back_is_never_a_
+    // silent_end_test.dart holds the rule. While a drive runs, Back sends the
+    // app to the background instead, as Home does (services/app_task.dart
+    // says why this design and not a spoken end). With no drive, Back is
+    // untouched and leaves the app as before: nothing is running to protect.
+    return PopScope(
+      canPop: !_driveActive,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop || !_driveActive) return;
+        unawaited(_sendToBackgroundOnBack());
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('sngnav-app (alpha)'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
@@ -4394,6 +4515,23 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
+    ),
+    );
+  }
+
+  /// Back was pressed on this page while a drive runs: send the app to the
+  /// background, as Home does, and keep the drive. If the platform cannot move
+  /// it (a platform without the channel, or an error), the app stays where it
+  /// is with the drive running and 停止 on the page, which is a state she can
+  /// see; the log records it for whoever reads her log later.
+  Future<void> _sendToBackgroundOnBack() async {
+    final moved = await AppTask.moveToBackground();
+    if (moved || !mounted) return;
+    widget.errorLog?.record(
+      StateError('Back during a drive: the app could not be sent to the '
+          'background, so it stayed open with the drive running'),
+      null,
+      source: 'back-during-drive',
     );
   }
 
@@ -5796,27 +5934,15 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
             ),
           ),
-          // 2026-09-25: WHAT HAPPENS AFTER A YES, above the control that says
-          // yes. A screen review measured these sentences as the tenth of one
-          // 11 sp paragraph, starting 3 dp below her fold and below the share
-          // button, and ruled: give them a place and keep them together, do
-          // not add words. They are the same words, moved out of
-          // locationDisclosure. Placed here they come before the button for
-          // her eyes and for a screen reader (a dignity review's point; until
-          // the paragraphs below had nodes of their own, that held for this
-          // block only), and their key words cannot break across lines
-          // (lib/widgets/keep_together.dart). Same size and colour as the
-          // status line above. Not yet looked at on a device.
-          const SizedBox(height: 4),
-          Semantics(
-            container: true,
-            child: KeepTogetherText(
-              l.driveDisclosure,
-              key: const Key('drive-disclosure'),
-              words: l.driveDisclosureKeepTogether,
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-            ),
-          ),
+          // ⚑ THE CONTROL COMES BEFORE THE DRIVE SENTENCES (2026-09-25, a
+          // screen review's ruling). With the sentences above it, 現在地を共有
+          // sat below her first screen at text size 1.3 in Japanese: 724 dp
+          // on the host and 725.1 dp on an Android 14 emulator, against her
+          // 721 dp fold. With the control first it stays on her first screen
+          // through 1.5. The sentences were placed above it for a reading-order
+          // concern that was withdrawn once the consent dialog itself opened
+          // with them: she reads them there before any yes.
+          // test/widgets/share_control_first_screen_test.dart holds the fold.
           Align(
             alignment: AlignmentDirectional.centerEnd,
             child: Wrap(
@@ -5860,6 +5986,11 @@ class _HomePageState extends State<HomePage> {
           // draws nothing: no pixel moves.
           // test/widgets/location_card_reading_order_test.dart holds the
           // order.
+          //
+          // The note stays directly under the control whose effect it reports,
+          // above the drive sentences: below them it would sit eight lines
+          // further down at text size 1.3, where the button she pressed has
+          // just disappeared and nothing near it says why (2026-09-25).
           if (_locationConsentWithdrawn && _locationConsent == null) ...[
             const SizedBox(height: 4),
             Semantics(
@@ -5872,6 +6003,26 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ],
+          // 2026-09-25: WHAT HAPPENS AFTER A YES. A screen review measured
+          // these sentences as the tenth of one 11 sp paragraph, starting 3 dp
+          // below her fold, and ruled: give them a place and keep them
+          // together, do not add words. They are the same words, moved out of
+          // locationDisclosure, and their key words cannot break across lines
+          // (lib/widgets/keep_together.dart). Same size and colour as the
+          // status line. Since the same day they sit under the control, not
+          // above it (see the control's comment); the consent dialog opens
+          // with them, so she reads them before any yes. Not yet looked at on
+          // a device.
+          const SizedBox(height: 4),
+          Semantics(
+            container: true,
+            child: KeepTogetherText(
+              l.driveDisclosure,
+              key: const Key('drive-disclosure'),
+              words: l.driveDisclosureKeepTogether,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+          ),
           // THE OTHER HALF OF WITHDRAWAL, and it is a different subject matter
           // from ours: the platform's permission. We cannot revoke it and we
           // do not pretend to — the app NAMES the route and opens the page.
@@ -6045,6 +6196,9 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         TextButton(
+          // Brought onto her screen when she returns during a drive
+          // (_bringDriveStopIntoView).
+          key: _driveStopKey,
           onPressed: _clearPosition,
           // After a denial nothing was started, so the same action is
           // offered as 閉じる / "Close", not 停止 / "Stop".
@@ -6996,6 +7150,8 @@ class _DiaryEntryDialogState extends State<_DiaryEntryDialog> {
     final l = AppL10n.of(context);
     final ja = l.locale.languageCode == 'ja';
     return AlertDialog(
+      // Named by its own title, not by 「通知」 (see _promptLocationConsent).
+      semanticLabel: l.diaryWriteButton,
       title: Text(l.diaryWriteButton),
       content: SingleChildScrollView(
         child: Column(

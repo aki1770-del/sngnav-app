@@ -4,7 +4,7 @@
 // In the dead zone, when the app holds a snow forecast that is valid for this
 // hour, the forecast line is the one thing she hears about the road: it is
 // spoken instead of 「路面状況を取得できていません。」. That forecast is always
-// Akita Prefecture's. It is fetched before departure from JMA area 050000,
+// Akita Prefecture's. It is fetched in advance from JMA area 050000,
 // wherever she is, and snow in any part of that forecast raises the line.
 // Until 2026-09-25 the line named the publisher and when it was fetched, but
 // not the place, so a driver in unexpected snow outside Akita heard Akita's

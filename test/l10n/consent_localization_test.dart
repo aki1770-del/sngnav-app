@@ -13,6 +13,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -64,14 +65,14 @@ void main() {
 
       // The deny-by-default consent affordance is in the driver's language.
       expect(find.text('現在地を共有'), findsOneWidget); // "Share my location"
-      expect(find.text('位置情報はまだ共有されていません。'), findsOneWidget);
+      expect(find.text('位置情報は共有されていません。'), findsOneWidget);
       // The Akita mock position is on the development page since 2026-09-15;
       // her consent row offers sharing only.
       expect(find.text('秋田のモック位置（開発用）'), findsNothing);
       expect(find.text('Use Akita mock (dev)'), findsNothing);
       // No English consent leak on the ja surface.
       expect(find.text('Share my location'), findsNothing);
-      expect(find.text('Location not yet shared.'), findsNothing);
+      expect(find.text('Location is not being shared.'), findsNothing);
     });
 
     testWidgets('data-flow disclosure is present + localized', (tester) async {
@@ -397,25 +398,65 @@ void main() {
       expect(en.locationDisclosure.toLowerCase(), isNot(contains('swipe')));
     });
 
+    // THE CARD'S ORDER CHANGED 2026-09-25, on a screen review's ruling: the
+    // share control first, then the drive sentences, then the data-flow text.
+    // With the sentences above it the control sat below her first screen at
+    // text size 1.3 (share_control_first_screen_test.dart). What this test
+    // used to hold on the card, "what happens after a yes must be read before
+    // the yes", is held where the yes is given: the consent dialog the control
+    // opens reads the drive sentences first, before either answer.
     testWidgets(
-        'on the card the drive sentences come BEFORE the share button, and the '
-        'data-flow text after it', (tester) async {
+        'on the card the share control comes first, then the drive sentences, '
+        'then the data-flow text; the dialog it opens shows the drive '
+        'sentences before either answer', (tester) async {
+      final tmp = Directory.systemTemp.createTempSync('sngnav_card_order');
+      addTearDown(() {
+        if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+      });
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/path_provider'),
+        (call) async => tmp.path,
+      );
+      addTearDown(() => TestDefaultBinaryMessengerBinding
+          .instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+              const MethodChannel('plugins.flutter.io/path_provider'), null));
       await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
       await tester.pump();
       final drive = find.byKey(const Key('drive-disclosure'));
       final share = find.byKey(const Key('share-location-button'));
       final flow = find.byKey(const Key('location-disclosure'));
       expect(drive, findsOneWidget);
-      expect(tester.getRect(drive).bottom,
-          lessThanOrEqualTo(tester.getRect(share).top),
-          reason: 'what happens after a yes must be read before the yes');
+      expect(tester.getRect(share).bottom,
+          lessThanOrEqualTo(tester.getRect(drive).top),
+          reason: 'the control that starts it comes first on the card');
       expect(tester.getRect(flow).top,
-          greaterThanOrEqualTo(tester.getRect(share).bottom));
+          greaterThanOrEqualTo(tester.getRect(drive).bottom));
       // A screen reader hears the words, never the joiners that keep them
       // whole on screen.
       final handle = tester.ensureSemantics();
       expect(find.bySemanticsLabel(ja.driveDisclosure), findsOneWidget);
       handle.dispose();
+
+      // The yes itself: the dialog opens with the drive sentences, above both
+      // answers.
+      await tester.ensureVisible(share);
+      await tester.pump();
+      await tester.tap(share);
+      for (var i = 0; i < 12; i++) {
+        await tester.pump(const Duration(milliseconds: 300));
+      }
+      final inDialog = find.byKey(const Key('location-consent-drive'));
+      expect(inDialog, findsOneWidget, reason: 'the dialog is open');
+      for (final answer in const [
+        Key('location-consent-decline'),
+        Key('location-consent-accept'),
+      ]) {
+        expect(tester.getRect(inDialog).bottom,
+            lessThanOrEqualTo(tester.getRect(find.byKey(answer)).top),
+            reason: 'what happens after a yes is read before the yes');
+      }
     });
   });
 

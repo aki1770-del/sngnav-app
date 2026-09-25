@@ -8,7 +8,7 @@
 // >=48px-tall) on-screen rect when visible. If a future change buries them
 // in a widget that defeats semantics, this fails.
 //
-// (a) Layout: the status line ("Location not yet shared.") must sit ABOVE
+// (a) Layout: the status line ("Location is not being shared.") must sit ABOVE
 // the action buttons at full card width — never crammed into a narrow
 // column beside them (the one-syllable-per-line mangling in
 // ladder_out/api30/02b_location_consent.png).
@@ -73,7 +73,7 @@ void main() {
       '(no narrow-column mangling)', (tester) async {
     await pumpAndReveal(tester);
 
-    final statusFinder = find.text('Location not yet shared.');
+    final statusFinder = find.text('Location is not being shared.');
     expect(statusFinder, findsOneWidget);
 
     final statusRect = tester.getRect(statusFinder);
@@ -95,6 +95,6 @@ void main() {
     final oneLineHeight =
         (statusBox as RenderParagraph).getMaxIntrinsicHeight(double.infinity);
     expect(statusBox.size.height, moreOrLessEquals(oneLineHeight),
-        reason: '"Location not yet shared." must render as one sentence line');
+        reason: '"Location is not being shared." must render as one sentence line');
   });
 }

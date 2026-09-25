@@ -197,7 +197,7 @@ void main() {
     final status = find.byKey(_statusKey);
     final below = status.evaluate().isNotEmpty
         ? status
-        : find.text('位置情報はまだ共有されていません。');
+        : find.text('位置情報は共有されていません。');
     if (below.evaluate().isNotEmpty) {
       rect = rect.expandToInclude(tester.getRect(below));
     }
@@ -385,10 +385,10 @@ void main() {
         reason: 'a feed she turned off makes no claim about where she is');
     expect(find.byKey(_ringKey), findsNothing);
     expect(find.byKey(_statusKey), findsNothing);
-    expect(find.text('位置情報はまだ共有されていません。'), findsOneWidget);
+    expect(find.text('位置情報は共有されていません。'), findsOneWidget);
     expectNoInfinityOnScreen();
     await capture(tester, '07_stopped_while_lost', [
-      'consent line "位置情報はまだ共有されていません。"',
+      'consent line "位置情報は共有されていません。"',
       'no ring, no words',
     ]);
     await positions.close();

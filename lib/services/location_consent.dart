@@ -59,6 +59,15 @@ import 'dart:io';
 /// change is registered: under this revision (same meaning), or under a new one
 /// (new meaning, and every stored yes is asked again).
 ///
+/// WHEN A NEW REVISION IS OWED (2026-09-25, a dignity review's test, for
+/// whoever registers a change): when a yes to the old words would not cover
+/// the new ones. That means more of her location used, sent, kept or running,
+/// a new recipient, or less control for her; and it includes a correction
+/// showing the old words understated what the app did. A rewording, or a
+/// change that describes less, keeps the revision. A new revision is also
+/// what makes the dialog tell her 「この説明が変わりました」, so it must never be
+/// spent on a change she would not recognise as one.
+///
 /// Revision 1 is the first recorded one (2026-09-25). A yes stored before it
 /// carries no revision and is asked once more: it answered either words that
 /// said sharing happens only while the app is open, or words that did not yet
@@ -99,9 +108,22 @@ class LocationConsentRecord {
   bool answers(int current) =>
       granted && revision == current && (words?.isNotEmpty ?? false);
 
-  /// A yes that does not answer [current]: she agreed once, to other words.
-  /// The dialog says so when it asks again.
+  /// A yes that does not answer [current]: she agreed once, and it is not
+  /// honoured now, so she is asked.
+  ///
+  /// This is NOT the test for telling her the description changed; see
+  /// [isYesToOtherRevision]. It is also true for a yes to the current revision
+  /// whose words are missing or unreadable, and for that record the
+  /// description has not changed: the record is damaged.
   bool isYesToOtherWords(int current) => granted && !answers(current);
+
+  /// A yes to another revision of the words (or to words from before
+  /// revisions existed): the description really has changed since she agreed.
+  /// Only this record is told so when she is asked again (2026-09-25, a
+  /// dignity review). A yes to the current revision with missing or
+  /// unreadable words is asked plainly, because saying "this has changed" to
+  /// her would be false.
+  bool isYesToOtherRevision(int current) => granted && revision != current;
 }
 
 class LocationConsentStore {

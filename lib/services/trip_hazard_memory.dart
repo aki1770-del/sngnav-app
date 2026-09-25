@@ -52,10 +52,13 @@ import '../voice/offline_safety_voice.dart';
 ///
 /// Every clause is load-bearing, and the honesty is IN THE SENTENCE, not in a
 /// comment above it:
-///   出発前に取得した気象庁の秋田県の予報では — names the publisher (JMA), the
+///   前もって取得した気象庁の秋田県の予報では — names the publisher (JMA), the
 ///     place the forecast is for (Akita Prefecture: the app fetches JMA area
-///     050000 wherever she is), and WHEN we got it (before departure). She is
-///     never told we just heard this, or that it is her own area's.
+///     050000 wherever she is), and that we got it EARLIER, not when. It
+///     said 出発前 (before departure) until 2026-09-25, which was false on a
+///     long drive: the memory is re-captured during a drive once it is
+///     3 hours old. The caption carries the capture time. She is never
+///     told we just heard this, or that it is her own area's.
 ///   この時間帯は雪の予報です — it is valid FOR THIS TIME BAND. Not "it is snowing".
 ///   これは観測ではなく予報です — it says, out loud, THIS IS A FORECAST, NOT AN
 ///     OBSERVATION. The distinction the whole layer exists to preserve is spoken
@@ -64,7 +67,7 @@ import '../voice/offline_safety_voice.dart';
 /// Slotless by construction, so it can be pre-rendered to bundled audio and
 /// sound with the network and the TTS engine both gone.
 const String kForecastSnowValidJa =
-    '出発前に取得した気象庁の秋田県の予報では、この時間帯は雪の予報です。これは観測ではなく予報です。速度を落とし、車間距離をとってください。';
+    '前もって取得した気象庁の秋田県の予報では、この時間帯は雪の予報です。これは観測ではなく予報です。速度を落とし、車間距離をとってください。';
 
 /// The VISIBLE en counterpart of [kForecastSnowValidJa]. NOT spoken: the
 /// bundled offline mouth is ja-only, and an en forecast voice is a recorded,
@@ -72,7 +75,7 @@ const String kForecastSnowValidJa =
 /// publisher-declared-valid hazard must not be deleted from the visible
 /// channel by locale. Same clause-for-clause honesty as the ja line.
 const String kForecastSnowValidEn =
-    'The JMA forecast for Akita Prefecture, fetched before departure, calls '
+    'The JMA forecast for Akita Prefecture, fetched in advance, calls '
     'for snow during this time band. This is a forecast, not an observation. '
     'Slow down and keep extra following distance.';
 

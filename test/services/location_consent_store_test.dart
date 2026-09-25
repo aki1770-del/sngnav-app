@@ -45,6 +45,7 @@ void main() {
     expect(r.words, words);
     expect(r.answers(7), isTrue, reason: 'a yes to these words, now');
     expect(r.isYesToOtherWords(7), isFalse);
+    expect(r.isYesToOtherRevision(7), isFalse);
   });
 
   test('a yes to another revision is not honoured, and is a yes to other '
@@ -52,8 +53,9 @@ void main() {
     await store.saveYes(revision: 1, locale: 'en', words: words);
     final r = (await store.load())!;
     expect(r.answers(2), isFalse, reason: 'the words changed what sharing does');
-    expect(r.isYesToOtherWords(2), isTrue,
-        reason: 'the dialog says why it asks again');
+    expect(r.isYesToOtherWords(2), isTrue, reason: 'so she is asked');
+    expect(r.isYesToOtherRevision(2), isTrue,
+        reason: 'the description changed, and the dialog says so');
     expect(r.answers(0), isFalse, reason: 'nor to an earlier one');
   });
 
@@ -73,6 +75,8 @@ void main() {
         reason: 'it answered words this build no longer shows, and the record '
             'cannot say which');
     expect(r.isYesToOtherWords(kLocationConsentRevision), isTrue);
+    expect(r.isYesToOtherRevision(kLocationConsentRevision), isTrue,
+        reason: 'the words changed since then, so the dialog says so');
   });
 
   test('a withdrawal is kept as a record and never read as a refusal to ask',
@@ -84,6 +88,7 @@ void main() {
     expect(r.answers(1), isFalse);
     expect(r.isYesToOtherWords(1), isFalse,
         reason: 'she withdrew; asking again needs no explanation');
+    expect(r.isYesToOtherRevision(1), isFalse);
   });
 
   test('the withdrawal written until 2026-09-25 is read the same way', () async {
@@ -110,6 +115,14 @@ void main() {
     final r = (await store.load())!;
     expect(r.answers(kLocationConsentRevision), isFalse,
         reason: 'a yes that cannot say which words it answered is not one');
+    // 2026-09-25, a dignity review: this record is DAMAGED, not changed.
+    // Until then the dialog's "this description has changed" line was chosen
+    // by isYesToOtherWords, which is true here, so she would have been told
+    // the words changed when they had not.
+    expect(r.isYesToOtherWords(kLocationConsentRevision), isTrue,
+        reason: 'she is asked');
+    expect(r.isYesToOtherRevision(kLocationConsentRevision), isFalse,
+        reason: 'and not told the description changed: it did not');
   });
 
   test('absent, unreadable or malformed is "not decided", never a grant or a '

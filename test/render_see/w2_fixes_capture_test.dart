@@ -75,12 +75,12 @@ void main() {
     await tester.pump();
     // Guard before capturing: the status line renders as ONE sentence line
     // above the buttons (the 02b defect was one-syllable-per-line).
-    expect(find.text('Location not yet shared.'), findsOneWidget);
+    expect(find.text('Location is not being shared.'), findsOneWidget);
     await captureApp(
       tester,
       targets: [
         find.byKey(const Key('location-disclosure')),
-        find.text('Location not yet shared.'),
+        find.text('Location is not being shared.'),
       ],
       logical: const Size(393, 852),
       out: '../../ladder_out/api30_fixed/w2a_consent_card_en.png',
@@ -94,7 +94,7 @@ void main() {
       tester,
       targets: [
         find.byKey(const Key('location-disclosure')),
-        find.text('位置情報はまだ共有されていません。'),
+        find.text('位置情報は共有されていません。'),
       ],
       logical: const Size(393, 852),
       out: '../../ladder_out/api30_fixed/w2a_consent_card_ja.png',

@@ -372,9 +372,11 @@ void main() {
       _singleTextUnder(tester, const Key('forecast-memory-visible')),
       spokenForecast.single.text,
     );
-    // With the plan-time caption (exact clock text is host-timezone-dependent;
-    // the load-bearing clauses are 出発前 + 観測ではありません).
-    expect(find.textContaining('出発前'), findsWidgets);
+    // With the capture caption (exact clock text is host-timezone-dependent;
+    // the load-bearing clauses are the capture time + 観測ではありません).
+    // It claims nothing about departure: the memory can be re-captured
+    // during a drive.
+    expect(find.textContaining('に取得した秋田県の予報'), findsWidgets);
     // Since 2026-09-25 the caption draws 観測ではありません with word joiners
     // between its characters, so the negation cannot break across two lines
     // (lib/widgets/keep_together.dart). Search for the phrase as drawn. A
