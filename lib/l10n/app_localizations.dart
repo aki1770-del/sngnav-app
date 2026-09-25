@@ -1040,6 +1040,15 @@ class AppL10n {
   // started yet, and is not read again after its awaits. So the guard never
   // fires, and a drive started while the check is still running does not stop
   // it. The sentence now says only what the code does: once, just after start.
+  //
+  // 2026-09-25, with the manifest address reader (lib/services/update_check.dart,
+  // `_goAndSee`): the version file may name a new https address for itself.
+  // When it names one other than the address it was fetched from, the app
+  // sends one GET there (redirects not followed), whether or not a newer build
+  // is listed, and stores the address only if the file there names itself and
+  // describes this app. It is used from the next launch. This sentence ships
+  // in the same build as that reader, or not at all:
+  // test/store/address_reader_disclosure_parity_test.dart fails otherwise.
   String get egressDisclosure => _ja
       ? 'このほかに端末の外と通信するのは次の場合のみです。'
           '【経路計算】地図で選んだ出発地と目的地の座標は、確認画面で同意した'
@@ -1051,8 +1060,11 @@ class AppL10n {
           '【音声】音声警告は端末に同梱した音声を優先します。端末の音声エンジンが'
           'ネットワーク音声を使う場合、読み上げる文がOSの音声提供元を'
           '経由することがあります。'
-          '【更新確認】アプリを起動した直後に 1 回だけ、'
-          'raw.githubusercontent.com から更新情報ファイルを取得します。'
+          '【更新確認】アプリを起動した直後に 1 回だけ、更新情報ファイルを'
+          '取得します。取得先は最初は raw.githubusercontent.com で、'
+          'ファイルが自分の新しい置き場所（https のアドレス）を示したときは、'
+          'その場所へも 1 回要求を送って確かめ、確かめられれば次の起動から'
+          'そこを使います。'
           'より新しいビルドが載っていたときに限り、そのファイルが示す配布先に、'
           '入手できるかどうかの確認だけを送ります（ダウンロードはしません）。'
           '送るのは要求だけです。識別子・位置情報・端末IDは'
@@ -1068,8 +1080,11 @@ class AppL10n {
           'network voice, the spoken text may pass through the OS voice '
           'vendor. '
           'Update check — once, just after the app starts, '
-          'it fetches a version file from raw.githubusercontent.com. Only if '
-          'that file lists a newer build does it also ask the download '
+          'it fetches a version file, at first from raw.githubusercontent.com. '
+          'If that file names a new https address for itself, the app sends '
+          'one request there to check it, and if the file there names itself, '
+          'uses that address from the next launch. Only if '
+          'the version file lists a newer build does it also ask the download '
           'location the file names whether the build is really there — an '
           'existence check, never a download. Only the requests are sent: no '
           'identifier, no location, no device ID.';
