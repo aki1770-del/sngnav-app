@@ -167,7 +167,7 @@ void _citationsByFunction() {
 // debug mode, where kReleaseMode is false and kDebugMode is true. So a voice
 // silenced only in her release build passes every test we run and compiles
 // clean, and this column is the only instrument built to see it. An
-// independent corpus (FBR, round 4b) measured five such shapes passing it:
+// independent mutation corpus (round 4b) measured five such shapes passing it:
 //  - F1, the watch voice returning first thing in release;
 //  - F2, the whiteout caution's one announce() wrapped in `if (kDebugMode)`
 //    inside its function: the column asked whether release reaches the
@@ -1685,7 +1685,7 @@ void _selfTestReleaseOnly() {
       'release build is caught, for its own reason', () {
     heard('healthy', const []);
 
-    // FBR's corpus, round 4b.
+    // The independent corpus, round 4b.
     quietCall('F1', [(voiceHead, '$voiceHead    if (kReleaseMode) return;\n')],
         'after `if (kReleaseMode)`');
     quietCall('F2', [
