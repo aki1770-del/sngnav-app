@@ -162,19 +162,32 @@
    <!-- flow: tiles -->
    <!-- akita_map.dart:90; services/offline_basemap.dart:53-56 offline-first -->
 
-6. **新しいビルドがあるかの確認** — 最初の画面が出た直後に、公開バージョン一覧（JSON）を取得します。取得先は、アプリに組み込まれた GitHub の配信サーバー（raw.githubusercontent.com）か、以前の一覧が示した新しい置き場所です。**あなたの座標も、端末を識別する情報も送信しません**（リクエストに本文はありません）。本アプリはストア外配布で自動更新が無く、この確認が無いと修正を出してもお知らせする手段がありません。**確認は起動直後の 1 回だけで、繰り返しません。** **一覧の置き場所は変わることがあります。** 一覧が自分の新しい置き場所として別の https のアドレスを示したときは、新しいビルドがあるかどうかに関係なく、そのアドレスへ 1 回だけ要求を送ります（転送〈リダイレクト〉はたどりません）。そこにある一覧が自分の場所としてそのアドレスを示し、このアプリのものであるときにかぎり、そのアドレスを端末に保存し、次の起動からそこを使います。保存するのは一覧を置く場所のアドレスで、あなたの情報ではありません。このアドレスも一覧が指定するもので、アプリの中に固定されていません。 一覧があなたのものより新しいビルドを示したときにかぎり、**その一覧が指定した配布先 URL** へ「実際に入手できるか」の存在確認だけを送ります（ダウンロードはしません）。**この配布先のホストは一覧が指定するもので、アプリの中に固定されていません**（現在は GitHub）。アプリが何かをインストールすることはありません（REQUEST_INSTALL_PACKAGES は要求していません）。（2026-09-25 訂正: 以前は「運転中であればその 1 回も行いません」と書いていました。確認は、運転を始められるより前の起動直後に行われるため、この一文が防いでいることは何もなく、確認の途中で運転を始めても確認は止まりません。）
+6. **新しいビルドがあるかの確認** — 最初の画面が出た直後に、公開バージョン一覧（JSON）を取得します。取得先は、アプリに組み込まれた GitHub の配信サーバー（raw.githubusercontent.com）か、以前の一覧が示した新しい置き場所です。**あなたの座標も、端末を識別する情報も送信しません**（リクエストに本文はありません）。本アプリはストア外配布で自動更新が無く、この確認が無いと修正を出してもお知らせする手段がありません。**確認は起動直後の 1 回だけで、繰り返しません。** **一覧の置き場所は変わることがあります。** 一覧が自分の新しい置き場所として別の https のアドレスを示したときは、新しいビルドがあるかどうかに関係なく、そのアドレスへ 1 回だけ要求を送ります（転送〈リダイレクト〉はたどりません）。そこにある一覧が自分の場所としてそのアドレスを示し、このアプリのものであるときにかぎり、そのアドレスを端末に保存し、次の起動からそこを使います。保存するのは一覧を置く場所のアドレスで、あなたの情報ではありません。このアドレスも一覧が指定するもので、アプリの中に固定されていません。 一覧があなたのものより新しいビルドを示したときにかぎり、**その一覧が指定した配布先 URL** へ「実際に入手できるか」の存在確認だけを送ります（ダウンロードはしません）。**この配布先のホストは一覧が指定するもので、アプリの中に固定されていません**（現在は GitHub）。**一覧の取得と存在確認では、要求を受けたサーバーが、別のアドレスへの転送〈リダイレクト〉を返すことがあります。** アプリがたどるのは https のアドレスへの転送だけで、続けて 5 回までです。それ以外の転送や 6 回目の転送はたどらず、その先には何も送らずにそこで終わり、何も表示しません。転送先へ送るのは最初の要求と同じ内容で（座標も、端末を識別する情報も含みません）、転送先のサーバーにも IP アドレスが届きます。転送先は、アプリでも一覧でもなく、転送を返したサーバーが決めます。たとえば GitHub に置いたビルドの存在確認は、github.com から release-assets.githubusercontent.com へ転送されます（2026-09-25 に確認）。アプリが何かをインストールすることはありません（REQUEST_INSTALL_PACKAGES は要求していません）。（2026-09-25 訂正: 以前は「運転中であればその 1 回も行いません」と書いていました。確認は、運転を始められるより前の起動直後に行われるため、この一文が防いでいることは何もなく、確認の途中で運転を始めても確認は止まりません。）
    <!-- flow: update-check -->
-   <!-- describes: manifest-address-reader -->
    <!-- 置き場所の移動（2026-09-25 追記）の出典: services/update_check.dart の
         UpdateChecker.resolveManifestUrl（保存された https のアドレス、無ければ組み込みの既定）、
         check → _goAndSee（新しいアドレスへ 1 回 GET、followRedirects = false、そこで一覧が自分を
         名乗りこのアプリのものなら保存）、persistManifestUrl（保存）。update_manifest.dart の
         UpdateManifest.manifestUrl（`manifest_url`）。この文はそのコードと同じビルドでしか出荷しない:
-        test/store/address_reader_disclosure_parity_test.dart。 -->
+        test/store/address_reader_disclosure_parity_test.dart。そのテストは、アプリのポリシー画面が
+        表示するとおりの本文（renderPolicyForDisplay、この注記は表示されない）を読む。以前ここに
+        あった `describes: manifest-address-reader` の目印は 2026-09-25 に外した: 表示されない目印を
+        数えるテストは、本文が書き戻されても通っていた。 -->
+   <!-- 転送〈リダイレクト〉（2026-09-25 追記）の出典: services/update_check.dart の
+        HttpsHopsOnlyClient。UpdateChecker のすべての要求がこれを通り、https でないアドレスは最初の
+        1 つも含めて送信前に拒否する。GET と HEAD の 301/302/303/307/308 を、要求の maxRedirects
+        （既定の 5）まで、メソッドとヘッダーを引き継いでたどる。置き場所を確かめる _goAndSee の
+        要求は自分で followRedirects = false を立てるので、転送は返されるだけでたどらない。
+        github.com → release-assets.githubusercontent.com は 2026-09-25 09:19Z、公開されている
+        GitHub のリリース資産への HEAD 1 回（転送はたどらない）で確認。 -->
    <!-- services/update_check.dart: UpdateChecker.defaultManifestUrl（一覧の取得先）,
         UpdateChecker._run の _client.get（取得）, UpdateChecker._artifactReachable（配布先の存在確認）;
         main.dart: initState の addPostFrameCallback(_runUpdateCheck)（最初のフレーム後に実行）,
-        _runUpdateCheck の _driveActive ガード（運転中は実行しない）。
+        _runUpdateCheck の _driveActive ガード。⚑ 2026-09-25 訂正: ここは「運転中は実行しない」と
+        書いていた。唯一の呼び出し元は最初のフレームの直後で、そのとき運転はまだ始まっていないため、
+        このガードが働くことは現在なく、確認の途中で運転を始めても確認は止まらない（本文の
+        2026-09-25 訂正と同じ事実）。ガードは、あとから加わる呼び出し元（再開時・再試行）が運転中に
+        確認を走らせないためのもの。
         ⚑ 行番号ではなく記号で引用（2026-09-25）。この引用を書いている間に対象ファイルが
         2 度ずれ、行番号が別の文を指した — 動くファイルの行番号は引用ではない。
         ⚑「ダウンロードはしません」は 2026-09-25 まで条件付きで偽だった。HEAD を拒否する
@@ -299,9 +312,8 @@ above). Both were observed on an Android 14 test emulator, not yet on a real pho
 5. **Map-tile fallback** — when you view an area the bundled offline basemap does not cover, the tile coordinates for that area (roughly equivalent to a coarse viewport location) are sent to the OpenStreetMap tile server (tile.openstreetmap.org). Areas within the bundled coverage render offline with no network traffic.
    <!-- flow: tiles -->
 
-6. **Update check** — just after the first screen appears, the app fetches a published version list (JSON), either from GitHub's raw content server (raw.githubusercontent.com), which is built into the app, or from a new home an earlier list named. **No coordinates and no device identifier are sent** — the request has no body. This app is distributed outside any store and has no auto-update, so without this check there is nothing to tell you a fix exists. **The check happens once, just after the app starts, and is not repeated.** **The list's own address can change.** When a list names a different https address as its new home, the app sends one request to that address, whether or not a newer build is listed (it does not follow redirects). Only if the list found there names that same address as its own and is for this app does the app store the address on the device and use it from the next launch. What is stored is where the list lives, not information about you. This address, too, comes from the list and is not fixed inside the app. Only when the list names a build newer than yours, the app sends an existence check — never a download — to **the download URL that list specifies**, so it never announces a build you cannot actually get. **That host comes from the list and is not fixed inside the app** (today it is GitHub). The app installs nothing (REQUEST_INSTALL_PACKAGES is not requested). (Corrected 2026-09-25: this page said "if a drive is in progress it is skipped entirely". The check runs just after start, before a drive can have begun, so that sentence guarded nothing, and starting a drive while the check is still running does not stop it.)
+6. **Update check** — just after the first screen appears, the app fetches a published version list (JSON), either from GitHub's raw content server (raw.githubusercontent.com), which is built into the app, or from a new home an earlier list named. **No coordinates and no device identifier are sent** — the request has no body. This app is distributed outside any store and has no auto-update, so without this check there is nothing to tell you a fix exists. **The check happens once, just after the app starts, and is not repeated.** **The list's own address can change.** When a list names a different https address as its new home, the app sends one request to that address, whether or not a newer build is listed (it does not follow redirects). Only if the list found there names that same address as its own and is for this app does the app store the address on the device and use it from the next launch. What is stored is where the list lives, not information about you. This address, too, comes from the list and is not fixed inside the app. Only when the list names a build newer than yours, the app sends an existence check — never a download — to **the download URL that list specifies**, so it never announces a build you cannot actually get. **That host comes from the list and is not fixed inside the app** (today it is GitHub). **When the version list is fetched, and when the existence check is sent, the server that receives the request may redirect it to another address.** The app follows a redirect only to an https address, and at most 5 in a row; any other redirect, or a sixth, is not followed: the step ends there, nothing is sent onward, and nothing is shown to you. A redirected request carries the same content as the first (no coordinates and no device identifier), and the server it reaches also sees your IP address. Where it goes is decided by the server that redirected, not by the app or the list: for example, the existence check for a build hosted on GitHub is redirected from github.com to release-assets.githubusercontent.com (checked 2026-09-25). The app installs nothing (REQUEST_INSTALL_PACKAGES is not requested). (Corrected 2026-09-25: this page said "if a drive is in progress it is skipped entirely". The check runs just after start, before a drive can have begun, so that sentence guarded nothing, and starting a drive while the check is still running does not stop it.)
    <!-- flow: update-check -->
-   <!-- describes: manifest-address-reader -->
 
 **About voice (added 2026-09-25):** Spoken alerts prefer the audio bundled on the device. If your device's text-to-speech engine is set to use a network voice, the text being spoken (such as a road warning) may pass through the OS voice vendor. This is not a connection the app makes itself, but the in-app disclosure already says so, and this page now says it too.
 
