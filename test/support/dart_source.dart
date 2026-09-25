@@ -15,11 +15,24 @@
 /// reference, and a guard that counts it has measured the page rather than
 /// the program. Both guards now read [dartCodeOnly] instead.
 ///
+/// ONE LEXER (2026-09-25, round 5a). This is the only hand-written Dart lexer
+/// the suite keeps. test/architectural/dart_views.dart had its own; it now
+/// draws both of its views from [dartCodeOnly]. The two were compared, code
+/// unit by code unit, with the Dart front end (package:analyzer's parser and
+/// scanner) over every tracked .dart file in this tree (310 files, 3,046,575
+/// code units) and the Flutter SDK's (4,262 files, 71,531,018): neither ever
+/// took code for a comment or string text, or the other way round. They
+/// differed in one convention only, how to draw an interpolation's markers
+/// (the `$` of `$name`, a `${` and its `}`): this lexer keeps them and
+/// dart_views.dart blanked them. Each is right for its reader, so both are
+/// kept, as [dartCodeOnly]'s `keepInterpolationMarkers`.
+///
 /// HONEST BOUND. This is a lexer, not a parser: it knows comments (including
 /// nested block comments), the four quote forms, raw strings, escapes and
 /// interpolation, and nothing about types or scopes. A source file the Dart
 /// compiler rejects may be read differently here; an unterminated one-line
 /// string is ended at its line break so it cannot swallow the rest of a file.
+/// A line break is `\n`, `\r\n` or a lone `\r`, as in the Dart grammar.
 library;
 
 const int _nl = 0x0A;
@@ -78,11 +91,26 @@ class _Frame {
 ///
 /// With [keepStrings] only comments are blanked, for a reader that needs a
 /// string's value (an import's URI) but must not read a commented-out line.
-String dartCodeOnly(String source, {bool keepStrings = false}) {
+///
+/// With [keepInterpolationMarkers] false, the `$` of `$name`, and a `${` with
+/// the `}` that closes it, are blanked too, and only the interpolated code is
+/// left. Which to choose depends on what the reader counts:
+///  - kept (the default): `'$name'` reads as `$name`, and a reader that treats
+///    `$` as part of an identifier, as Dart does, sees no reference to `name`.
+///    The voice census wants exactly that: a `$name` interpolation can only
+///    stringify a method, never call it, so hiding it errs toward "this voice
+///    is not reached", the side that fails;
+///  - blanked: `'$name'` reads as ` name`, so every interpolated name is seen.
+///    A guard that must find each read of a value (an address that must reach
+///    no pixel) wants this.
+/// [keepStrings] keeps every part of a string, markers included.
+String dartCodeOnly(String source,
+    {bool keepStrings = false, bool keepInterpolationMarkers = true}) {
   final cu = source.codeUnits;
   final out = List<int>.of(cu);
   final n = cu.length;
   final stack = <_Frame>[_Frame.code()];
+  final blankMarkers = !keepStrings && !keepInterpolationMarkers;
 
   void blank(int from, int to) {
     for (var k = from; k < to && k < n; k++) {
@@ -134,6 +162,7 @@ String dartCodeOnly(String source, {bool keepStrings = false}) {
       } else if (c == _rbrace) {
         if (f.braceDepth == 0 && stack.length > 1) {
           stack.removeLast(); // the `}` closing `${` returns to the string
+          if (blankMarkers) blank(i, i + 1);
         } else {
           f.braceDepth--;
         }
@@ -168,11 +197,13 @@ String dartCodeOnly(String source, {bool keepStrings = false}) {
     }
     if (!f.raw && c == _dollar && i + 1 < n) {
       if (cu[i + 1] == _lbrace) {
+        if (blankMarkers) blank(i, i + 2);
         stack.add(_Frame.code());
         i += 2;
         continue;
       }
       if (_isInterpolationStart(cu[i + 1])) {
+        if (blankMarkers) blank(i, i + 1);
         var j = i + 1;
         while (j < n && _isInterpolationPart(cu[j])) {
           j++;

@@ -202,6 +202,27 @@ The instruction ("do not worry about mistakes / use loupe") called for a lasting
 - **Symptom**: nine real defects passed. A release voice's only call removed with its name left in a trailing comment, in a debug string, or in a dead arrow-bodied method; the whiteout caution replaced by a no-op carrying its name in a comment; the developer-page gate kept as text but governing a `SizedBox`, or weakened from `&&` to `||`; a blank line detaching a pubspec justification while its import was removed (the guard's own count fell from `imports=6` to `imports=4` and it still said `problems=0`); an import inside `/* */`; a cited file on disk but not committed. The author's own eight mutants each deleted or added the thing itself, so they shared the guard's model of the defect and found none of these.
 - **Class**: an instrument that reads text where it claims to read code; a proximity check ("within 8 lines") standing in for a structural one ("governs"); a count that can fall without failing; a mutation set that shares its author's blind spot.
 - **Pre-flight check**: remove the THING and leave its NAME behind as text (trailing comment, string, block comment, dead method, field initializer, a debug-only `if`) and watch the guard fail; prove "is gated" by moving the governed element, not by deleting the gate; pin sets, not counts; have someone other than the author write the corpus. Measured after the fix (`0eb9257`): all nine fail, the healthy tree and both healthy controls pass. Still not seen by the census: code after a `return`. `flutter analyze` fails on that (`dead_code`, exit 1), unless an `ignore` comment suppresses it.
+- **Corrected 2026-09-25 (round 5a)**: the census now sees code after a `return`, whether unconditional or taken in release (TRAP-20). The sentence above also overstated the backstop. On `f7352c8` the analyzer was already red before any change (3 inherited infos), so the added `dead_code` warning changed no result. On `e293819` the analyzer is clean, and the warning does turn it red (measured at `e747458`).
+- **Linked feedback memory**: none.
+
+---
+
+## TRAP-20 — a voice silenced only in the release build passes every test, because `flutter test` runs in debug mode
+
+- **First observed**: 2026-09-25, round 4b, when an independent corpus ran against the census at `f7352c8`. The shapes: the watch voice returning first thing in release; an announce() under `if (kDebugMode)` inside its own function; the call under `kDebugMode || _developerPageOffered`, or under `_developerPageOffered` alone; the caller returning early in release.
+- **Symptom**: each compiled clean (`flutter analyze` added nothing), and the full suite gave the same result as the healthy tree. The census, the one instrument built to reason about release, passed all of them. It listed spellings, gave up on any `||`, and judged whether release reaches a FUNCTION, never a CALL.
+- **Class**: a test environment that differs from her build in a constant the code branches on (kReleaseMode, kDebugMode, a boolean --dart-define); a static check that lists spellings instead of failing closed; reachability judged per function when silence happens per call.
+- **Pre-flight check**: feed any guard that claims "reaches her build" the same silence spelled several ways: an early return in release, the call under a debug-only `if`, an `||` of two debug-only conditions, a getter or a field derived from build mode, a conditional expression. Each must fail and name its mechanism, and a spelling the guard cannot read must fail, not pass. Measured after the fix (`e747458`): the corpus's F1-F6b all fail, each for its own reason, and its two healthy controls pass. The same class, measured the same day in a second guard: `test/architectural/update_address_reaches_no_pixel_test.dart` exempts `_verbose || kDebugMode ? <read> : null` as debug-only, though that read runs in release whenever `_verbose` holds (a plain `kDebugMode ?` is exempted rightly, and an unguarded read is reported).
+- **Linked feedback memory**: none.
+
+---
+
+## TRAP-21 — two views of one source that agree on every character can still disagree on what a regex finds
+
+- **First observed**: 2026-09-25, round 5a, comparing `test/support/dart_source.dart` and `test/architectural/dart_views.dart` with the Dart front end (package:analyzer). Over 310 tree files and 4,262 Flutter SDK files, neither ever took code for a comment or string text, or the other way round. They differed in 3,449 code units (tree) and 36,581 (SDK), all of them interpolation markers.
+- **Symptom**: with markers kept, `'$name'` reads as `$name`, and a regex that treats `$` as part of an identifier, as Dart does, finds no `name`. With markers blanked it does.
+- **Class**: a representation choice that no "what is code" diff shows, and that decides what a consumer counts.
+- **Pre-flight check**: choose the view by what the reader must not miss. Kept markers hide a stringified method, which suits the voice census, whose error then falls on "not reached", the side that fails. Blanked markers show every interpolated name, which suits a guard that must find every read of a value. `dartCodeOnly(..., keepInterpolationMarkers: false)` draws the second.
 - **Linked feedback memory**: none.
 
 ---
