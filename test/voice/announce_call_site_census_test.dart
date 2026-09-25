@@ -205,7 +205,11 @@ void _citationsByFunction() {
 // only in release is not traced into its caller, and a condition on runtime
 // state is taken to run. State set under a build-mode condition is not
 // followed to where it is read: a field set there is itself undecided, and a
-// local set there leaves everything after it in the function undecided. Widget-typed values are
+// local set there leaves everything after it in the function undecided. A
+// build-mode value handed to a constructor or to a function off the voice's
+// path, and read there as ordinary state (`this.quiet` given `kReleaseMode`,
+// then `if (quiet) return;`), is NOT followed. In one voice, one reason is
+// reported: a voice no longer reached hides a silent call inside it. Widget-typed values are
 // not treated as build-mode values, because a widget never gates a call. It
 // does not read `dart:io` Platform checks, which also differ between the test
 // host and her phone. It asserts its own seed (below) so it cannot silently
