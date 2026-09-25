@@ -172,7 +172,7 @@ dependencies:
   # PackageManager at runtime: the build identity is DERIVED FROM THE
   # ARTIFACT, never hand-written (V15 tier 1). BIS ruled it CONFIRMED as the
   # read mechanism, 2026-09-24, and REJECTED it as sufficient alone -- see
-  # services/build_identity.dart for the two required alongside-values.
+  # lib/services/build_identity.dart for the two required alongside-values.
   package_info_plus: ^10.2.0
   intl: ^0.20.2
   geolocator: ^13.0.0
