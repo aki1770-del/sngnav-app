@@ -32,6 +32,13 @@ final _englishHeading =
 List<String> _flows(String text) =>
     [for (final m in _marker.allMatches(text)) m.group(1)!];
 
+/// The text a reader sees: HTML comments removed. The flow markers live in
+/// comments, so [_flows] reads the source; the counts she reads are checked
+/// against this. Added 2026-09-25, when an authoring comment that quoted the
+/// heading's count phrase made the count check pass with the heading broken.
+String _visible(String text) =>
+    text.replaceAll(RegExp(r'<!--.*?-->', dotAll: true), '');
+
 ({String ja, String en}) _halves(String policy) {
   final m = _englishHeading.firstMatch(policy);
   if (m == null) throw StateError('no English heading in the policy');
@@ -54,17 +61,18 @@ List<String> _disagreements(String policy, String sheet) {
   const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six',
       'seven', 'eight', 'nine', 'ten'];
   final n = ja.length;
-  if (!h.ja.contains('この$nつがすべてです')) {
+  final seenJa = _visible(h.ja), seenEn = _visible(h.en);
+  if (!seenJa.contains('この$nつがすべてです')) {
     problems.add('the Japanese heading does not say この$nつがすべてです');
   }
-  if (!h.ja.contains('「端末の外に出るデータ」の$nつのみ')) {
+  if (!seenJa.contains('「端末の外に出るデータ」の$nつのみ')) {
     problems.add('the Japanese INTERNET row does not say $n');
   }
   if (n < words.length) {
-    if (!h.en.contains('these ${words[n]} flows are all of it')) {
+    if (!seenEn.contains('these ${words[n]} flows are all of it')) {
       problems.add('the English heading does not say "these ${words[n]} flows"');
     }
-    if (!h.en.contains('only the ${words[n]} flows listed below')) {
+    if (!seenEn.contains('only the ${words[n]} flows listed below')) {
       problems.add('the English INTERNET row does not say ${words[n]}');
     }
   }
@@ -99,5 +107,15 @@ void main() {
   test('NEGATIVE CONTROL: a count that no longer matches is caught', () {
     final broken = policy.replaceFirst('この6つがすべてです', 'この5つがすべてです');
     expect(_disagreements(broken, sheet), isNotEmpty);
+  });
+
+  test('NEGATIVE CONTROL: a comment quoting the count cannot stand in for '
+      'the heading she reads', () {
+    final broken = policy
+        .replaceFirst('この6つがすべてです', 'この5つがすべてです')
+        .replaceFirst('## 収集しないもの', '<!-- この6つがすべてです -->\n## 収集しないもの');
+    expect(_disagreements(broken, sheet), isNotEmpty,
+        reason: 'the count is checked in the words she reads, not in notes '
+            'she never sees');
   });
 }

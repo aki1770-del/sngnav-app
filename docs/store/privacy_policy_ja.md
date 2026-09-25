@@ -127,7 +127,7 @@
 
 ## 端末の外に出るデータ（この6つがすべてです）
 
-1. **気象庁アメダス観測値の取得** — 秋田県内の決められた 5 か所の観測所（男鹿・秋田・大曲・横手・湯沢）の観測値を、気象庁のサーバー（www.jma.go.jp）から取得します。アプリの起動時に 5 か所すべてを取得し、その後は秋田の観測所を約10分ごとに取得します。観測所の一覧で再取得を押したときは、5 か所すべてを取り直します。現在地を共有するかどうかに関係なく行い、**あなたの座標は送信されません。** 通信には連絡先として本アプリの公開リポジトリ URL を含む User-Agent が付きます（気象庁側の流量管理・セキュリティ連絡のためのもので、あなたを識別するものではありません）。
+1. **気象庁アメダス観測値の取得** — 秋田県内の決められた 5 か所の観測所（男鹿・秋田・大曲・横手・湯沢）の観測値を、気象庁のサーバー（www.jma.go.jp）から取得します。アプリの起動時に 5 か所すべてを取得し、その後は秋田の観測所を約10分ごとに取得します。観測所の一覧で再取得を押したときは、5 か所すべてを取り直します。現在地を共有するかどうかに関係なく行い、**あなたの座標は送信されません。** 通信には、本アプリの名前（sngnav-app）と、連絡先として開発プロジェクトの公開リポジトリ URL（https://github.com/aki1770-del/sngnav）を含む User-Agent が付きます（気象庁側の流量管理・セキュリティ連絡のためのもので、あなたを識別するものではありません）。
    <!-- flow: jma-amedas -->
    <!-- 出典（記号で引用）: jma_fetch.dart の fetchLatestObservation（既定の観測所 akitaStationId = 32402）と
         fetchCorridorObservations（corridorStations の 5 件）。main.dart の _refreshJma（initState と
@@ -188,7 +188,11 @@
 
 **IP アドレスについて（2026-09-25 追記）:** インターネットの通信である以上、上の 6 つのどの通信でも、あなたの端末の IP アドレスは通信先のサーバーに届きます。
 
-上記のほかに、端末の外に出るデータはありません。
+上記のほかに端末の外に出るのは、下の不具合ログと運転日記を、あなたが自分で共有したときだけです。
+<!-- 2026-09-25 訂正: 以前は「上記のほかに、端末の外に出るデータはありません。」と書き、運転日記に
+     一度も触れていなかった。日記は、あなたが「日記を共有」を押したときに端末の共有機能で外に出る
+     （lib/services/drive_diary.dart の shareDiaryViaShareSheet）。不具合ログはこの下で説明済みだった。
+     見出しが数える件数は、アプリ自身が行う通信の数（egress_inventory_parity_test が固定）。 -->
 
 ## 不具合ログについて
 
@@ -199,6 +203,13 @@
      警報（_refreshAdvisories）は try/catch で受ける。意図してログに書く 2 か所
      （hardened_tts_engine.dart と hardened_haptic_channel.dart）は、文の長さとパターン名だけを書く。
      網羅していないのは、フレームワークが FlutterError.onError に報告するエラーの文面。 -->
+
+## 運転日記について
+
+運転日記に記録した内容（日時、あなたが選んだ答え、あなたが書いた地域やメモ。警告の確認を記録したときは、聞こえたか・感じたかの答えと、端末の申告、アプリのバージョン）は、端末内のファイルにだけ保存されます（上限約512KB。超えた分は古いものから消えます）。位置や経路は記録しません — 場所として残るのは、あなたが自分で書いた言葉だけです。日記が端末の外に出るのは、**あなたが「日記を共有」を押して端末の共有機能で送ったときだけ**です。送られるのは日記の本文と、アプリのバージョン・OS の種類・書き出した時刻です。自動送信はありません。
+<!-- 2026-09-25 追加。出典（記号）: lib/services/drive_diary.dart の DriveDiary.record /
+     recordChannelCheck（書く項目）、maxBytes = 512 * 1024（超えると半分まで古い順に削る）、
+     composeDiarySharePayload（送る中身: 見出し 3 行 + 本文）、shareDiaryViaShareSheet（OS の共有シート）。 -->
 
 ## お問い合わせ
 
@@ -266,7 +277,7 @@ above). Both were observed on an Android 14 test emulator, not yet on a real pho
 
 ## Data that leaves your device (these six flows are all of it)
 
-1. **JMA AMeDAS observation fetch** — the app requests observations for five fixed weather stations in Akita Prefecture (Oga, Akita, Omagari, Yokote, Yuzawa) from the Japan Meteorological Agency servers (www.jma.go.jp): all five when the app starts, then the Akita station about every 10 minutes, and all five again when you press re-fetch on the station list. This happens whether or not you share your location, and **your coordinates are not sent.** Requests carry a User-Agent containing this app's public repository URL, so the publisher can do rate-limit accounting and reach a security contact — it does not identify you.
+1. **JMA AMeDAS observation fetch** — the app requests observations for five fixed weather stations in Akita Prefecture (Oga, Akita, Omagari, Yokote, Yuzawa) from the Japan Meteorological Agency servers (www.jma.go.jp): all five when the app starts, then the Akita station about every 10 minutes, and all five again when you press re-fetch on the station list. This happens whether or not you share your location, and **your coordinates are not sent.** Requests carry a User-Agent naming this app (sngnav-app) and giving the project's public repository URL (https://github.com/aki1770-del/sngnav) as a contact, so the publisher can do rate-limit accounting and reach a security contact — it does not identify you.
    <!-- flow: jma-amedas -->
 
 2. **JMA forecast fetch** — the app requests the forecast for Akita Prefecture (forecast area 050000; fixed, it does not change with your position) from www.jma.go.jp. When an observation fetch succeeds and the forecast it holds is more than 3 hours old, it fetches it again (if that fails, it retries at the next successful observation fetch). This happens whether or not you share your location, and **your coordinates are not sent.** The User-Agent is the same as in 1.
@@ -290,11 +301,15 @@ above). Both were observed on an Android 14 test emulator, not yet on a real pho
 
 **About your IP address (added 2026-09-25):** Like any internet request, each of the six flows above shows your device's IP address to the server that receives it.
 
-Nothing else leaves the device.
+Besides the above, data leaves the device only when you share the error log or the drive diary yourself (below).
 
 ## Crash / error log
 
 Internal errors are recorded only in a local log file on your device (capped at roughly 200 KB; oldest entries are dropped first). The text of each error is recorded as it occurred. The requests that carry your position (route lookup, and US alerts) have been checked not to write their errors to this log, but not every possible error message has been checked (for example, whether a map-tile loading error could include the tile coordinates of the area on screen). The log leaves your device **only when you press "ログを共有" (Share log) and send it through your device's share sheet**. There is no automatic upload.
+
+## Drive diary
+
+What you record in the drive diary (the time, the answers you choose, the area and note you type, and, for a warning check, whether you heard and felt it, what the device reported and the app version) is saved only in a file on your device (capped at roughly 512 KB; the oldest entries are dropped first). No position or route is recorded; the only place in it is what you type yourself. The diary leaves your device **only when you press 日記を共有 (Share diary) and send it through your device's share sheet**. What is sent is the diary text, with the app version, the kind of operating system and the time it was exported. There is no automatic upload.
 
 ## Contact
 

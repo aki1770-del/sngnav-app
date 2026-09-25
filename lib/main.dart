@@ -1658,7 +1658,12 @@ class _HomePageState extends State<HomePage> {
   /// home.
   Future<void> _runUpdateCheck() async {
     if (!mounted) return;
-    if (_driveActive) return; // she is driving: not now, and not on resume
+    // The only caller is the first-frame callback in initState, before a
+    // drive can have begun, so today this never returns early, and there is
+    // no resume path. It is kept so that a later caller (a resume, a retry)
+    // cannot run the check mid-drive. (It said "not now, and not on resume",
+    // which described a caller that does not exist.)
+    if (_driveActive) return;
     try {
       await _loadUpdateDismissal();
       final checker = _updateChecker ??= UpdateChecker();

@@ -184,9 +184,13 @@ disclosure) and no `ACCESS_BACKGROUND_LOCATION` is requested. It is NO LONGER
 foreground-only (changed 2026-09-24): once she starts a drive, an ongoing
 foreground service keeps collecting with the screen off, and the app posts a
 notification for the drive and does not itself withdraw it until the drive
-ends. 停止 is the control she has for that; the drive also ends if Android
-ends the position stream (`herPositionStream` turns that into "GPS stream
-ended by the platform") or the app itself. Nothing runs before she starts a
+ends. 停止 is the control she has for that. If Android ends the position
+stream, the location feed ends (`herPositionStream` turns that into "GPS
+stream ended by the platform") but the drive does not: it stays active,
+showing that her position is unavailable, until 停止. If Android ends the app
+itself, everything ends. ⚑ Corrected 2026-09-25: this said "the drive also
+ends" when the stream ends; the stream's controller is never closed, so the
+app's drive state stays on. Nothing runs before she starts a
 drive. ⚑ Corrected 2026-09-25: this said the notification stays "until 停止",
 which read as if 停止 were the only end. Also still UNVERIFIED: what happens
 when she removes the app from the recent-apps list. The pages no longer say
