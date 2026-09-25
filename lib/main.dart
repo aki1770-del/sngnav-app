@@ -5734,8 +5734,9 @@ class _HomePageState extends State<HomePage> {
           // button, and ruled: give them a place and keep them together, do
           // not add words. They are the same words, moved out of
           // locationDisclosure. Placed here they come before the button for
-          // her eyes and for a screen reader (a dignity review's point), and
-          // their key words cannot break across lines
+          // her eyes and for a screen reader (a dignity review's point; until
+          // the paragraphs below had nodes of their own, that held for this
+          // block only), and their key words cannot break across lines
           // (lib/widgets/keep_together.dart). Same size and colour as the
           // status line above. Not yet looked at on a device.
           const SizedBox(height: 4),
@@ -5778,22 +5779,42 @@ class _HomePageState extends State<HomePage> {
           ),
           // Said once, after she takes it back, so the control's effect is
           // visible rather than inferred from a button disappearing.
+          // EACH PARAGRAPH BELOW IS ITS OWN SEMANTICS NODE (2026-09-25).
+          // The map card is a plain Card, and a Card merges every child that
+          // is not its own node into the card's single label. Measured in the
+          // test semantics tree: these four paragraphs were read as part of
+          // the card itself — 959 characters in Japanese, 2,089 in English,
+          // starting with the title 地図 — and a screen reader reaches the
+          // card's own label BEFORE its children, so she heard where her
+          // coordinates go before the drive sentences, the share button and
+          // everything else she sees first. As their own nodes they are read
+          // where they are drawn, and each is a stop she can skip. Semantics
+          // draws nothing: no pixel moves.
+          // test/widgets/location_card_reading_order_test.dart holds the
+          // order.
           if (_locationConsentWithdrawn && _locationConsent == null) ...[
             const SizedBox(height: 4),
-            Text(
-              key: const Key('location-consent-withdrawn-note'),
-              l.locationConsentWithdrawnNote,
-              style: const TextStyle(fontSize: 11, color: kCautionTextOnAmber),
+            Semantics(
+              container: true,
+              child: Text(
+                key: const Key('location-consent-withdrawn-note'),
+                l.locationConsentWithdrawnNote,
+                style:
+                    const TextStyle(fontSize: 11, color: kCautionTextOnAmber),
+              ),
             ),
           ],
           // THE OTHER HALF OF WITHDRAWAL, and it is a different subject matter
           // from ours: the platform's permission. We cannot revoke it and we
           // do not pretend to — the app NAMES the route and opens the page.
           const SizedBox(height: 4),
-          Text(
-            key: const Key('location-os-permission-route'),
-            l.locationOsPermissionRoute,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          Semantics(
+            container: true,
+            child: Text(
+              key: const Key('location-os-permission-route'),
+              l.locationOsPermissionRoute,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+            ),
           ),
           Align(
             alignment: AlignmentDirectional.centerStart,
@@ -5805,10 +5826,13 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           const SizedBox(height: 4),
-          Text(
-            key: const Key('location-disclosure'),
-            l.locationDisclosure,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          Semantics(
+            container: true,
+            child: Text(
+              key: const Key('location-disclosure'),
+              l.locationDisclosure,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+            ),
           ),
           const SizedBox(height: 4),
           // B27+B30 — the REST of the real wire, on the same card: the OSRM
@@ -5816,10 +5840,13 @@ class _HomePageState extends State<HomePage> {
           // (tile.openstreetmap.org sees viewport tiles + IP), and the
           // network-TTS possibility. The coordinates-story she decides with
           // must not omit an egress that exists.
-          Text(
-            key: const Key('egress-disclosure'),
-            l.egressDisclosure,
-            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          Semantics(
+            container: true,
+            child: Text(
+              key: const Key('egress-disclosure'),
+              l.egressDisclosure,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+            ),
           ),
         ],
       );
