@@ -28,6 +28,7 @@ import 'package:sngnav_app/main.dart';
 import 'package:sngnav_app/services/forecast_validity.dart';
 import 'package:sngnav_app/services/jma_forecast_fetch.dart';
 import 'package:sngnav_app/services/trip_hazard_memory.dart';
+import 'package:sngnav_app/widgets/keep_together.dart';
 
 import '../support/fake_alert_actuators.dart';
 
@@ -374,7 +375,14 @@ void main() {
     // With the plan-time caption (exact clock text is host-timezone-dependent;
     // the load-bearing clauses are 出発前 + 観測ではありません).
     expect(find.textContaining('出発前'), findsWidgets);
-    expect(find.textContaining('観測ではありません'), findsOneWidget);
+    // Since 2026-09-25 the caption draws 観測ではありません with word joiners
+    // between its characters, so the negation cannot break across two lines
+    // (lib/widgets/keep_together.dart). Search for the phrase as drawn. A
+    // screen reader gets the plain words through the semantics label.
+    expect(
+        find.textContaining(
+            keepTogether('観測ではありません', const ['観測ではありません'])),
+        findsOneWidget);
     // And the observation feed is honestly empty — the card is never dressed
     // as an observation.
     expect(find.byKey(const Key('jma-no-valid-observation')), findsOneWidget);

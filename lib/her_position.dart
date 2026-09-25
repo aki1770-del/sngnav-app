@@ -344,8 +344,17 @@ class DriveNotificationText {
 ///
 /// **What it deliberately does NOT do.** It does not survive her never having
 /// started a drive, and it must not: `ACCESS_BACKGROUND_LOCATION` stays
-/// withheld and the service exists only behind a notification she started and
-/// can end.
+/// withheld, and the service is only ever STARTED with a notification she can
+/// be shown (main.dart passes no notification text, and so starts no service,
+/// when the app cannot post one).
+///
+/// ⚑ Corrected 2026-09-25. This said the service "exists only behind a
+/// notification she started and can end". Two parts of that were stronger than
+/// what was measured. On an Android 14 emulator one swipe removed this
+/// notification while the service kept running, and on a locked screen it was
+/// not shown; so it does not always stand in front of the service. And what
+/// ends the drive is 停止 in the app, not anything done to the notification.
+/// See the `setOngoing` comment below.
 ///
 /// [notification] null (or any non-Android target) yields plain
 /// [LocationSettings] — desktop, web and tests are untouched, and the

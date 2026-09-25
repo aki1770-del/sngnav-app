@@ -1,5 +1,22 @@
 # The Oct 31 route — what only the project owner can do, in order
 
+> **⚑ Re-read 2026-09-25. This page is the 2026-08-10 measurement, and every
+> relative figure below counts from that date.** Three of its figures no longer
+> hold, and they are left in place below so the plan reads as it was written:
+> - "the permissions we declare identical to **the five** the app ships": the
+>   manifest now declares **eight** (FOREGROUND_SERVICE,
+>   FOREGROUND_SERVICE_LOCATION and POST_NOTIFICATIONS were added in
+>   September). The count in the merged, shipped manifest has not been
+>   re-measured since.
+> - "versionCode 2 unspent": `tool/play_uploaded_version_codes.txt` records
+>   that prediction as superseded.
+> - "due 2026-07-15 … **26 days late**": 26 days as of 2026-08-10. On
+>   2026-09-25 that due date is **72 days** past. Whether a Play Console account
+>   now exists was not checked for this note; that is on Google's side and
+>   outside what this repository can see.
+> The Play policy figures (tester counts, review times, dates) were **not**
+> re-read on 2026-09-25.
+
 Measured 2026-08-10. Every Play figure below was read live from Google's own pages
 on that date, not recalled. **Today is 82 days from Oct 31, and 92 from first ice (Nov 10–25).**
 

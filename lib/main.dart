@@ -103,6 +103,7 @@ import 'services/log_share.dart';
 import 'services/drive_diary.dart';
 import 'services/drive_hud_localizer.dart';
 import 'widgets/update_notice.dart';
+import 'widgets/keep_together.dart';
 import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
 import 'services/turmoil_watch.dart';
@@ -3471,7 +3472,13 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _refreshCorridor() async {
     setState(() => _corridorLoading = true);
-    final results = await fetchCorridorObservations();
+    // With the app's User-Agent, like every other JMA request (an audit
+    // finding, 2026-09-25). This call used to send none, so five of the six AMeDAS
+    // requests at launch went out with dart:io's default, while the privacy
+    // policy said every request carries ours. The file's own reason for the
+    // User-Agent is politeness to JMA (rate-limit accounting and a contact).
+    final results =
+        await fetchCorridorObservations(userAgent: kSngnavAppUserAgent);
     if (!mounted) return;
     setState(() {
       _corridorResults = results;
@@ -3705,9 +3712,15 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// The dialog CARRIES THE DISCLOSURE ITSELF, verbatim: the body is
-  /// [AppL10n.locationDisclosure], the same reviewed text the page shows. The
-  /// act and the thing consented to are one surface, which is the whole
-  /// correction — no new policy language is written here.
+  /// [AppL10n.driveDisclosure] then [AppL10n.locationDisclosure], the same
+  /// reviewed text the page shows. The act and the thing consented to are one
+  /// surface, which is the whole correction — no new policy language is
+  /// written here.
+  ///
+  /// 2026-09-25: the drive sentences come FIRST, in their own block, so they
+  /// are on the dialog's first screen. They used to be the tenth sentence of
+  /// one paragraph, below where the dialog opens, while the agree button is
+  /// always in view.
   Future<bool?> _promptLocationConsent() {
     final l = AppL10n.of(context);
     return showDialog<bool>(
@@ -3715,9 +3728,21 @@ class _HomePageState extends State<HomePage> {
       builder: (ctx) => AlertDialog(
         title: Text(l.locationConsentTitle),
         content: SingleChildScrollView(
-          child: Text(
-            l.locationDisclosure,
-            key: const Key('location-consent-body'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              KeepTogetherText(
+                l.driveDisclosure,
+                key: const Key('location-consent-drive'),
+                words: l.driveDisclosureKeepTogether,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                l.locationDisclosure,
+                key: const Key('location-consent-body'),
+              ),
+            ],
           ),
         ),
         actions: [
@@ -5437,8 +5462,13 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
           const SizedBox(height: 4),
-          Text(
+          // The negation stays whole (2026-09-25): at the golden's width the
+          // caption broke as 「…観測で / はありません」, and before that as
+          // 「…観測ではありませ / ん」. A line that ends 「観測で」 invites the
+          // reading "an observation".
+          KeepTogetherText(
             l.forecastMemoryCaption(time),
+            words: l.forecastMemoryCaptionKeepTogether,
             style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
           ),
         ],
@@ -5699,6 +5729,26 @@ class _HomePageState extends State<HomePage> {
             liveRegion: true,
             child: Text(
               l.locationNotShared,
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+          ),
+          // 2026-09-25: WHAT HAPPENS AFTER A YES, above the control that says
+          // yes. A screen review measured these sentences as the tenth of one
+          // 11 sp paragraph, starting 3 dp below her fold and below the share
+          // button, and ruled: give them a place and keep them together, do
+          // not add words. They are the same words, moved out of
+          // locationDisclosure. Placed here they come before the button for
+          // her eyes and for a screen reader (a dignity review's point), and
+          // their key words cannot break across lines
+          // (lib/widgets/keep_together.dart). Same size and colour as the
+          // status line above. Not yet looked at on a device.
+          const SizedBox(height: 4),
+          Semantics(
+            container: true,
+            child: KeepTogetherText(
+              l.driveDisclosure,
+              key: const Key('drive-disclosure'),
+              words: l.driveDisclosureKeepTogether,
               style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
             ),
           ),
@@ -6909,8 +6959,19 @@ class _DiaryEntryDialogState extends State<_DiaryEntryDialog> {
               controller: _noteController,
               decoration: InputDecoration(
                 labelText: l.diaryNoteLabel,
-                hintText: l.diaryNoteHint,
-                hintMaxLines: 2,
+                // helperText, not hintText (a screen review's ruling,
+                // 2026-09-25). A hint beside a labelText is painted at opacity
+                // 0 until the field has focus: the review measured the
+                // guidance invisible in all 6 cases when the form opened. A
+                // helper line is always drawn.
+                // ⚑ The review's bound travels with this fix: in Japanese the
+                // note field opens BELOW the dialog's fold at every text scale, so
+                // the line is seen when the form opens only in English at
+                // 1.0 (1 of 6), and after scrolling in 6 of 6. Placing it
+                // where she sees it on opening is a separate design job, and
+                // the whole-form redesign was ruled out.
+                helperText: l.diaryNoteHint,
+                helperMaxLines: 2,
                 border: const OutlineInputBorder(),
               ),
               minLines: 2,

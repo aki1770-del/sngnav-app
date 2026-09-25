@@ -81,8 +81,26 @@ class AppL10n {
   // ongoing notification on a Japanese driver's phone is the app telling her
   // it is doing something and not telling her what.
 
+  /// ⚑ CHANGED 2026-09-25, for two findings at once.
+  ///
+  /// (1) A dignity review: the English title said "watching the road for
+  ///     you". It claimed more than the Japanese 「路面の警告を監視しています」
+  ///     and more than the app does: it watches warnings and air readings,
+  ///     never the road, and "for you" reads as standing in for her own
+  ///     watching.
+  /// (2) A screen review: at text scale 1.3 on an Android 14 emulator at her
+  ///     width, the collapsed row showed 「位置情報を使用中。タップ…」. The body
+  ///     lost 停止, the word that ends the drive. The body could not keep both
+  ///     "location in use" and 停止 inside the 12 characters that row shows.
+  ///
+  /// So the title now carries WHAT IS RUNNING, the fact the notification
+  /// exists to disclose (location is in use, for the drive she started), and
+  /// the body carries only HOW TO END IT. Same order as before: what, then how.
+  /// Both titles now say the same thing and claim nothing beyond it.
+  /// `tool/assert_notification_fit.sh` checks both at text scales 1.0 to 2.0.
+  /// Not yet seen on a device: the new words still need a look in the shade.
   String get driveNotificationTitle =>
-      _ja ? '運転中 — 路面の警告を監視しています' : 'Driving — watching the road for you';
+      _ja ? '運転中 — 位置情報を使用中' : 'Driving — location in use';
 
   /// SHORT ON PURPOSE, and the budget is a WIDTH, not a character count.
   ///
@@ -183,9 +201,29 @@ class AppL10n {
   /// real sequence is tap, then 停止: the same two steps `locationDisclosure`
   /// already states in both tongues, and the same word the in-app control
   /// carries (`stop`, above).
-  String get driveNotificationBody => _ja
-      ? '位置情報を使用中。タップ→停止。'
-      : 'Location in use. Tap, then Stop.';
+  ///
+  /// ⚑ 2026-09-25. THE STRING ABOVE WAS CUT AGAIN, AT A TEXT SIZE THE GATE
+  /// NEVER ASKED ABOUT. A screen review rendered it on an Android 14 emulator
+  /// at her width, text scale 1.3: 「位置情報を使用中。タップ…」 and
+  /// "Location in use. Tap, then St…". The gate had passed it, because it
+  /// measured scale 1.0 only. Her font scale is unrecorded, and she is the
+  /// elderly driver this app is for.
+  ///
+  /// The gate now has a text-scale axis. Its row model is calibrated to that
+  /// observation: the 629px prefix seen at 1.0, plus one full-width ellipsis,
+  /// scaled. It reproduces the two 1.3 rows that review saw, character for
+  /// character. Under it the old body loses 停止 from scale 1.15 upward.
+  ///
+  /// So 停止 moved to the front of the body, and "location in use" moved to
+  /// the title (see driveNotificationTitle). 「停止」 is in brackets, as a
+  /// button's name, because 「タップ→停止」 without them can read as "a tap
+  /// stops it" (a hypothesis from the same review, not measured). The body
+  /// still never says a tap ends it.
+  /// Measured widths (37px face): ja 407px, en 364px. The stop word survives
+  /// at every scale from 1.0 to 2.0 in both languages. That is a calculation,
+  /// not a capture; it still needs a look on a device.
+  String get driveNotificationBody =>
+      _ja ? 'タップ→「停止」で終了' : 'Tap, then Stop, to end.';
 
   String get driveNotificationChannel =>
       _ja ? '運転中の位置情報' : 'Location while driving';
@@ -788,28 +826,51 @@ class AppL10n {
   //   (noaa_nws_client.dart:307) — and short-circuits out-of-coverage points
   //   BEFORE any URI is constructed (:305), so a non-US coordinate never
   //   reaches the NWS either.
-  // - JMA wire (Japan), all region/prefecture-keyed public data — precise
-  //   coordinates are NOT sent: (1) the prefecture warning file
-  //   warning/{prefectureCode}.json (condition_aggregator_jma provider,
-  //   prefectureCodesForPoint on-device); (2) the regional AMeDAS observation
-  //   (jma_fetch.dart, Akita station 32402); (3) the prefecture forecast
-  //   forecast/{areaCode}.json (jma_forecast_fetch.dart, Akita 050000).
-  // - Cadence: the warning refresh fires about once per ~1 km of travel
-  //   (_maybeRefreshAdvisoriesForFix in main.dart, 0.01° gate); the whole JMA
-  //   set (AMeDAS + forecast via _refreshJma, warning via the advisory refresh)
-  //   also fires on a 10-minute foreground ticker (_jmaTicker, main.dart) even
-  //   while stopped. Coordinates are held only in memory, never persisted,
+  // - JMA wire (Japan). ⚑ CORRECTED 2026-09-25, on an audit finding: this
+  //   bullet called all three requests "region/prefecture-keyed" and the card
+  //   promised "the forecast for your prefecture". Only ONE of the three
+  //   follows her position. Read at the call sites on 5b80fcb:
+  //   (1) the warning file warning/data/r8/{prefectureCode}.json
+  //       (condition_aggregator_jma, prefectureCodesForPoint on-device). This
+  //       one follows her position. With no position (not shared, or no fix
+  //       yet) _onAdvisoryRefreshTapped asks for Akita's (050000).
+  //   (2) AMeDAS observations: _refreshJma calls fetchLatestObservation with
+  //       its default station, Akita 32402; _refreshCorridor calls
+  //       fetchCorridorObservations over five FIXED Akita-prefecture stations.
+  //   (3) the forecast: _captureTripHazardMemory calls fetchJmaForecast with
+  //       its default area, Akita 050000.
+  //   (2) and (3) take no position argument, are not gated on consent, and run
+  //   from initState. For HER in Akita the content coincides; anywhere else
+  //   she would be given Akita's, so the card says Akita's. Making them follow
+  //   her region is a product decision with its own consent cost and is NOT
+  //   made here. test/l10n/consent_localization_test.dart ties these words to
+  //   those call sites, so the card and the code cannot drift apart silently.
+  // - Cadence. ⚑ CORRECTED 2026-09-25, on the same audit: this bullet said
+  //   "the whole JMA set" fires every 10 minutes. The warning refresh fires about
+  //   once per ~1 km of travel (_maybeRefreshAdvisoriesForFix, 0.01° gate)
+  //   and on the 10-minute ticker (_jmaTicker → _onAdvisoryRefreshTapped).
+  //   The Akita observation (32402) is on that ticker too. The forecast is
+  //   NOT: _captureTripHazardMemory returns early while its memory is under
+  //   3 hours old, so it is re-requested about every 3 hours, and every 10
+  //   minutes only while it keeps failing. The five other corridor stations
+  //   are fetched at launch and when she taps refresh. The card states only
+  //   the cadence of the request that follows her position; the rest is on
+  //   the policy page. Coordinates are held only in memory, never persisted,
   //   never sent to any server this app runs (there is none).
   //
   //   SCOPE CHANGED 2026-09-24 and this copy changed WITH it, in the same
   //   change-set, because otherwise it would be the false claim: a drive she
   //   starts now continues with the app backgrounded and the screen off, via
-  //   geolocator's foreground service behind a persistent notification
+  //   geolocator's foreground service behind a notification it posts
   //   (lib/her_position.dart). It is still NOT background location:
-  //   ACCESS_BACKGROUND_LOCATION remains withheld, nothing starts without her
-  //   tapping 現在地を共有, and the notification cannot be separated from the
-  //   collection. "Foreground-only per AndroidManifest.xml" used to be the
-  //   whole story and is no longer; saying so is the point of this comment.
+  //   ACCESS_BACKGROUND_LOCATION remains withheld, and nothing starts without
+  //   her tapping 現在地を共有. ⚑ CORRECTED 2026-09-25, on the same audit:
+  //   this paragraph also said "the notification cannot be separated from the
+  //   collection". Measured on an Android 14 emulator it CAN: one swipe removed
+  //   it while the service kept running, and on a locked screen it was not
+  //   shown. The sentence was the premise the copy was written from, so it is
+  //   corrected here and not only below it. The drive sentences now live in
+  //   [driveDisclosure].
   //
   // BOTH locales state both regional facts: locale is NOT location — a
   // Japanese-reading driver in the US would hit the NWS point path, so the ja
@@ -819,41 +880,83 @@ class AppL10n {
   String get locationDisclosure => _ja
       ? '現在地を共有すると、周辺の警報・注意報の取得に使われます。'
           '日本国内では座標が端末の外へ送信されることはありません — '
-          '端末内で現在地から都道府県・地域を判定し、気象庁の公開データに対して、'
-          '都道府県コードによる警報・注意報、地域のアメダス観測、'
-          '都道府県の予報を要求します。いずれも都道府県・地域単位の公開データで、'
-          '正確な座標は送信しません。警報・注意報は走行約1kmごとに更新され、'
-          'これらの取得は、停車中でも、また運転中に画面を消していても、'
-          '約10分ごとに行われます。'
+          '端末内で現在地から都道府県を判定し、気象庁には都道府県コードで'
+          '警報・注意報を要求します。正確な座標は送信しません。'
+          '警報・注意報は走行約1kmごとに、また停車中や、運転中に画面を'
+          '消しているときも約10分ごとに更新されます。'
           'アメリカ合衆国内では、地点の警報を取得するため座標が'
           '米国国立気象局（NWS）へ送信されます。'
           '現在地を管轄しない気象機関へ問い合わせることはありません。'
-          '共有は任意です。運転を開始すると、アプリを閉じて画面を消していても'
-          '継続します。運転中は通知を出しますが、ロック中の画面には表示されない'
-          'ことがあり、Android 14 以降はスワイプで消せます。消しても受信は'
-          '止まりません — 終了するには、アプリを開いて（または通知をタップして）'
-          '「停止」を押してください。'
-          '位置情報は端末に保存されず、'
+          '共有するかどうかに関係なく、アプリは起動時から気象庁の秋田のデータも'
+          '取得します — 秋田県内のアメダス観測、秋田県の予報、そして現在地を'
+          '使えないあいだは秋田県の警報・注意報です。これらは現在地を使わない、'
+          '秋田に固定された要求です。'
+          '共有は任意です。位置情報は端末に保存されず、'
           '本アプリ独自のサーバーへ送信されることもありません。'
       : 'When you share your location, it is used to fetch nearby weather '
           'advisories. In Japan your coordinates never leave the device: the '
-          'app determines your prefecture and region on the device and '
-          'requests, from the JMA public data, the warning file for your '
-          'prefecture code, the regional AMeDAS observations, and the '
-          'forecast for your prefecture — all prefecture- or region-keyed '
-          'public data, so your exact coordinates are not sent. The warning '
-          'file is refreshed about once per kilometre of travel; all three '
-          'are re-requested about every 10 minutes — when stopped, and when '
-          'driving with the screen off. In the United States your coordinates '
-          'are sent to the NWS to fetch alerts for your exact point. A '
-          'service that does not cover your location is never contacted. '
-          'Sharing is opt-in. Once you start a drive it keeps going with the '
-          'app closed and the screen off. A notification is posted for the '
-          'drive, but it may not show on a locked screen, and from Android 14 '
-          'you can swipe it away — that does not stop the drive. To end it, '
-          'open the app (or tap the notification), then Stop. '
+          'app works out your prefecture on the device and asks the JMA for '
+          "that prefecture's warnings by prefecture code, so your exact "
+          'coordinates are not sent. The warnings are refreshed about once per '
+          'kilometre of travel, and about every 10 minutes when stopped or '
+          'when driving with the screen off. In the United States your '
+          'coordinates are sent to the NWS to fetch alerts for your exact '
+          'point. A service that does not cover your location is never '
+          'contacted. Whether or not you share, the app also fetches Akita '
+          'data from the JMA from the moment it starts: AMeDAS observations in '
+          'Akita Prefecture, the Akita Prefecture forecast, and, while your '
+          'position is not available, the Akita Prefecture warnings. These '
+          'requests do not use your location; they are fixed to Akita. '
+          'Sharing is opt-in. '
           "Your location is never stored on the device or sent to this "
           "app's own servers.";
+
+  // ===== The drive sentences (2026-09-25) =====
+  //
+  // WHY THEY ARE THEIR OWN BLOCK. A screen review rendered the consent card at
+  // her geometry: these sentences were the TENTH sentence of one 501-character
+  // paragraph in 11 sp grey, starting 3 dp below her fold at text scale 1.0,
+  // and BELOW the share button. At 1.3 they were on her second screen. They
+  // are the part of the consent that changes what happens after she says yes:
+  // the drive keeps going, the notification can vanish, and only one control
+  // in the app ends it. The review's ruling: keep the sentence together and
+  // give it a place, rather than add words. So the words are the same, moved out of
+  // [locationDisclosure] into this block, which the card draws ABOVE the
+  // share button and the consent dialog draws FIRST.
+  //
+  // ONE CLAUSE CHANGED, on the audit. "アプリを閉じて" / "with the app closed"
+  // is gone. No record measures what happens when she removes the app from
+  // the recent-apps list, and reading geolocator_android 4.6.2 does not settle
+  // it (the service is bound, START_STICKY, and whether the engine is torn
+  // down decides the rest). What IS behind the claim: the foreground service
+  // (isForeground=true measured on an emulator, 2026-09-24) keeps the app in
+  // the foreground class while the screen is off or another app is in front.
+  // The policy page states the recents case as not yet checked.
+  //
+  // The key words cannot break across lines: [driveDisclosureKeepTogether],
+  // drawn through lib/widgets/keep_together.dart. The review saw 「通/知」,
+  // 「止まりま/せん」 (a line ending on "reception stops") and 「停/止」.
+
+  String get driveDisclosure => _ja
+      ? '運転を開始すると、画面を消しても、ほかのアプリに切り替えても継続します。'
+          '運転中は通知を出しますが、ロック中の画面には表示されないことがあり、'
+          'Android 14 以降はスワイプで消せます。消しても受信は止まりません。'
+          '終了するには、アプリを開いて（または通知をタップして）'
+          '「停止」を押してください。'
+      : 'Once you start a drive it keeps going with the screen off or while '
+          'you use another app. A notification is posted for the drive, but it '
+          'may not show on a locked screen, and from Android 14 you can swipe '
+          'it away — that does not stop the drive. To end it, open the app (or '
+          'tap the notification), then Stop.';
+
+  /// Words in [driveDisclosure] that must never break across two lines.
+  /// Each must occur in the text; test/widgets/keep_together_test.dart checks
+  /// that, and that no width or text scale splits them. 「停止」 is protected
+  /// WITH its brackets: Japanese line breaking already glues 「 and 」 to the
+  /// word, so the unit that must fit on one line is the bracketed one.
+  List<String> get driveDisclosureKeepTogether => _ja
+      ? const ['止まりません', 'スワイプ', 'Android 14', '通知', '「停止」']
+      : const ['does not stop', 'Android 14', 'Stop'];
 
   // ===== Other-egress disclosure (B27 + B30) — the rest of the wire =====
   //
@@ -931,6 +1034,21 @@ class AppL10n {
   /// Dismiss action.
   String get updateDismiss => _ja ? '閉じる' : 'Dismiss';
 
+  // ⚑ 2026-09-25, on an audit finding: 【更新確認】 said 「走行中は行いません」 /
+  // "never while driving". The code's guard (`if (_driveActive) return;` in
+  // _runUpdateCheck) is read once, on the first frame, when no drive can have
+  // started yet, and is not read again after its awaits. So the guard never
+  // fires, and a drive started while the check is still running does not stop
+  // it. The sentence now says only what the code does: once, just after start.
+  //
+  // 2026-09-25, with the manifest address reader (lib/services/update_check.dart,
+  // `_goAndSee`): the version file may name a new https address for itself.
+  // When it names one other than the address it was fetched from, the app
+  // sends one GET there (redirects not followed), whether or not a newer build
+  // is listed, and stores the address only if the file there names itself and
+  // describes this app. It is used from the next launch. This sentence ships
+  // in the same build as that reader, or not at all:
+  // test/store/address_reader_disclosure_parity_test.dart fails otherwise.
   String get egressDisclosure => _ja
       ? 'このほかに端末の外と通信するのは次の場合のみです。'
           '【経路計算】地図で選んだ出発地と目的地の座標は、確認画面で同意した'
@@ -942,8 +1060,11 @@ class AppL10n {
           '【音声】音声警告は端末に同梱した音声を優先します。端末の音声エンジンが'
           'ネットワーク音声を使う場合、読み上げる文がOSの音声提供元を'
           '経由することがあります。'
-          '【更新確認】アプリを起動するたびに 1 回（走行中は行いません）、'
-          'raw.githubusercontent.com から更新情報ファイルを取得します。'
+          '【更新確認】アプリを起動した直後に 1 回だけ、更新情報ファイルを'
+          '取得します。取得先は最初は raw.githubusercontent.com で、'
+          'ファイルが自分の新しい置き場所（https のアドレス）を示したときは、'
+          'その場所へも 1 回要求を送って確かめ、確かめられれば次の起動から'
+          'そこを使います。'
           'より新しいビルドが載っていたときに限り、そのファイルが示す配布先に、'
           '入手できるかどうかの確認だけを送ります（ダウンロードはしません）。'
           '送るのは要求だけです。識別子・位置情報・端末IDは'
@@ -958,9 +1079,12 @@ class AppL10n {
           'the bundled on-device audio; if the device speech engine uses a '
           'network voice, the spoken text may pass through the OS voice '
           'vendor. '
-          'Update check — once each time the app starts (never while driving), '
-          'it fetches a version file from raw.githubusercontent.com. Only if '
-          'that file lists a newer build does it also ask the download '
+          'Update check — once, just after the app starts, '
+          'it fetches a version file, at first from raw.githubusercontent.com. '
+          'If that file names a new https address for itself, the app sends '
+          'one request there to check it, and if the file there names itself, '
+          'uses that address from the next launch. Only if '
+          'the version file lists a newer build does it also ask the download '
           'location the file names whether the build is really there — an '
           'existence check, never a download. Only the requests are sent: no '
           'identifier, no location, no device ID.';
@@ -1359,10 +1483,25 @@ class AppL10n {
   /// of the offline-survival fix).
   /// [time] is the local clock time the memory was captured — before
   /// departure, while the network was still alive.
+  ///
+  /// ⚑ 2026-09-25: names AKITA, because the forecast is Akita's. It is
+  /// fetched with fetchJmaForecast's default area, 050000, wherever she is
+  /// (an audit asked whether this line says so; measured, it did not). For a
+  /// driver in Akita nothing changes. For anyone else, the card used to show
+  /// Akita's snow forecast as if it were for her route.
+  /// ⚑ NOT CHANGED HERE: the SPOKEN line from the same memory
+  /// (kForecastSnowValidJa in services/trip_hazard_memory.dart) still says
+  /// 「出発前に取得した気象庁の予報では、この時間帯は雪の予報です」 without
+  /// Akita. It is a recorded offline clip and a safety sentence; changing it
+  /// needs a safety ruling and a clip re-render in the same change.
   String forecastMemoryCaption(String time) => _ja
-      ? '出発前 $time に取得した気象庁の予報 — 観測ではありません。'
-      : 'JMA forecast fetched at $time, before departure — a forecast, not '
-          'an observation.';
+      ? '出発前 $time に取得した秋田県の予報（気象庁）— 観測ではありません。'
+      : 'JMA forecast for Akita Prefecture, fetched at $time before '
+          'departure — a forecast, not an observation.';
+
+  /// The negation in [forecastMemoryCaption] must not break across lines.
+  List<String> get forecastMemoryCaptionKeepTogether =>
+      _ja ? const ['観測ではありません'] : const ['not an observation'];
 
   /// A failed advisory fetch: the app's own words and nothing after them, as
   /// the route line ([routeFetchFailed]). Until 2026-09-15 this line ended with the
