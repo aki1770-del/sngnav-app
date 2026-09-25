@@ -97,8 +97,9 @@ enum ManifestAddress {
   refused,
 
   /// The manifest named a new https address, and that address did not verify:
-  /// it did not answer 200 in time, its body did not parse, the manifest there
-  /// did not name ITSELF, or it described a different app. Nothing was stored.
+  /// it did not answer 200 itself in time (a redirect is not an answer), its
+  /// body did not parse, the manifest there did not name ITSELF, or it
+  /// described a different app. Nothing was stored.
   unverified,
 
   /// The new address verified, but storing it failed. Nothing was stored; the
@@ -194,7 +195,12 @@ class UpdateChecker {
   ///    holder has launched once. A holder who does not launch inside that
   ///    window is stranded exactly as before, and nothing here can tell him;
   ///  - builds WITHOUT this reader cannot follow a move at all. Their only
-  ///    address is the one they were compiled with.
+  ///    address is the one they were compiled with;
+  ///  - a new address must answer 200 ITSELF. One that redirects is never
+  ///    learned, because the reader does not follow redirects (see
+  ///    `_goAndSee`). Measured 2026-09-25: a GitHub release-asset download
+  ///    link answered 302, and a file on raw.githubusercontent.com answered
+  ///    200 directly.
   static const String defaultManifestUrl = String.fromEnvironment(
     'SNGNAV_UPDATE_MANIFEST_URL',
     defaultValue:
@@ -389,10 +395,18 @@ class UpdateChecker {
       return (outcome: ManifestAddress.unchanged, store: null);
     }
 
-    final res = await _client.get(named, headers: const {
-      'Accept': 'application/json',
-      'Cache-Control': 'no-cache',
-    });
+    // NO REDIRECTS. Measured 2026-09-25 over real loopback TLS with the same
+    // http client this app uses: a 301 from an https address to a plaintext
+    // http host was FOLLOWED, the manifest that "verified" the new address
+    // arrived unencrypted, and the address was stored. https-only has to hold
+    // for every hop that decides where later checks go, not only for the first.
+    // An address that redirects is also not where the manifest lives, so the
+    // new address must answer 200 itself.
+    final req = http.Request('GET', named)
+      ..followRedirects = false
+      ..headers['Accept'] = 'application/json'
+      ..headers['Cache-Control'] = 'no-cache';
+    final res = await http.Response.fromStream(await _client.send(req));
     if (res.statusCode != 200) return unverified;
     final there = UpdateManifest.tryParse(utf8.decode(res.bodyBytes));
     if (there == null) return unverified;

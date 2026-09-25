@@ -628,6 +628,37 @@ void main() {
       });
     }
 
+    // Measured 2026-09-25 over real loopback TLS with the app's own http
+    // client: a 301 from the new https address to a PLAINTEXT host was
+    // followed, and the address was stored on an unencrypted answer. MockClient
+    // never follows a redirect, so a status-only test here would pass either
+    // way; what pins the fix is the flag on the request itself, which
+    // MockClient passes through (http 1.6.0, mock_client.dart) and the real
+    // IOClient honours.
+    test('the new address is fetched with redirects OFF, and a 301 is not an '
+        'answer: nothing stored', () async {
+      bool? followed;
+      final c = MockClient((req) async {
+        switch ('${req.url}') {
+          case oldAddr:
+            return ok(atOld(named: newAddr));
+          case newAddr:
+            followed = req.followRedirects;
+            return http.Response('', 301, headers: {
+              'location': 'http://new.example.test/sngnav/update_manifest.json',
+            });
+          case artifact:
+            return ok('');
+        }
+        throw const Unroutable();
+      });
+      final r = await checkerWith(c).check(manifestUrl: Uri.parse(oldAddr));
+      expect(followed, isFalse,
+          reason: 'a real client would follow this 301 to a plaintext host');
+      expect(r.address, ManifestAddress.unverified);
+      expect(stored().existsSync(), isFalse);
+    });
+
     test('an http:// new address is refused and NEVER FETCHED, not even to '
         'look', () async {
       final asked = <String>[];
