@@ -196,6 +196,16 @@ The instruction ("do not worry about mistakes / use loupe") called for a lasting
 
 ---
 
+## TRAP-19 — a guard that reads source as text passes the defect whenever the name survives as text
+
+- **First observed**: 2026-09-25, when an independent mutation corpus, written by a hand other than the guards' author, was run against `test/voice/announce_call_site_census_test.dart` and `test/architectural/pubspec_citations_resolve_test.dart` at `c252a32`; reproduced unchanged on `5b80fcb`.
+- **Symptom**: nine real defects passed. A release voice's only call removed with its name left in a trailing comment, in a debug string, or in a dead arrow-bodied method; the whiteout caution replaced by a no-op carrying its name in a comment; the developer-page gate kept as text but governing a `SizedBox`, or weakened from `&&` to `||`; a blank line detaching a pubspec justification while its import was removed (the guard's own count fell from `imports=6` to `imports=4` and it still said `problems=0`); an import inside `/* */`; a cited file on disk but not committed. The author's own eight mutants each deleted or added the thing itself, so they shared the guard's model of the defect and found none of these.
+- **Class**: an instrument that reads text where it claims to read code; a proximity check ("within 8 lines") standing in for a structural one ("governs"); a count that can fall without failing; a mutation set that shares its author's blind spot.
+- **Pre-flight check**: remove the THING and leave its NAME behind as text (trailing comment, string, block comment, dead method, field initializer, a debug-only `if`) and watch the guard fail; prove "is gated" by moving the governed element, not by deleting the gate; pin sets, not counts; have someone other than the author write the corpus. Measured after the fix (`0eb9257`): all nine fail, the healthy tree and both healthy controls pass. Still not seen by the census: code after a `return`. `flutter analyze` fails on that (`dead_code`, exit 1), unless an `ignore` comment suppresses it.
+- **Linked feedback memory**: none.
+
+---
+
 ## Vision attribution (file-level, 3-slot)
 
 - `sakichi_vision_id = 11` (anyone may stop the line; this trap log was installed after the instruction "do not worry about mistakes / use loupe" called for an improvement artifact)
