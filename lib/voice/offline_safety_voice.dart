@@ -194,7 +194,7 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   // just took. This is the line no other product in Japan can say in a dead
   // zone — every predictive competitor is server-side.
   'forecast_snow_valid':
-      '出発前に取得した気象庁の秋田県の予報では、この時間帯は雪の予報です。これは観測ではなく予報です。速度を落とし、車間距離をとってください。',
+      '前もって取得した気象庁の秋田県の予報では、この時間帯は雪の予報です。これは観測ではなく予報です。速度を落とし、車間距離をとってください。',
 
   // --- THE WARNING-CHANNEL CHECK (main.dart _fireChannelCheck). The line she
   // hears when she tests her warning channels, parked. It plays from this

@@ -234,6 +234,59 @@ void main() {
     });
   }
 
+  // A DAMAGED RECORD IS NOT A CHANGE (2026-09-25, a dignity review). A yes
+  // that names the current revision but whose words are missing or
+  // unreadable is not honoured, so she is asked; but the words she was shown
+  // have not changed, and the line 「この説明が変わりました」 would tell her
+  // they had. She is asked plainly.
+  for (final (what, record) in <(String, Map<String, Object>)>[
+    (
+      'no words',
+      {
+        'schema': 2,
+        'locationShareConsent': true,
+        'decidedAt': '2026-09-25T00:00:00.000Z',
+        'disclosureRevision': kLocationConsentRevision,
+      },
+    ),
+    (
+      'an empty list of words',
+      {
+        'schema': 2,
+        'locationShareConsent': true,
+        'decidedAt': '2026-09-25T00:00:00.000Z',
+        'disclosureRevision': kLocationConsentRevision,
+        'disclosureLocale': 'ja',
+        'disclosureWords': <String>[],
+      },
+    ),
+    (
+      'words that cannot be read',
+      {
+        'schema': 2,
+        'locationShareConsent': true,
+        'decidedAt': '2026-09-25T00:00:00.000Z',
+        'disclosureRevision': kLocationConsentRevision,
+        'disclosureLocale': 'ja',
+        'disclosureWords': [1, 2, 3],
+      },
+    ),
+  ]) {
+    testWidgets('a yes to the current revision with $what: she is asked, '
+        'and never told the description changed', (tester) async {
+      await write(tester, record);
+      final c = await launch(tester);
+      await tapShare(tester);
+      expect(find.byKey(_accept), findsOneWidget,
+          reason: 'the record is not honoured, so she is asked');
+      expect(find.byKey(_askedAgain), findsNothing,
+          reason: 'nothing changed: the record is damaged, and saying '
+              '「この説明が変わりました」 would be false');
+      expect(c.starts, 0, reason: 'nothing starts until she answers');
+      await c.controller.close();
+    });
+  }
+
   for (final (what, record) in <(String, Map<String, Object>)>[
     (
       'as written until 2026-09-25',

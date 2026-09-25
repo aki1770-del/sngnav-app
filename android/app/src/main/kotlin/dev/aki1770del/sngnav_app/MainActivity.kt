@@ -417,6 +417,30 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        // BACK DURING A DRIVE -- the app goes to the background, as with Home.
+        //
+        // Without this, Back on the main page ended the drive with nothing
+        // said to her: Flutter's SystemNavigator.pop() makes this plain
+        // Activity call finish(), the engine goes with it, and the position
+        // stream and the drive notification with the engine. Measured on an
+        // Android 14 emulator on 2026-09-25. The Dart side (lib/main.dart,
+        // PopScope) now intercepts Back while a drive runs and asks for this
+        // instead. moveTaskToBack does not finish the activity, so nothing is
+        // torn down: the drive continues as the consent she read says it does
+        // when she switches away, and 停止 remains the way to end it.
+        // nonRoot=true: move the whole task whichever activity is on top.
+        // Answers what the platform answered; false leaves the app where it
+        // is, with the drive running and 停止 on the page.
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "sngnav/app_task",
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "moveTaskToBack" -> result.success(moveTaskToBack(true))
+                else -> result.notImplemented()
+            }
+        }
     }
 
     override fun onRequestPermissionsResult(

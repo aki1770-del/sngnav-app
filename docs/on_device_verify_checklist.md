@@ -78,7 +78,7 @@ Set the device language to 日本語 (Settings → System → Languages) — or 
 the app's JA strings directly (the l10n keys are locale-driven).
 
 - [ ] Before any grant: the JA deny-by-default line shows —
-      `位置情報はまだ共有されていません。` — and NO permission dialog has
+      `位置情報は共有されていません。` — and NO permission dialog has
       appeared uninvited (deny-by-default: nothing touches GPS until her own act).
 - [ ] Tap `現在地を共有` (Share my location) → the **OS** permission dialog
       appears, in Japanese, offering while-in-use only.
@@ -128,6 +128,22 @@ needs network; INTERNET permission is in the APK.
       haptic; the whiteout-blinded driver gets the audio).
 - [ ] Screen is HELD LIT (wakelock) — a glance never finds a dark screen.
 - [ ] De-dup: a steady rung does not re-announce every tick; a re-RISE does.
+
+### 6b. Back and the way back to 停止, during a drive (2 min, added 2026-09-25)
+
+Back used to END the drive with nothing said (an Android 14 emulator showed
+the GPS registration removed and the notification withdrawn at the moment of
+Back). It now sends the app to the background, as Home does.
+
+- [ ] Start a drive. Press Back (the button, or the edge gesture) → the app
+      leaves the screen as with Home; the drive notification is STILL in the
+      shade (`adb shell dumpsys activity services` still lists the location
+      service as foreground). Nothing is spoken: the drive has not ended.
+- [ ] Tap the notification → the app returns with 停止 on the screen, without
+      scrolling. Repeat after scrolling the page far down before leaving.
+- [ ] With no drive running, Back still leaves the app as before.
+- [ ] Note the Android version: her phone is Android 10 (MIUI); the emulator
+      that found the defect was Android 14.
 
 ### 7. Record what you saw (1 min)
 

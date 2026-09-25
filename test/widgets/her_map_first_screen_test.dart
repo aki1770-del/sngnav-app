@@ -64,7 +64,7 @@ void main() {
           reason: 'the whole map is on the first screen: $map of '
               '${logical.height} px');
 
-      final line = find.text('位置情報はまだ共有されていません。');
+      final line = find.text('位置情報は共有されていません。');
       expect(line, findsOneWidget, reason: 'control: the line under the map');
       final l = tester.getRect(line);
       expect(l.top, greaterThan(map.bottom),

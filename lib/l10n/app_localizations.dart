@@ -54,8 +54,16 @@ class AppL10n {
 
   // ===== Consent affordance (deny-by-default; nothing runs until she taps) =====
 
+  /// The one line drawn in every not-sharing state: first launch, after 停止,
+  /// after a withdrawal, and on the launch that follows a drive ended by the
+  /// system. ⚑ CHANGED 2026-09-25, on a dignity review: it said
+  /// 「位置情報はまだ共有されていません。」 / "Location not yet shared.". 「まだ」 /
+  /// "yet" is false after a drive she started and ended, and it leans toward
+  /// sharing; heard just after 停止 (the line is a live region), "not yet
+  /// shared" sounds as if her share never happened. The present tense is true
+  /// in all four states and asks nothing of her.
   String get locationNotShared =>
-      _ja ? '位置情報はまだ共有されていません。' : 'Location not yet shared.';
+      _ja ? '位置情報は共有されていません。' : 'Location is not being shared.';
 
   String get shareMyLocation => _ja ? '現在地を共有' : 'Share my location';
 
@@ -97,10 +105,23 @@ class AppL10n {
   /// exists to disclose (location is in use, for the drive she started), and
   /// the body carries only HOW TO END IT. Same order as before: what, then how.
   /// Both titles now say the same thing and claim nothing beyond it.
-  /// `tool/assert_notification_fit.sh` checks both at text scales 1.0 to 2.0.
-  /// Not yet seen on a device: the new words still need a look in the shade.
+  ///
+  /// ⚑ CHANGED AGAIN 2026-09-25: 「運転中 — 」 / "Driving — " is gone, on a
+  /// dignity review, and nothing comes after the words. On Android 14 the
+  /// collapsed row puts the title, the time and the expand arrow on one line,
+  /// and the review measured the title cut at its END: 「運転中 – 位置情報を…」
+  /// at text size 1.3 and 「運転中 – 位…」 at 2.0, so "in use" was lost from 1.3
+  /// and 位置情報 at 2.0, while 運転中 survived. 運転中 describes the app's mode,
+  /// not her: after a forgotten drive it says "driving" while she is at home,
+  /// which is exactly when this row matters. 「位置情報を使用中」 is true
+  /// whenever the row can be seen. It is 8 em wide and stays whole through
+  /// text size 1.5 while the time beside it reads under ten hours; from ten
+  /// hours the time is one digit wider, and at 1.5 the row model cuts it to
+  /// 「位置情報を使…」. The meaning survives that cut.
+  /// `tool/assert_notification_fit.sh` gates the title on a text-size axis
+  /// with the time beside it. Not yet seen on a device.
   String get driveNotificationTitle =>
-      _ja ? '運転中 — 位置情報を使用中' : 'Driving — location in use';
+      _ja ? '位置情報を使用中' : 'Location in use';
 
   /// SHORT ON PURPOSE, and the budget is a WIDTH, not a character count.
   ///
@@ -979,8 +1000,22 @@ class AppL10n {
   /// word, so the unit that must fit on one line is the bracketed one.
   /// 位置情報 / "your location" joined 2026-09-25 with the word they name: a
   /// line ending on 「位置」 or "your" would drop the object again.
+  /// 位置情報の使用 joined the same day, on a screen review: in renders at her
+  /// geometry the phrase split as 「位置/情報」 in the dialog at text size 1.15
+  /// and 「使/用」 on the card at 1.3 and in the dialog at 2.0. It is 7
+  /// characters; the narrowest line measured holds about 10 at 2.0. It names
+  /// the fact the notification's title names (位置情報を使用中), and a line
+  /// ending on 「使」 would leave that fact half said.
   List<String> get driveDisclosureKeepTogether => _ja
-      ? const ['止まりません', 'スワイプ', 'Android 14', '通知', '「停止」', '位置情報']
+      ? const [
+          '止まりません',
+          'スワイプ',
+          'Android 14',
+          '通知',
+          '「停止」',
+          '位置情報',
+          '位置情報の使用',
+        ]
       : const ['does not stop', 'Android 14', 'Stop', 'your location'];
 
   // ===== Other-egress disclosure (B27 + B30) — the rest of the wire =====
@@ -1074,6 +1109,17 @@ class AppL10n {
   // describes this app. It is used from the next launch. This sentence ships
   // in the same build as that reader, or not at all:
   // test/store/address_reader_disclosure_parity_test.dart fails otherwise.
+  //
+  // 2026-09-25, round 5b: REDIRECTS, so this card and the policy she can open
+  // say the same thing (policy flow 6, landed by the update-check lane). What
+  // the code does (lib/services/update_check.dart, HttpsHopsOnlyClient): the
+  // fetch of the version file and the existence check are GET and HEAD
+  // requests that follow 301/302/303/307/308 only to an https address, at
+  // most 5 in a row, keeping the method and headers; a hop that is not https,
+  // or a sixth, throws before anything is sent to it, and every caller reads a
+  // throw as an answer that announces nothing. The one request that checks a
+  // new address sets followRedirects = false, so it follows none. Any request
+  // shows its IP address to the server it reaches.
   String get egressDisclosure => _ja
       ? 'このほかに端末の外と通信するのは次の場合のみです。'
           '【経路計算】地図で選んだ出発地と目的地の座標は、確認画面で同意した'
@@ -1092,6 +1138,11 @@ class AppL10n {
           'そこを使います。'
           'より新しいビルドが載っていたときに限り、そのファイルが示す配布先に、'
           '入手できるかどうかの確認だけを送ります（ダウンロードはしません）。'
+          '更新情報ファイルの取得とこの確認では、サーバーが別のアドレスへ'
+          '転送（リダイレクト）することがあります。たどるのは https への転送'
+          'だけで、続けて 5 回までです。それ以外はたどらず、その先には何も'
+          '送らず、何も表示しません。転送先のサーバーにも IP アドレスが'
+          '届きます（新しい置き場所を確かめる要求は転送をたどりません）。'
           '送るのは要求だけです。識別子・位置情報・端末IDは'
           '一切送信しません。'
       : 'The only other times this app talks to the outside: '
@@ -1111,7 +1162,13 @@ class AppL10n {
           'uses that address from the next launch. Only if '
           'the version file lists a newer build does it also ask the download '
           'location the file names whether the build is really there — an '
-          'existence check, never a download. Only the requests are sent: no '
+          'existence check, never a download. The server may redirect the '
+          'request for the version file, or this check, to another address. '
+          'The app follows a redirect only to an https address, at most 5 in '
+          'a row; any other redirect is not followed, nothing is sent onward, '
+          'and nothing is shown. The server a request is redirected to also '
+          'sees your IP address (the request that checks a new address '
+          'follows no redirects). Only the requests are sent: no '
           'identifier, no location, no device ID.';
 
   // ===== Location-share consent (2026-09-23) =====
@@ -1148,13 +1205,21 @@ class AppL10n {
   /// locale, which reads the English words.
   String get wordsLanguage => _ja ? 'ja' : 'en';
 
-  /// Said first in the dialog when she agreed before, to words that no longer
-  /// describe what sharing does. Asking again without saying why would read as
-  /// the app having lost her answer.
+  /// Said first in the dialog when she agreed before, to another revision of
+  /// the words. Asking again without saying why would read as the app having
+  /// lost her answer. Never said for a damaged record of a yes to the current
+  /// words: nothing changed, so it would be false
+  /// (LocationConsentRecord.isYesToOtherRevision).
+  ///
+  /// ⚑ CHANGED 2026-09-25, on a dignity review: the second sentence said
+  /// 「もう一度お読みください」 / "Please read it again", which asks her to
+  /// re-read a text that is not the one she read and never says what is being
+  /// asked. 「もう一度お選びください」 names a new choice with both answers
+  /// open. It does not ask for 同意.
   String get locationConsentAskedAgain => _ja
-      ? '前回同意したあとで、この説明が変わりました。もう一度お読みください。'
+      ? '前回同意したあとで、この説明が変わりました。もう一度お選びください。'
       : 'This description has changed since you last agreed. '
-          'Please read it again.';
+          'Please choose again.';
 
   /// Takes back OUR consent. Drawn only while we hold a yes.
   String get locationConsentWithdraw =>
@@ -1533,8 +1598,10 @@ class AppL10n {
 
   /// Caption under the visible forecast-memory card (the visible counterpart
   /// of the offline-survival fix).
-  /// [time] is the local clock time the memory was captured — before
-  /// departure, while the network was still alive.
+  /// [time] is the local clock time the memory was captured, while the
+  /// network was still alive. That is not always before departure: the
+  /// memory is re-captured during a drive once it is 3 hours old, so the
+  /// caption states the time and claims nothing about departure.
   ///
   /// ⚑ 2026-09-25: names AKITA, because the forecast is Akita's. It is
   /// fetched with fetchJmaForecast's default area, 050000, wherever she is
@@ -1546,9 +1613,9 @@ class AppL10n {
   /// 「気象庁の秋田県の予報」, from the same change that re-rendered its
   /// offline clip (forecast_snow_valid.wav).
   String forecastMemoryCaption(String time) => _ja
-      ? '出発前 $time に取得した秋田県の予報（気象庁）— 観測ではありません。'
-      : 'JMA forecast for Akita Prefecture, fetched at $time before '
-          'departure — a forecast, not an observation.';
+      ? '$time に取得した秋田県の予報（気象庁）— 観測ではありません。'
+      : 'JMA forecast for Akita Prefecture, fetched at $time — a forecast, '
+          'not an observation.';
 
   /// The negation in [forecastMemoryCaption] must not break across lines.
   List<String> get forecastMemoryCaptionKeepTogether =>
