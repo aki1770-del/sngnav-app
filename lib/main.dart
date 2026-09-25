@@ -1293,10 +1293,13 @@ class _HomePageState extends State<HomePage> {
   //
   // OFF THE STARTUP PATH BY CONSTRUCTION. Nothing here is awaited in main()
   // or initState. The first check rides a post-frame callback, so the first
-  // frame of map content is already on screen before a packet moves;
-  // subsequent checks fire only on foreground RESUME. If it never answers --
-  // the normal case in a snow dead-zone -- nothing changes and the driver is
-  // told nothing, exactly as if this feature were absent.
+  // frame of map content is already on screen before a packet moves. That is
+  // the ONLY check: once per launch. (Until 2026-09-25 this said "subsequent
+  // checks fire only on foreground RESUME". No resume hook was ever written;
+  // the policy's "once at startup" was the true one.) It matters to the
+  // address reader: an address learned on one launch is used on the next. If
+  // it never answers -- the normal case in a snow dead-zone -- nothing changes
+  // and the driver is told nothing, exactly as if this feature were absent.
   //
   // NEVER WHILE DRIVING: `_driveActive` gates both the FETCH and the SURFACE.
   // ------------------------------------------------------------------
@@ -1676,7 +1679,8 @@ class _HomePageState extends State<HomePage> {
           'offers=${result.available?.display ?? "-"} '
           'published=${result.runningIsPublished} '
           'announce=${result.shouldAnnounce} '
-          'manifest=$url',
+          'manifest=$url '
+          'address=${result.address.name}',
         );
       }
       if (!mounted) return;

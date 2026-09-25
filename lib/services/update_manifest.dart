@@ -24,6 +24,20 @@
 /// fields and proving none of them survives the parse.
 /// The ONLY string that reaches a pixel from this channel is the version
 /// display (`0.0.2+11`) and the artifact URL itself, shown verbatim.
+///
+/// ⚑ ONE LOCATION FACT IS READ, AND WHETHER IT BELONGS HERE IS WDA'S TO RULE.
+/// Since 2026-09-25 the parser also reads `manifest_url`, the address the
+/// manifest says it will be served from (PDS's emitter writes it and refuses to
+/// emit without it). It is not a version fact. It exists because a build that
+/// cannot learn a new address can never be told where its successor went, and
+/// it is kept where WDA's ruling can be applied in ONE place:
+///  - it is parsed into [UpdateManifest.manifestUrl], never into
+///    [UpdateManifestEntry], so it is not on the entry a surface reads;
+///  - it reaches no pixel;
+///  - it is https-only by the same predicate as the artifact URL ([_httpUri]);
+///  - its only consumer is `UpdateChecker._goAndSee`, called from one marked
+///    block of `UpdateChecker.check` (the "WDA SEAM"). If WDA rules it out,
+///    removing that block and this field removes the reader and nothing else.
 library;
 
 import 'dart:convert';
@@ -90,9 +104,31 @@ class LedgerRow {
 
 @immutable
 class UpdateManifest {
-  const UpdateManifest({required this.latest, this.history = const []});
+  const UpdateManifest({
+    required this.latest,
+    this.history = const [],
+    this.manifestUrl,
+    this.manifestUrlRefused = false,
+  });
 
   final UpdateManifestEntry latest;
+
+  /// Where this manifest says it will be served (`manifest_url`), when it says
+  /// so with an absolute https URL. A LOCATION fact, not a version fact: see
+  /// the library comment for why it is here and where WDA's ruling applies.
+  ///
+  /// Reading it does not mean trusting it. `UpdateChecker` persists a new
+  /// address only after fetching it and finding that the manifest THERE names
+  /// itself and describes this app.
+  final Uri? manifestUrl;
+
+  /// True when the manifest carried a `manifest_url` that this parser refused
+  /// (not a string, not absolute, not https, or no host). Kept apart from
+  /// "absent" so that a refused move is visible as a refusal rather than read
+  /// as "the manifest named no address". A refused address never makes the
+  /// whole manifest unreadable: the version facts still answer, because a
+  /// wrong location must not silence news of a fix.
+  final bool manifestUrlRefused;
 
   /// The published line, oldest-to-newest as the guard emits it. BIS §3.1:
   /// a direction of travel is NOT computable from the version pair alone
@@ -145,8 +181,15 @@ class UpdateManifest {
         }
       }
 
+      // ⚑ WDA SEAM: the one location fact. Snake_case, top level, exactly as
+      // the emitter writes it (`scripts/pds_app_route_guard.py`, `emit`).
+      final declared = decoded['manifest_url'];
+      final location = declared == null ? null : _httpUri(declared);
+
       return UpdateManifest(
         history: rows,
+        manifestUrl: location,
+        manifestUrlRefused: declared != null && location == null,
         latest: UpdateManifestEntry(
           versionCode: code,
           versionName: name.trim(),
@@ -166,8 +209,9 @@ class UpdateManifest {
       s.length == 64 && RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(s);
 
   /// Accepts only an absolute **https** URL with a host. A relative, `file:`,
-  /// `intent:`, `javascript:` — or plain `http:` — URL is refused rather than
-  /// resolved.
+  /// `intent:`, `javascript:`, `ftp:` — or plain `http:` — URL is refused
+  /// rather than resolved. ONE predicate for every URL this manifest carries:
+  /// the artifact URL and the manifest's own address (`manifest_url`).
   ///
   /// ⚑ https, NOT http, and the reason is a claim we already publish.
   /// `docs/store/data_safety_declaration.md` answers Play's "is all user data
