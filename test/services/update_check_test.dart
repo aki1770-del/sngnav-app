@@ -995,16 +995,32 @@ void main() {
       expect(r.status, UpdateCheckStatus.noAnswer);
     });
 
-    test('HTTP:// in capitals is http, and refused', () async {
-      final host = _FollowsLikeTheRealClient({
-        m: _redirects(301, 'HTTP://example.test/update_manifest.json'),
-        plainManifest: _answers(manifestJson(versionCode: 11)),
-        artifact: _answers(''),
+    // Each is refused by a different half of the rule. ftp:// has a host, so
+    // only the SCHEME check can refuse it; https:/// has the right scheme and
+    // no host. Both survived the producer's own mutation run until these
+    // cases were added (the scheme check turned into an http blacklist, and
+    // the host check dropped).
+    for (final (why, location) in [
+      ('HTTP:// in capitals is still http',
+          'HTTP://example.test/update_manifest.json'),
+      ('ftp:// has a host, so only the scheme check can refuse it',
+          'ftp://files.example.test/update_manifest.json'),
+      ('https:/// has the right scheme and no host',
+          'https:///update_manifest.json'),
+    ]) {
+      test('a redirect to "$location" is refused: $why', () async {
+        final host = _FollowsLikeTheRealClient({
+          m: _redirects(301, location),
+          // Served, so only the checker can keep it out of `asked`.
+          '${manifestUrl.resolve(location)}':
+              _answers(manifestJson(versionCode: 11)),
+          artifact: _answers(''),
+        });
+        final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+        expect(host.asked, ['GET $m']);
+        expect(r.status, UpdateCheckStatus.noAnswer);
       });
-      final r = await checkerWith(host).check(manifestUrl: manifestUrl);
-      expect(host.asked, ['GET $m']);
-      expect(r.status, UpdateCheckStatus.noAnswer);
-    });
+    }
 
     for (final (location, resolved) in [
       ('/moved/update_manifest.json',
