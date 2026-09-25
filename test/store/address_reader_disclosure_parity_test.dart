@@ -359,6 +359,19 @@ void main() {
           reason: 'M2: the reader still runs, so it must still be seen');
       expect(_referencesIn(edited(call, 'await (persistManifestUrl).call(store)')),
           isNotEmpty);
+      // A call inside a string interpolation runs the reader too. dartCodeOnly
+      // keeps an interpolation's code whichever way it draws the `${`/`}`
+      // markers (keepInterpolationMarkers, from the one-lexer convergence),
+      // and the name is matched after any `$` or `{`, so this guard needs
+      // neither setting.
+      for (final spelled in [
+        r"'${await persistManifestUrl(store)}' == 'true'",
+        r"'${persistManifestUrl(store)}'.isNotEmpty",
+      ]) {
+        expect(_referencesIn(edited(call, spelled)), isNotEmpty,
+            reason: 'a call spelled inside an interpolation still runs: '
+                '$spelled');
+      }
     });
 
     test('SOURCE: a name left in a comment or a string is not a reference '
