@@ -876,6 +876,15 @@ class AppL10n {
   // Japanese-reading driver in the US would hit the NWS point path, so the ja
   // copy claiming "coordinates never leave the device" unconditionally would
   // itself be false. Each claim is scoped to its region.
+  //
+  // SCOPED 2026-09-25, on an audit: this said a service that does not cover
+  // her location "is never contacted". The JMA is contacted from launch for
+  // Akita, wherever she is, as the next sentence says, so as an absolute it
+  // was false for any driver outside Akita. What is true, and what the region
+  // gate enforces (AdvisoryService.fetchAtPoint queries only the providers
+  // whose coverage includes the point, and none when no provider covers it),
+  // is narrower: a request that USES her location goes only to a service that
+  // covers it.
 
   String get locationDisclosure => _ja
       ? '現在地を共有すると、周辺の警報・注意報の取得に使われます。'
@@ -886,7 +895,7 @@ class AppL10n {
           '消しているときも約10分ごとに更新されます。'
           'アメリカ合衆国内では、地点の警報を取得するため座標が'
           '米国国立気象局（NWS）へ送信されます。'
-          '現在地を管轄しない気象機関へ問い合わせることはありません。'
+          '現在地を使う問い合わせは、現在地を管轄する気象機関にだけ送ります。'
           '共有するかどうかに関係なく、アプリは起動時から気象庁の秋田のデータも'
           '取得します — 秋田県内のアメダス観測、秋田県の予報、そして現在地を'
           '使えないあいだは秋田県の警報・注意報です。これらは現在地を使わない、'
@@ -901,8 +910,8 @@ class AppL10n {
           'kilometre of travel, and about every 10 minutes when stopped or '
           'when driving with the screen off. In the United States your '
           'coordinates are sent to the NWS to fetch alerts for your exact '
-          'point. A service that does not cover your location is never '
-          'contacted. Whether or not you share, the app also fetches Akita '
+          'point. A request that uses your location goes only to a service '
+          'that covers it. Whether or not you share, the app also fetches Akita '
           'data from the JMA from the moment it starts: AMeDAS observations in '
           'Akita Prefecture, the Akita Prefecture forecast, and, while your '
           'position is not available, the Akita Prefecture warnings. These '

@@ -196,8 +196,11 @@ void main() {
       expect(d, contains('都道府県コード'));
       // The US fact is stated too (locale ≠ location).
       expect(d, contains('NWS'));
-      // Out-of-region services are not contacted.
-      expect(d, contains('管轄しない'));
+      // The gating fact, scoped to what the gate does (2026-09-25): a request
+      // that USES her location goes only to a covering service. The earlier
+      // absolute, 「現在地を管轄しない気象機関へ問い合わせることはありません」,
+      // was false outside Akita: the JMA is asked for Akita from launch.
+      expect(d, contains('現在地を使う問い合わせは、現在地を管轄する気象機関にだけ送ります'));
       // It must NOT resurrect the false claim that coordinates go to a
       // weather service unconditionally.
       expect(d, isNot(contains('座標が、その地域を管轄する公的な気象機関へ送信')));
@@ -209,8 +212,11 @@ void main() {
       expect(d, contains('never leave the device'));
       expect(d, contains('prefecture code'));
       expect(d, contains('NWS'));
-      // States the load-bearing gating fact (out-of-region → not contacted).
-      expect(d.toLowerCase(), contains('never contacted'));
+      // States the load-bearing gating fact, scoped to what the gate does
+      // (2026-09-25): "never contacted" was false outside Akita as an
+      // absolute, because the JMA is asked for Akita from launch.
+      expect(d, contains('A request that uses your location goes only to a '
+          'service that covers it'));
       expect(d.toLowerCase(), contains('opt-in'));
     });
 
@@ -310,6 +316,27 @@ void main() {
       expect(ja.forecastMemoryCaption('07:10'), contains('秋田県の予報'));
       expect(en.forecastMemoryCaption('07:10'),
           contains('forecast for Akita Prefecture'));
+    });
+
+    test('the card claims only what the region gate enforces: a request that '
+        'USES her location goes only to a service that covers it', () {
+      // It said a service that does not cover her location "is never
+      // contacted". The JMA is asked for Akita from launch wherever she is
+      // (the sentence right after it says so), so as an absolute it was false
+      // for any driver outside Akita. The narrower claim is the one
+      // test/services/advisory_coverage_test.dart holds the gate to.
+      expect(ja.locationDisclosure,
+          isNot(contains('現在地を管轄しない気象機関へ問い合わせることはありません')));
+      expect(en.locationDisclosure.toLowerCase(),
+          isNot(contains('is never contacted')));
+      expect(ja.locationDisclosure,
+          contains('現在地を使う問い合わせは、現在地を管轄する気象機関にだけ送ります。'));
+      expect(en.locationDisclosure,
+          contains('A request that uses your location goes only to a service '
+              'that covers it.'));
+      // And the Akita requests it no longer contradicts are still stated.
+      expect(ja.locationDisclosure, contains('起動時から気象庁の秋田のデータも'));
+      expect(en.locationDisclosure, contains('fixed to Akita'));
     });
 
     test('the forecast is not claimed to be re-requested every 10 minutes',
