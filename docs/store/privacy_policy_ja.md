@@ -110,14 +110,20 @@
 通知の見えるサービスを実際に作ったときに同じ変更で戻す」と約束されていました。2026-09-24 に
 そのサービスが実際に動いたため、約束どおり戻っています。**機能が先に着地し、この説明が後から
 追いつく形になりました** — 本来は同じ変更で直すべきものです。アプリが新しくできるように
-なったことは、画面を消していても運転中の警告が届くことであり、~~**通知が出ていない状態での
-位置情報取得は、以前と同じく一切ありません。**~~ ACCESS_BACKGROUND_LOCATION も引き続き
-要求していません。*
+なったことは、画面を消していても運転中の警告が届くことです。ACCESS_BACKGROUND_LOCATION も
+引き続き要求していません。*
 
-*訂正のお知らせ（2026-09-25）: 上の取り消し線の一文は正しくありませんでした。運転中の通知は、
+*訂正のお知らせ（2026-09-25）: 上の 2026-09-24 のお知らせには、もう一文、
+「通知が出ていない状態での位置情報取得は、以前と同じく一切ありません。」と書いていました。
+この一文は正しくなかったため、そのお知らせから取り除き、ここに残しています。運転中の通知は、
 ロック中の画面には表示されないことがあり、Android 14 以降ではスワイプで消せて、消しても
-受信は続きます（上の「収集しないもの」を参照）。どちらも Android 14 の試験用エミュレーターで
-確かめたことで、実機ではまだ確かめていません。*
+位置情報の受信は続きます（上の「収集しないもの」を参照）。どちらも Android 14 の試験用
+エミュレーターで確かめたことで、実機ではまだ確かめていません。*
+<!-- 2026-09-25: この一文は以前、取り消し線の記法で消した形で上のお知らせに残していた。
+     アプリ内のポリシー表示は取り消し線を描かないため、アプリの中では取り消した一文が太字の
+     まま、両側に記法の記号が付いて表示され、このお知らせは見えない「取り消し線」を指していた。
+     取り消し線は読み上げ（スクリーンリーダー）でも伝わらない。取り消しは言葉で書く。
+     test/services/privacy_policy_render_test.dart が、この文書に取り消し線の記法が無いことを確かめる。 -->
 
 ## 端末の外に出るデータ（この6つがすべてです）
 
@@ -250,13 +256,13 @@ permissions were removed on 2026-07-10 as declared-but-unused, on a written prom
 return in the same change-set as a real, driver-started, notification-visible service. That service
 landed on 2026-09-24 and they returned with it. **The capability landed first and this page caught
 up afterwards** — it should have been one change. What the app can now do is keep warning you with
-the screen off during a drive you started; ~~what has NOT changed is that **there is no location
-collection without a visible notification**, and~~ ACCESS_BACKGROUND_LOCATION is still not requested.*
+the screen off during a drive you started, and ACCESS_BACKGROUND_LOCATION is still not requested.*
 
-*Correction note (2026-09-25): the struck-through clause above was not true. The drive notification
-may not be shown on a locked screen, and on Android 14 and later it can be swiped away while the feed
-continues (see the first section above). Both were observed on an Android 14 test emulator, not yet on
-a real phone.*
+*Correction note (2026-09-25): the 2026-09-24 note above also said "what has NOT changed is that there
+is no location collection without a visible notification". That was not true, so it has been taken out
+of that note and is kept here. The drive notification may not be shown on a locked screen, and on
+Android 14 and later it can be swiped away while the location feed continues (see the first section
+above). Both were observed on an Android 14 test emulator, not yet on a real phone.*
 
 ## Data that leaves your device (these six flows are all of it)
 
