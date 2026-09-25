@@ -630,11 +630,11 @@ void main() {
 
     // Measured 2026-09-25 over real loopback TLS with the app's own http
     // client: a 301 from the new https address to a PLAINTEXT host was
-    // followed, and the address was stored on an unencrypted answer. MockClient
-    // never follows a redirect, so a status-only test here would pass either
-    // way; what pins the fix is the flag on the request itself, which
-    // MockClient passes through (http 1.6.0, mock_client.dart) and the real
-    // IOClient honours.
+    // followed, and the address was stored on an unencrypted answer. ⚑ Since
+    // the same day HttpsHopsOnlyClient sets this flag on EVERY request, so it
+    // no longer pins the reader's own `followRedirects = false`. What pins
+    // that now is "the READER does not follow even an https redirect" in the
+    // redirect group below, whose fake follows the way the real client does.
     test('the new address is fetched with redirects OFF, and a 301 is not an '
         'answer: nothing stored', () async {
       bool? followed;
@@ -861,6 +861,264 @@ void main() {
       expect(res.status, UpdateCheckStatus.updateAvailable);
     });
   });
+
+  // ===== A REDIRECT IS FOLLOWED ONLY TO HTTPS =====
+  //
+  // Measured 2026-09-25 over real loopback TLS with the app's own http
+  // client, by a probe outside this suite: the manifest fetch and the
+  // artifact probe both FOLLOWED a 301 to a plaintext host, and the plaintext
+  // answer decided the announcement, updateAvailable both times. MockClient
+  // follows no redirect, so on it a checker that lets the real client walk to
+  // plaintext and one that stops it look the same. Every test here runs on
+  // _FollowsLikeTheRealClient, which follows by itself exactly when the real
+  // client would, and records every address any hop touched. The plaintext
+  // host is always SERVED, with a manifest or an artifact that would
+  // announce: only the checker can keep it out of `asked`.
+  group('a redirect is followed only to https, and only by the checker',
+      () {
+    final stored = useFreshSupportDir();
+
+    final m = '$manifestUrl';
+    const plainManifest = 'http://example.test/update_manifest.json';
+    const plainArtifact = 'http://example.test/app.apk';
+    const moved = 'https://cdn.example.test/sngnav/update_manifest.json';
+    // The shape measured on a real GitHub release asset, 2026-09-25T03:32Z:
+    // github.com answered HEAD with 302 to release-assets.githubusercontent
+    // .com, which answered HEAD with 200; a GET carrying `Range: bytes=0-0`
+    // took the same hop and was answered 206 with one byte.
+    const asset = 'https://github.com/o/r/releases/download/v1/app.apk';
+    const store = 'https://release-assets.githubusercontent.com/a/1?sig=x';
+
+    test('the MANIFEST answers 301 to a plaintext host: nothing is sent there, '
+        'and the check says noAnswer, never an announcement', () async {
+      final host = _FollowsLikeTheRealClient({
+        m: _redirects(301, plainManifest),
+        plainManifest: _answers(manifestJson(versionCode: 11)),
+        artifact: _answers(''),
+      });
+      final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+      expect(host.asked, ['GET $m'],
+          reason: 'the plaintext host must never be asked, not even to look');
+      expect(r.status, UpdateCheckStatus.noAnswer);
+      expect(r.shouldAnnounce, isFalse);
+    });
+
+    test('the MANIFEST answers 302 to another https host: followed, and the '
+        'answer there is the answer', () async {
+      final host = _FollowsLikeTheRealClient({
+        m: _redirects(302, moved),
+        moved: _answers(manifestJson(versionCode: 11)),
+        artifact: _answers(''),
+      });
+      final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+      expect(host.asked, ['GET $m', 'GET $moved', 'HEAD $artifact']);
+      expect(r.status, UpdateCheckStatus.updateAvailable);
+    });
+
+    test('an https hop that then redirects to plaintext: the second hop is '
+        'judged too, and never asked', () async {
+      final host = _FollowsLikeTheRealClient({
+        m: _redirects(301, moved),
+        moved: _redirects(302, plainManifest),
+        plainManifest: _answers(manifestJson(versionCode: 11)),
+        artifact: _answers(''),
+      });
+      final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+      expect(host.asked, ['GET $m', 'GET $moved']);
+      expect(r.status, UpdateCheckStatus.noAnswer);
+    });
+
+    test('the ARTIFACT answers 301 to a plaintext host: nothing is sent '
+        'there, and the build is unreachable, never announced', () async {
+      final host = _FollowsLikeTheRealClient({
+        m: _answers(manifestJson(versionCode: 11)),
+        artifact: _redirects(301, plainArtifact),
+        plainArtifact: _answers(''),
+      });
+      final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+      expect(host.asked, ['GET $m', 'HEAD $artifact']);
+      expect(r.status, UpdateCheckStatus.newerButUnreachable);
+      expect(r.shouldAnnounce, isFalse);
+    });
+
+    test('a RELEASE-ASSET link, 302 from github.com to another https host, '
+        'still announces: HEAD stays HEAD across the hop', () async {
+      final host = _FollowsLikeTheRealClient({
+        m: _answers(manifestJson(versionCode: 11, artifactUrl: asset)),
+        asset: _redirects(302, store),
+        store: _answers(''),
+      });
+      final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+      expect(host.asked, ['GET $m', 'HEAD $asset', 'HEAD $store']);
+      expect(r.status, UpdateCheckStatus.updateAvailable);
+    });
+
+    test('the RANGED GET fallback takes the same https hop and carries its '
+        'Range across it', () async {
+      final host = _FollowsLikeTheRealClient({
+        m: _answers(manifestJson(versionCode: 11, artifactUrl: asset)),
+        asset: (req) => req.method == 'HEAD'
+            ? _status(405)
+            : _status(302, headers: {'location': store}),
+        store: (_) => _status(206),
+      });
+      final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+      expect(host.asked,
+          ['GET $m', 'HEAD $asset', 'GET $asset', 'GET $store']);
+      expect(host.ranges.last, 'bytes=0-0',
+          reason: 'a Range dropped at the hop turns the probe into a download');
+      expect(r.status, UpdateCheckStatus.updateAvailable);
+    });
+
+    test('the RANGED GET fallback answers 302 to a plaintext host: nothing is '
+        'sent there, unreachable', () async {
+      final host = _FollowsLikeTheRealClient({
+        m: _answers(manifestJson(versionCode: 11)),
+        artifact: (req) => req.method == 'HEAD'
+            ? _status(405)
+            : _status(302, headers: {'location': plainArtifact}),
+        plainArtifact: (_) => _status(206),
+      });
+      final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+      expect(host.asked, ['GET $m', 'HEAD $artifact', 'GET $artifact']);
+      expect(r.status, UpdateCheckStatus.newerButUnreachable);
+    });
+
+    test('an http FIRST address is refused before anything is sent', () async {
+      final host = _FollowsLikeTheRealClient({
+        plainManifest: _answers(manifestJson(versionCode: 11)),
+        artifact: _answers(''),
+      });
+      final r = await checkerWith(host)
+          .check(manifestUrl: Uri.parse(plainManifest));
+      expect(host.asked, isEmpty);
+      expect(r.status, UpdateCheckStatus.noAnswer);
+    });
+
+    test('HTTP:// in capitals is http, and refused', () async {
+      final host = _FollowsLikeTheRealClient({
+        m: _redirects(301, 'HTTP://example.test/update_manifest.json'),
+        plainManifest: _answers(manifestJson(versionCode: 11)),
+        artifact: _answers(''),
+      });
+      final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+      expect(host.asked, ['GET $m']);
+      expect(r.status, UpdateCheckStatus.noAnswer);
+    });
+
+    for (final (location, resolved) in [
+      ('/moved/update_manifest.json',
+          'https://example.test/moved/update_manifest.json'),
+      ('//cdn.example.test/m.json', 'https://cdn.example.test/m.json'),
+    ]) {
+      test('a Location of "$location" resolves against the https address '
+          'that answered, and is followed', () async {
+        final host = _FollowsLikeTheRealClient({
+          m: _redirects(301, location),
+          resolved: _answers(manifestJson(versionCode: 11)),
+          artifact: _answers(''),
+        });
+        final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+        expect(host.asked, ['GET $m', 'GET $resolved', 'HEAD $artifact']);
+        expect(r.status, UpdateCheckStatus.updateAvailable);
+      });
+    }
+
+    for (final (count, follows) in [(5, true), (6, false)]) {
+      test('$count redirects in a row: '
+          '${follows ? 'followed (the limit is 5, as before)' : 'one past the limit, noAnswer'}',
+          () async {
+        String hop(int i) => i == 0 ? m : 'https://example.test/hop$i.json';
+        final host = _FollowsLikeTheRealClient({
+          for (var i = 0; i < count; i++) hop(i): _redirects(302, hop(i + 1)),
+          hop(count): _answers(manifestJson(versionCode: 11)),
+          artifact: _answers(''),
+        });
+        final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+        expect(host.asked.contains('GET ${hop(count)}'), follows);
+        expect(
+            r.status,
+            follows
+                ? UpdateCheckStatus.updateAvailable
+                : UpdateCheckStatus.noAnswer);
+      });
+    }
+
+    test('a redirect with no Location: noAnswer', () async {
+      final host = _FollowsLikeTheRealClient({m: (_) => _status(302)});
+      final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+      expect(host.asked, ['GET $m']);
+      expect(r.status, UpdateCheckStatus.noAnswer);
+    });
+
+    test('a redirect\'s body is closed unread, never drained', () async {
+      final body = _CountedBody();
+      final host = _FollowsLikeTheRealClient({
+        m: (_) => http.StreamedResponse(body.stream, 302,
+            headers: {'location': moved}),
+        moved: _answers(manifestJson(versionCode: 10)),
+      });
+      final r = await checkerWith(host).check(manifestUrl: manifestUrl);
+      await body.settled();
+      expect(r.status, UpdateCheckStatus.upToDate);
+      expect(body.cancelled, isTrue,
+          reason: 'an unclosed body holds its socket open after the check');
+      expect(body.served, lessThanOrEqualTo(1),
+          reason: 'a drained redirect body is a download nobody asked for');
+    });
+
+    test('the READER does not follow even an https redirect: a new address '
+        'must answer 200 itself', () async {
+      const target = 'https://cdn.example.test/elsewhere/update_manifest.json';
+      final host = _FollowsLikeTheRealClient({
+        oldAddr: _answers(manifestJson(versionCode: 11, manifestUrlField: newAddr)),
+        newAddr: _redirects(301, target),
+        // What a follower would find: a manifest naming the new address as
+        // its own, which WOULD verify it and store it.
+        target: _answers(manifestJson(versionCode: 11, manifestUrlField: newAddr)),
+        artifact: _answers(''),
+      });
+      final r = await checkerWith(host).check(manifestUrl: Uri.parse(oldAddr));
+      expect(host.asked, ['GET $oldAddr', 'HEAD $artifact', 'GET $newAddr']);
+      expect(r.address, ManifestAddress.unverified);
+      expect(stored().existsSync(), isFalse);
+      expect(r.status, UpdateCheckStatus.updateAvailable);
+    });
+
+    test('every request reaches the wrapped client with followRedirects OFF: '
+        'the manifest, HEAD, the ranged GET and the reader', () async {
+      final host = _FollowsLikeTheRealClient({
+        oldAddr: _answers(manifestJson(versionCode: 11, manifestUrlField: newAddr)),
+        artifact: (req) => _status(req.method == 'HEAD' ? 405 : 206),
+        newAddr: _answers(manifestJson(versionCode: 11, manifestUrlField: newAddr)),
+      });
+      final r = await checkerWith(host).check(manifestUrl: Uri.parse(oldAddr));
+      expect(host.asked,
+          ['GET $oldAddr', 'HEAD $artifact', 'GET $artifact', 'GET $newAddr']);
+      expect(host.arrivedFollowing, [false, false, false, false]);
+      expect(r.address, ManifestAddress.learned);
+    });
+
+    test('only GET and HEAD are followed: any other method gets its redirect '
+        'back unfollowed', () async {
+      const x = 'https://example.test/x';
+      final host = _FollowsLikeTheRealClient({
+        x: _redirects(307, moved),
+        moved: (_) => _status(200),
+      });
+      final res =
+          await HttpsHopsOnlyClient(host).send(http.Request('POST', Uri.parse(x)));
+      expect(res.statusCode, 307);
+      expect(host.asked, ['POST $x']);
+      expect(host.arrivedFollowing, [false]);
+    });
+
+    test('dispose() still closes the client the checker was given', () {
+      final host = _FollowsLikeTheRealClient({});
+      checkerWith(host).dispose();
+      expect(host.closed, isTrue);
+    });
+  });
 }
 
 /// A host that refuses HEAD and IGNORES Range: HEAD is answered [headStatus],
@@ -929,4 +1187,112 @@ class _RangeIgnoringHost extends http.BaseClient {
     return http.StreamedResponse(body.stream, rangedStatus,
         contentLength: chunks * chunkBytes);
   }
+}
+
+/// What one address answers. Given the request that ARRIVED, so a route can
+/// answer HEAD and GET differently.
+typedef _Serve = http.StreamedResponse Function(http.BaseRequest request);
+
+http.StreamedResponse _status(int code,
+        {Map<String, String> headers = const {}, String body = ''}) =>
+    http.StreamedResponse(Stream.value(utf8.encode(body)), code,
+        headers: headers);
+
+_Serve _answers(String body) => (_) => _status(200, body: body);
+
+_Serve _redirects(int code, String location) =>
+    (_) => _status(code, headers: {'location': location});
+
+/// A host table behind a client that follows redirects THE WAY THE REAL ONE
+/// DOES, so a test can see a checker that lets it.
+///
+/// dart:io's HttpClient, behind http's IOClient, follows 301, 302, 303, 307
+/// and 308 for GET and HEAD whenever a request arrives with
+/// `followRedirects` on, up to `maxRedirects`, keeping method and headers,
+/// and it never looks at the scheme: a probe over real loopback TLS watched
+/// it walk from https to a plaintext host on 2026-09-25. MockClient follows
+/// nothing, which is why a status-only test on it passes whether or not the
+/// checker would follow. This one follows by itself exactly when the real
+/// client would, and every address it touches, whoever chose to go there,
+/// lands in [asked].
+class _FollowsLikeTheRealClient extends http.BaseClient {
+  _FollowsLikeTheRealClient(this.routes);
+
+  /// Exact URL -> what it answers. Any other URL throws [Unroutable].
+  final Map<String, _Serve> routes;
+
+  /// Every request a host saw, in order, as "METHOD url".
+  final List<String> asked = [];
+
+  /// The Range header of each request in [asked], in the same order.
+  final List<String?> ranges = [];
+
+  /// The `followRedirects` flag of each request the CHECKER sent, as it
+  /// arrived. Hops this client makes by itself are in [asked] only.
+  final List<bool> arrivedFollowing = [];
+
+  bool closed = false;
+
+  static const _followed = {301, 302, 303, 307, 308};
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    arrivedFollowing.add(request.followRedirects);
+    String? range;
+    request.headers.forEach((k, v) {
+      if (k.toLowerCase() == 'range') range = v;
+    });
+    var url = request.url;
+    for (var hops = 0;; hops++) {
+      asked.add('${request.method} $url');
+      ranges.add(range);
+      final serve = routes['$url'];
+      if (serve == null) throw const Unroutable();
+      final res = serve(request);
+      final follows = request.followRedirects &&
+          (request.method == 'GET' || request.method == 'HEAD') &&
+          _followed.contains(res.statusCode);
+      if (!follows) return res;
+      if (hops >= request.maxRedirects) {
+        throw http.ClientException('Redirect limit exceeded', url);
+      }
+      url = url.resolve(res.headers['location']!);
+    }
+  }
+
+  @override
+  void close() => closed = true;
+}
+
+/// A response body produced only while someone listens: [chunks] pieces of
+/// 1 KiB. [served] is how much of it a client pulled, read after
+/// [settled]; [cancelled] is whether the client closed it.
+class _CountedBody {
+  static const int chunks = 64;
+  int served = 0;
+  bool cancelled = false;
+  final Completer<void> _stopped = Completer<void>();
+
+  late final StreamController<List<int>> _body = StreamController<List<int>>(
+    onCancel: () => cancelled = true,
+    onListen: () async {
+      for (var i = 0; i < chunks; i++) {
+        if (!_body.hasListener) break;
+        _body.add(List<int>.filled(1024, 0));
+        served++;
+        await Future<void>.delayed(Duration.zero);
+      }
+      if (!_stopped.isCompleted) _stopped.complete();
+      await _body.close();
+    },
+  );
+
+  Stream<List<int>> get stream => _body.stream;
+
+  /// Resolves when the body stopped being produced, or after 500 ms when
+  /// nobody ever listened.
+  Future<void> settled() => Future.any([
+        _stopped.future,
+        Future<void>.delayed(const Duration(milliseconds: 500)),
+      ]);
 }
