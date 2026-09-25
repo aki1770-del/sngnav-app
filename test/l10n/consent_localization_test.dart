@@ -336,6 +336,14 @@ void main() {
       expect(en.driveDisclosure, contains('Stop'));
       expect(en.driveDisclosure, contains('does not stop the drive'));
       expect(en.driveDisclosure, isNot(contains('app closed')));
+      // What keeps running after the swipe is NAMED, in both languages, and it
+      // is the same thing in both (2026-09-25). The bare 「受信」 read alone as
+      // "warnings keep arriving"; the English named the drive instead.
+      expect(ja.driveDisclosure, contains('消しても位置情報の使用は止まりません。'));
+      expect(ja.driveDisclosure, isNot(contains('受信')),
+          reason: 'a verb with no object in this block: receiving WHAT?');
+      expect(en.driveDisclosure,
+          contains('that does not stop the drive or its use of your location.'));
       // Moved, not copied: the data-flow text no longer carries them.
       expect(ja.locationDisclosure, isNot(contains('スワイプ')));
       expect(en.locationDisclosure.toLowerCase(), isNot(contains('swipe')));

@@ -936,27 +936,43 @@ class AppL10n {
   // The key words cannot break across lines: [driveDisclosureKeepTogether],
   // drawn through lib/widgets/keep_together.dart. The review saw 「通/知」,
   // 「止まりま/せん」 (a line ending on "reception stops") and 「停/止」.
+  //
+  // ONE WORD CHANGED 2026-09-25, on a dignity review. Moving these sentences
+  // out of [locationDisclosure] kept every word but cut 「受信」 off from what
+  // it referred to: that paragraph opens 「現在地を共有すると…」, and this block
+  // names 運転, 画面, アプリ and 通知 but never 位置情報. Read alone,
+  // 「消しても受信は止まりません」 can mean "you keep receiving warnings", which
+  // sounds like a benefit, while the fact the consent has to carry is that her
+  // location stays in use after the swipe. The English named a third thing
+  // ("the drive"). Both halves now name location, in the notification
+  // title's own words (位置情報を使用中 / "location in use"), so the
+  // notification she swipes away and what keeps running are visibly one
+  // thing. True against the code: after the swipe the foreground service
+  // stayed isForeground=true on an Android 14 emulator, and nothing in the
+  // app reacts to a swipe (geolocator sets no delete intent).
 
   String get driveDisclosure => _ja
       ? '運転を開始すると、画面を消しても、ほかのアプリに切り替えても継続します。'
           '運転中は通知を出しますが、ロック中の画面には表示されないことがあり、'
-          'Android 14 以降はスワイプで消せます。消しても受信は止まりません。'
+          'Android 14 以降はスワイプで消せます。消しても位置情報の使用は止まりません。'
           '終了するには、アプリを開いて（または通知をタップして）'
           '「停止」を押してください。'
       : 'Once you start a drive it keeps going with the screen off or while '
           'you use another app. A notification is posted for the drive, but it '
           'may not show on a locked screen, and from Android 14 you can swipe '
-          'it away — that does not stop the drive. To end it, open the app (or '
-          'tap the notification), then Stop.';
+          'it away — that does not stop the drive or its use of your location. '
+          'To end it, open the app (or tap the notification), then Stop.';
 
   /// Words in [driveDisclosure] that must never break across two lines.
   /// Each must occur in the text; test/widgets/keep_together_test.dart checks
   /// that, and that no width or text scale splits them. 「停止」 is protected
   /// WITH its brackets: Japanese line breaking already glues 「 and 」 to the
   /// word, so the unit that must fit on one line is the bracketed one.
+  /// 位置情報 / "your location" joined 2026-09-25 with the word they name: a
+  /// line ending on 「位置」 or "your" would drop the object again.
   List<String> get driveDisclosureKeepTogether => _ja
-      ? const ['止まりません', 'スワイプ', 'Android 14', '通知', '「停止」']
-      : const ['does not stop', 'Android 14', 'Stop'];
+      ? const ['止まりません', 'スワイプ', 'Android 14', '通知', '「停止」', '位置情報']
+      : const ['does not stop', 'Android 14', 'Stop', 'your location'];
 
   // ===== Other-egress disclosure (B27 + B30) — the rest of the wire =====
   //
