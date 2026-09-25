@@ -1526,11 +1526,10 @@ class AppL10n {
   /// (an audit asked whether this line says so; measured, it did not). For a
   /// driver in Akita nothing changes. For anyone else, the card used to show
   /// Akita's snow forecast as if it were for her route.
-  /// ⚑ NOT CHANGED HERE: the SPOKEN line from the same memory
-  /// (kForecastSnowValidJa in services/trip_hazard_memory.dart) still says
-  /// 「出発前に取得した気象庁の予報では、この時間帯は雪の予報です」 without
-  /// Akita. It is a recorded offline clip and a safety sentence; changing it
-  /// needs a safety ruling and a clip re-render in the same change.
+  /// The SPOKEN line from the same memory (kForecastSnowValidJa in
+  /// services/trip_hazard_memory.dart) names 秋田県 in the same words,
+  /// 「気象庁の秋田県の予報」, from the same change that re-rendered its
+  /// offline clip (forecast_snow_valid.wav).
   String forecastMemoryCaption(String time) => _ja
       ? '出発前 $time に取得した秋田県の予報（気象庁）— 観測ではありません。'
       : 'JMA forecast for Akita Prefecture, fetched at $time before '
