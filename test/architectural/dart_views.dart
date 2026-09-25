@@ -15,19 +15,30 @@
 /// first `//`, and in lib/main.dart that is often the `//` of an `https://`
 /// inside a string, which would hide the rest of the line from a scan.
 ///
-/// HONEST BOUND. A hand-written scanner, not the Dart parser. It knows '…',
-/// "…", '''…''', """…""", raw r'…', `\` escapes, `${…}` with strings nested
-/// inside it, `$name`, // comments and nested /* */ comments. It does not
-/// know which code is live.
+/// ONE LEXER (2026-09-25, round 5a). This file had its own hand-written
+/// scanner, and test/support/dart_source.dart had another. Both were compared
+/// with the Dart front end (package:analyzer) over every tracked .dart file of
+/// this tree and the Flutter SDK's, and neither ever misread code, comment or
+/// string text; they differed only in how they drew an interpolation's markers.
+/// So this file keeps its views and its API and holds no scanner: [code] and
+/// [shape] come from [dartCodeOnly], [shape] with the markers blanked as this
+/// file always drew them. Both are byte-identical to what the old scanner
+/// produced on every file measured. The one place the old scanner differed
+/// from the Dart grammar, a lone carriage return (no file here holds one),
+/// now reads as the grammar reads it.
+///
+/// HONEST BOUND. A hand-written lexer, not the Dart parser (see
+/// [dartCodeOnly]). It does not know which code is live.
 library;
 
 import 'dart:io';
 
+import '../support/dart_source.dart';
+
 class DartViews {
-  DartViews(this.text) {
-    _code(0, false);
-    code = _c.toString();
-    shape = _s.toString();
+  DartViews(this.text)
+      : code = dartCodeOnly(text, keepStrings: true),
+        shape = dartCodeOnly(text, keepInterpolationMarkers: false) {
     assert(code.length == text.length && shape.length == text.length);
   }
 
@@ -35,136 +46,8 @@ class DartViews {
       DartViews(File(path).readAsStringSync());
 
   final String text;
-  late final String code;
-  late final String shape;
-
-  final _c = StringBuffer();
-  final _s = StringBuffer();
-
-  static final _identStart = RegExp(r'[A-Za-z_]');
-  static final _identPart = RegExp(r'[A-Za-z0-9_$]');
-
-  String _blank(String s) {
-    final b = StringBuffer();
-    for (final unit in s.split('')) {
-      b.write(unit == '\n' ? '\n' : ' ');
-    }
-    return b.toString();
-  }
-
-  void _keep(int a, int b) {
-    final s = text.substring(a, b);
-    _c.write(s);
-    _s.write(s);
-  }
-
-  void _comment(int a, int b) {
-    final s = _blank(text.substring(a, b));
-    _c.write(s);
-    _s.write(s);
-  }
-
-  void _stringChars(int a, int b) {
-    final s = text.substring(a, b);
-    _c.write(s);
-    _s.write(_blank(s));
-  }
-
-  /// Scans code from [i]. Inside an interpolation it returns at the `}` that
-  /// closes it, without consuming it.
-  int _code(int i, bool interpolation) {
-    final t = text;
-    var depth = 0;
-    while (i < t.length) {
-      if (t.startsWith('//', i)) {
-        final e = t.indexOf('\n', i);
-        final end = e < 0 ? t.length : e;
-        _comment(i, end);
-        i = end;
-        continue;
-      }
-      if (t.startsWith('/*', i)) {
-        var j = i, nest = 0;
-        do {
-          if (t.startsWith('/*', j)) {
-            nest++;
-            j += 2;
-          } else if (t.startsWith('*/', j)) {
-            nest--;
-            j += 2;
-          } else {
-            j++;
-          }
-        } while (nest > 0 && j < t.length);
-        _comment(i, j);
-        i = j;
-        continue;
-      }
-      final ch = t[i];
-      if (ch == "'" || ch == '"') {
-        final raw = i > 0 &&
-            t[i - 1] == 'r' &&
-            (i < 2 || !_identPart.hasMatch(t[i - 2]));
-        i = _string(i, raw);
-        continue;
-      }
-      if (interpolation) {
-        if (ch == '{') depth++;
-        if (ch == '}') {
-          if (depth == 0) return i;
-          depth--;
-        }
-      }
-      _keep(i, i + 1);
-      i++;
-    }
-    return i;
-  }
-
-  int _string(int i, bool raw) {
-    final t = text;
-    final q = t[i];
-    final delim = t.startsWith(q * 3, i) ? q * 3 : q;
-    _keep(i, i + delim.length);
-    i += delim.length;
-    while (i < t.length) {
-      if (t.startsWith(delim, i)) {
-        _keep(i, i + delim.length);
-        return i + delim.length;
-      }
-      if (delim.length == 1 && t[i] == '\n') return i;
-      if (!raw && t[i] == r'\' && i + 1 < t.length) {
-        _stringChars(i, i + 2);
-        i += 2;
-        continue;
-      }
-      if (!raw && t.startsWith(r'${', i)) {
-        _stringChars(i, i + 2);
-        i = _code(i + 2, true);
-        if (i < t.length) {
-          _stringChars(i, i + 1);
-          i++;
-        }
-        continue;
-      }
-      if (!raw &&
-          t[i] == r'$' &&
-          i + 1 < t.length &&
-          _identStart.hasMatch(t[i + 1])) {
-        _stringChars(i, i + 1);
-        var j = i + 1;
-        while (j < t.length && _identPart.hasMatch(t[j]) && t[j] != r'$') {
-          j++;
-        }
-        _keep(i + 1, j);
-        i = j;
-        continue;
-      }
-      _stringChars(i, i + 1);
-      i++;
-    }
-    return i;
-  }
+  final String code;
+  final String shape;
 
   /// The offset of the `}` that closes the `{` at [open], counted in
   /// [shape], where no brace inside a string or a comment remains.
