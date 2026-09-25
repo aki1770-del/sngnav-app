@@ -24,16 +24,22 @@
 **このアプリは情報を提示するだけで、運転の責任は常に運転者にあります。車両を制御することはありません。**
 <!-- README.md:21 の register に一致 -->
 
-### できること（2026年7月時点）
+### できること（2026年9月25日時点）
+<!-- 2026-09-25: 見出しは「2026年7月時点」のまま 2 か月以上残っていた（監査で指摘）。
+     日付を進める前に、下の各項目をコードと照合した（端末での確認ではない）:
+     観測の表示項目＝observationTemperatureLabel / HumidityLabel / WindLabel / SnowDepthLabel /
+     降水量（10分間）/ 観測時刻（app_localizations.dart、main.dart の観測カード）、判定不能の表示、
+     assets/tiles/akita_offline.mbtiles の同梱、HUD の上限＝停車の検討（drive_hud_localizer.dart）。 -->
 
-- **気象庁アメダスの観測値の表示** — 気温・湿度・風・積雪・10分間降水量・観測時刻。観測値は気象庁の発表値をそのまま表示します（改変・加工しません）。
-  <!-- main.dart:1527 verbatim relay; README.md:14 -->
+- **気象庁アメダスの観測値の表示（秋田県内の観測点）** — 気温・湿度・風・積雪・10分間降水量・観測時刻。観測値は気象庁の発表値をそのまま表示します（改変・加工しません）。
+  <!-- main.dart の観測カード（値は気象庁の発表値をそのまま表示）; README.md:14。
+       ⚑ 2026-09-25: 旧注記の main.dart:1527 は別の行を指していた。行番号ではなく記号で引く。 -->
 - **路面凍結ウォッチ** — 観測値から推定した「見えない凍結（ブラックアイスバーン）」の可能性を、**気象庁の発表ではなく本アプリの推定であると明記した上で**表示・読み上げます。判断に必要な観測値が足りないときは「判定不能」と表示し、勝手に「問題なし」とは言いません。
   <!-- README.md:15; main.dart:1510-1529 — 観測値は気象庁の値をそのまま表示、ウォッチ行はそこからの推定と明記 -->
 - **オフライン地図** — 秋田県の実際の OpenStreetMap 地図データを端末に同梱。電波がない場所でも地図が表示されます（同梱範囲外は通信で補完）。
   地図データ: © OpenStreetMap contributors（ODbL ライセンス）
   <!-- README.md:25; Geofabrik cut tohoku-260709 -->
-- **GPS 現在地表示** — 同意した場合のみ。使うのは、アプリを開いている間と、**あなた自身が開始した運転の間**だけです。運転中は画面を消しても受信が続き、終わらせるのはアプリの「停止」です。運転中は通知を出しますが、ロック中の画面には表示されないことがあり、Android 14 以降はスワイプで消せます（消しても受信は止まりません）。アプリが勝手に始めることはなく、`ACCESS_BACKGROUND_LOCATION` は要求していません。
+- **GPS 現在地表示** — 同意した場合のみ。使うのは、アプリを開いている間と、**あなた自身が開始した運転の間**だけです。運転中は画面を消しても受信が続きます。終えるには、アプリの「停止」を押します。運転中は通知を出しますが、ロック中の画面には表示されないことがあり、Android 14 以降はスワイプで消せます（消しても受信は止まりません）。アプリが勝手に始めることはなく、`ACCESS_BACKGROUND_LOCATION` は要求していません。
 - **走行中の注意は音声と振動で知らせます。走行中は画面を注視しないでください。** 画面での確認は、出発前または安全な場所に停車してから行ってください。
   <!-- AAA 掲載ガードレール 2026-07-11（道交法71条5号の5 との整合; D4）。
        eyes-off 設計（HEAR/FEEL チャンネル + wakelock）は README.md:21-23 -->
@@ -41,7 +47,7 @@
   <!-- AndroidManifest.xml:6-8; app_localizations.dart:136-141 -->
 - **走行中の注意表示（HUD）と音声・振動の通知** — 注意の上限は「停車の検討」です。「引き返せ」のような指示はしません。
   <!-- main.dart:743-745 -->
-- **警報・注意報カード** — 現在地周辺の気象庁の警報・注意報を表示します。
+- **警報・注意報カード** — 現在地を共有しているときはその地域の、共有していないときは秋田県の、気象庁の警報・注意報を表示します。
 
 ### 正直な現状（アルファ段階の限界）
 
@@ -82,11 +88,13 @@
 ### プライバシー
 
 - テレメトリ（利用状況の自動送信）はありません。アカウント登録は不要です。広告・解析 SDK は入っていません。
-- 位置情報の共有は任意（オプトイン）です。アプリを表示している間と、**あなた自身が開始した運転の間**に使います。運転中は画面を消しても受信が続きます。アプリを開いて（または通知をタップして）「停止」を押せばいつでも終わり、**受信を終わらせるのは「停止」だけです**。運転中は通知を出しますが、**ロック中の画面には表示されないことがあり、Android 14 以降はスワイプで消せて、消しても受信は続きます**（Android 14 の試験用エミュレーターで確認。実機では未確認）。座標は端末に保存されず、本アプリ独自のサーバーへ送信されることはありません（そもそもサーバーがありません）。
+- 位置情報の共有は任意（オプトイン）です。アプリを表示している間と、**あなた自身が開始した運転の間**に使います。運転中は画面を消しても受信が続きます。アプリを開いて（または通知をタップして）「停止」を押せば、いつでも終わります。**通知を消しても受信は終わりません。**運転中は通知を出しますが、**ロック中の画面には表示されないことがあり、Android 14 以降はスワイプで消せて、消しても受信は続きます**（Android 14 の試験用エミュレーターで確認。実機では未確認）。座標は端末に保存されず、本アプリ独自のサーバーへ送信されることはありません（そもそもサーバーがありません）。
   <!-- AppL10n.locationDisclosure（アプリ内の同意カード）と同じ内容。行番号では引かない — 旧コメントの
        app_localizations.dart:136-141 は別の文を指していた。2026-09-25 訂正（AAE）: 旧文の
        「その間はずっと通知が出ており」「通知の出ない位置情報取得はありません」は、ロック画面と
-       Android 14 のスワイプの 2 つの場合に偽だった。docs/DEVICE_VERIFICATION.md の Lock screen 行。 -->
+       Android 14 のスワイプの 2 つの場合に偽だった。docs/DEVICE_VERIFICATION.md の Lock screen 行。
+       ⚑ 2026-09-25 訂正: 「受信を終わらせるのは『停止』だけです」は言い過ぎだった — Android が
+       アプリや位置情報の提供を止めた場合にも終わる。確実に終える操作が「停止」である、と書き直した。 -->
 - 不具合ログは端末内だけに保存されます（約200KB上限）。「ログを共有」を押したときだけ、端末の共有機能を通じて送られます。
   <!-- lib/services/error_log.dart:9-15 -->
 - 詳細は プライバシーポリシー（docs/store/privacy_policy_ja.md を掲載したページ）をご覧ください。
@@ -101,6 +109,6 @@
 
 ## English summary (short)
 
-Alpha-stage advisory app for snow-country driving in Japan (Akita-first). Shows verbatim JMA weather observations and a clearly-labeled **derived** invisible-ice (black ice) watch — an inference, never a JMA statement; missing data reads "cannot judge", never "clear". Bundled offline OpenStreetMap basemap for Akita (© OpenStreetMap contributors, ODbL), opt-in GPS that, once you start a drive, keeps warning you with the screen off behind an ongoing notification you can end (no background location without a drive you started), drive-caution HUD whose ceiling is "consider stopping" — never "turn back".
+Alpha-stage advisory app for snow-country driving in Japan (Akita-first). Shows verbatim JMA weather observations and a clearly-labeled **derived** invisible-ice (black ice) watch — an inference, never a JMA statement; missing data reads "cannot judge", never "clear". Bundled offline OpenStreetMap basemap for Akita (© OpenStreetMap contributors, ODbL), opt-in GPS that, once you start a drive, keeps warning you with the screen off while a notification is posted for the drive (on Android 14 and later it can be swiped away without ending the drive, and it may not show on a locked screen; Stop in the app ends the drive), with no background location without a drive you started, drive-caution HUD whose ceiling is "consider stopping" — never "turn back".
 
 **Honest bounds:** the app surfaces information only; the driver remains responsible for all driving decisions; it does not control the vehicle. Verified on a small device matrix (one physical device + emulators) — not claimable for all phones. Offline map is emulator-verified (2026-07-10 airplane-mode pass); on-device audio/haptic HEAR/FEEL still unverified. Ice-mission field verification is scheduled for first snow, ~November 2026 — the drive-loop claim and the ice-mission claim are never conflated. Spoken drive-HUD and ice-watch lines follow the device locale (ja/en); the condition-explainer announcement is driver-profile-bound (English on the foreign-tourist profile). The 41 Japanese safety warnings are recorded into the app and play with no TTS engine installed and no network (measured 2026-09-16 on an API-30 emulator with the only TTS package disabled: 0 synthesis requests; not measured on a physical handset). Installing an offline Japanese TTS voice is optional and covers the variable, route-guidance lines that cannot be pre-recorded. No telemetry, no accounts, no ads/analytics SDKs; crash log stays on-device (~200 KB cap) and leaves only via the user-initiated share action.

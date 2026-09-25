@@ -455,6 +455,31 @@ jobs:
       - name: Test
         run: flutter test
 
+      # ⚑ 2026-09-25. THE NOTIFICATION FIT GATE WAS ARMED NOWHERE.
+      # tool/assert_notification_fit.sh existed from 2026-09-24, and an
+      # integration check on 5b80fcb measured that no CI step and no test ran
+      # it; only a comment named it. The hermeticity step above does execute its --self-test, as it
+      # does every tool/*.sh, but the self-test reads fixtures. Nothing ever
+      # measured the SHIPPED strings. A gate nobody runs catches nothing.
+      #
+      # WHY HERE, AFTER `flutter test`, measured rather than guessed. The gate
+      # reads three things: Pillow (installed above from tool/requirements.txt),
+      # a CJK face (DroidSansFallbackFull, installed above with the Japanese
+      # faces) and Roboto from the Flutter SDK's material_fonts. After `flutter
+      # test` that last one is certainly downloaded. Measured on the dev host:
+      # Droid and Noto give identical widths for both body strings, which carry
+      # the stop-word check, and titles within 1.2%. Without Roboto the gate
+      # falls back to DejaVu, which is wider, and prints that it did.
+      #
+      # What it checks: title and body fit their rows at scale 1.0, and 停止 /
+      # Stop survive a truncating row at text scales 1.0 to 2.0. Only 1.0 and
+      # 1.3 are observed; the rest are a linear extrapolation. A pass means
+      # "fits by measurement", never "seen".
+      - name: Notification fit — the stop word survives every text scale
+        run: |
+          bash tool/assert_notification_fit.sh --self-test
+          bash tool/assert_notification_fit.sh
+
   # Proves the APK actually builds on a clean SDK-bearing runner, independently
   # of any one machine's local toolchain. The perm-assert also gates here so a
   # manifest that lost the WS1 perms fails BEFORE a dead APK is ever produced.

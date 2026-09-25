@@ -10,14 +10,19 @@
 // text in the test binding. It does NOT verify on-device HEAR/FEEL/SEE — there
 // is no Android device/emulator in this env. On-device observation is DEFERRED.
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:condition_aggregator/condition_aggregator.dart';
 import 'package:navigation_safety_core/navigation_safety_core.dart';
+import 'package:sngnav_app/jma_fetch.dart' show akitaStationId;
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
+import 'package:sngnav_app/services/jma_forecast_fetch.dart'
+    show akitaForecastAreaCode;
 import 'package:sngnav_app/widgets/advisory_cards.dart';
 
 import '../support/developer_page.dart';
@@ -255,6 +260,106 @@ void main() {
       // Network-TTS possibility, per locale.
       expect(ja.egressDisclosure, contains('ネットワーク音声'));
       expect(en.egressDisclosure, contains('network voice'));
+    });
+  });
+
+  // 2026-09-25. An audit read the card against the code and found it promised
+  // "the forecast for your prefecture" while the app requests Akita's wherever
+  // she is, and "all three are re-requested about every 10 minutes" while the
+  // forecast is re-requested about every 3 hours. The tests above pinned that
+  // the WORDS アメダス and 予報 appear; nothing pinned what they are keyed to.
+  group('The card says what the code requests (2026-09-25)', () {
+    const ja = AppL10n(Locale('ja'));
+    const en = AppL10n(Locale('en'));
+
+    test("AMeDAS and the forecast are named as Akita's, never as hers", () {
+      expect(ja.locationDisclosure, contains('秋田県の予報'));
+      expect(ja.locationDisclosure, contains('秋田県内のアメダス観測'));
+      expect(ja.locationDisclosure, isNot(contains('都道府県の予報')));
+      expect(ja.locationDisclosure, isNot(contains('地域のアメダス観測')));
+      expect(en.locationDisclosure, contains('the Akita Prefecture forecast'));
+      expect(en.locationDisclosure,
+          contains('AMeDAS observations in Akita Prefecture'));
+      expect(en.locationDisclosure.toLowerCase(),
+          isNot(contains('forecast for your prefecture')));
+      expect(en.locationDisclosure.toLowerCase(),
+          isNot(contains('regional amedas')));
+    });
+
+    test('the Akita sentence is tied to the call sites it describes', () {
+      // If a change ever makes these requests follow her position (a station,
+      // area or position argument at any of the three calls), this fails, and
+      // the card above has to change in the same change-set.
+      expect(akitaStationId, '32402');
+      expect(akitaForecastAreaCode, '050000');
+      final main = File('lib/main.dart').readAsStringSync();
+      for (final call in const [
+        'fetchLatestObservation(userAgent: kSngnavAppUserAgent)',
+        'fetchJmaForecast(userAgent: kSngnavAppUserAgent)',
+        'fetchCorridorObservations(userAgent: kSngnavAppUserAgent)',
+      ]) {
+        expect(main, contains(call),
+            reason: 'the card says this request is fixed to Akita; the call '
+                'site no longer matches that shape');
+      }
+    });
+
+    test("the dead-zone forecast card names Akita, because the forecast is "
+        "Akita's", () {
+      expect(akitaForecastAreaCode, '050000');
+      expect(ja.forecastMemoryCaption('07:10'), contains('秋田県の予報'));
+      expect(en.forecastMemoryCaption('07:10'),
+          contains('forecast for Akita Prefecture'));
+    });
+
+    test('the forecast is not claimed to be re-requested every 10 minutes',
+        () {
+      expect(en.locationDisclosure.toLowerCase(), isNot(contains('all three')));
+      expect(ja.locationDisclosure, isNot(contains('これらの取得は')));
+    });
+
+    test('the update check no longer promises "never while driving"', () {
+      // The guard is read once, when no drive can have started, and a drive
+      // started during the check does not stop it.
+      expect(ja.egressDisclosure, isNot(contains('走行中は行いません')));
+      expect(en.egressDisclosure.toLowerCase(),
+          isNot(contains('never while driving')));
+    });
+
+    test('the drive sentences are their own block, with no "app closed" claim',
+        () {
+      expect(ja.driveDisclosure, contains('「停止」'));
+      expect(ja.driveDisclosure, contains('スワイプ'));
+      expect(ja.driveDisclosure, contains('止まりません'));
+      expect(ja.driveDisclosure, contains('ロック中の画面'));
+      expect(ja.driveDisclosure, isNot(contains('アプリを閉じて')));
+      expect(en.driveDisclosure, contains('Stop'));
+      expect(en.driveDisclosure, contains('does not stop the drive'));
+      expect(en.driveDisclosure, isNot(contains('app closed')));
+      // Moved, not copied: the data-flow text no longer carries them.
+      expect(ja.locationDisclosure, isNot(contains('スワイプ')));
+      expect(en.locationDisclosure.toLowerCase(), isNot(contains('swipe')));
+    });
+
+    testWidgets(
+        'on the card the drive sentences come BEFORE the share button, and the '
+        'data-flow text after it', (tester) async {
+      await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
+      await tester.pump();
+      final drive = find.byKey(const Key('drive-disclosure'));
+      final share = find.byKey(const Key('share-location-button'));
+      final flow = find.byKey(const Key('location-disclosure'));
+      expect(drive, findsOneWidget);
+      expect(tester.getRect(drive).bottom,
+          lessThanOrEqualTo(tester.getRect(share).top),
+          reason: 'what happens after a yes must be read before the yes');
+      expect(tester.getRect(flow).top,
+          greaterThanOrEqualTo(tester.getRect(share).bottom));
+      // A screen reader hears the words, never the joiners that keep them
+      // whole on screen.
+      final handle = tester.ensureSemantics();
+      expect(find.bySemanticsLabel(ja.driveDisclosure), findsOneWidget);
+      handle.dispose();
     });
   });
 

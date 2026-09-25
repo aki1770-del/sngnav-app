@@ -136,6 +136,32 @@ void main() {
           reason: 'the thing consented to and the act are one surface');
     });
 
+    // 2026-09-25: the drive sentences (the drive keeps going, the notification
+    // can vanish, 停止 ends it) were the tenth sentence of one paragraph, below
+    // where the dialog opens while its agree button is always in view. They
+    // are now their own block, FIRST.
+    testWidgets('the act carries the drive sentences FIRST, verbatim',
+        (tester) async {
+      await _boot(tester);
+      await _tapShare(tester);
+
+      final drive = find.byKey(const Key('location-consent-drive'));
+      final body = find.byKey(const Key('location-consent-body'));
+      expect(drive, findsOneWidget);
+      const l = AppL10n(Locale('ja'));
+      final handle = tester.ensureSemantics();
+      expect(
+          find.descendant(
+              of: find.byType(AlertDialog),
+              matching: find.bySemanticsLabel(l.driveDisclosure)),
+          findsOneWidget,
+          reason: 'the drive sentences, as words, inside the act');
+      handle.dispose();
+      expect(tester.getRect(drive).bottom,
+          lessThanOrEqualTo(tester.getRect(body).top),
+          reason: 'what happens after a yes comes first');
+    });
+
     testWidgets('DECLINE starts nothing', (tester) async {
       final c = await _boot(tester);
       await _tapShare(tester);

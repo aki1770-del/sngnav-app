@@ -134,14 +134,18 @@ landed (geolocator's own `GeolocatorLocationService`, driven by
       footer; the status-bar icon was gone. The probe does not read location,
       so whether a location status icon would remain is NOT measured.
       Why it matters: the app is not told (geolocator sets no deleteIntent),
-      and 停止 is the only thing that ends collection — so on 14+ location can
-      keep running with nothing in the shade, the state the manifest's dignity
+      and nothing she does in the shade ends collection (停止 in the app does;
+      so does the platform ending the stream or the app) — so on 14+ location
+      can keep running with nothing in the shade, the state the manifest's dignity
       comment reserves to the Chair. The pages now disclose it. The fork (stop
       the drive on dismissal, re-post it, or keep disclosing) changes what she
       experiences mid-drive and is routed to the Chair through the SEO.
-      **Still owed: the real app on her phone, and one pre-14 image to bound
-      the "below 14 it cannot be swiped" half, which is recalled, not
-      measured.**
+      **Still owed: the real app on her phone.** The pre-14 half is no longer
+      only recalled: a screen review on 2026-09-25 measured an Android 11
+      (API 30) emulator at her phone's geometry (1080x2340, 440 dpi) — one
+      ordinary swipe left the ongoing notification in place, while the same
+      gesture removed a plain control notification. Her phone runs Android 10
+      under MIUI, whose shade nobody has measured: UNVERIFIED there.
       ⚑ Do NOT resolve this by dropping `setOngoing` — see the setOngoing
       comment in `lib/her_position.dart`.
 - [ ] **Battery-killer audit** — the ongoing-drive notification + wakelock do not

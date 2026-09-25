@@ -133,8 +133,13 @@ void main() {
       });
     }
 
-    test('setOngoing is true — the indicator cannot be separated from the '
-        'collection', () {
+    // RENAMED 2026-09-25. This test was named "setOngoing is true — the
+    // indicator cannot be separated from the collection", and that name
+    // printed as a pass on every run while the property was measured FALSE on
+    // Android 14 (one swipe removed the notification; the service kept
+    // running). The assertion was always about the argument; now the name is.
+    test('setOngoing is true — the argument is pinned; on Android 14+ this does '
+        'NOT keep the notification in front of the collection', () {
       final config = (driveLocationSettings(notification: _shipped('ja'))
               as AndroidSettings)
           .foregroundNotificationConfig!;

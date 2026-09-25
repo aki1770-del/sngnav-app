@@ -228,9 +228,23 @@ Future<JmaResult> fetchLatestObservation({
 ///
 /// Failures are per-station: one station's network failure does not
 /// invalidate the others — staleness is honest per row.
-Future<List<JmaResult>> fetchCorridorObservations() async {
+///
+/// [userAgent] is passed to every station request (added 2026-09-25, on an
+/// audit finding). Until then this function took none, so these five stations' requests
+/// went out with dart:io's default User-Agent while the privacy policy said
+/// every AMeDAS request carries the app's. [client] is for tests; when null,
+/// each station request uses and closes its own client, as before.
+Future<List<JmaResult>> fetchCorridorObservations({
+  http.Client? client,
+  String? userAgent,
+}) async {
   final futures = corridorStations.map(
-    (s) => fetchLatestObservation(stationId: s.id, stationName: s.name),
+    (s) => fetchLatestObservation(
+      stationId: s.id,
+      stationName: s.name,
+      client: client,
+      userAgent: userAgent,
+    ),
   );
   return Future.wait(futures);
 }
