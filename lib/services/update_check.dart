@@ -77,6 +77,40 @@ enum UpdateCheckStatus {
   unknownSelf,
 }
 
+/// What the ADDRESS READER did on one check ([UpdateChecker.check]). Closed
+/// vocabulary for the debug line and the tests; none of it reaches a pixel.
+///
+/// Every state but [learned] leaves the stored address exactly as it was.
+enum ManifestAddress {
+  /// No manifest describing this app was read on this check (no answer,
+  /// unknown self, or a manifest for another app), so no address could be
+  /// learned. Deliberately NOT [unchanged]: "I did not read one" is not "it
+  /// named no new address", and a step that did not run must not report a
+  /// result that looks like it ran and found nothing.
+  notAsked,
+
+  /// The manifest named no address, or named the one it was served from.
+  unchanged,
+
+  /// The manifest named an address that is not an absolute https URL with a
+  /// host. It was not fetched and nothing was stored.
+  refused,
+
+  /// The manifest named a new https address, and that address did not verify:
+  /// it did not answer 200 itself in time (a redirect is not an answer), its
+  /// body did not parse, the manifest there did not name ITSELF, or it
+  /// described a different app. Nothing was stored.
+  unverified,
+
+  /// The new address verified, but storing it failed. Nothing was stored; the
+  /// next check will fetch the old address and try again.
+  unsaved,
+
+  /// The new address verified and was stored. It is used from the NEXT check
+  /// on, which in this app is the next launch.
+  learned,
+}
+
 @immutable
 class UpdateCheckResult {
   const UpdateCheckResult({
@@ -84,9 +118,13 @@ class UpdateCheckResult {
     required this.running,
     this.available,
     this.runningIsPublished,
+    this.address = ManifestAddress.notAsked,
   });
 
   final UpdateCheckStatus status;
+
+  /// What the address reader did on this check. Never shown to the holder.
+  final ManifestAddress address;
 
   /// What the running build says it is, read from the artifact.
   final BuildIdentity running;
@@ -106,7 +144,19 @@ class UpdateCheckResult {
   /// The single question a surface may ask. True ONLY when a newer build
   /// exists and has been proven fetchable this check.
   bool get shouldAnnounce => status == UpdateCheckStatus.updateAvailable;
+
+  UpdateCheckResult _withAddress(ManifestAddress a) => UpdateCheckResult(
+        status: status,
+        running: running,
+        available: available,
+        runningIsPublished: runningIsPublished,
+        address: a,
+      );
 }
+
+/// One check's version answer, plus the manifest it came from when that
+/// manifest describes this app (the only kind whose address may be learned).
+typedef _Answer = ({UpdateCheckResult result, UpdateManifest? ours, Uri? from});
 
 /// Fetches a version manifest and compares it to the running build.
 class UpdateChecker {
@@ -126,8 +176,31 @@ class UpdateChecker {
 
   /// The compile-time DEFAULT manifest location. Overridable at build time with
   /// `--dart-define=SNGNAV_UPDATE_MANIFEST_URL=...`, and at RUNTIME by a
-  /// persisted override (see [resolveManifestUrl]) — so the route survives a
-  /// change of host WITHOUT a new build, which is the point.
+  /// persisted address (see [resolveManifestUrl]).
+  ///
+  /// ⚑ CORRECTED 2026-09-25. This comment used to end "so the route survives a
+  /// change of host WITHOUT a new build, which is the point." Nothing wrote the
+  /// persisted address: [persistManifestUrl] had no caller and the parser read
+  /// no address field. In every build before this one, a change of host needs a
+  /// new build, and a holder of such a build cannot be told where to find one.
+  ///
+  /// What is true from this build on, and only within these bounds:
+  ///  - a manifest may name the address it will be served from
+  ///    (`manifest_url`). [check] stores a NEW address only after fetching it
+  ///    and finding that the manifest there names itself and describes this
+  ///    app (`_goAndSee`);
+  ///  - a stored address is used from the NEXT check, and this app checks once
+  ///    per launch, so it takes effect at the next launch;
+  ///  - the OLD address must keep answering, and naming the new one, until the
+  ///    holder has launched once. A holder who does not launch inside that
+  ///    window is stranded exactly as before, and nothing here can tell him;
+  ///  - builds WITHOUT this reader cannot follow a move at all. Their only
+  ///    address is the one they were compiled with;
+  ///  - a new address must answer 200 ITSELF. One that redirects is never
+  ///    learned, because the reader does not follow redirects (see
+  ///    `_goAndSee`). Measured 2026-09-25: a GitHub release-asset download
+  ///    link answered 302, and a file on raw.githubusercontent.com answered
+  ///    200 directly.
   static const String defaultManifestUrl = String.fromEnvironment(
     'SNGNAV_UPDATE_MANIFEST_URL',
     defaultValue:
@@ -136,8 +209,19 @@ class UpdateChecker {
 
   static const String _overrideFileName = 'update_manifest_url.txt';
 
-  /// Reads the persisted manifest-URL override, falling back to the compiled
-  /// default. Never throws.
+  /// Reads the persisted manifest address, falling back to the compiled
+  /// default when none is stored (or the stored one is not https). Never
+  /// throws.
+  ///
+  /// A stored address that later stops answering does NOT fall back to the
+  /// compiled default, and that is deliberate: an address we moved away from
+  /// may later be served by someone else (a released account or repository
+  /// name, a lapsed domain), and falling back would hand them this channel.
+  /// The cost is stated, not hidden: a DEAD stored address strands its holder
+  /// exactly as a dead compiled default would. The only way off any address
+  /// is a manifest still served THERE that names the next one, so an address
+  /// may be given up only after its holders have had time to learn where it
+  /// went.
   static Future<Uri?> resolveManifestUrl() async {
     try {
       final dir = await getApplicationSupportDirectory();
@@ -207,16 +291,27 @@ class UpdateChecker {
     }
   }
 
-  /// Persists a new manifest location (from a manifest's own `manifestUrl`).
+  /// Stores a new manifest address. Returns true only when it was written.
   /// Never throws.
-  static Future<void> persistManifestUrl(Uri url) async {
+  ///
+  /// Its caller is [check], which calls it only after `_goAndSee` has fetched
+  /// the new address and its manifest has named itself. (Until 2026-09-25 it
+  /// had no caller at all, and its comment cited a `manifestUrl` field the
+  /// parser never read.) It refuses anything that is not an absolute https URL
+  /// with a host, by the same predicate [resolveManifestUrl] reads with, so
+  /// this code cannot store an address that the read side would then refuse.
+  static Future<bool> persistManifestUrl(Uri url) async {
+    final safe = _httpsOnly(url.toString());
+    if (safe == null) return false;
     try {
       final dir = await getApplicationSupportDirectory();
       final f = File('${dir.path}/$_overrideFileName');
       f.parent.createSync(recursive: true);
-      f.writeAsStringSync(url.toString(), flush: true);
+      f.writeAsStringSync(safe.toString(), flush: true);
+      return true;
     } catch (_) {
       // A failed write costs us the migration, not the drive.
+      return false;
     }
   }
 
@@ -234,8 +329,9 @@ class UpdateChecker {
       );
     }
 
+    final _Answer answer;
     try {
-      return await _run(running, manifestUrl).timeout(timeout);
+      answer = await _run(running, manifestUrl).timeout(timeout);
     } catch (_) {
       // Offline, DNS failure, TLS failure, timeout, anything at all. The
       // driver is told NOTHING and nothing downstream is affected.
@@ -244,15 +340,96 @@ class UpdateChecker {
         running: running,
       );
     }
+
+    final ours = answer.ours;
+    final from = answer.from;
+    if (ours == null || from == null) return answer.result;
+
+    // THE ADDRESS READER runs only AFTER this check's answer is fixed, and on
+    // a budget of its own. Nothing it does can change what this check says: a
+    // new address that hangs, lies or 404s costs the move, never the news of a
+    // newer build. Its one cost is time, and only when the manifest names a
+    // new address: this check can then return up to one more [timeout] later.
+    //
+    // Only the NETWORK half runs under that budget. `.timeout` abandons the
+    // Future, not the work, so a write made inside it could land seconds
+    // after this check had already reported "unverified". The write is made
+    // here instead, on this path, and only when verification finished in time.
+    //
+    // ⚑ WDA SEAM: these lines are the only ones that act on the location fact.
+    ({ManifestAddress outcome, Uri? store}) seen;
+    try {
+      seen = await _goAndSee(ours, from, running).timeout(timeout);
+    } catch (_) {
+      seen = (outcome: ManifestAddress.unverified, store: null);
+    }
+    final store = seen.store;
+    final address = store == null
+        ? seen.outcome
+        : await persistManifestUrl(store)
+            ? ManifestAddress.learned
+            : ManifestAddress.unsaved;
+    return answer.result._withAddress(address);
   }
 
-  Future<UpdateCheckResult> _run(BuildIdentity running, Uri? override) async {
+  /// Goes and looks at a new manifest address. Writes nothing: it returns the
+  /// address to store (`store`), or why there is none (`outcome`).
+  ///
+  /// [ours] was served from [from] and describes this app. If it names a
+  /// DIFFERENT https address, that address is fetched, and it may be stored
+  /// only when the manifest found THERE parses, names that same address as its
+  /// own and describes this app. One hop only: a manifest that points on again
+  /// is not followed further, so a chain of addresses cannot run this check
+  /// long.
+  Future<({ManifestAddress outcome, Uri? store})> _goAndSee(
+    UpdateManifest ours,
+    Uri from,
+    BuildIdentity running,
+  ) async {
+    const unverified = (outcome: ManifestAddress.unverified, store: null);
+    if (ours.manifestUrlRefused) {
+      return (outcome: ManifestAddress.refused, store: null);
+    }
+    final named = ours.manifestUrl;
+    if (named == null || named.toString() == from.toString()) {
+      return (outcome: ManifestAddress.unchanged, store: null);
+    }
+
+    // NO REDIRECTS. Measured 2026-09-25 over real loopback TLS with the same
+    // http client this app uses: a 301 from an https address to a plaintext
+    // http host was FOLLOWED, the manifest that "verified" the new address
+    // arrived unencrypted, and the address was stored. https-only has to hold
+    // for every hop that decides where later checks go, not only for the first.
+    // An address that redirects is also not where the manifest lives, so the
+    // new address must answer 200 itself.
+    final req = http.Request('GET', named)
+      ..followRedirects = false
+      ..headers['Accept'] = 'application/json'
+      ..headers['Cache-Control'] = 'no-cache';
+    final res = await http.Response.fromStream(await _client.send(req));
+    if (res.statusCode != 200) return unverified;
+    final there = UpdateManifest.tryParse(utf8.decode(res.bodyBytes));
+    if (there == null) return unverified;
+    // It must NAME ITSELF. A manifest that says it lives somewhere else is not
+    // a home; storing its address would move him to a place that disowns it.
+    if (there.manifestUrl?.toString() != named.toString()) return unverified;
+    // And it must describe THIS app, or every later check would end in
+    // packageMismatch: a move that silences him instead of moving him.
+    final pkg = running.packageName;
+    if (pkg != null && there.latest.package != pkg) return unverified;
+    return (outcome: ManifestAddress.learned, store: named);
+  }
+
+  static _Answer _noManifest(UpdateCheckResult r) =>
+      (result: r, ours: null, from: null);
+
+  Future<_Answer> _run(BuildIdentity running, Uri? override) async {
     final url = override ?? await resolveManifestUrl();
     if (url == null) {
-      return UpdateCheckResult(
+      return _noManifest(UpdateCheckResult(
         status: UpdateCheckStatus.noAnswer,
         running: running,
-      );
+      ));
     }
 
     final res = await _client.get(url, headers: const {
@@ -260,31 +437,32 @@ class UpdateChecker {
       'Cache-Control': 'no-cache',
     });
     if (res.statusCode != 200) {
-      return UpdateCheckResult(
+      return _noManifest(UpdateCheckResult(
         status: UpdateCheckStatus.noAnswer,
         running: running,
-      );
+      ));
     }
 
     final manifest = UpdateManifest.tryParse(utf8.decode(res.bodyBytes));
     if (manifest == null) {
       // Unparseable or unknown schema. NOT "up to date" — we did not
       // understand the answer, so we have no answer.
-      return UpdateCheckResult(
+      return _noManifest(UpdateCheckResult(
         status: UpdateCheckStatus.noAnswer,
         running: running,
-      );
+      ));
     }
 
     // The manifest must describe THIS app. A different applicationId is not
-    // an update to him; it is a second app that would sit beside his.
+    // an update to him; it is a second app that would sit beside his. Nor is
+    // it a manifest whose address he should ever learn.
     final pkg = running.packageName;
     if (pkg != null && manifest.latest.package != pkg) {
-      return UpdateCheckResult(
+      return _noManifest(UpdateCheckResult(
         status: UpdateCheckStatus.packageMismatch,
         running: running,
         available: manifest.latest,
-      );
+      ));
     }
 
     // ---- THE COMPARISON, under BIS's ruling of 2026-09-24 ----
@@ -304,11 +482,15 @@ class UpdateChecker {
     //     collision. Nothing newer exists, whatever the integers say.
     if (selfSha != null &&
         selfSha.toLowerCase() == manifest.latest.sha256.toLowerCase()) {
-      return UpdateCheckResult(
-        status: UpdateCheckStatus.upToDate,
-        running: running,
-        available: manifest.latest,
-        runningIsPublished: true,
+      return (
+        result: UpdateCheckResult(
+          status: UpdateCheckStatus.upToDate,
+          running: running,
+          available: manifest.latest,
+          runningIsPublished: true,
+        ),
+        ours: manifest,
+        from: url,
       );
     }
 
@@ -318,23 +500,31 @@ class UpdateChecker {
     //     orders installs by, so it is the one integer that means something
     //     here, and it is the only one compared.
     if (manifest.latest.versionCode <= running.versionCode!) {
-      return UpdateCheckResult(
-        status: UpdateCheckStatus.upToDate,
-        running: running,
-        available: manifest.latest,
-        runningIsPublished: published,
+      return (
+        result: UpdateCheckResult(
+          status: UpdateCheckStatus.upToDate,
+          running: running,
+          available: manifest.latest,
+          runningIsPublished: published,
+        ),
+        ours: manifest,
+        from: url,
       );
     }
 
     // Constraint 2: prove we can deliver before we announce.
     final reachable = await _artifactReachable(manifest.latest.artifactUrl);
-    return UpdateCheckResult(
-      status: reachable
-          ? UpdateCheckStatus.updateAvailable
-          : UpdateCheckStatus.newerButUnreachable,
-      running: running,
-      available: manifest.latest,
-      runningIsPublished: published,
+    return (
+      result: UpdateCheckResult(
+        status: reachable
+            ? UpdateCheckStatus.updateAvailable
+            : UpdateCheckStatus.newerButUnreachable,
+        running: running,
+        available: manifest.latest,
+        runningIsPublished: published,
+      ),
+      ours: manifest,
+      from: url,
     );
   }
 
