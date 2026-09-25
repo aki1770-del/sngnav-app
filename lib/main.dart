@@ -1670,7 +1670,7 @@ class _HomePageState extends State<HomePage> {
     try {
       await _loadUpdateDismissal();
       final checker = _updateChecker ??= UpdateChecker();
-      final url = await UpdateChecker.resolveManifestUrl();
+      final url = kDebugMode ? await UpdateChecker.resolveManifestUrl() : null;
       final result = await checker.check();
       // DEBUG BUILDS ONLY. The negative controls of this route are decisions,
       // not absences: "nothing appeared" is indistinguishable from "it never

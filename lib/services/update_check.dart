@@ -164,7 +164,7 @@ class UpdateChecker {
     http.Client? client,
     this.timeout = const Duration(seconds: 6),
     Future<BuildIdentity> Function()? readIdentity,
-  })  : _client = client ?? http.Client(),
+  })  : _client = HttpsHopsOnlyClient(client ?? http.Client()),
         _readIdentity = readIdentity ?? BuildIdentity.fromPlatform;
 
   final http.Client _client;
@@ -570,4 +570,102 @@ class UpdateChecker {
   }
 
   void dispose() => _client.close();
+}
+
+/// THE CLIENT EVERY [UpdateChecker] REQUEST GOES THROUGH. It follows a
+/// redirect only to another https address, and it never lets the client it
+/// wraps follow one on its own.
+///
+/// ⚑ WHY, measured 2026-09-25 over real loopback TLS with the app's own
+/// http client. The main manifest fetch and the artifact probe both
+/// FOLLOWED a 301 from https to a plaintext host, and the plaintext answer
+/// then decided the announcement: `updateAvailable`, both times. That client
+/// follows redirects for GET and HEAD by default and never looks at the
+/// scheme, so "all update traffic is https" held only because our hosts had
+/// not redirected that way. Turning redirects off is not the fix: a GitHub
+/// release-asset link answered 302, from github.com to another https host,
+/// the same day, and the probe would then call every such build unreachable.
+///
+/// So this client, and nothing downstream of it:
+///  - refuses an address that is not https with a host, the first one
+///    included, BEFORE anything is sent to it;
+///  - sends every hop with `followRedirects = false`, so the client it wraps
+///    hands each redirect back here instead of following it;
+///  - for GET and HEAD follows 301, 302, 303, 307 and 308, the codes the
+///    wrapped client would itself have followed, resolving `Location`
+///    against the address that answered and keeping the method and every
+///    header (a `Range` stays a `Range`; this checker sends no credentials),
+///    up to the request's `maxRedirects`, which is 5, as before;
+///  - closes each redirect's body unread;
+///  - throws on anything else: a hop that is not https, a redirect with no
+///    `Location`, one hop past the limit. Every caller already reads a throw
+///    as its honest answer, `noAnswer` for the manifest, unreachable for the
+///    artifact, `unverified` for the address reader, and none of those is
+///    announced. A plaintext answer cannot decide anything because it is
+///    never asked for: made impossible, not merely unlikely.
+///
+/// A request that sets `followRedirects = false` itself gets every redirect
+/// back unfollowed. The address reader (`_goAndSee`) does, because a new
+/// address must answer 200 itself.
+@visibleForTesting
+class HttpsHopsOnlyClient extends http.BaseClient {
+  HttpsHopsOnlyClient(this._inner);
+
+  final http.Client _inner;
+
+  static const Set<int> _followedCodes = {301, 302, 303, 307, 308};
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    _refuseUnlessHttps(request.url);
+    final follow = request.followRedirects &&
+        (request.method == 'GET' || request.method == 'HEAD');
+    final limit = request.maxRedirects;
+    final headers = Map<String, String>.of(request.headers);
+    request.followRedirects = false;
+    var response = await _inner.send(request);
+    var at = request.url;
+    var hops = 0;
+    while (follow && _followedCodes.contains(response.statusCode)) {
+      final location = _location(response);
+      await _discard(response);
+      if (location == null) {
+        throw http.ClientException('a redirect with no Location', at);
+      }
+      if (++hops > limit) {
+        throw http.ClientException('more than $limit redirects', at);
+      }
+      final next = at.resolve(location);
+      _refuseUnlessHttps(next);
+      at = next;
+      response = await _inner.send(http.Request(request.method, at)
+        ..followRedirects = false
+        ..headers.addAll(headers));
+    }
+    return response;
+  }
+
+  static void _refuseUnlessHttps(Uri url) {
+    if (url.scheme != 'https' || url.host.isEmpty) {
+      throw http.ClientException('refused: not an https address', url);
+    }
+  }
+
+  static String? _location(http.BaseResponse response) {
+    for (final h in response.headers.entries) {
+      if (h.key.toLowerCase() == 'location') return h.value.trim();
+    }
+    return null;
+  }
+
+  static Future<void> _discard(http.StreamedResponse response) async {
+    try {
+      await response.stream.listen(null).cancel();
+    } catch (_) {
+      // A body we are throwing away cannot change where we go next.
+    }
+  }
+
+  @override
+  void close() => _inner.close();
 }
