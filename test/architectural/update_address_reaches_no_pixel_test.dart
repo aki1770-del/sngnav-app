@@ -103,7 +103,22 @@ bool _insideDebugGuard(DartViews v, int at) {
   final lineStart = v.shape.lastIndexOf('\n', at) + 1;
   final head = v.shape.substring(lineStart, at);
   final q = RegExp(r'(?<![!\w])kDebugMode\s*\?').allMatches(head).lastOrNull;
-  return q != null && !head.substring(q.end).contains(':');
+  if (q == null || head.substring(q.end).contains(':')) return false;
+  // THE CONDITION MUST BE kDebugMode ALONE (2026-09-25, round 5b, on the
+  // voice-census author's finding, TRAP-20). `?:` binds more loosely than
+  // every other operator, so `_verbose || kDebugMode ? read : null` is
+  // `(_verbose || kDebugMode) ? read : null` and reads in release whenever
+  // _verbose holds; so do `|`, `??`, `==`, `^` and `a || b && kDebugMode`.
+  // Until this line, any condition whose LAST token was kDebugMode was
+  // exempt. Now what stands before kDebugMode must begin an expression: an
+  // assignment, `=>`, an opening bracket, a comma, a `;`, `return`, or the
+  // `?` or `:` of an enclosing conditional. Anything else is not exempt, a
+  // conjunction included: this reports a read that is in fact debug-only
+  // rather than exempt one that is not.
+  final before = head.substring(0, q.start).trimRight();
+  return before.isEmpty ||
+      RegExp(r'(?:(?<![=!<>?])=|=>|[(\[{,;:]|(?<!\?)\?|\breturn)$')
+          .hasMatch(before);
 }
 
 Map<String, String> _libTree() => {
@@ -229,6 +244,19 @@ void main() {
             'await UpdateChecker.resolveManifestUrl()'),
         ('the guard turned the wrong way round', 'lib/main.dart', guarded,
             '!kDebugMode ? null : await UpdateChecker.resolveManifestUrl()'),
+        // A condition that ENDS in kDebugMode but is not kDebugMode alone
+        // reads in release. Each passed as debug-only until round 5b.
+        for (final condition in [
+          '_verbose || kDebugMode',
+          '_verbose | kDebugMode',
+          '_force ?? kDebugMode',
+          'false == kDebugMode',
+          '_verbose ^ kDebugMode',
+          '_a || _b && kDebugMode',
+        ])
+          ('the read under `$condition ?`, which runs in release',
+              'lib/main.dart', guarded,
+              '$condition ? await UpdateChecker.resolveManifestUrl() : null'),
         ('the reader\'s state printed after the guard closes', 'lib/main.dart',
             "      if (!mounted) return;\n      setState(() => _updateResult = result);",
             "      debugPrint('\${result.address}');\n"
@@ -243,6 +271,14 @@ void main() {
           expect(addressLeaks(edit(path, from, to)), isNotEmpty);
         });
       }
+
+      test('still exempt: kDebugMode alone, inside an enclosing bracket', () {
+        expect(
+            addressLeaks(edit('lib/main.dart', guarded, '($guarded)')),
+            isEmpty,
+            reason: 'the round-5b rule must refuse conditions that are not '
+                'kDebugMode alone, not every spelling but one');
+      });
     });
   });
 
