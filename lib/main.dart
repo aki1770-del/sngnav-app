@@ -3557,6 +3557,29 @@ class _HomePageState extends State<HomePage> {
   bool? _locationConsent;
   bool _locationConsentLoaded = false;
 
+  /// She agreed once, to words that no longer describe what sharing does
+  /// ([LocationConsentRecord.isYesToOtherWords]). The dialog then says first
+  /// that the description changed, before it asks again.
+  bool _locationConsentAskAgain = false;
+
+  /// What a stored record means here, and the ONE place that decides it: only
+  /// a yes to the words the dialog shows now is honoured. A withdrawal, a yes
+  /// written before revisions existed, or a yes to other words leaves her
+  /// undecided, so her next tap asks. Nothing read from disk is ever a no:
+  /// a stored no used to make the share button do nothing at all on every
+  /// later launch (2026-09-25), the lock-out a remembered refusal was always
+  /// meant not to cause.
+  void _applyPersistedLocationConsent(LocationConsentRecord? record) {
+    if (record == null) return;
+    if (record.answers(kLocationConsentRevision)) {
+      _locationConsent = true;
+      _locationConsentAskAgain = false;
+      return;
+    }
+    _locationConsentAskAgain =
+        record.isYesToOtherWords(kLocationConsentRevision);
+  }
+
   /// Read the persisted answer at startup, so the WITHDRAWAL control can be
   /// offered without waiting for her to tap share.
   ///
@@ -3568,7 +3591,7 @@ class _HomePageState extends State<HomePage> {
   void _loadPersistedLocationConsent() {
     if (_locationConsentLoaded) return;
     unawaited(() async {
-      bool? persisted;
+      LocationConsentRecord? persisted;
       try {
         final store = await _locationConsentStore(hangBound: null);
         // NO .timeout() HERE, deliberately, and it is not an oversight I let
@@ -3586,7 +3609,7 @@ class _HomePageState extends State<HomePage> {
       }
       if (!mounted || _locationConsentLoaded) return;
       setState(() {
-        if (persisted != null) _locationConsent = persisted;
+        _applyPersistedLocationConsent(persisted);
         _locationConsentLoaded = true;
       });
     }());
@@ -3626,10 +3649,14 @@ class _HomePageState extends State<HomePage> {
       _locationConsent = null;
       _locationConsentLoaded = true;
       _locationConsentWithdrawn = true;
+      _locationConsentAskAgain = false;
     });
     // Fire-and-forget, the same idiom as the grant: her answer takes effect
     // NOW, in RAM. A lost write means she is asked again, never a hung screen.
-    unawaited(_locationConsentStore(hangBound: null).then((s) => s?.save(false)));
+    // What is written is a withdrawal, and it is never read back as a no:
+    // on a later launch her tap asks, as the note she has just read promises.
+    unawaited(_locationConsentStore(hangBound: null)
+        .then((s) => s?.saveWithdrawal()));
   }
 
   /// True once she has withdrawn in this session, so the surface can say so
@@ -3681,19 +3708,24 @@ class _HomePageState extends State<HomePage> {
   Future<bool> _ensureLocationConsent() async {
     if (!_locationConsentLoaded) {
       final store = await _locationConsentStore();
-      bool? persisted;
+      LocationConsentRecord? persisted;
       try {
         persisted = await store?.load().timeout(const Duration(seconds: 2));
       } catch (_) {
         persisted = null;
       }
-      if (persisted != null) _locationConsent = persisted;
+      _applyPersistedLocationConsent(persisted);
       _locationConsentLoaded = true;
     }
     final existing = _locationConsent;
     if (existing != null) return existing;
     if (!mounted) return false;
-    final granted = await _promptLocationConsent();
+    // The words are taken ONCE, here: the dialog is drawn from them and a yes
+    // records them, so the record cannot name words she was not shown.
+    final l = AppL10n.of(context);
+    final words = l.locationConsentDialog;
+    final granted = await _promptLocationConsent(words,
+        askedAgain: _locationConsentAskAgain);
     if (granted == null) return false; // dismissed - not a decision.
     // ONLY A YES IS REMEMBERED, and this is where it differs from the OSRM
     // pair on purpose. A remembered NO would trap her: the route question has
@@ -3703,7 +3735,18 @@ class _HomePageState extends State<HomePage> {
     // next time she taps, which is a repeated question and never a lock-out.
     if (!granted) return false;
     _locationConsent = true;
-    unawaited(_locationConsentStore(hangBound: null).then((s) => s?.save(true)));
+    _locationConsentAskAgain = false;
+    unawaited(_locationConsentStore(hangBound: null).then((s) => s?.saveYes(
+          revision: kLocationConsentRevision,
+          locale: l.wordsLanguage,
+          words: [
+            words.title,
+            words.drive,
+            words.body,
+            words.decline,
+            words.accept,
+          ],
+        )));
     return true;
   }
 
@@ -3717,25 +3760,41 @@ class _HomePageState extends State<HomePage> {
   /// are on the dialog's first screen. They used to be the tenth sentence of
   /// one paragraph, below where the dialog opens, while the agree button is
   /// always in view.
-  Future<bool?> _promptLocationConsent() {
+  ///
+  /// 2026-09-25: drawn from [words], the record a yes stores, and preceded by
+  /// [AppL10n.locationConsentAskedAgain] when she agreed before to words that
+  /// no longer describe what sharing does ([askedAgain]).
+  Future<bool?> _promptLocationConsent(
+    ({String title, String drive, String body, String decline, String accept})
+        words, {
+    required bool askedAgain,
+  }) {
     final l = AppL10n.of(context);
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l.locationConsentTitle),
+        title: Text(words.title),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (askedAgain) ...[
+                Text(
+                  l.locationConsentAskedAgain,
+                  key: const Key('location-consent-asked-again'),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 12),
+              ],
               KeepTogetherText(
-                l.driveDisclosure,
+                words.drive,
                 key: const Key('location-consent-drive'),
                 words: l.driveDisclosureKeepTogether,
               ),
               const SizedBox(height: 12),
               Text(
-                l.locationDisclosure,
+                words.body,
                 key: const Key('location-consent-body'),
               ),
             ],
@@ -3745,12 +3804,12 @@ class _HomePageState extends State<HomePage> {
           TextButton(
             key: const Key('location-consent-decline'),
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(l.locationConsentDecline),
+            child: Text(words.decline),
           ),
           FilledButton(
             key: const Key('location-consent-accept'),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(l.locationConsentAccept),
+            child: Text(words.accept),
           ),
         ],
       ),

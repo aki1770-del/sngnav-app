@@ -1114,6 +1114,33 @@ class AppL10n {
   /// Declining starts nothing. The OS permission prompt is never reached.
   String get locationConsentDecline => _ja ? '共有しない' : 'Do not share';
 
+  /// The consent dialog's words, in the order she reads them: the question,
+  /// the drive sentences, where her coordinates go, and the two answers.
+  ///
+  /// The dialog is drawn from this record and a yes stores exactly this
+  /// (lib/services/location_consent.dart), so the words the store says she
+  /// agreed to are the words the dialog showed her, by construction.
+  ({String title, String drive, String body, String decline, String accept})
+      get locationConsentDialog => (
+            title: locationConsentTitle,
+            drive: driveDisclosure,
+            body: locationDisclosure,
+            decline: locationConsentDecline,
+            accept: locationConsentAccept,
+          );
+
+  /// The language the words above are in: 'ja', or 'en' for every other
+  /// locale, which reads the English words.
+  String get wordsLanguage => _ja ? 'ja' : 'en';
+
+  /// Said first in the dialog when she agreed before, to words that no longer
+  /// describe what sharing does. Asking again without saying why would read as
+  /// the app having lost her answer.
+  String get locationConsentAskedAgain => _ja
+      ? '前回同意したあとで、この説明が変わりました。もう一度お読みください。'
+      : 'This description has changed since you last agreed. '
+          'Please read it again.';
+
   /// Takes back OUR consent. Drawn only while we hold a yes.
   String get locationConsentWithdraw =>
       _ja ? '共有の同意を取り消す' : 'Withdraw sharing consent';
