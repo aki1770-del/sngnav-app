@@ -876,6 +876,15 @@ class AppL10n {
   // Japanese-reading driver in the US would hit the NWS point path, so the ja
   // copy claiming "coordinates never leave the device" unconditionally would
   // itself be false. Each claim is scoped to its region.
+  //
+  // SCOPED 2026-09-25, on an audit: this said a service that does not cover
+  // her location "is never contacted". The JMA is contacted from launch for
+  // Akita, wherever she is, as the next sentence says, so as an absolute it
+  // was false for any driver outside Akita. What is true, and what the region
+  // gate enforces (AdvisoryService.fetchAtPoint queries only the providers
+  // whose coverage includes the point, and none when no provider covers it),
+  // is narrower: a request that USES her location goes only to a service that
+  // covers it.
 
   String get locationDisclosure => _ja
       ? '現在地を共有すると、周辺の警報・注意報の取得に使われます。'
@@ -886,7 +895,7 @@ class AppL10n {
           '消しているときも約10分ごとに更新されます。'
           'アメリカ合衆国内では、地点の警報を取得するため座標が'
           '米国国立気象局（NWS）へ送信されます。'
-          '現在地を管轄しない気象機関へ問い合わせることはありません。'
+          '現在地を使う問い合わせは、現在地を管轄する気象機関にだけ送ります。'
           '共有するかどうかに関係なく、アプリは起動時から気象庁の秋田のデータも'
           '取得します — 秋田県内のアメダス観測、秋田県の予報、そして現在地を'
           '使えないあいだは秋田県の警報・注意報です。これらは現在地を使わない、'
@@ -901,8 +910,8 @@ class AppL10n {
           'kilometre of travel, and about every 10 minutes when stopped or '
           'when driving with the screen off. In the United States your '
           'coordinates are sent to the NWS to fetch alerts for your exact '
-          'point. A service that does not cover your location is never '
-          'contacted. Whether or not you share, the app also fetches Akita '
+          'point. A request that uses your location goes only to a service '
+          'that covers it. Whether or not you share, the app also fetches Akita '
           'data from the JMA from the moment it starts: AMeDAS observations in '
           'Akita Prefecture, the Akita Prefecture forecast, and, while your '
           'position is not available, the Akita Prefecture warnings. These '
@@ -936,27 +945,43 @@ class AppL10n {
   // The key words cannot break across lines: [driveDisclosureKeepTogether],
   // drawn through lib/widgets/keep_together.dart. The review saw 「通/知」,
   // 「止まりま/せん」 (a line ending on "reception stops") and 「停/止」.
+  //
+  // ONE WORD CHANGED 2026-09-25, on a dignity review. Moving these sentences
+  // out of [locationDisclosure] kept every word but cut 「受信」 off from what
+  // it referred to: that paragraph opens 「現在地を共有すると…」, and this block
+  // names 運転, 画面, アプリ and 通知 but never 位置情報. Read alone,
+  // 「消しても受信は止まりません」 can mean "you keep receiving warnings", which
+  // sounds like a benefit, while the fact the consent has to carry is that her
+  // location stays in use after the swipe. The English named a third thing
+  // ("the drive"). Both halves now name location, in the notification
+  // title's own words (位置情報を使用中 / "location in use"), so the
+  // notification she swipes away and what keeps running are visibly one
+  // thing. True against the code: after the swipe the foreground service
+  // stayed isForeground=true on an Android 14 emulator, and nothing in the
+  // app reacts to a swipe (geolocator sets no delete intent).
 
   String get driveDisclosure => _ja
       ? '運転を開始すると、画面を消しても、ほかのアプリに切り替えても継続します。'
           '運転中は通知を出しますが、ロック中の画面には表示されないことがあり、'
-          'Android 14 以降はスワイプで消せます。消しても受信は止まりません。'
+          'Android 14 以降はスワイプで消せます。消しても位置情報の使用は止まりません。'
           '終了するには、アプリを開いて（または通知をタップして）'
           '「停止」を押してください。'
       : 'Once you start a drive it keeps going with the screen off or while '
           'you use another app. A notification is posted for the drive, but it '
           'may not show on a locked screen, and from Android 14 you can swipe '
-          'it away — that does not stop the drive. To end it, open the app (or '
-          'tap the notification), then Stop.';
+          'it away — that does not stop the drive or its use of your location. '
+          'To end it, open the app (or tap the notification), then Stop.';
 
   /// Words in [driveDisclosure] that must never break across two lines.
   /// Each must occur in the text; test/widgets/keep_together_test.dart checks
   /// that, and that no width or text scale splits them. 「停止」 is protected
   /// WITH its brackets: Japanese line breaking already glues 「 and 」 to the
   /// word, so the unit that must fit on one line is the bracketed one.
+  /// 位置情報 / "your location" joined 2026-09-25 with the word they name: a
+  /// line ending on 「位置」 or "your" would drop the object again.
   List<String> get driveDisclosureKeepTogether => _ja
-      ? const ['止まりません', 'スワイプ', 'Android 14', '通知', '「停止」']
-      : const ['does not stop', 'Android 14', 'Stop'];
+      ? const ['止まりません', 'スワイプ', 'Android 14', '通知', '「停止」', '位置情報']
+      : const ['does not stop', 'Android 14', 'Stop', 'your location'];
 
   // ===== Other-egress disclosure (B27 + B30) — the rest of the wire =====
   //
@@ -1103,6 +1128,33 @@ class AppL10n {
 
   /// Declining starts nothing. The OS permission prompt is never reached.
   String get locationConsentDecline => _ja ? '共有しない' : 'Do not share';
+
+  /// The consent dialog's words, in the order she reads them: the question,
+  /// the drive sentences, where her coordinates go, and the two answers.
+  ///
+  /// The dialog is drawn from this record and a yes stores exactly this
+  /// (lib/services/location_consent.dart), so the words the store says she
+  /// agreed to are the words the dialog showed her, by construction.
+  ({String title, String drive, String body, String decline, String accept})
+      get locationConsentDialog => (
+            title: locationConsentTitle,
+            drive: driveDisclosure,
+            body: locationDisclosure,
+            decline: locationConsentDecline,
+            accept: locationConsentAccept,
+          );
+
+  /// The language the words above are in: 'ja', or 'en' for every other
+  /// locale, which reads the English words.
+  String get wordsLanguage => _ja ? 'ja' : 'en';
+
+  /// Said first in the dialog when she agreed before, to words that no longer
+  /// describe what sharing does. Asking again without saying why would read as
+  /// the app having lost her answer.
+  String get locationConsentAskedAgain => _ja
+      ? '前回同意したあとで、この説明が変わりました。もう一度お読みください。'
+      : 'This description has changed since you last agreed. '
+          'Please read it again.';
 
   /// Takes back OUR consent. Drawn only while we hold a yes.
   String get locationConsentWithdraw =>
@@ -1489,11 +1541,10 @@ class AppL10n {
   /// (an audit asked whether this line says so; measured, it did not). For a
   /// driver in Akita nothing changes. For anyone else, the card used to show
   /// Akita's snow forecast as if it were for her route.
-  /// ⚑ NOT CHANGED HERE: the SPOKEN line from the same memory
-  /// (kForecastSnowValidJa in services/trip_hazard_memory.dart) still says
-  /// 「出発前に取得した気象庁の予報では、この時間帯は雪の予報です」 without
-  /// Akita. It is a recorded offline clip and a safety sentence; changing it
-  /// needs a safety ruling and a clip re-render in the same change.
+  /// The SPOKEN line from the same memory (kForecastSnowValidJa in
+  /// services/trip_hazard_memory.dart) names 秋田県 in the same words,
+  /// 「気象庁の秋田県の予報」, from the same change that re-rendered its
+  /// offline clip (forecast_snow_valid.wav).
   String forecastMemoryCaption(String time) => _ja
       ? '出発前 $time に取得した秋田県の予報（気象庁）— 観測ではありません。'
       : 'JMA forecast for Akita Prefecture, fetched at $time before '

@@ -35,7 +35,7 @@
    <!-- flow: jma-amedas -->
 2. **気象庁の予報** — 秋田県（050000）固定。座標を含まない。
    <!-- flow: jma-forecast -->
-3. **警報・注意報** — 共有中は日本＝都道府県コード、米国＝地点座標。共有していないときは秋田県の分（座標を含まない）。
+3. **警報・注意報** — 共有中は日本＝都道府県コード、米国＝地点座標。共有していないとき、または位置がまだ分からないときは秋田県の分（座標を含まない）。
    <!-- flow: warnings -->
 4. **経路検索** — タップした出発地・目的地の座標を OSRM へ（同意後のみ）。
    <!-- flow: route -->
@@ -61,7 +61,7 @@
 
 **端末外に出る 3 経路（これがすべて）:**
 
-1. **警報・注意報の取得** — 同意した場合のみ、走行約 1 km ごと（停車中・画面オフの運転中も約 10 分ごと）に、その地域を管轄する公的気象機関のみへ問い合わせる。**日本＝気象庁へは、端末内で判定した都道府県コードだけ（座標は送らない。都道府県単位のおおまかな位置 → 2-2 の Approximate にも当たる）。米国＝NWS へは地点座標（→ この 2-1 の Precise）。** 出典は記号で: `condition_aggregator_jma` 0.7.1 の `jma_advisory_provider.dart`（要求 URL `$warningJsonBaseUrl$prefectureCode.json`）、範囲判定 `services/provider_coverage.dart` / `advisory_service.dart` の `coversPoint`。⚑ **2026-09-25 訂正（AAE）:** 旧記述は「日本でも現在座標を気象庁へ送信」だった。アプリ内開示（`AppL10n.locationDisclosure`）とコードの両方に反する。**Play への回答（Precise = Collected/Shared はい）は変わらない** — 米国の NWS 経路と下の経路検索が、正確な座標を端末外に出すため。
+1. **警報・注意報の取得** — 現在地を共有しているあいだ（共有は同意のあとにだけ始まる）、走行約 1 km ごと（停車中・画面オフの運転中も約 10 分ごと）に、その地域を管轄する公的気象機関のみへ問い合わせる。**日本＝気象庁へは、端末内で判定した都道府県コードだけ（座標は送らない。都道府県単位のおおまかな位置 → 2-2 の Approximate にも当たる）。米国＝NWS へは地点座標（→ この 2-1 の Precise）。** 出典は記号で: `condition_aggregator_jma` 0.7.1 の `jma_advisory_provider.dart`（要求 URL `$warningJsonBaseUrl$prefectureCode.json`）、範囲判定 `services/provider_coverage.dart` / `advisory_service.dart` の `coversPoint`。⚑ **2026-09-25 訂正:** 旧記述は「日本でも現在座標を気象庁へ送信」だった。アプリ内開示（`AppL10n.locationDisclosure`）とコードの両方に反する。**Play への回答（Precise = Collected/Shared はい）は変わらない** — 米国の NWS 経路と下の経路検索が、正確な座標を端末外に出すため。
 2. **経路検索** — ユーザーが**地図をタップして指定した**出発地・目的地の座標を OSRM 公開デモサーバー (`router.project-osrm.org`) へ。**GPS 現在地は経路検索へ自動送信されない。** `main.dart:868-885, 921-926, 956`
 3. **地図タイルの補完** — 同梱オフライン地図の範囲外を表示したときのみ、タイル座標を `tile.openstreetmap.org` へ（→ 2-2 の Approximate 扱い）。`akita_map.dart:90` / `services/offline_basemap.dart:53-56`
 

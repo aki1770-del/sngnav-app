@@ -1,0 +1,19 @@
+{
+  "revision": 1,
+  "registered": "2026-09-25",
+  "whatSharingDoes": "Once she agrees and starts a drive, her position is used on the device to ask for warnings only from the agency that covers it (in Japan a prefecture code goes to the JMA; in the United States her coordinates go to the NWS). Location keeps being used with the screen off, with another app in front, and after the drive notification is swiped away, until she presses Stop in the app, or Android ends the position stream or the app.",
+  "ja": [
+    "現在地の共有について",
+    "運転を開始すると、画面を消しても、ほかのアプリに切り替えても継続します。運転中は通知を出しますが、ロック中の画面には表示されないことがあり、Android 14 以降はスワイプで消せます。消しても位置情報の使用は止まりません。終了するには、アプリを開いて（または通知をタップして）「停止」を押してください。",
+    "現在地を共有すると、周辺の警報・注意報の取得に使われます。日本国内では座標が端末の外へ送信されることはありません — 端末内で現在地から都道府県を判定し、気象庁には都道府県コードで警報・注意報を要求します。正確な座標は送信しません。警報・注意報は走行約1kmごとに、また停車中や、運転中に画面を消しているときも約10分ごとに更新されます。アメリカ合衆国内では、地点の警報を取得するため座標が米国国立気象局（NWS）へ送信されます。現在地を使う問い合わせは、現在地を管轄する気象機関にだけ送ります。共有するかどうかに関係なく、アプリは起動時から気象庁の秋田のデータも取得します — 秋田県内のアメダス観測、秋田県の予報、そして現在地を使えないあいだは秋田県の警報・注意報です。これらは現在地を使わない、秋田に固定された要求です。共有は任意です。位置情報は端末に保存されず、本アプリ独自のサーバーへ送信されることもありません。",
+    "共有しない",
+    "同意して共有する"
+  ],
+  "en": [
+    "Sharing your location",
+    "Once you start a drive it keeps going with the screen off or while you use another app. A notification is posted for the drive, but it may not show on a locked screen, and from Android 14 you can swipe it away — that does not stop the drive or its use of your location. To end it, open the app (or tap the notification), then Stop.",
+    "When you share your location, it is used to fetch nearby weather advisories. In Japan your coordinates never leave the device: the app works out your prefecture on the device and asks the JMA for that prefecture's warnings by prefecture code, so your exact coordinates are not sent. The warnings are refreshed about once per kilometre of travel, and about every 10 minutes when stopped or when driving with the screen off. In the United States your coordinates are sent to the NWS to fetch alerts for your exact point. A request that uses your location goes only to a service that covers it. Whether or not you share, the app also fetches Akita data from the JMA from the moment it starts: AMeDAS observations in Akita Prefecture, the Akita Prefecture forecast, and, while your position is not available, the Akita Prefecture warnings. These requests do not use your location; they are fixed to Akita. Sharing is opt-in. Your location is never stored on the device or sent to this app's own servers.",
+    "Do not share",
+    "Agree and share"
+  ]
+}

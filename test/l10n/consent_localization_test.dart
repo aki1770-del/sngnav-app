@@ -196,8 +196,11 @@ void main() {
       expect(d, contains('都道府県コード'));
       // The US fact is stated too (locale ≠ location).
       expect(d, contains('NWS'));
-      // Out-of-region services are not contacted.
-      expect(d, contains('管轄しない'));
+      // The gating fact, scoped to what the gate does (2026-09-25): a request
+      // that USES her location goes only to a covering service. The earlier
+      // absolute, 「現在地を管轄しない気象機関へ問い合わせることはありません」,
+      // was false outside Akita: the JMA is asked for Akita from launch.
+      expect(d, contains('現在地を使う問い合わせは、現在地を管轄する気象機関にだけ送ります'));
       // It must NOT resurrect the false claim that coordinates go to a
       // weather service unconditionally.
       expect(d, isNot(contains('座標が、その地域を管轄する公的な気象機関へ送信')));
@@ -209,8 +212,11 @@ void main() {
       expect(d, contains('never leave the device'));
       expect(d, contains('prefecture code'));
       expect(d, contains('NWS'));
-      // States the load-bearing gating fact (out-of-region → not contacted).
-      expect(d.toLowerCase(), contains('never contacted'));
+      // States the load-bearing gating fact, scoped to what the gate does
+      // (2026-09-25): "never contacted" was false outside Akita as an
+      // absolute, because the JMA is asked for Akita from launch.
+      expect(d, contains('A request that uses your location goes only to a '
+          'service that covers it'));
       expect(d.toLowerCase(), contains('opt-in'));
     });
 
@@ -302,6 +308,27 @@ void main() {
             reason: 'the card says this request is fixed to Akita; the call '
                 'site no longer matches that shape');
       }
+      // ...and they are the ONLY calls (2026-09-25). The checks above cannot
+      // see a SECOND call added anywhere else, keyed to her position, which
+      // would make "fixed to Akita" false while every string above still
+      // matched. Every call in lib/, comments removed, is counted.
+      expect(_libCalls('fetchLatestObservation'), {
+        'lib/main.dart': 1,
+        // The corridor fetch's walk over the fixed station list, below.
+        'lib/jma_fetch.dart': 1,
+      });
+      expect(_libCalls('fetchJmaForecast'), {'lib/main.dart': 1});
+      expect(_libCalls('fetchCorridorObservations'), {'lib/main.dart': 1});
+      final jma = _withoutComments(File('lib/jma_fetch.dart').readAsStringSync());
+      expect(
+          RegExp(r'corridorStations\.map\(\s*\(s\) => fetchLatestObservation\(\s*'
+                  r'stationId: s\.id,')
+              .hasMatch(jma),
+          isTrue,
+          reason: 'the one call inside jma_fetch.dart takes its station from '
+              'the fixed corridor list, which '
+              'test/corridor_stations_match_jma_table_test.dart holds to '
+              "JMA's own Akita stations");
     });
 
     test("the dead-zone forecast card names Akita, because the forecast is "
@@ -310,6 +337,27 @@ void main() {
       expect(ja.forecastMemoryCaption('07:10'), contains('秋田県の予報'));
       expect(en.forecastMemoryCaption('07:10'),
           contains('forecast for Akita Prefecture'));
+    });
+
+    test('the card claims only what the region gate enforces: a request that '
+        'USES her location goes only to a service that covers it', () {
+      // It said a service that does not cover her location "is never
+      // contacted". The JMA is asked for Akita from launch wherever she is
+      // (the sentence right after it says so), so as an absolute it was false
+      // for any driver outside Akita. The narrower claim is the one
+      // test/services/advisory_coverage_test.dart holds the gate to.
+      expect(ja.locationDisclosure,
+          isNot(contains('現在地を管轄しない気象機関へ問い合わせることはありません')));
+      expect(en.locationDisclosure.toLowerCase(),
+          isNot(contains('is never contacted')));
+      expect(ja.locationDisclosure,
+          contains('現在地を使う問い合わせは、現在地を管轄する気象機関にだけ送ります。'));
+      expect(en.locationDisclosure,
+          contains('A request that uses your location goes only to a service '
+              'that covers it.'));
+      // And the Akita requests it no longer contradicts are still stated.
+      expect(ja.locationDisclosure, contains('起動時から気象庁の秋田のデータも'));
+      expect(en.locationDisclosure, contains('fixed to Akita'));
     });
 
     test('the forecast is not claimed to be re-requested every 10 minutes',
@@ -336,6 +384,14 @@ void main() {
       expect(en.driveDisclosure, contains('Stop'));
       expect(en.driveDisclosure, contains('does not stop the drive'));
       expect(en.driveDisclosure, isNot(contains('app closed')));
+      // What keeps running after the swipe is NAMED, in both languages, and it
+      // is the same thing in both (2026-09-25). The bare 「受信」 read alone as
+      // "warnings keep arriving"; the English named the drive instead.
+      expect(ja.driveDisclosure, contains('消しても位置情報の使用は止まりません。'));
+      expect(ja.driveDisclosure, isNot(contains('受信')),
+          reason: 'a verb with no object in this block: receiving WHAT?');
+      expect(en.driveDisclosure,
+          contains('that does not stop the drive or its use of your location.'));
       // Moved, not copied: the data-flow text no longer carries them.
       expect(ja.locationDisclosure, isNot(contains('スワイプ')));
       expect(en.locationDisclosure.toLowerCase(), isNot(contains('swipe')));
@@ -593,4 +649,42 @@ void main() {
       );
     });
   });
+}
+
+/// Source with comments removed, so prose that names a function cannot count
+/// as a call to it.
+String _withoutComments(String source) => source
+    .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+    .split('\n')
+    .map((l) {
+      final t = l.trimLeft();
+      if (t.startsWith('//')) return '';
+      final i = l.indexOf(' //');
+      return i >= 0 ? l.substring(0, i) : l;
+    })
+    .join('\n');
+
+/// How many times each file in lib/ calls [name]. A declaration
+/// (`Future<…> name(`) is not a call.
+Map<String, int> _libCalls(String name) {
+  final out = <String, int>{};
+  final files = Directory('lib')
+      .listSync(recursive: true)
+      .whereType<File>()
+      .where((f) => f.path.endsWith('.dart'));
+  for (final f in files) {
+    final code = _withoutComments(f.readAsStringSync());
+    for (final m in RegExp('\\b$name\\(').allMatches(code)) {
+      final lineStart = code.lastIndexOf('\n', m.start) + 1;
+      // The declaration: a line that begins with its Future<…> return type,
+      // nested generics included (Future<List<JmaResult>>).
+      if (RegExp(r'^\s*Future<.*>\s*$')
+          .hasMatch(code.substring(lineStart, m.start))) {
+        continue;
+      }
+      final path = f.path.replaceAll('\\', '/');
+      out[path] = (out[path] ?? 0) + 1;
+    }
+  }
+  return out;
 }

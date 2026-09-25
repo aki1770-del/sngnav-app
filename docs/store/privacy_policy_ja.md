@@ -110,18 +110,24 @@
 通知の見えるサービスを実際に作ったときに同じ変更で戻す」と約束されていました。2026-09-24 に
 そのサービスが実際に動いたため、約束どおり戻っています。**機能が先に着地し、この説明が後から
 追いつく形になりました** — 本来は同じ変更で直すべきものです。アプリが新しくできるように
-なったことは、画面を消していても運転中の警告が届くことであり、~~**通知が出ていない状態での
-位置情報取得は、以前と同じく一切ありません。**~~ ACCESS_BACKGROUND_LOCATION も引き続き
-要求していません。*
+なったことは、画面を消していても運転中の警告が届くことです。ACCESS_BACKGROUND_LOCATION も
+引き続き要求していません。*
 
-*訂正のお知らせ（2026-09-25）: 上の取り消し線の一文は正しくありませんでした。運転中の通知は、
+*訂正のお知らせ（2026-09-25）: 上の 2026-09-24 のお知らせには、もう一文、
+「通知が出ていない状態での位置情報取得は、以前と同じく一切ありません。」と書いていました。
+この一文は正しくなかったため、そのお知らせから取り除き、ここに残しています。運転中の通知は、
 ロック中の画面には表示されないことがあり、Android 14 以降ではスワイプで消せて、消しても
-受信は続きます（上の「収集しないもの」を参照）。どちらも Android 14 の試験用エミュレーターで
-確かめたことで、実機ではまだ確かめていません。*
+位置情報の受信は続きます（上の「収集しないもの」を参照）。どちらも Android 14 の試験用
+エミュレーターで確かめたことで、実機ではまだ確かめていません。*
+<!-- 2026-09-25: この一文は以前、取り消し線の記法で消した形で上のお知らせに残していた。
+     アプリ内のポリシー表示は取り消し線を描かないため、アプリの中では取り消した一文が太字の
+     まま、両側に記法の記号が付いて表示され、このお知らせは見えない「取り消し線」を指していた。
+     取り消し線は読み上げ（スクリーンリーダー）でも伝わらない。取り消しは言葉で書く。
+     test/services/privacy_policy_render_test.dart が、この文書に取り消し線の記法が無いことを確かめる。 -->
 
 ## 端末の外に出るデータ（この6つがすべてです）
 
-1. **気象庁アメダス観測値の取得** — 秋田県内の決められた 5 か所の観測所（男鹿・秋田・大曲・横手・湯沢）の観測値を、気象庁のサーバー（www.jma.go.jp）から取得します。アプリの起動時に 5 か所すべてを取得し、その後は秋田の観測所を約10分ごとに取得します。観測所の一覧で再取得を押したときは、5 か所すべてを取り直します。現在地を共有するかどうかに関係なく行い、**あなたの座標は送信されません。** 通信には連絡先として本アプリの公開リポジトリ URL を含む User-Agent が付きます（気象庁側の流量管理・セキュリティ連絡のためのもので、あなたを識別するものではありません）。
+1. **気象庁アメダス観測値の取得** — 秋田県内の決められた 5 か所の観測所（男鹿・秋田・大曲・横手・湯沢）の観測値を、気象庁のサーバー（www.jma.go.jp）から取得します。アプリの起動時に 5 か所すべてを取得し、その後は秋田の観測所を約10分ごとに取得します。観測所の一覧で再取得を押したときは、5 か所すべてを取り直します。現在地を共有するかどうかに関係なく行い、**あなたの座標は送信されません。** 通信には、本アプリの名前（sngnav-app）と、連絡先として開発プロジェクトの公開リポジトリ URL（https://github.com/aki1770-del/sngnav）を含む User-Agent が付きます（気象庁側の流量管理・セキュリティ連絡のためのもので、あなたを識別するものではありません）。
    <!-- flow: jma-amedas -->
    <!-- 出典（記号で引用）: jma_fetch.dart の fetchLatestObservation（既定の観測所 akitaStationId = 32402）と
         fetchCorridorObservations（corridorStations の 5 件）。main.dart の _refreshJma（initState と
@@ -137,7 +143,7 @@
         ⚑ 2026-09-25 追加: この要求は以前どの項目にも書かれておらず、見出しは「この5つがすべてです」
         だった。予報は 1 の観測と同じホスト（www.jma.go.jp）なので、ホスト単位の照合では見えなかった。 -->
 
-3. **警報・注意報の取得** — **現在地を共有しているあいだ**は、走行約1kmごとに（停車中や、運転中に画面を消しているときも約10分ごとに）、**その地域を管轄する公的な気象機関のみ**に警報・注意報を問い合わせます。**日本国内では、あなたの座標は端末の外に出ません** — 端末の中で現在地から都道府県を判定し、気象庁には都道府県コードだけを送ります（都道府県単位のおおまかな位置に相当します。県境の近くでは、該当しうる県それぞれのコードを送るため、県境付近にいることまでは分かります）。**米国内では、地点の警報を得るため座標が NWS（米国国立気象局）に送信されます。** 現在地を管轄しない機関に問い合わせることはありません。**現在地を共有していないとき、または位置がまだ分からないときは、秋田県の警報・注意報を約10分ごとに取得します**（あなたの位置は使いません）。座標はメモリ上でのみ扱われ、端末に保存されません。（2026-09-25 訂正: 以前は「日本国内でも座標が気象庁に送信される」と書いていましたが、これは正しくありませんでした。また、この項目には「同意した場合のみ」とありましたが、秋田県の警報・注意報の取得は、同意の前から行われていました。）
+3. **警報・注意報の取得** — **現在地を共有しているあいだ**は、走行約1kmごとに（停車中や、運転中に画面を消しているときも約10分ごとに）、**その地域を管轄する公的な気象機関のみ**に警報・注意報を問い合わせます。**日本国内では、あなたの座標は端末の外に出ません** — 端末の中で現在地から都道府県を判定し、気象庁には都道府県コードだけを送ります（都道府県単位のおおまかな位置に相当します。県境の近くでは、該当しうる県それぞれのコードを送るため、県境付近にいることまでは分かります）。**米国内では、地点の警報を得るため座標が NWS（米国国立気象局）に送信されます。** 現在地を使う問い合わせを、現在地を管轄しない機関に送ることはありません。**現在地を共有していないとき、または位置がまだ分からないときは、秋田県の警報・注意報を約10分ごとに取得します**（あなたの位置は使いません）。座標はメモリ上でのみ扱われ、端末に保存されません。（2026-09-25 訂正: 以前は「日本国内でも座標が気象庁に送信される」と書いていましたが、これは正しくありませんでした。また、この項目には「同意した場合のみ」とありましたが、秋田県の警報・注意報の取得は、同意の前から行われていました。さらに「現在地を管轄しない機関に問い合わせることはありません」と書いていましたが、気象庁にはあなたがどこにいても起動時から秋田県のデータを問い合わせるため、言い切りとしては正しくありませんでした。現在地を使う問い合わせに限った書き方に直しています。）
    <!-- flow: warnings -->
    <!-- 出典（記号で引用）: condition_aggregator_jma 0.7.1（pubspec.lock が解決する版）の
         jma_advisory_provider.dart — 要求 URL は `$warningJsonBaseUrl$prefectureCode.json`
@@ -189,7 +195,11 @@
 
 **IP アドレスについて（2026-09-25 追記）:** インターネットの通信である以上、上の 6 つのどの通信でも、あなたの端末の IP アドレスは通信先のサーバーに届きます。
 
-上記のほかに、端末の外に出るデータはありません。
+上記のほかに端末の外に出るのは、下の不具合ログと運転日記を、あなたが自分で共有したときだけです。
+<!-- 2026-09-25 訂正: 以前は「上記のほかに、端末の外に出るデータはありません。」と書き、運転日記に
+     一度も触れていなかった。日記は、あなたが「日記を共有」を押したときに端末の共有機能で外に出る
+     （lib/services/drive_diary.dart の shareDiaryViaShareSheet）。不具合ログはこの下で説明済みだった。
+     見出しが数える件数は、アプリ自身が行う通信の数（egress_inventory_parity_test が固定）。 -->
 
 ## 不具合ログについて
 
@@ -200,6 +210,13 @@
      警報（_refreshAdvisories）は try/catch で受ける。意図してログに書く 2 か所
      （hardened_tts_engine.dart と hardened_haptic_channel.dart）は、文の長さとパターン名だけを書く。
      網羅していないのは、フレームワークが FlutterError.onError に報告するエラーの文面。 -->
+
+## 運転日記について
+
+運転日記に記録した内容（日時、あなたが選んだ答え、あなたが書いた地域やメモ。警告の確認を記録したときは、聞こえたか・感じたかの答えと、端末の申告、アプリのバージョン）は、端末内のファイルにだけ保存されます（上限約512KB。超えた分は古いものから消えます）。位置や経路は記録しません — 場所として残るのは、あなたが自分で書いた言葉だけです。日記が端末の外に出るのは、**あなたが「日記を共有」を押して端末の共有機能で送ったときだけ**です。送られるのは日記の本文と、アプリのバージョン・OS の種類・書き出した時刻です。自動送信はありません。
+<!-- 2026-09-25 追加。出典（記号）: lib/services/drive_diary.dart の DriveDiary.record /
+     recordChannelCheck（書く項目）、maxBytes = 512 * 1024（超えると半分まで古い順に削る）、
+     composeDiarySharePayload（送る中身: 見出し 3 行 + 本文）、shareDiaryViaShareSheet（OS の共有シート）。 -->
 
 ## お問い合わせ
 
@@ -257,23 +274,23 @@ permissions were removed on 2026-07-10 as declared-but-unused, on a written prom
 return in the same change-set as a real, driver-started, notification-visible service. That service
 landed on 2026-09-24 and they returned with it. **The capability landed first and this page caught
 up afterwards** — it should have been one change. What the app can now do is keep warning you with
-the screen off during a drive you started; ~~what has NOT changed is that **there is no location
-collection without a visible notification**, and~~ ACCESS_BACKGROUND_LOCATION is still not requested.*
+the screen off during a drive you started, and ACCESS_BACKGROUND_LOCATION is still not requested.*
 
-*Correction note (2026-09-25): the struck-through clause above was not true. The drive notification
-may not be shown on a locked screen, and on Android 14 and later it can be swiped away while the feed
-continues (see the first section above). Both were observed on an Android 14 test emulator, not yet on
-a real phone.*
+*Correction note (2026-09-25): the 2026-09-24 note above also said "what has NOT changed is that there
+is no location collection without a visible notification". That was not true, so it has been taken out
+of that note and is kept here. The drive notification may not be shown on a locked screen, and on
+Android 14 and later it can be swiped away while the location feed continues (see the first section
+above). Both were observed on an Android 14 test emulator, not yet on a real phone.*
 
 ## Data that leaves your device (these six flows are all of it)
 
-1. **JMA AMeDAS observation fetch** — the app requests observations for five fixed weather stations in Akita Prefecture (Oga, Akita, Omagari, Yokote, Yuzawa) from the Japan Meteorological Agency servers (www.jma.go.jp): all five when the app starts, then the Akita station about every 10 minutes, and all five again when you press re-fetch on the station list. This happens whether or not you share your location, and **your coordinates are not sent.** Requests carry a User-Agent containing this app's public repository URL, so the publisher can do rate-limit accounting and reach a security contact — it does not identify you.
+1. **JMA AMeDAS observation fetch** — the app requests observations for five fixed weather stations in Akita Prefecture (Oga, Akita, Omagari, Yokote, Yuzawa) from the Japan Meteorological Agency servers (www.jma.go.jp): all five when the app starts, then the Akita station about every 10 minutes, and all five again when you press re-fetch on the station list. This happens whether or not you share your location, and **your coordinates are not sent.** Requests carry a User-Agent naming this app (sngnav-app) and giving the project's public repository URL (https://github.com/aki1770-del/sngnav) as a contact, so the publisher can do rate-limit accounting and reach a security contact — it does not identify you.
    <!-- flow: jma-amedas -->
 
 2. **JMA forecast fetch** — the app requests the forecast for Akita Prefecture (forecast area 050000; fixed, it does not change with your position) from www.jma.go.jp. When an observation fetch succeeds and the forecast it holds is more than 3 hours old, it fetches it again (if that fails, it retries at the next successful observation fetch). This happens whether or not you share your location, and **your coordinates are not sent.** The User-Agent is the same as in 1.
    <!-- flow: jma-forecast -->
 
-3. **Advisory fetch** — **while you are sharing your location**, the app asks for warnings and advisories about once per kilometre of travel (and about every 10 minutes when stopped, or when driving with the screen off), **only from the public weather agency with jurisdiction over your area**. **In Japan your coordinates never leave the device**: the app works out your prefecture on the device and sends the JMA only prefecture codes (equivalent to a coarse, prefecture-level location; near a prefectural border it sends the code of each prefecture you may be in, which shows you are near that border). **In the United States your coordinates are sent to the NWS** to fetch alerts for your exact point. An agency that does not cover your location is never contacted. **When you are not sharing your location, or your position is not yet known, the app fetches the Akita Prefecture warnings about every 10 minutes** (your position is not used). Coordinates are held in memory only and are never persisted on the device. (Corrected 2026-09-25: this page previously said your coordinates were sent to the JMA in Japan too. That was not true. It also said this fetch happened "only after consent"; the Akita Prefecture warnings were fetched before any consent.)
+3. **Advisory fetch** — **while you are sharing your location**, the app asks for warnings and advisories about once per kilometre of travel (and about every 10 minutes when stopped, or when driving with the screen off), **only from the public weather agency with jurisdiction over your area**. **In Japan your coordinates never leave the device**: the app works out your prefecture on the device and sends the JMA only prefecture codes (equivalent to a coarse, prefecture-level location; near a prefectural border it sends the code of each prefecture you may be in, which shows you are near that border). **In the United States your coordinates are sent to the NWS** to fetch alerts for your exact point. A request that uses your position is never sent to an agency that does not cover it. **When you are not sharing your location, or your position is not yet known, the app fetches the Akita Prefecture warnings about every 10 minutes** (your position is not used). Coordinates are held in memory only and are never persisted on the device. (Corrected 2026-09-25: this page previously said your coordinates were sent to the JMA in Japan too. That was not true. It also said this fetch happened "only after consent"; the Akita Prefecture warnings were fetched before any consent. And it said "an agency that does not cover your location is never contacted"; the app asks the JMA for Akita data from the moment it starts, wherever you are, so as an absolute that was not true. The sentence now covers only the requests that use your position.)
    <!-- flow: warnings -->
 
 4. **Route lookup** — the origin and destination coordinates **you tap on the map** are sent to the public OSRM demo router (router.project-osrm.org) to compute a route. Your GPS position is never fed to the router automatically. The OSRM demo server is a third-party public service.
@@ -292,11 +309,15 @@ a real phone.*
 
 **About your IP address (added 2026-09-25):** Like any internet request, each of the six flows above shows your device's IP address to the server that receives it.
 
-Nothing else leaves the device.
+Besides the above, data leaves the device only when you share the error log or the drive diary yourself (below).
 
 ## Crash / error log
 
 Internal errors are recorded only in a local log file on your device (capped at roughly 200 KB; oldest entries are dropped first). The text of each error is recorded as it occurred. The requests that carry your position (route lookup, and US alerts) have been checked not to write their errors to this log, but not every possible error message has been checked (for example, whether a map-tile loading error could include the tile coordinates of the area on screen). The log leaves your device **only when you press "ログを共有" (Share log) and send it through your device's share sheet**. There is no automatic upload.
+
+## Drive diary
+
+What you record in the drive diary (the time, the answers you choose, the area and note you type, and, for a warning check, whether you heard and felt it, what the device reported and the app version) is saved only in a file on your device (capped at roughly 512 KB; the oldest entries are dropped first). No position or route is recorded; the only place in it is what you type yourself. The diary leaves your device **only when you press 日記を共有 (Share diary) and send it through your device's share sheet**. What is sent is the diary text, with the app version, the kind of operating system and the time it was exported. There is no automatic upload.
 
 ## Contact
 

@@ -134,9 +134,15 @@ landed (geolocator's own `GeolocatorLocationService`, driven by
       footer; the status-bar icon was gone. The probe does not read location,
       so whether a location status icon would remain is NOT measured.
       Why it matters: the app is not told (geolocator sets no deleteIntent),
-      and nothing she does in the shade ends collection (停止 in the app does;
-      so does the platform ending the stream or the app) — so on 14+ location
-      can keep running with nothing in the shade, the state the manifest's dignity
+      and swiping the notification away does not end collection (measured
+      above: `isForeground=true` after the swipe). 停止 in the app ends it, and
+      so does the platform ending the stream or the app. ⚑ Corrected
+      2026-09-25: this said "nothing she does in the shade ends collection".
+      Android's documentation says the Stop button in the fully expanded
+      Quick Settings' Active apps list stops the whole app, not only its
+      foreground service, with no callback — which ends collection and every
+      warning with it. That was read from the documentation, not measured on
+      a device. So on 14+ location can keep running with nothing in the shade, the state the manifest's dignity
       comment reserves to the Chair. The pages now disclose it. The fork (stop
       the drive on dismissal, re-post it, or keep disclosing) changes what she
       experiences mid-drive and is routed to the Chair through the SEO.

@@ -91,9 +91,13 @@ class BundledAudioEngine implements TtsEngine {
   /// player — or a channel that never answers — would otherwise hang every
   /// later sequential announce behind it; a timeout is the only recovery
   /// (HardenedTtsEngine's own verified rule). 25 s: the longest bundled
-  /// safety phrase is 13.5 s (measured across assets/audio/ja/*.wav), so a
-  /// genuine playback always finishes well inside the cap and is never cut
-  /// into a false TTS fallback; anything still pending at 25 s is a wedged
+  /// safety phrase is 18.2 s (alert_ice_ageing_rural.wav, measured
+  /// 2026-09-25 across assets/audio/ja/*.wav; this comment said 13.5 s, and
+  /// nothing compared them), so a genuine playback finishes inside the cap
+  /// and is never cut into a false TTS fallback.
+  /// test/voice/bundled_clip_length_fits_play_cap_test.dart holds every clip,
+  /// plus 2 s for the player to start, under this default. Anything still
+  /// pending at 25 s is a wedged
   /// channel, and the fallback mouth is better than a mouth that never
   /// speaks again. On timeout the TimeoutException takes the existing
   /// catch → TTS-fallback path.

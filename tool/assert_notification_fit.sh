@@ -85,7 +85,18 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 L10N="${L10N_PATH:-$SCRIPT_DIR/../lib/l10n/app_localizations.dart}"
 
 
-python3 - "$L10N" "${1:-}" <<'PY'
+# The flag is decided HERE, in shell, before the heredoc (2026-09-25). It was
+# handed straight to Python, which branched on it; that works, but the
+# self-test hermeticity guard reads shell branches only, classified this gate
+# as advertising a self-test it never runs, and would have turned CI red. A
+# mistyped flag (--selftest) also ran the main path and exited 0; it is now a
+# usage error.
+case "${1:-}" in
+  --self-test) MODE="--self-test" ;;
+  "") MODE="" ;;
+  *) echo "usage: $0 [--self-test]" >&2; exit 2 ;;
+esac
+python3 - "$L10N" "$MODE" <<'PY'
 import re, sys, os, shutil
 
 L10N, MODE = sys.argv[1], sys.argv[2]

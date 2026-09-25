@@ -79,6 +79,32 @@ void main() {
             'than one that shows pipes, and a dropped clause is invisible');
   });
 
+  // 2026-09-25. The 2026-09-24 correction note retracted a sentence by
+  // striking it through. This renderer draws no strikethrough, so she read the
+  // retracted guarantee in bold between literal tildes, and the next note
+  // pointed at "the struck-through clause above", which she could not see. A
+  // strikethrough is also a mark a screen reader does not speak: struck or
+  // not, the sentence is read out as if it stood. A retraction has to be said
+  // in words, on this page and on the published one.
+  test('a retraction is said in words: no strikethrough in the document',
+      () async {
+    final doc = (await loadPrivacyPolicy())!;
+    expect(doc.contains('~~'), isFalse,
+        reason: 'the renderer does not draw ~~, and a screen reader does not '
+            'speak it; quote the retracted sentence and say it was wrong');
+    // The retracted sentence itself is kept, quoted, in both halves, so the
+    // record of what the page once promised survives the edit. (The English
+    // source wraps lines; compare with whitespace collapsed.)
+    expect(doc, contains('「通知が出ていない状態での位置情報取得は、以前と同じく一切ありません。」'));
+    expect(
+        doc.replaceAll(RegExp(r'\s+'), ' '),
+        contains('"what has NOT changed is that there is no location '
+            'collection without a visible notification"'));
+    expect(doc.contains('取り消し線'), isFalse,
+        reason: 'no note may point at a line she cannot see');
+    expect(doc.contains('struck-through'), isFalse);
+  });
+
   test('the markdown syntax she used to read is gone from the blocks',
       () async {
     final blocks = parsePolicyBlocks((await loadPrivacyPolicy())!);
