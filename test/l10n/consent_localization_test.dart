@@ -308,6 +308,27 @@ void main() {
             reason: 'the card says this request is fixed to Akita; the call '
                 'site no longer matches that shape');
       }
+      // ...and they are the ONLY calls (2026-09-25). The checks above cannot
+      // see a SECOND call added anywhere else, keyed to her position, which
+      // would make "fixed to Akita" false while every string above still
+      // matched. Every call in lib/, comments removed, is counted.
+      expect(_libCalls('fetchLatestObservation'), {
+        'lib/main.dart': 1,
+        // The corridor fetch's walk over the fixed station list, below.
+        'lib/jma_fetch.dart': 1,
+      });
+      expect(_libCalls('fetchJmaForecast'), {'lib/main.dart': 1});
+      expect(_libCalls('fetchCorridorObservations'), {'lib/main.dart': 1});
+      final jma = _withoutComments(File('lib/jma_fetch.dart').readAsStringSync());
+      expect(
+          RegExp(r'corridorStations\.map\(\s*\(s\) => fetchLatestObservation\(\s*'
+                  r'stationId: s\.id,')
+              .hasMatch(jma),
+          isTrue,
+          reason: 'the one call inside jma_fetch.dart takes its station from '
+              'the fixed corridor list, which '
+              'test/corridor_stations_match_jma_table_test.dart holds to '
+              "JMA's own Akita stations");
     });
 
     test("the dead-zone forecast card names Akita, because the forecast is "
@@ -628,4 +649,42 @@ void main() {
       );
     });
   });
+}
+
+/// Source with comments removed, so prose that names a function cannot count
+/// as a call to it.
+String _withoutComments(String source) => source
+    .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '')
+    .split('\n')
+    .map((l) {
+      final t = l.trimLeft();
+      if (t.startsWith('//')) return '';
+      final i = l.indexOf(' //');
+      return i >= 0 ? l.substring(0, i) : l;
+    })
+    .join('\n');
+
+/// How many times each file in lib/ calls [name]. A declaration
+/// (`Future<…> name(`) is not a call.
+Map<String, int> _libCalls(String name) {
+  final out = <String, int>{};
+  final files = Directory('lib')
+      .listSync(recursive: true)
+      .whereType<File>()
+      .where((f) => f.path.endsWith('.dart'));
+  for (final f in files) {
+    final code = _withoutComments(f.readAsStringSync());
+    for (final m in RegExp('\\b$name\\(').allMatches(code)) {
+      final lineStart = code.lastIndexOf('\n', m.start) + 1;
+      // The declaration: a line that begins with its Future<…> return type,
+      // nested generics included (Future<List<JmaResult>>).
+      if (RegExp(r'^\s*Future<.*>\s*$')
+          .hasMatch(code.substring(lineStart, m.start))) {
+        continue;
+      }
+      final path = f.path.replaceAll('\\', '/');
+      out[path] = (out[path] ?? 0) + 1;
+    }
+  }
+  return out;
 }
