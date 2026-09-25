@@ -162,7 +162,12 @@ void _citationsByFunction() {
 // data, or a dynamic dispatch is NOT traced. A reference that sits in no
 // function it can name (a field initializer, a constructor) is UNDECIDED, and
 // an undecided verdict fails rather than passing as "reaches release" -- until
-// 2026-09-25 it passed. It asserts its own seed (below) so it cannot silently
+// 2026-09-25 it passed. A reference under `if (kDebugMode)`, `kProfileMode`,
+// `!kReleaseMode` or `false`, or inside `assert(...)`, is not a release path.
+// It has no control-flow model beyond that: code after a `return`, or under a
+// condition that is false in release but spelled some other way, still reads
+// as running (measured 2026-09-25; the analyzer's dead_code check is what
+// sees the first). It asserts its own seed (below) so it cannot silently
 // measure an ungated page and call it gated. What it does not see, it does not
 // claim.
 
@@ -275,10 +280,13 @@ class _Fn {
 
 /// A reference to a name, and the innermost function holding it (null: none).
 class _Ref {
-  const _Ref(this.src, this.offset, this.fn);
+  const _Ref(this.src, this.offset, this.fn, {this.debugOnly = false});
   final _Src src;
   final int offset;
   final _Fn? fn;
+
+  /// Inside code a release build does not run (see [_debugOnlySpans]).
+  final bool debugOnly;
   String get where => '${src.path}:${src.lineOf(offset)}';
 }
 
@@ -419,10 +427,15 @@ List<String>? _topLevelConjuncts(String expression) {
   return [for (final p in parts) p.replaceAll(RegExp(r'\s+'), ' ').trim()];
 }
 
-/// The span of the collection element that begins at [from] in [code]: up to
-/// the `,` or closing bracket that ends it, or an `else`, at bracket depth 0.
+/// The span of what an `if` governs, beginning at [from] in [code]: a block,
+/// or the collection element or statement up to the `,`, `;` or closing
+/// bracket that ends it, or an `else`, at bracket depth 0.
 (int, int)? _elementSpan(String code, int from) {
   final start = _skipBlank(code, from);
+  if (start < code.length && code[start] == '{') {
+    final end = closingBracketEnd(code, start);
+    return end == null ? null : (start, end);
+  }
   var depth = 0;
   for (var i = start; i < code.length; i++) {
     final ch = code[i];
@@ -431,7 +444,7 @@ List<String>? _topLevelConjuncts(String expression) {
     } else if (ch == ')' || ch == ']' || ch == '}') {
       if (depth == 0) return (start, i);
       depth--;
-    } else if (depth == 0 && ch == ',') {
+    } else if (depth == 0 && (ch == ',' || ch == ';')) {
       return (start, i);
     } else if (depth == 0 &&
         code.startsWith('else', i) &&
@@ -443,12 +456,43 @@ List<String>? _topLevelConjuncts(String expression) {
   return null;
 }
 
+/// Conditions that are false in every release build.
+const Set<String> _falseInRelease = {
+  'kDebugMode',
+  'kProfileMode',
+  '!kReleaseMode',
+  'false',
+};
+
+/// Code a release build does not run: what an `if` governs when its
+/// condition is false in release (one of [_falseInRelease], or a top-level
+/// `&&` that includes one), and the arguments of `assert(...)`, which release
+/// builds drop. Measured 2026-09-25: before this, a voice whose only call was
+/// wrapped in `if (kDebugMode)` still read as reaching her build.
+List<(int, int)> _debugOnlySpans(String code) {
+  final spans = <(int, int)>[];
+  for (final m in RegExp(r'\bif\s*\(').allMatches(code)) {
+    final close = closingBracketEnd(code, m.end - 1);
+    if (close == null) continue;
+    final conjuncts = _topLevelConjuncts(code.substring(m.end, close - 1));
+    if (conjuncts == null || !conjuncts.any(_falseInRelease.contains)) continue;
+    final governed = _elementSpan(code, close);
+    if (governed != null) spans.add(governed);
+  }
+  for (final m in RegExp(r'\bassert\s*\(').allMatches(code)) {
+    final close = closingBracketEnd(code, m.end - 1);
+    if (close != null) spans.add((m.start, close));
+  }
+  return spans;
+}
+
 class _Lib {
   _Lib(Map<String, String> sources) {
     for (final path in sources.keys.toList()..sort()) {
       final src = _Src(path, sources[path]!);
       files[path] = src;
       fnsByFile[path] = _functionsIn(src);
+      debugOnlyByFile[path] = _debugOnlySpans(src.code);
     }
   }
 
@@ -465,6 +509,7 @@ class _Lib {
 
   final Map<String, _Src> files = {};
   final Map<String, List<_Fn>> fnsByFile = {};
+  final Map<String, List<(int, int)>> debugOnlyByFile = {};
 
   Iterable<_Fn> get fns => fnsByFile.values.expand((f) => f);
 
@@ -509,7 +554,9 @@ class _Lib {
     for (final s in files.values) {
       for (final m in word.allMatches(s.code)) {
         if (declared.contains('${s.path}@${m.start}')) continue;
-        hits.add(_Ref(s, m.start, innermost(s, m.start)));
+        final debugOnly = debugOnlyByFile[s.path]!
+            .any((span) => m.start >= span.$1 && m.start < span.$2);
+        hits.add(_Ref(s, m.start, innermost(s, m.start), debugOnly: debugOnly));
       }
     }
     return hits;
@@ -557,8 +604,9 @@ class _Lib {
       final conjuncts =
           expression == null ? null : _topLevelConjuncts(expression);
       if (conjuncts == null || !conjuncts.contains('!kReleaseMode')) {
+        final source = end == null ? '' : main.text.substring(m.end, end - 1);
         problems.add('$what is no longer `!kReleaseMode && ...` at the top '
-            'level (it reads `${expression?.replaceAll(RegExp(r'\s+'), ' ').trim()}`), '
+            'level (it reads `${source.replaceAll(RegExp(r'\s+'), ' ').trim()}`), '
             'so a release build can open the developer page and every '
             'developer-only verdict in this file is void');
       }
@@ -668,6 +716,7 @@ class _Walk {
     }
     for (final r in refs) {
       if (result == _Reach.reaches) break;
+      if (r.debugOnly) continue; // a release build does not run it
       final fn = r.fn;
       if (fn == null) {
         result = _Reach.undecided;
@@ -806,6 +855,22 @@ void _selfTest() {
     expect(reachOf(_mutate(liveCall,
         '  }\n\n  void _later() => _announceWatchTransitions();\n  void _x() {\n')),
         _Reach.doesNot);
+    // Wrapped in a condition that is false in release, or in an assert.
+    for (final wrapped in [
+      '    if (kDebugMode) _announceWatchTransitions();\n',
+      '    if (kDebugMode && _ready) {\n      _announceWatchTransitions();\n    }\n',
+      '    if (!kReleaseMode) _announceWatchTransitions();\n',
+      '    assert(() {\n      _announceWatchTransitions();\n      return true;\n    }());\n',
+    ]) {
+      expect(reachOf(_mutate(liveCall, wrapped)), _Reach.doesNot,
+          reason: 'a release build does not run: $wrapped');
+    }
+    // A condition that holds in release, and an else branch, still reach.
+    expect(reachOf(_mutate(liveCall,
+        '    if (!kDebugMode) _announceWatchTransitions();\n')), _Reach.reaches);
+    expect(reachOf(_mutate(liveCall,
+        '    if (kDebugMode) _log(); else _announceWatchTransitions();\n')),
+        _Reach.reaches);
     // Only a field initializer holds it: undecided, never "reaches".
     expect(reachOf(_mutate(liveCall,
         '  }\n\n  late final Object _later = _announceWatchTransitions;\n  void _x() {\n')),
