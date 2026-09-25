@@ -202,9 +202,10 @@ void _citationsByFunction() {
 // passed as data, or a dynamic dispatch is NOT traced. A reference that sits in
 // no function it can name (a field initializer, a constructor) is UNDECIDED.
 // It reads each function's own body: a callee that throws, or never returns,
-// only in release is not traced into its caller, a local value set under a
-// build-mode condition and read later is caught only by the fail-closed scan,
-// and a condition on runtime state is taken to run. Widget-typed values are
+// only in release is not traced into its caller, and a condition on runtime
+// state is taken to run. State set under a build-mode condition is not
+// followed to where it is read: a field set there is itself undecided, and a
+// local set there leaves everything after it in the function undecided. Widget-typed values are
 // not treated as build-mode values, because a widget never gates a call. It
 // does not read `dart:io` Platform checks, which also differ between the test
 // host and her phone. It asserts its own seed (below) so it cannot silently
@@ -944,6 +945,19 @@ bool _isAssignment(String code, int i) {
 class _ReleaseFacts {
   final spans = <_Span>[];
   final conditions = <(int, int)>[];
+
+  /// Conditions that mention build mode and govern a branch that sets state.
+  /// The model reads what they govern, but not where the state they set is
+  /// read later, so a build-mode value inside one is NOT accounted for.
+  final stateSetters = <(int, int)>[];
+}
+
+/// Whether [span] assigns, or steps a value with `++` or `--`, anywhere.
+bool _writesState(String code, (int, int) span) {
+  for (var k = span.$1; k < span.$2; k++) {
+    if (_isAssignment(code, k)) return true;
+  }
+  return RegExp(r'\+\+|--').hasMatch(code.substring(span.$1, span.$2));
 }
 
 class _Lib {
@@ -1112,8 +1126,16 @@ class _Lib {
     }
 
     for (final i in _ifsOf(s)) {
-      facts.conditions.add((i.condOpen, i.condEnd));
       final text = code.substring(i.condOpen + 1, i.condEnd - 1);
+      // `if (kReleaseMode) quiet = true;` then `if (quiet) return;`: the second
+      // condition reads a plain local, so a build-mode value set under the
+      // first is left for the fail-closed scan, which must then see it.
+      final setsState = _modeRefs.hasMatch(text) &&
+          [i.then, i.orElse]
+              .whereType<(int, int)>()
+              .any((b) => _writesState(code, b));
+      (setsState ? facts.stateSetters : facts.conditions)
+          .add((i.condOpen, i.condEnd));
       final label =
           '`if (${text.replaceAll(RegExp(r'\s+'), ' ').trim()})` at ${at(i.start)}';
       switch (releaseValue(text)) {
@@ -1176,11 +1198,16 @@ class _Lib {
       if (facts.spans.any((sp) => sp.live == _Live.doesNot && sp.holds(m.start))) {
         continue;
       }
+      final where = '`${m.group(0)}` at ${s.path}:${s.lineOf(m.start)}';
       return (
         _Live.undecided,
-        '`${m.group(0)}` at ${s.path}:${s.lineOf(m.start)}, a build-mode value '
-            'in ${fn.name}, before it or in its own expression, is in a form '
-            'this census cannot read as a release build does'
+        facts.stateSetters.any((c) => m.start >= c.$1 && m.start < c.$2)
+            ? '$where, in ${fn.name} before it, governs a branch that sets '
+                'state, and this census does not follow that state to where '
+                'it is read'
+            : '$where, a build-mode value in ${fn.name}, before it or in its '
+                'own expression, is in a form this census cannot read as a '
+                'release build does'
       );
     }
     return (_Live.runs, '');
@@ -1752,6 +1779,11 @@ void _selfTestReleaseOnly() {
           '    if (kReleaseMode) _muted = true;\n    if (_muted) return;\n'
               '    _announceWatchTransitions();\n'),
     ], '`if (_muted)`');
+    undecided('a local set under a build-mode condition', [
+      (liveCall,
+          '    var quiet = false;\n    if (kReleaseMode) quiet = true;\n'
+              '    if (quiet) return;\n    _announceWatchTransitions();\n'),
+    ], 'sets state');
     undecided('a loop that runs only outside release', [
       (liveCall,
           '    while (!kReleaseMode) {\n      _announceWatchTransitions();\n      break;\n    }\n'),
@@ -1786,6 +1818,9 @@ void _selfTestReleaseOnly() {
     ]);
     heard('build mode that leaves a run-time condition', [
       (liveCall, '    if (kReleaseMode && _paused) return;\n    _announceWatchTransitions();\n'),
+    ]);
+    heard('state set under build mode after the call', [
+      (liveCall, '    _announceWatchTransitions();\n    if (kReleaseMode) _count++;\n'),
     ]);
     heard('a run-time early return', [
       (liveCall, '    if (!mounted) return;\n    _announceWatchTransitions();\n'),
