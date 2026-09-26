@@ -39,7 +39,7 @@
 - **オフライン地図** — 秋田県の実際の OpenStreetMap 地図データを端末に同梱。電波がない場所でも地図が表示されます（同梱範囲外は通信で補完）。
   地図データ: © OpenStreetMap contributors（ODbL ライセンス）
   <!-- README.md:25; Geofabrik cut tohoku-260709 -->
-- **GPS 現在地表示** — 同意した場合のみ。使うのは、アプリを開いている間と、**あなた自身が開始した運転の間**だけです。運転中は画面を消しても受信が続きます。終えるには、アプリの「停止」を押します。運転中は通知を出しますが、ロック中の画面には表示されないことがあり、Android 14 以降はスワイプで消せます（消しても受信は止まりません）。アプリが勝手に始めることはなく、`ACCESS_BACKGROUND_LOCATION` は要求していません。
+- **GPS 現在地表示** — 同意した場合のみ。使うのは、アプリを開いている間と、**あなた自身が開始した運転の間**だけです。運転中は画面を消しても、ほかのアプリに切り替えても、戻る操作（ボタンやスワイプ）をしても受信が続きます。終えるには、アプリの「停止」を押します。運転中は通知を出しますが、ロック中の画面には表示されないことがあり、Android 14 以降はスワイプで消せます（消しても受信は止まりません）。アプリが勝手に始めることはなく、`ACCESS_BACKGROUND_LOCATION` は要求していません。
 - **走行中の注意は音声と振動で知らせます。走行中は画面を注視しないでください。** 画面での確認は、出発前または安全な場所に停車してから行ってください。
   <!-- AAA 掲載ガードレール 2026-07-11（道交法71条5号の5 との整合; D4）。
        eyes-off 設計（HEAR/FEEL チャンネル + wakelock）は README.md:21-23 -->
@@ -88,7 +88,7 @@
 ### プライバシー
 
 - テレメトリ（利用状況の自動送信）はありません。アカウント登録は不要です。広告・解析 SDK は入っていません。
-- 位置情報の共有は任意（オプトイン）です。アプリを表示している間と、**あなた自身が開始した運転の間**に使います。運転中は画面を消しても受信が続きます。アプリを開いて（または通知をタップして）「停止」を押せば、いつでも終わります。**通知を消しても受信は終わりません。**運転中は通知を出しますが、**ロック中の画面には表示されないことがあり、Android 14 以降はスワイプで消せて、消しても受信は続きます**（Android 14 の試験用エミュレーターで確認。実機では未確認）。座標は端末に保存されず、本アプリ独自のサーバーへ送信されることはありません（そもそもサーバーがありません）。
+- 位置情報の共有は任意（オプトイン）です。アプリを表示している間と、**あなた自身が開始した運転の間**に使います。運転中は画面を消しても、ほかのアプリに切り替えても、戻る操作（ボタンやスワイプ）をしても受信が続きます。アプリを開いて（または通知をタップして）「停止」を押せば、いつでも終わります。**通知を消しても受信は終わりません。**運転中は通知を出しますが、**ロック中の画面には表示されないことがあり、Android 14 以降はスワイプで消せて、消しても受信は続きます**（Android 14 の試験用エミュレーターで確認。実機では未確認）。座標は端末に保存されず、本アプリ独自のサーバーへ送信されることはありません（そもそもサーバーがありません）。
   <!-- AppL10n.locationDisclosure（アプリ内の同意カード）と同じ内容。行番号では引かない — 旧コメントの
        app_localizations.dart:136-141 は別の文を指していた。2026-09-25 訂正（AAE）: 旧文の
        「その間はずっと通知が出ており」「通知の出ない位置情報取得はありません」は、ロック画面と
@@ -109,6 +109,6 @@
 
 ## English summary (short)
 
-Alpha-stage advisory app for snow-country driving in Japan (Akita-first). Shows verbatim JMA weather observations and a clearly-labeled **derived** invisible-ice (black ice) watch — an inference, never a JMA statement; missing data reads "cannot judge", never "clear". Bundled offline OpenStreetMap basemap for Akita (© OpenStreetMap contributors, ODbL), opt-in GPS that, once you start a drive, keeps warning you with the screen off while a notification is posted for the drive (on Android 14 and later it can be swiped away without ending the drive, and it may not show on a locked screen; Stop in the app ends the drive), with no background location without a drive you started, drive-caution HUD whose ceiling is "consider stopping" — never "turn back".
+Alpha-stage advisory app for snow-country driving in Japan (Akita-first). Shows verbatim JMA weather observations and a clearly-labeled **derived** invisible-ice (black ice) watch — an inference, never a JMA statement; missing data reads "cannot judge", never "clear". Bundled offline OpenStreetMap basemap for Akita (© OpenStreetMap contributors, ODbL), opt-in GPS that, once you start a drive, keeps warning you with the screen off, with another app in front, or after you go back (button or swipe), while a notification is posted for the drive (on Android 14 and later it can be swiped away without ending the drive, and it may not show on a locked screen; Stop in the app ends the drive), with no background location without a drive you started, drive-caution HUD whose ceiling is "consider stopping" — never "turn back".
 
 **Honest bounds:** the app surfaces information only; the driver remains responsible for all driving decisions; it does not control the vehicle. Verified on a small device matrix (one physical device + emulators) — not claimable for all phones. Offline map is emulator-verified (2026-07-10 airplane-mode pass); on-device audio/haptic HEAR/FEEL still unverified. Ice-mission field verification is scheduled for first snow, ~November 2026 — the drive-loop claim and the ice-mission claim are never conflated. Spoken drive-HUD and ice-watch lines follow the device locale (ja/en); the condition-explainer announcement is driver-profile-bound (English on the foreign-tourist profile). The 41 Japanese safety warnings are recorded into the app and play with no TTS engine installed and no network (measured 2026-09-16 on an API-30 emulator with the only TTS package disabled: 0 synthesis requests; not measured on a physical handset). Installing an offline Japanese TTS voice is optional and covers the variable, route-guidance lines that cannot be pre-recorded. No telemetry, no accounts, no ads/analytics SDKs; crash log stays on-device (~200 KB cap) and leaves only via the user-initiated share action.
