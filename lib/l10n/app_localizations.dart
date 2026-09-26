@@ -982,13 +982,14 @@ class AppL10n {
   // app reacts to a swipe (geolocator sets no delete intent).
 
   String get driveDisclosure => _ja
-      ? '運転を開始すると、画面を消しても、ほかのアプリに切り替えても継続します。'
+      ? '運転を開始すると、画面を消しても、ほかのアプリに切り替えても、戻る操作（ボタンやスワイプ）をしても継続します。'
           '運転中は通知を出しますが、ロック中の画面には表示されないことがあり、'
           'Android 14 以降はスワイプで消せます。消しても位置情報の使用は止まりません。'
           '終了するには、アプリを開いて（または通知をタップして）'
           '「停止」を押してください。'
-      : 'Once you start a drive it keeps going with the screen off or while '
-          'you use another app. A notification is posted for the drive, but it '
+      : 'Once you start a drive it keeps going with the screen off, while '
+          'you use another app, or when you go back (button or swipe). A '
+          'notification is posted for the drive, but it '
           'may not show on a locked screen, and from Android 14 you can swipe '
           'it away — that does not stop the drive or its use of your location. '
           'To end it, open the app (or tap the notification), then Stop.';

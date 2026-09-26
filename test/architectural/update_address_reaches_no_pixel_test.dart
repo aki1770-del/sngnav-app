@@ -115,7 +115,18 @@ bool _insideDebugGuard(DartViews v, int at) {
   // `?` or `:` of an enclosing conditional. Anything else is not exempt, a
   // conjunction included: this reports a read that is in fact debug-only
   // rather than exempt one that is not.
-  final before = head.substring(0, q.start).trimRight();
+  //
+  // W-3a (2026-09-25, round 5c, WDA REL1/2/3/5/6): read what stands before
+  // kDebugMode ACROSS THE LINE BREAK, not only on the read's own line. `head`
+  // starts at lineStart, so when `kDebugMode ?` begins its line `before` was
+  // empty and empty counted as the start of an expression — a wrapped
+  // `_verbose ||`, `_force ??`, `!`, `|` or `false ==` on the line above was
+  // never seen, and five release-reachable reads passed as debug-only. Taking
+  // the shape from 0 up to the match reads the last code token above; it can
+  // only turn a false exemption into a report, never the reverse (it differs
+  // from the one-line form solely when nothing but whitespace precedes
+  // kDebugMode on its line).
+  final before = v.shape.substring(0, lineStart + q.start).trimRight();
   return before.isEmpty ||
       RegExp(r'(?:(?<![=!<>?])=|=>|[(\[{,;:]|(?<!\?)\?|\breturn)$')
           .hasMatch(before);
@@ -257,6 +268,21 @@ void main() {
           ('the read under `$condition ?`, which runs in release',
               'lib/main.dart', guarded,
               '$condition ? await UpdateChecker.resolveManifestUrl() : null'),
+        // CROSS-LINE (W-3a, WDA round 5c REL1/2/3/5/6): the other operand sits
+        // on the line ABOVE kDebugMode, so the read runs in release, and the
+        // round-5b rule — which judged only the read's own line — missed it.
+        // These fail on `aee13cc`'s rule and are caught by W-3a.
+        for (final (label, wrapped) in const [
+          ('||', '_verbose ||'),
+          ('??', '_force ??'),
+          ('!', '!'),
+          ('|', '_verbose |'),
+          ('false ==', 'false =='),
+        ])
+          ('caught cross-line: `$label` wrapped onto the line above kDebugMode, '
+              'which runs in release', 'lib/main.dart', guarded,
+              '$wrapped\n          kDebugMode ? '
+                  'await UpdateChecker.resolveManifestUrl() : null'),
         ('the reader\'s state printed after the guard closes', 'lib/main.dart',
             "      if (!mounted) return;\n      setState(() => _updateResult = result);",
             "      debugPrint('\${result.address}');\n"
@@ -278,6 +304,19 @@ void main() {
             isEmpty,
             reason: 'the round-5b rule must refuse conditions that are not '
                 'kDebugMode alone, not every spelling but one');
+      });
+
+      test('still exempt: kDebugMode alone, wrapped after `=` onto its own '
+          'line (W-3a reads the token above only to reject non-kDebugMode '
+          'operands, not to over-report)', () {
+        expect(
+            addressLeaks(edit('lib/main.dart', guarded,
+                '\n          kDebugMode ? '
+                    'await UpdateChecker.resolveManifestUrl() : null')),
+            isEmpty,
+            reason: 'the assignment `final url =` above kDebugMode begins an '
+                'expression, so a bare kDebugMode wrapped onto the next line '
+                'stays exempt');
       });
     });
   });

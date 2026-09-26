@@ -2102,6 +2102,11 @@ class _HomePageState extends State<HomePage> {
     // Start the blackout watchdog for the real position feed.
     _positionWatchdog ??=
         Timer.periodic(_watchdogTickEvery, (_) => _watchdogTick());
+    // Drive-start can begin with 停止 occluded (dead-channel cautions raise a
+    // banner that pushes the status row down): bring it onto her screen the
+    // same way the resume path does. Inert when already in view
+    // (_bringDriveStopIntoView early-returns).
+    WidgetsBinding.instance.addPostFrameCallback((_) => _bringDriveStopIntoView());
   }
 
   /// One event from the driver's position feed: a fix, an honest unavailability, or a
