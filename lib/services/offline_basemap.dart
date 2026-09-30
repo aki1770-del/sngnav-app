@@ -129,7 +129,9 @@ Future<OfflineTileProvider?> loadOfflineTileProvider({
     final bytes =
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
     final tempDir = await getTemporaryDirectory();
-    return buildOfflineTileProviderFromBytes(
+    // `await` is what puts the builder's failures inside this `try`. Without
+    // it the catch below never sees them.
+    return await buildOfflineTileProviderFromBytes(
       bytes,
       tempDir: tempDir,
       archiveFilename: asset.split('/').last,
