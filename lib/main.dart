@@ -1888,7 +1888,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadOfflineBasemap() async {
-    final provider = await loadAkitaOfflineTileProvider();
+    final provider = await loadAkitaOfflineTileProvider(
+      errorLog: widget.errorLog,
+    );
     if (!mounted) {
       // Widget gone before load finished — release the archive we opened.
       await provider?.dispose();

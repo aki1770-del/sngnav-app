@@ -17,6 +17,12 @@
 /// test/services/update_check_test.dart does. A positive control runs the same
 /// loader against a directory that exists. So the failing case cannot pass
 /// just because the loader never reached the builder.
+///
+/// Printing the reason is not enough. `debugPrint` reaches the console and
+/// logcat, never the app's `LocalErrorLog`, which is the log a tester sends
+/// with ログを共有. So the failing case also checks that the failure is
+/// recorded in the log the loader is given. The control checks that nothing is
+/// recorded there when nothing failed.
 library;
 
 import 'dart:io';
@@ -24,6 +30,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sngnav_app/services/error_log.dart';
 import 'package:sngnav_app/services/offline_basemap.dart';
 
 const _pathChannel = MethodChannel('plugins.flutter.io/path_provider');
@@ -35,6 +42,7 @@ void main() {
   late Directory root;
   late List<String> channelCalls;
   late List<String> printed;
+  late LocalErrorLog log;
 
   /// Points path_provider's temporary directory at [path], and records every
   /// call the loader makes on the channel.
@@ -50,6 +58,7 @@ void main() {
     root = Directory.systemTemp.createTempSync('offline_basemap_fail_soft');
     channelCalls = [];
     printed = [];
+    log = LocalErrorLog(file: File('${root.path}/log/error_log.txt'));
     final previous = debugPrint;
     debugPrint = (String? message, {int? wrapWidth}) {
       if (message != null) printed.add(message);
@@ -66,7 +75,7 @@ void main() {
       'a provider and logs no fallback', () async {
     temporaryDirectoryIs(root.path);
 
-    final provider = await loadAkitaOfflineTileProvider();
+    final provider = await loadAkitaOfflineTileProvider(errorLog: log);
     addTearDown(() => provider?.dispose());
 
     expect(
@@ -87,6 +96,11 @@ void main() {
       reason: 'no fallback is logged when nothing failed',
     );
     expect(
+      log.readAll(),
+      isEmpty,
+      reason: 'nothing is recorded in her log when nothing failed',
+    );
+    expect(
       File(
         '${root.path}/${akitaOfflineMbtilesAsset.split('/').last}',
       ).existsSync(),
@@ -103,7 +117,7 @@ void main() {
     Object? escaped;
     Object? provider;
     try {
-      provider = await loadAkitaOfflineTileProvider();
+      provider = await loadAkitaOfflineTileProvider(errorLog: log);
     } catch (e) {
       escaped = e;
     }
@@ -140,6 +154,24 @@ void main() {
       reason:
           'the catch saw the write into the directory that is not '
           'there, not some earlier failure',
+    );
+    final recorded = log.readAll();
+    expect(
+      recorded,
+      contains(kErrorLogEntryMarker),
+      reason:
+          'the failure was printed but not recorded in the log ログを共有 '
+          'sends. That log holds: "$recorded"',
+    );
+    expect(
+      recorded,
+      contains('[offline-basemap]'),
+      reason: 'the entry says which part of the app failed',
+    );
+    expect(
+      recorded,
+      contains(absent),
+      reason: 'the entry is the builder\'s write into the missing directory',
     );
   });
 }
