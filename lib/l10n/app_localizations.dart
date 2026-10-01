@@ -811,8 +811,8 @@ class AppL10n {
       'Location permission check timed out — platform did not answer' => _ja
           ? '位置情報の許可状態の確認に時間がかかりすぎました（端末が応答しません）'
           : reason,
-      'Location permission request timed out — no answer from the platform dialog' =>
-        _ja ? '位置情報の許可の応答がありませんでした（確認画面が閉じられていません）' : reason,
+      'Location permission request timed out — no answer came back' =>
+        _ja ? '位置情報の許可を求めましたが、時間内に応答がありませんでした' : reason,
       'GPS stream ended by the platform' =>
         _ja ? 'GPSの受信が端末側で終了しました' : reason,
       _ => null,

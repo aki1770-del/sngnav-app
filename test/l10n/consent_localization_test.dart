@@ -156,8 +156,7 @@ void main() {
         'Location services disabled',
         'Location service check timed out — platform did not answer',
         'Location permission check timed out — platform did not answer',
-        'Location permission request timed out — no answer from the '
-            'platform dialog',
+        'Location permission request timed out — no answer came back',
         'Degraded GPS fix — non-finite coordinate (lat=NaN, lon=1.0, acc=5.0)',
         'GPS stream error: boom',
         'GPS stream ended by the platform',

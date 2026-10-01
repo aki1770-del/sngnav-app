@@ -26,6 +26,7 @@ import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
+import '../support/notification_ask_answers.dart';
 
 void main() {
   group('herPositionStream', () {
@@ -139,6 +140,9 @@ void main() {
           MockStreamHandler.inline(
               onListen: (_, _) => listens++, onCancel: (_) => cancels++));
     });
+
+    setUp(answerNotificationAskAtOnce);
+    tearDown(stopAnsweringNotificationAsk);
 
     tearDown(() {
       messenger().setMockMethodCallHandler(method, null);

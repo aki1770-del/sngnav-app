@@ -37,6 +37,7 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
+import '../support/notification_ask_answers.dart';
 
 const _method = MethodChannel('flutter.baseflow.com/geolocator_android');
 const _updates =
@@ -145,6 +146,9 @@ void main() {
       return null;
     });
   });
+
+  setUp(answerNotificationAskAtOnce);
+  tearDown(stopAnsweringNotificationAsk);
 
   tearDown(() {
     _messenger.setMockMethodCallHandler(_method, null);
