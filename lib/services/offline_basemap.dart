@@ -39,6 +39,8 @@ import 'package:mbtiles/mbtiles.dart';
 import 'package:offline_tiles/offline_tiles.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'error_log.dart';
+
 /// The bundled real-cartography archive (declared in pubspec `flutter/assets`).
 const String akitaOfflineMbtilesAsset = 'assets/tiles/akita_offline.mbtiles';
 
@@ -113,28 +115,38 @@ Future<OfflineTileProvider> buildOfflineTileProviderFromBytes(
 /// Returns `null` on any failure so the caller falls back to the plain
 /// network basemap — honest degradation, never a hard crash. A null result
 /// means "no offline basemap this run", exactly as before this PoC.
-Future<OfflineTileProvider?> loadAkitaOfflineTileProvider() =>
-    loadOfflineTileProvider(asset: akitaOfflineMbtilesAsset);
+/// A failure is also recorded in [errorLog] when one is given.
+Future<OfflineTileProvider?> loadAkitaOfflineTileProvider({
+  LocalErrorLog? errorLog,
+}) => loadOfflineTileProvider(
+  asset: akitaOfflineMbtilesAsset,
+  errorLog: errorLog,
+);
 
 /// Production entry for any bundled archive: load [asset], copy it to a temp
 /// file named after the asset itself, and return an offline-first provider.
 ///
 /// Returns `null` on any failure so the caller falls back to the plain network
-/// basemap — honest degradation, never a hard crash.
+/// basemap — honest degradation, never a hard crash. The reason is printed,
+/// and recorded in [errorLog] when one is given: that is the app's
+/// [LocalErrorLog], the log a tester can send with ログを共有.
 Future<OfflineTileProvider?> loadOfflineTileProvider({
   required String asset,
+  LocalErrorLog? errorLog,
 }) async {
   try {
     final data = await rootBundle.load(asset);
     final bytes =
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
     final tempDir = await getTemporaryDirectory();
-    return buildOfflineTileProviderFromBytes(
+    // `await` is what puts the builder's failures inside this `try`. Without
+    // it the catch below never sees them.
+    return await buildOfflineTileProviderFromBytes(
       bytes,
       tempDir: tempDir,
       archiveFilename: asset.split('/').last,
     );
-  } catch (e) {
+  } catch (e, stack) {
     // Degradation must be honest, never silent: a swallowed error here left
     // the map blank in airplane mode on-device while host tests painted it
     // (missing bundled native sqlite lib; caught by the 2026-07-10 emulator
@@ -142,6 +154,10 @@ Future<OfflineTileProvider?> loadOfflineTileProvider({
     // basemap — but the WHY now reaches the log so a blank offline map is
     // diagnosable in one read.
     debugPrint('offline basemap unavailable, falling back to network: $e');
+    // debugPrint reaches the console and logcat only. The shareable log is
+    // written here, because a failure caught here never reaches the crash
+    // boundary that would otherwise have written it.
+    errorLog?.record(e, stack, source: 'offline-basemap');
     return null;
   }
 }
