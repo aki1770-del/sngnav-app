@@ -182,7 +182,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.41.4'
+          flutter-version: '3.47.5'
 
       # ⛑ 2026-09-20, AAE, on Komada-voice `d18-2:b`. THE GLANCE GATE WAS ARMED
       # NOWHERE. Re-measured from the source rather than inherited from the brief:
@@ -489,9 +489,10 @@ jobs:
   # That is false and was measured false — the dev machine carries SDK platforms
   # 34/35/36 and build-tools 34/35/36, and release APKs have been built on it.
   # The real reason to build here is environment independence, not absence.
-  # A live skew remains and is NOT fixed: this job pins Flutter 3.41.4 stable
-  # while the dev machine runs 3.45.0-1.0.pre-48 (user-branch), so the two do
-  # not necessarily compile the same way.
+  # Every job here pins stock Flutter 3.47.5. The lock and the golden images
+  # were made with that version. A machine on another Flutter version resolves
+  # a different lock and renders some goldens differently, so a build or a test
+  # run there is not this job's result.
   android-build:
     runs-on: ubuntu-24.04
     steps:
@@ -557,7 +558,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.41.4'
+          flutter-version: '3.47.5'
 
       - name: Resolve dependencies
         run: flutter pub get
@@ -667,7 +668,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.41.4'
+          flutter-version: '3.47.5'
 
       # Same guard as the `test` job (see the note there): an installable
       # artifact is not built off clips that say other words than the ones the
