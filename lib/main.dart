@@ -89,6 +89,7 @@ import 'l10n/app_localizations.dart';
 import 'corridor_row.dart';
 import 'her_position.dart';
 import 'services/notification_permission.dart';
+import 'services/permission_ask_order.dart';
 import 'jma_fetch.dart';
 import 'route_act.dart';
 import 'route_fetch.dart';
@@ -1552,8 +1553,8 @@ class _HomePageState extends State<HomePage> {
     // Can the ongoing-drive notification actually reach her shade? READ only:
     // this never shows a dialog, because a permission prompt the instant she
     // opens the app, before she has asked for anything, is an interruption
-    // with no context. The ASK happens when she starts a drive, and it does
-    // not block the drive -- see _shareLocation.
+    // with no context. The ASK happens when she starts a drive, and the drive
+    // waits for her answer only within a bound -- see _shareLocation.
     unawaited(_refreshDriveNotificationPermission());
     _audioReadinessTicker = Timer.periodic(
       const Duration(seconds: 45),
@@ -1803,20 +1804,32 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  /// Ask her, at most once, and NEVER on the path that starts her drive.
+  /// Ask her, at most once. Completes when she has answered and the answer
+  /// has been read back, or at once when there is nothing to ask.
   ///
-  /// Deliberately not awaited by [_shareLocation]: an ask that never answers
-  /// (a channel that does not reply, an activity torn down while the dialog is
-  /// up) must not be able to stop the position feed from starting. The feed is
+  /// [_shareLocation] waits for this before location is requested, and the
+  /// wait is BOUNDED (see afterEarlierPermissionAsk): Android shows one
+  /// permission dialog at a time and drops a request made under another
+  /// one, which on her first drive meant no location dialog at all (measured
+  /// 2026-10-02, API 34). An ask that never answers (a channel that does not
+  /// reply) still cannot stop the position feed from starting: the feed is
   /// the safety function; the notification is what makes the SERVICE honest.
-  /// So this drive runs with whatever we already know, and her answer governs
-  /// from the next one.
-  void _askForDriveNotificationPermission() {
-    if (_driveNotificationAsked || _mayPostDriveNotification) return;
+  Future<void> _askForDriveNotificationPermission() {
+    if (_driveNotificationAsked || _mayPostDriveNotification) {
+      return Future<void>.value();
+    }
     _driveNotificationAsked = true;
-    unawaited(NotificationPermission.request().then((_) {
-      if (mounted) unawaited(_refreshDriveNotificationPermission());
-    }));
+    return NotificationPermission.request().then((_) async {
+      if (mounted) await _refreshDriveNotificationPermission();
+    });
+  }
+
+  /// Whether the app is in front of her, with no system dialog over it.
+  /// Unknown counts as in front: with no sign of a dialog, a silent platform
+  /// is given its 10 s and no more.
+  bool _appInFront() {
+    final s = WidgetsBinding.instance.lifecycleState;
+    return s == null || s == AppLifecycleState.resumed;
   }
 
   void _probeAlertChannelReadiness() {
@@ -2045,27 +2058,37 @@ class _HomePageState extends State<HomePage> {
     // test/her_position_foreground_service_test.dart is what pins it, and
     // it was proven to fail on that exact deletion before it was kept.
     final l = AppL10n.of(context);
-    // Ask, but do not wait: see _askForDriveNotificationPermission. THIS drive
-    // uses what is already known, so a silent platform can never strand her on
-    // a share control that does nothing.
-    _askForDriveNotificationPermission();
+    // Ask about notifications FIRST, and request location only after her
+    // answer: Android drops a permission request made while another
+    // permission dialog is up, and on her first drive that was the location
+    // request (see permission_ask_order.dart). The wait is bounded, so a
+    // silent platform can never strand her on a share control that does
+    // nothing; it then starts with what is already known.
+    final notificationAsk = _askForDriveNotificationPermission();
     final injected = widget.positionSource;
     _herSub = (injected ??
-            () => herPositionStream(
-                  // null when she cannot see it: no foreground service rather
-                  // than one behind an invisible notification.
-                  driveNotification: _mayPostDriveNotification
-                      ? DriveNotificationText(
-                          title: l.driveNotificationTitle,
-                          body: l.driveNotificationBody,
-                          channelName: l.driveNotificationChannel,
-                        )
-                      : null,
-                  onPlatformStreamSubscribed: () {
-                    if (mounted && session == _herShareSession) {
-                      _herPositionStreamSubscribedAt = _now();
-                    }
-                  },
+            () => startWhenReady(
+                  afterEarlierPermissionAsk(
+                    notificationAsk,
+                    appInFront: _appInFront,
+                  ),
+                  // Built AFTER the wait, so her answer governs THIS drive.
+                  () => herPositionStream(
+                    // null when she cannot see it: no foreground service
+                    // rather than one behind an invisible notification.
+                    driveNotification: _mayPostDriveNotification
+                        ? DriveNotificationText(
+                            title: l.driveNotificationTitle,
+                            body: l.driveNotificationBody,
+                            channelName: l.driveNotificationChannel,
+                          )
+                        : null,
+                    onPlatformStreamSubscribed: () {
+                      if (mounted && session == _herShareSession) {
+                        _herPositionStreamSubscribedAt = _now();
+                      }
+                    },
+                  ),
                 ))()
         .listen(
       _onPositionEvent,

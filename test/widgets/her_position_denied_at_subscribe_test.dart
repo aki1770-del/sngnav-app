@@ -42,6 +42,7 @@ import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
+import '../support/notification_ask_answers.dart';
 import '../support/rung_on_card.dart';
 
 /// geolocator_android 4.6.2, `ErrorCodes.permissionDenied`: the code and the
@@ -171,6 +172,9 @@ void main() {
         ),
       );
     }
+
+    setUp(answerNotificationAskAtOnce);
+    tearDown(stopAnsweringNotificationAsk);
 
     tearDown(() {
       messenger().setMockMethodCallHandler(method, null);

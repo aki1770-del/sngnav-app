@@ -485,8 +485,7 @@ Stream<PositionFix> herPositionStream({
                   .timeout(permissionRequestTimeout);
         } on TimeoutException {
           controller.add(const PositionUnavailable(
-            'Location permission request timed out — no answer from the '
-            'platform dialog',
+            'Location permission request timed out — no answer came back',
           ));
           return;
         }

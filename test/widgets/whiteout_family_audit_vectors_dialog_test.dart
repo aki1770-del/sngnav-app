@@ -35,6 +35,7 @@ import 'package:sngnav_app/main.dart' show SngnavApp;
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 
 import '../support/fake_alert_actuators.dart';
+import '../support/notification_ask_answers.dart';
 
 const _hud = DriveHudLocalizer();
 const _words = AppL10n(Locale('ja'));
@@ -238,6 +239,9 @@ void main() {
     messenger().setMockStreamHandler(
         updates, MockStreamHandler.inline(onListen: (_, _) {}));
   }
+
+  setUp(answerNotificationAskAtOnce);
+  tearDown(stopAnsweringNotificationAsk);
 
   tearDown(() {
     messenger().setMockMethodCallHandler(method, null);

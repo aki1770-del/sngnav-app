@@ -67,9 +67,11 @@ abstract final class NotificationPermission {
   /// Under the widget-test binding an UNMOCKED channel returns a Future that
   /// simply never completes -- no value, no error (probed 2026-09-24). The same
   /// shape is reachable on a device when nothing replies. So no caller may
-  /// await this on a path that must make progress: lib/main.dart reads it in
-  /// the background and keeps its own `false` until an answer arrives, which is
-  /// why a silent platform costs her a notification and never her drive.
+  /// await this, or [request], WITHOUT A BOUND on a path that must make
+  /// progress: lib/main.dart keeps its own `false` until an answer arrives,
+  /// and the drive start waits for the ask only within
+  /// afterEarlierPermissionAsk's bounds, which is why a silent platform costs
+  /// her a notification and at most 10 s, never her drive.
   static Future<NotificationPermissionState> read() async {
     try {
       final map = await channel.invokeMapMethod<String, dynamic>('read');
