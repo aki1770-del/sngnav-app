@@ -7,9 +7,12 @@
 ///
 /// 1. The CJK system fonts (IPAGothic / DroidSansFallback) may be
 ///    absent — glyphs render as tofu, pixels diff wildly.
-/// 2. Golden pixels are engine-version-specific — CI pins a different
-///    Flutter than the dev host, so text shaping/AA differ even with
-///    identical fonts.
+/// 2. Golden pixels are engine-version-specific: moving from Flutter 3.41.4
+///    to 3.47.5 changed the anti-aliasing of rounded corners in 8 of them.
+///    The goldens are cut with stock Flutter 3.47.5, the version CI pins, so
+///    a host on another version renders some of them differently. CI itself
+///    still does not compare them: no CI run has yet shown that a runner,
+///    with its own fonts and system libraries, renders them byte for byte.
 ///
 /// So: when the fonts fail to load, [installNoopGoldenComparator]
 /// swaps in a comparator that records an honest per-golden SKIP note
@@ -379,10 +382,9 @@ List<String> ipaGothicSearchOrder() => _firstNonEmpty([
 /// that SDK ships `material_fonts/Roboto-Regular.ttf`. So this resolves on any
 /// host that can run the suite at all, with no font package installed.
 ///
-/// ⚑ The bound that rides it: CI pins Flutter 3.41.4 while this dev host runs
-/// 3.45.0-1.0.pre-48, so the two read Roboto from different SDK checkouts.
-/// Same file name, not proven the same bytes. The workflow already names that
-/// SDK skew for the APK build; it reaches the glyphs too.
+/// ⚑ The bound that rides it: Roboto comes from whichever SDK runs the suite.
+/// CI pins stock Flutter 3.47.5; a host on another version reads another
+/// SDK's copy. Same file name, not proven the same bytes.
 List<String> robotoSearchOrder() => _firstNonEmpty([
   _existing([?Platform.environment['SNGNAV_TEST_ROBOTO_FONT']]),
   _existing([?_sdkMaterialFonts()?.path].map((d) => '$d/Roboto-Regular.ttf')),
@@ -430,8 +432,8 @@ Future<bool> loadMaterialIconsFont() async {
 /// Whether comparing a golden's PIXELS means anything on this host.
 ///
 /// ⚑ Read this before changing the CI font step. Reason 2 in this file's
-/// header — golden pixels are engine-version-specific, and CI pins Flutter
-/// 3.41.4 while the dev host runs 3.45.0-1.0.pre-48, so shaping and AA differ
+/// header — golden pixels are engine-version-specific, and CI pinned Flutter
+/// 3.41.4 while the dev host ran 3.45.0-1.0.pre-48, so shaping and AA differed
 /// even with identical fonts — was never enforced by anything. It did not
 /// need to be: CI had no CJK font, so every capture suite took the fontless
 /// branch and installed the no-op comparator. **The goldens were skipped on CI
@@ -469,10 +471,15 @@ bool goldenPixelsComparableHere() {
 //
 // On CI that sentence is now FALSE. Since 2026-09-18 the workflow installs
 // fonts-ipafont-gothic and fonts-droid-fallback and asserts both faces exist
-// before the suite runs, so the fonts ARE there; the goldens skip for the OTHER
-// reason — CI pins Flutter 3.41.4 and these goldens were cut on a dev host
-// running 3.45.0-1.0.pre-48, so shaping and anti-aliasing differ and the pixels
-// are not comparable whatever fonts are present.
+// before the suite runs, so the fonts ARE there; the goldens skipped for the
+// OTHER reason — CI pinned Flutter 3.41.4 and these goldens were cut on a dev
+// host running 3.45.0-1.0.pre-48, so shaping and anti-aliasing differed and the
+// pixels were not comparable whatever fonts were present.
+//
+// That reason ended when CI and the goldens moved to the same version, stock
+// Flutter 3.47.5. The skip on CI stays, for the reason that is still true: no
+// CI run has shown that a runner renders these goldens byte for byte. The note
+// below says that, and not the engine reason, which is no longer true.
 //
 // Why a wrong reason in a skip note is not cosmetic: 43 skip lines in the
 // 2026-09-18 CI run each told their reader to go install fonts. Someone acting
@@ -488,9 +495,9 @@ void installNoopGoldenComparator() {
   goldenFileComparator = _SkipNoteComparator(
     reason: goldenPixelsComparableHere()
         ? 'no CJK fonts on this host'
-        : 'this host did not cut these goldens — CI pins a different Flutter '
-            'engine than the dev host that cut them, so pixels are not '
-            'comparable even with identical fonts',
+        : 'this host did not cut these goldens — they were cut on a '
+            'developer machine with the Flutter version CI pins, and no CI '
+            'run has yet shown that a runner renders them byte for byte',
   );
 }
 
