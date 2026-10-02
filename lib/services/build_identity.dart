@@ -77,8 +77,13 @@ class BuildIdentity {
 
   /// BIS A-2 — the commit gradle stamped into the manifest, read back through
   /// PackageManager. `UNKNOWN` when git was unavailable at build time;
-  /// `<sha>-dirty` when the tree was not clean.
+  /// `<sha>-dirty` when the tree was not clean; `UNREADABLE` when the app
+  /// could not read the stamp. Null when the platform gave no commit at all,
+  /// which [display] shows as `UNREADABLE` too.
   final String? gitSha;
+
+  /// What [display] shows in the commit slot when no commit was read.
+  static const String gitShaUnreadable = 'UNREADABLE';
 
   /// How many APK files were hashed (base + splits). 1 on a plain APK.
   final int? artifactCount;
@@ -107,13 +112,26 @@ class BuildIdentity {
   /// names seven artifacts. So every surface shows
   /// `0.0.2 (10) · 7129d4a4bb1b · c1b2c28`, and falls back to the pair ONLY
   /// while labelled as not-an-identity by [isFullyIdentified].
+  ///
+  /// The commit slot is never dropped. It shows the commit as read, or the
+  /// word for why there is none (`UNKNOWN`, `UNREADABLE`): a triple missing
+  /// its last part reads as complete, and says nothing about what failed.
   String get display {
     if (!isKnown) return 'unknown';
-    final parts = <String>['$versionName ($versionCode)'];
+    final parts = <String>[versionPair];
     if (shortSelfSha != null) parts.add(shortSelfSha!);
-    if (gitSha != null && gitSha != 'UNKNOWN') parts.add(gitSha!);
+    parts.add(commitSlot);
     return parts.join(' · ');
   }
+
+  /// The first part of [display], `0.0.2 (10)`. On its own it is NOT an
+  /// identity; a surface that shows it alongside a note about "this number"
+  /// must keep the note next to it.
+  String get versionPair => '$versionName ($versionCode)';
+
+  /// The last part of [display]: the commit as read, or the word for why
+  /// there is none.
+  String get commitSlot => gitSha ?? gitShaUnreadable;
 
   /// True only when the self-hash answered. When false the build is
   /// UNIDENTIFIED: the version pair is known but does not name one artifact,

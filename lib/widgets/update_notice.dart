@@ -122,13 +122,19 @@ class UpdateNotice extends StatelessWidget {
             // this renders `0.0.2 (10) · 7129d4a4bb1b · 5794d0c`, and when the
             // self-hash did not answer it says UNIDENTIFIED rather than
             // printing a pair that names nothing (AAE-6: the abstention
-            // survives to the pixel).
+            // survives to the pixel). Without a self-hash the line is the pair
+            // and the commit slot, and its note is about the pair, so the two
+            // are passed apart and the note stays next to the number it is
+            // about (it once followed the commit word instead).
             Text(
               !running.isKnown
                   ? l10n.updateRunningBuildUnknown
                   : running.isFullyIdentified
                       ? l10n.updateRunningBuild(running.display)
-                      : l10n.updateRunningBuildUnidentified(running.display),
+                      : l10n.updateRunningBuildUnidentified(
+                          running.versionPair,
+                          running.commitSlot,
+                        ),
               style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
             ),
             const SizedBox(height: 8),
