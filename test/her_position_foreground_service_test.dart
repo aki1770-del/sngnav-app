@@ -208,11 +208,14 @@ void main() {
   //
   // Everything above tests driveLocationSettings, which is the function BELOW
   // the wiring. The wiring itself -- that the drive actually PASSES her words
-  // -- had no instrument, and _shareLocation takes the real branch only when
-  // HomePage.positionSource is null, which no widget test in this suite does.
-  // So this is a source assertion, for the reason haptic_report_wiring_test.dart
-  // gives for its own: an instrument that could not surface the counter-example
-  // has measured nothing.
+  // -- had no instrument. _shareLocation takes the real branch only when
+  // HomePage.positionSource is null. Widget tests that leave it null do reach
+  // that branch, but most of them still pass with the argument deleted;
+  // test/widgets/first_drive_permission_order_test.dart is the one of them
+  // that fails, by checking the settings the drive starts with. This group
+  // stays a source assertion as well, for the reason
+  // haptic_report_wiring_test.dart gives for its own: an instrument that could
+  // not surface the counter-example has measured nothing.
   //
   // What it protects: if this argument is dropped, herPositionStream falls back
   // to plain LocationSettings, no foreground service starts, and her warning
