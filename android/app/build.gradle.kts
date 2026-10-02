@@ -183,7 +183,12 @@ val assertVersionIdentity = tasks.register("assertVersionIdentity") {
                     "A versionCode names one build; this one would name the wrong one."
             )
         }
-        logger.lifecycle(
+        // QUIET, not lifecycle. The flutter tool runs gradle with -q unless
+        // it is verbose (flutter_tools gradle.dart, `options.add('-q')`), and
+        // -q drops every lifecycle line. At lifecycle level this pass never
+        // appeared under `flutter build`, so a gate that passed looked the
+        // same as a gate that never ran. Quiet is the level -q keeps.
+        logger.quiet(
             "VERSION IDENTITY OK: ${stamped.first}+${stamped.second} == pubspec.yaml"
         )
     }
