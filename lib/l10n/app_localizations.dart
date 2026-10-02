@@ -1059,10 +1059,12 @@ class AppL10n {
 
   /// When the self-hash did not answer, the version pair is all we have and
   /// it does NOT name one artifact (BIS: seven byte-sets shared one code).
-  String updateRunningBuildUnidentified(String pair) => _ja
-      ? '現在のビルド: $pair（この番号だけでは特定できません）'
+  /// The note is about [pair], so it sits right after it; [commit] (the
+  /// commit, or UNKNOWN / UNREADABLE) follows the note, never precedes it.
+  String updateRunningBuildUnidentified(String pair, String commit) => _ja
+      ? '現在のビルド: $pair（この番号だけでは特定できません） · $commit'
       : 'Running build: $pair (UNIDENTIFIED — this number alone does not '
-          'name one build)';
+          'name one build) · $commit';
 
   /// The announcement. Names the build; promises nothing about it.
   String updateAvailableLine(String display) => _ja

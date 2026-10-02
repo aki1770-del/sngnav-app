@@ -118,11 +118,20 @@ class BuildIdentity {
   /// its last part reads as complete, and says nothing about what failed.
   String get display {
     if (!isKnown) return 'unknown';
-    final parts = <String>['$versionName ($versionCode)'];
+    final parts = <String>[versionPair];
     if (shortSelfSha != null) parts.add(shortSelfSha!);
-    parts.add(gitSha ?? gitShaUnreadable);
+    parts.add(commitSlot);
     return parts.join(' · ');
   }
+
+  /// The first part of [display], `0.0.2 (10)`. On its own it is NOT an
+  /// identity; a surface that shows it alongside a note about "this number"
+  /// must keep the note next to it.
+  String get versionPair => '$versionName ($versionCode)';
+
+  /// The last part of [display]: the commit as read, or the word for why
+  /// there is none.
+  String get commitSlot => gitSha ?? gitShaUnreadable;
 
   /// True only when the self-hash answered. When false the build is
   /// UNIDENTIFIED: the version pair is known but does not name one artifact,
