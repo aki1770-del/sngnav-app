@@ -2052,11 +2052,13 @@ class _HomePageState extends State<HomePage> {
     // future refactor that drops this argument silently removes her warning
     // when the screen goes off -- with a GREEN suite, which is how it was
     // nearly lost: this comment first said a widget test pinned it, and a
-    // mutation proved otherwise (deleting the argument failed nothing). A
-    // widget test cannot reach here -- this branch runs only when
-    // HomePage.positionSource is null. The source guard at the foot of
-    // test/her_position_foreground_service_test.dart is what pins it, and
-    // it was proven to fail on that exact deletion before it was kept.
+    // mutation proved otherwise (deleting the argument failed nothing). This
+    // branch runs only when HomePage.positionSource is null, and widget tests
+    // that leave it null do reach it; most of them still pass with the
+    // argument deleted. Two things fail on that deletion: the source guard at
+    // the foot of test/her_position_foreground_service_test.dart, and
+    // test/widgets/first_drive_permission_order_test.dart, which checks that a
+    // drive she allowed notifications for starts with the notification.
     final l = AppL10n.of(context);
     // Ask about notifications FIRST, and request location only after her
     // answer: Android drops a permission request made while another
