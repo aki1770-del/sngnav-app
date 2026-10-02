@@ -798,13 +798,17 @@ class SngnavApp extends StatelessWidget {
         useMaterial3: true,
         // Tofu fix (2026-07-25): driver-facing strings carry a small
         // symbol set (⚠ ❄ ※ → ° …) the ja system font stack does not
-        // guarantee — measured 2026-07-30: Noto Sans CJK JP lacks U+2744 ❄,
-        // and U+26A0 ⚠ coverage is fallback-dependent (the render-see
-        // harness tofus it). A 15.7 KB bundled subset backstops every
-        // theme-derived TextStyle: system fonts still resolve first, the
-        // fallback only fills their holes, so a warning row can never
-        // render as tofu. Coverage drift-guarded by
-        // test/fonts/symbol_font_coverage_test.dart.
+        // guarantee (measured 2026-07-30: Noto Sans CJK JP lacks U+2744 ❄).
+        // This 15.7 KB bundled subset covers it for every theme-derived
+        // TextStyle. The shaper tries the requested families (Material's
+        // 'Roboto', then this one) before any system fallback (Skia
+        // 8df24be6, pinned by Flutter 3.47.5: OneLineShaper::
+        // matchResolvedFonts). Read 2026-10-02 from a stock Android 14
+        // system image: no family answers to 'Roboto' and its Roboto face
+        // lacks U+26A0, so ⚠ comes from this subset there. Her phone is
+        // UNVERIFIED: a system whose 'Roboto' covers U+26A0 draws its own.
+        // Tests load this font (test/flutter_test_config.dart); coverage is
+        // drift-guarded by test/fonts/symbol_font_coverage_test.dart.
         fontFamilyFallback: const ['SnGNavSymbols'],
       ),
       // The driver reads Japanese. The Global*Localizations delegates localize the
