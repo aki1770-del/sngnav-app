@@ -53,11 +53,15 @@
 #   - This gate proves the ARTIFACT IS ACCEPTABLE TO UPLOAD. It proves nothing
 #     about whether the app works, renders, speaks, or helps anyone. A bundle can
 #     pass all five gates and be dead on the driver's phone.
-#   - targetSdk/minSdk are read from the release APK built from the same tree in
-#     the same run, because no bundletool is present in this environment to read
-#     the bundle's own protobuf manifest. If you build the AAB and the APK from
-#     DIFFERENT trees, this check is meaningless. The script builds both itself
-#     to close that gap; --skip-build trusts you and says so.
+#   - targetSdk/minSdk (gate 2) and the shipped permissions (gate 5) are read
+#     from the release APK built from the same tree in the same run. The
+#     versionCode (gate 4) is read from the BUNDLE's own manifest, through aapt2
+#     (see bundle_badging). Before any gate runs, the bundle's versionCode and
+#     versionName are compared with the APK's, and if they differ the run FAILS
+#     and gates 2 and 5 say UNVERIFIED: the APK is then another build. That
+#     comparison cannot see two trees that stamp the same version, so the
+#     script still builds both itself; --skip-build trusts you that far and no
+#     further. Gates 2 and 5 could read the bundle the same way; they do not yet.
 #   - The predicate logic is proven by --self-test (it must REJECT bad input).
 #     The extraction logic is proven only by running against a real artifact.
 #     Those are different proofs and this script does not conflate them.
@@ -93,6 +97,23 @@
 #   and the resolved absolute path + sha256 of both artifacts is PRINTED BEFORE
 #   THE FIRST GATE RUNS. You can now always see what it read.
 #   Recorded outside this repository on 2026-09-16.
+#
+# ⚑ GATE 4 READ THE APK — FOUND AND REPAIRED 2026-10-02.
+#
+#   Gate 4 took versionCode from the APK's badging and treated it as the
+#   bundle's. Given a July upload-signed bundle at versionCode 2 and an APK
+#   built that morning at 12, it printed
+#       OK  versionCode=12 not in play_uploaded_version_codes.txt
+#       PREFLIGHT PASS — this is the file to upload: .../app-release.aab
+#   about the code-2 bundle. Play would have received 2, the ledger would have
+#   been told 12, and the gate was green. Gate 5 passed the same pair on the
+#   APK's eight permissions; the bundle requests five of them.
+#
+#   Repair: aapt2 reads the bundle's own manifest (base/manifest/
+#   AndroidManifest.xml, a protobuf, with base/resources.pb) as a proto-format
+#   APK. Gate 4 checks the bundle's versionCode. The bundle's versionCode and
+#   versionName are compared with the APK's before any gate uses the APK, and a
+#   difference FAILS the run. --self-test drives the predicate with that pair.
 #
 # USAGE
 #   tool/preflight_play_upload.sh                     # build both here, then gate
@@ -175,6 +196,53 @@ check_version_code() {
   [ -n "$vc" ] || { echo "versionCode not readable"; return 1; }
   if printf '%s\n' "$used" | grep -qx "$vc"; then
     echo "versionCode $vc HAS ALREADY BEEN UPLOADED — Play will refuse it. Bump pubspec.yaml (+N)."
+    return 1
+  fi
+  return 0
+}
+
+# $1 = `aapt2 dump badging` output; $2 = versionCode or versionName.
+# Echoes that field of the `package:` line, or nothing. The leading space keeps
+# it off platformBuildVersionCode / platformBuildVersionName on the same line.
+badging_field() {
+  printf '%s\n' "$1" | sed -n "s/^package: .* $2='\([^']*\)'.*/\1/p" | head -1
+}
+
+# $1 = aapt2; $2 = the AAB; $3 = a scratch .zip path to write.
+# Echoes the BUNDLE's own badging. A bundle keeps its manifest as a protobuf at
+# base/manifest/AndroidManifest.xml, with its resource table at
+# base/resources.pb; aapt2 reads that pair as a proto-format APK when they sit
+# at the root of a ZIP. Nothing is written beside the bundle. Proven against a
+# real bundle only (HONEST BOUNDS: extraction is not predicate logic).
+bundle_badging() {
+  local aapt2="$1" aab="$2" out="$3"
+  python3 - "$aab" "$out" <<'PY' 2>/dev/null || return 1
+import sys, zipfile
+src, dst = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(src) as z, zipfile.ZipFile(dst, 'w') as o:
+    o.writestr('AndroidManifest.xml', z.read('base/manifest/AndroidManifest.xml'))
+    o.writestr('resources.pb', z.read('base/resources.pb'))
+PY
+  "$aapt2" dump badging "$out" 2>/dev/null
+}
+
+# $1/$2 = the bundle's versionCode/versionName; $3/$4 = the APK's.
+# Gates 2 and 5 read the APK as the bundle's stand-in. That is true only when
+# the two are the same build, and a different versionCode or versionName means
+# they are not. An unreadable side is a refusal, never a match.
+check_bundle_matches_apk() {
+  local bc="$1" bn="$2" ac="$3" an="$4"
+  if [ -z "$bc" ] || [ -z "$bn" ]; then
+    echo "the BUNDLE's own versionCode/versionName could not be read. UNVERIFIED, not clear."
+    return 1
+  fi
+  if [ -z "$ac" ] || [ -z "$an" ]; then
+    echo "the APK's versionCode/versionName could not be read. UNVERIFIED, not clear."
+    return 1
+  fi
+  if [ "$bc" != "$ac" ] || [ "$bn" != "$an" ]; then
+    echo "DIFFERENT BUILDS: the bundle is versionCode=$bc versionName=$bn; the APK is versionCode=$ac versionName=$an."
+    echo "    The APK is not this bundle's stand-in. What gates 2 and 5 would read from it is about another build."
     return 1
   fi
   return 0
@@ -349,7 +417,22 @@ if [ "${1:-}" = "--self-test" ]; then
   t "a missing path is not an artifact" 1 check_artifact_readable /nonexistent/nope.aab AAB
   t "an unset path is not an artifact"  1 check_artifact_readable "" AAB
   t "a ZIP container is accepted"       0 check_artifact_readable "$REAL_ZIP" AAB
-  rm -f "$NOT_A_ZIP" "$EMPTY_FILE" "$REAL_ZIP"
+
+  # BUNDLE IDENTITY (2026-10-02). The first case is the real pair: a code-2
+  # bundle beside a code-12 APK, which gate 4 passed by reading the APK.
+  t "a code-2 bundle beside a code-12 APK rejected" 1 check_bundle_matches_apk 2 0.0.5 12 0.0.2
+  t "same code, different name rejected"   1 check_bundle_matches_apk 12 0.0.2 12 0.0.3
+  t "same name, different code rejected"   1 check_bundle_matches_apk 10 0.0.2 12 0.0.2
+  t "unreadable bundle version rejected"   1 check_bundle_matches_apk "" "" 12 0.0.2
+  t "unreadable APK version rejected"      1 check_bundle_matches_apk 12 0.0.2 "" ""
+  t "the same build accepted"              0 check_bundle_matches_apk 12 0.0.2 12 0.0.2
+  BADGING="package: name='dev.aki1770del.sngnav_app' versionCode='2' versionName='0.0.5' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'"
+  t "versionCode read, not platformBuildVersionCode" 0 test "$(badging_field "$BADGING" versionCode)" = "2"
+  t "versionName read, not platformBuildVersionName" 0 test "$(badging_field "$BADGING" versionName)" = "0.0.5"
+  t "no package line, no versionCode"      0 test -z "$(badging_field "targetSdkVersion:'36'" versionCode)"
+  NOT_A_BUNDLE_OUT="$(mktemp)"
+  t "a ZIP that is not a bundle yields no manifest" 0 test -z "$(bundle_badging false "$REAL_ZIP" "$NOT_A_BUNDLE_OUT")"
+  rm -f "$NOT_A_ZIP" "$EMPTY_FILE" "$REAL_ZIP" "$NOT_A_BUNDLE_OUT"
 
   echo "SELF-TEST: $pass/$total PASS"
   [ "$pass" -eq "$total" ] || exit 1
@@ -392,7 +475,7 @@ if [ -n "$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null)" ]; then
   echo "NOTE:   working tree is DIRTY — the artifact does not correspond to any commit."
 fi
 if [ "$GIVEN_AAB" -eq 1 ] && [ "$GIVEN_APK" -eq 0 ]; then
-  echo "NOTE:   a bundle was given and no APK. Gates 2, 4 and 5 read the APK (see"
+  echo "NOTE:   a bundle was given and no APK. Gates 2 and 5 read the APK (see"
   echo "        HONEST BOUNDS) and will report UNVERIFIED rather than pass."
 fi
 
@@ -402,7 +485,9 @@ if [ "$SKIP_BUILD" -eq 0 ]; then
   ( cd "$REPO_ROOT" && flutter build apk --release )       || { echo "FAIL: apk build"; exit 1; }
 else
   echo "-- --skip-build: gating pre-existing artifacts. If the AAB and APK came from"
-  echo "   different trees, gate 2 says nothing about the AAB. You were told."
+  echo "   different trees, gates 2 and 5 say nothing about the AAB. A different"
+  echo "   versionCode or versionName FAILS below; the same version from two trees"
+  echo "   cannot be seen. You were told."
 fi
 
 # WHICH FILE AM I READING. Printed BEFORE the first gate, always, resolved to an
@@ -424,11 +509,42 @@ if [ "$HAVE_APK" -eq 1 ]; then
   echo "   APK: $APK"
   echo "        $(stat -c%s "$APK") bytes  sha256=$(sha256sum "$APK" | cut -c1-64)"
 else
-  echo "   APK: ABSENT ($APK) — gates 2, 4 and 5 are UNVERIFIED, not clear."
+  echo "   APK: ABSENT ($APK) — gates 2 and 5 are UNVERIFIED, not clear."
 fi
 
 fails=0
 note() { echo "  $1"; }
+AAPT2="$(ls "${ANDROID_HOME:-$HOME/android-sdk}"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1)"
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+
+# --- identity: which build IS the bundle, and is the APK the same build?
+# Gates 2 and 5 read the APK as the bundle's stand-in, so this is settled
+# BEFORE any gate uses it. Until 2026-10-02 nothing compared them, and gate 4
+# read its versionCode from the APK as well (see the header).
+echo "-- identity  the BUNDLE's own manifest, and the APK beside it"
+aab_badging=""; badging=""; APK_IS_BUNDLE=0
+if [ -z "$AAPT2" ]; then
+  note "no aapt2 found — neither manifest can be read; gates 2, 4 and 5 will say so."
+else
+  aab_badging="$(bundle_badging "$AAPT2" "$AAB" "$tmp/bundle_manifest.zip")"
+  aab_vc="$(badging_field "$aab_badging" versionCode)"
+  aab_vn="$(badging_field "$aab_badging" versionName)"
+  note "AAB  versionCode=${aab_vc:-UNREADABLE}  versionName=${aab_vn:-UNREADABLE}  (the bundle's own manifest)"
+  if [ "$HAVE_APK" -eq 1 ]; then
+    badging="$("$AAPT2" dump badging "$APK" 2>/dev/null)"
+    apk_vc="$(badging_field "$badging" versionCode)"
+    apk_vn="$(badging_field "$badging" versionName)"
+    note "APK  versionCode=${apk_vc:-UNREADABLE}  versionName=${apk_vn:-UNREADABLE}"
+    if check_bundle_matches_apk "$aab_vc" "$aab_vn" "$apk_vc" "$apk_vn"; then
+      APK_IS_BUNDLE=1
+      note "OK  same versionCode and versionName: the APK may stand in for the bundle"
+    else
+      fails=$((fails+1))
+    fi
+  else
+    note "APK  ABSENT"
+  fi
+fi
 
 # --- gate 1: the BUNDLE's own signature (this is the uploaded artifact)
 echo "-- gate 1/5  signature of the BUNDLE"
@@ -442,15 +558,16 @@ fi
 
 # --- gate 2: targetSdk / minSdk (read from the APK; see HONEST BOUNDS)
 echo "-- gate 2/5  targetSdk"
-AAPT2="$(ls "${ANDROID_HOME:-$HOME/android-sdk}"/build-tools/*/aapt2 2>/dev/null | sort -V | tail -1)"
 if [ "$HAVE_APK" -eq 0 ]; then
   note "FAIL: no APK beside this bundle — targetSdk UNVERIFIED, not clear."
   fails=$((fails+1))
 elif [ -z "$AAPT2" ]; then
   note "FAIL: no aapt2 found — cannot read targetSdk. UNVERIFIED, not clear."
   fails=$((fails+1))
+elif [ "$APK_IS_BUNDLE" -eq 0 ]; then
+  note "FAIL: the APK is not the bundle's build (identity, above) — its targetSdk says nothing about the bundle. UNVERIFIED, not clear."
+  fails=$((fails+1))
 else
-  badging="$("$AAPT2" dump badging "$APK" 2>/dev/null)"
   tsdk="$(printf '%s\n' "$badging" | sed -n "s/^targetSdkVersion:'\([0-9]*\)'.*/\1/p")"
   msdk="$(printf '%s\n' "$badging" | sed -n "s/^minSdkVersion:'\([0-9]*\)'.*/\1/p")"
   if check_target_sdk "$tsdk"; then note "OK  targetSdk=$tsdk  minSdk=$msdk"; else fails=$((fails+1)); fi
@@ -458,7 +575,6 @@ fi
 
 # --- gate 3: 16 KB page-size alignment of every 64-bit .so IN THE BUNDLE
 echo "-- gate 3/5  16 KB alignment (64-bit ABIs)"
-tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 if unzip -q -o "$AAB" 'base/lib/*/*.so' -d "$tmp" 2>/dev/null; then
   checked=0
   for so in "$tmp"/base/lib/*/*.so; do
@@ -478,9 +594,10 @@ else
   note "FAIL: could not extract libs from the bundle"; fails=$((fails+1))
 fi
 
-# --- gate 4: versionCode not already spent
-echo "-- gate 4/5  versionCode"
-vc="$(printf '%s\n' "${badging:-}" | sed -n "s/.*versionCode='\([0-9]*\)'.*/\1/p" | head -1)"
+# --- gate 4: versionCode not already spent — the BUNDLE's own, which is what
+# Play receives. Never the APK's (the 2026-10-02 defect in the header).
+echo "-- gate 4/5  versionCode of the BUNDLE"
+vc="$(badging_field "$aab_badging" versionCode)"
 used="$( [ -f "$LEDGER" ] && grep -E '^[0-9]+$' "$LEDGER" || true )"
 if check_version_code "$vc" "$used"; then
   note "OK  versionCode=$vc not in $(basename "$LEDGER")"
@@ -517,7 +634,10 @@ shipped_perms="$(printf '%s\n' "${badging:-}" | sed -n "s/^uses-permission: name
 if [ -n "$PKG" ]; then
   shipped_perms="$(printf '%s\n' "$shipped_perms" | grep -v "^${PKG}\." || true)"
 fi
-if [ -z "${badging:-}" ]; then
+if [ "$HAVE_APK" -eq 1 ] && [ -n "$AAPT2" ] && [ "$APK_IS_BUNDLE" -eq 0 ]; then
+  note "FAIL: the APK is not the bundle's build (identity, above) — its permissions say nothing about the bundle. UNVERIFIED, not clear."
+  fails=$((fails+1))
+elif [ -z "${badging:-}" ]; then
   note "FAIL: no badging (aapt2 missing above) — parity UNVERIFIED, not clear."
   fails=$((fails+1))
 elif check_perm_parity "$declared_perms" "$shipped_perms"; then
