@@ -25,7 +25,7 @@ plugins {
 // that produced the build on the emulator, so an unqualified SHA would already
 // have been a lie. git absent or failing yields the literal UNKNOWN -- never a
 // blank, never a guess.
-fun gitIdentity(): String {
+fun gitIdentity(full: Boolean = false): String {
     fun run(vararg args: String): String? = try {
         val p = ProcessBuilder(*args)
             .directory(rootProject.projectDir.parentFile)
@@ -36,7 +36,8 @@ fun gitIdentity(): String {
     } catch (_: Exception) {
         null
     }
-    val sha = run("git", "rev-parse", "--short", "HEAD") ?: return "UNKNOWN"
+    val sha = (if (full) run("git", "rev-parse", "HEAD") else run("git", "rev-parse", "--short", "HEAD"))
+        ?: return "UNKNOWN"
     if (sha.isEmpty()) return "UNKNOWN"
     val dirty = run("git", "status", "--porcelain")
     return if (dirty.isNullOrEmpty()) sha else "$sha-dirty"
@@ -205,32 +206,43 @@ tasks.configureEach {
 // versionCode that is already spent.
 //
 // WHY. assertVersionIdentity makes the stamped code equal pubspec.yaml; it
-// cannot say whether that code was used before. Codes 2 to 12 were each built,
-// some many times: one code named seven release APKs, and a July bundle at code
-// 2 sat beside the code-12 build and passed the Play preflight. Android refuses
-// an update whose versionCode is not above the installed one, and Play refuses
-// a code it has seen, so a second build at a spent code reaches no one as an
-// update, and the code then names two different things.
+// cannot say whether that code was used before. Codes 2 to 12 were each built
+// under the release key, some more than once: code 2 named at least seven
+// release APKs, and a July bundle at code 2 sat beside the code-12 build and
+// passed the Play preflight. Android refuses an update whose versionCode is not
+// above the installed one, and Play refuses a code it has seen, so a second
+// build at a spent code reaches no one as an update, and the code then names
+// two different things.
 //
-// WHAT. When release signing resolves from android/key.properties, a release
-// build (assembleRelease, bundleRelease: both run preReleaseBuild) stops,
-// before anything is packaged, unless flutter.versionCode is above
-//   (a) the number in tool/version_code_floor (tracked; 12 when this began),
-//   (b) every code in this host's mint ledger, which the release packaging
-//       appends to after each build: $HOME/.sngnav/minted_release.tsv, one
-//       row per artifact: code, kind (apk|aab), sha256, git commit, UTC time.
+// WHAT. Release signing is in force when android/key.properties exists, or
+// when signing is injected (android.injected.signing.*: the IDE's "Generate
+// Signed Bundle / APK", which needs no key.properties). Then a build that
+// packages a release artifact stops at preReleaseBuild, before anything is
+// packaged, unless all of these hold:
+//   - it has exactly one APK output, and its versionCode is
+//     flutter.versionCode. split-per-abi gives each ABI's APK abi*1000+code,
+//     so an arm64 APK at 2013 on a phone would refuse every later release
+//     from 14 to 2012;
+//   - it packages only through packageRelease and signReleaseBundle, which
+//     write ledger rows (the bundletool APK tasks would write none);
+//   - flutter.versionCode is above the number in tool/version_code_floor
+//     (tracked: the highest code spent under the release key or reported back
+//     by a device; 12 when this began), and above every code in this host's
+//     mint ledger, $HOME/.sngnav/minted_release.tsv. packageRelease and
+//     signReleaseBundle append one row per artifact: its own versionCode,
+//     kind (apk|aab), sha256, full git commit, UTC time.
 // One code may hold the APK AND the bundle of one release: a code already in
 // the ledger is allowed again only for a kind it does not hold yet, from the
-// same clean commit as every row at that code. Building the same kind again at
-// that code is refused, because it would be a second set of bytes.
+// same clean commit as every row at that code. Building the same kind again
+// at that code is refused, because it would be a second set of bytes.
 //
 // BOUNDS. The ledger sees only builds on this host. A release key used on
 // another machine or as a CI secret mints codes it never sees; raise
-// tool/version_code_floor when that happens. SNGNAV_MINTED_LEDGER points the
-// ledger elsewhere (for a throwaway test key, so test rows never mix with real
-// ones), and every run prints the path it read. Debug builds, and release
-// builds without key.properties (which are debug-signed), are not checked and
-// write nothing.
+// tool/version_code_floor when that happens. SNGNAV_MINTED_LEDGER moves where
+// rows are WRITTEN (a throwaway test key must not write into the real
+// ledger), never what is read: the check reads that file and
+// $HOME/.sngnav/minted_release.tsv together, and every run prints both.
+// Builds signed with the debug key are not checked and write nothing.
 class MintRow(
     val code: Int,
     val kind: String,
@@ -240,9 +252,23 @@ class MintRow(
 )
 
 val versionCodeFloorFile: File = rootProject.file("../tool/version_code_floor")
-val mintLedgerFile: File =
+val realMintLedgerFile: File = File(
+    System.getenv("HOME")?.takeIf { it.isNotBlank() } ?: System.getProperty("user.home"),
+    ".sngnav/minted_release.tsv",
+)
+val mintLedgerWriteFile: File =
     System.getenv("SNGNAV_MINTED_LEDGER")?.takeIf { it.isNotBlank() }?.let { File(it) }
-        ?: File(System.getProperty("user.home"), ".sngnav/minted_release.tsv")
+        ?: realMintLedgerFile
+val mintLedgerReadFiles: List<File> =
+    listOf(realMintLedgerFile, mintLedgerWriteFile).distinctBy { it.absoluteFile.normalize().path }
+val gitCommitFull: String = gitIdentity(full = true)
+val injectedReleaseSigning: Boolean = hasProperty("android.injected.signing.store.file")
+val releaseKeySigning: Boolean = hasReleaseKeystore || injectedReleaseSigning
+val releaseSigningSource: String = when {
+    hasReleaseKeystore -> "android/key.properties"
+    injectedReleaseSigning -> "injected signing (android.injected.signing.*)"
+    else -> "the debug key"
+}
 
 // Every row, or a refusal naming the first line that is not one. A ledger
 // line that cannot be read is not skipped: skipping it could hide a spent code.
@@ -264,51 +290,87 @@ fun readMintLedger(f: File): List<MintRow> {
         }
 }
 
+fun describeLedgers(): String =
+    "ledgers read: " + mintLedgerReadFiles.joinToString("; ") { f ->
+        if (f.exists()) "${f.path} (${readMintLedger(f).size} rows)" else "${f.path} (absent)"
+    } + "; rows are written to ${mintLedgerWriteFile.path}"
+
 fun describeMint(r: MintRow): String =
     "versionCode ${r.code} ${r.kind} sha256=${r.sha256} git=${r.git} at ${r.utc}"
 
-// Which kinds of artifact this invocation will package, read once the task
-// graph is known: `flutter build apk` runs assembleRelease and
-// `flutter build appbundle` runs bundleRelease.
+// Read once the task graph is known: which release artifacts this invocation
+// packages, and whether it packages any through a task that writes no row.
 val requestedReleaseKinds = mutableSetOf<String>()
+val unrecordedReleasePackagers = mutableListOf<String>()
 gradle.taskGraph.whenReady {
-    if (hasTask(":app:assembleRelease")) requestedReleaseKinds.add("apk")
-    if (hasTask(":app:bundleRelease")) requestedReleaseKinds.add("aab")
+    if (hasTask(":app:packageRelease")) requestedReleaseKinds.add("apk")
+    if (hasTask(":app:signReleaseBundle")) requestedReleaseKinds.add("aab")
+    for (t in listOf("packageReleaseUniversalApk", "makeApkFromBundleForRelease")) {
+        if (hasTask(":app:$t")) unrecordedReleasePackagers.add(t)
+    }
 }
+
+// The release variant's outputs and the versionCode each will carry, read at
+// execution time so that Flutter's split-per-abi override is already applied.
+val releaseOutputCodes = mutableListOf<Pair<String, () -> Int?>>()
 
 val assertVersionCodeUnspent = tasks.register("assertVersionCodeUnspent") {
     group = "verification"
     description = "Refuses a release-key build at a versionCode already spent."
-    val active = hasReleaseKeystore
+    val active = releaseKeySigning
+    val source = releaseSigningSource
     val code = flutter.versionCode
     val floorFile = versionCodeFloorFile
-    val ledger = mintLedgerFile
-    val commit = gitSha
+    val commit = gitCommitFull
     val kinds = requestedReleaseKinds
+    val unrecorded = unrecordedReleasePackagers
+    val outputs = releaseOutputCodes
     mustRunAfter(assertVersionIdentity)
     doLast {
         if (!active) {
             logger.quiet(
-                "VERSION CODE FLOOR: not checked: there is no android/key.properties, " +
-                    "so this release build is debug-signed and writes no ledger row"
+                "VERSION CODE FLOOR: not checked: there is no android/key.properties and no " +
+                    "injected signing, so this release build is signed with the debug key and " +
+                    "writes no ledger row"
             )
             return@doLast
         }
-        val floorLines = if (floorFile.exists()) floorFile.readLines() else emptyList()
-        val floor = floorLines.map { it.trim() }
-            .firstOrNull { it.isNotEmpty() && !it.startsWith("#") }
-            ?.toIntOrNull()
-            ?: throw GradleException(
-                "VERSION CODE FLOOR: tool/version_code_floor is missing or holds no " +
-                    "number, so nothing says which versionCodes are spent. Refusing to " +
-                    "sign versionCode $code with the release key."
+        if (unrecorded.isNotEmpty()) {
+            throw GradleException(
+                "VERSION CODE FLOOR: this build packages release-signed APKs through " +
+                    "${unrecorded.joinToString(", ")}, which write no row in the mint " +
+                    "ledger, so the codes they spend would be invisible to every later " +
+                    "check. Build the APK with assembleRelease and the bundle with " +
+                    "bundleRelease."
             )
-        val rows = readMintLedger(ledger)
+        }
+        val codes = outputs.map { (name, read) -> name to read() }
+        if (codes.size != 1 || codes.any { it.second != code }) {
+            throw GradleException(
+                "VERSION CODE FLOOR: under $source this build would package " +
+                    "${codes.size} APK output(s): " +
+                    codes.joinToString(", ") { "${it.first} at versionCode ${it.second}" } +
+                    "; the release code is $code. split-per-abi gives each ABI's APK " +
+                    "abi*1000+code, so an arm64 APK at ${2000 + code} on a phone would refuse " +
+                    "every later release from ${code + 1} to ${2000 + code - 1}. Build one APK " +
+                    "(without --split-per-abi) when signing with the release key."
+            )
+        }
+        val floorLines = if (floorFile.exists()) floorFile.readLines() else emptyList()
+        val numberLines = floorLines.map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
+        val floor = numberLines.singleOrNull()?.toIntOrNull()
+            ?: throw GradleException(
+                "VERSION CODE FLOOR: tool/version_code_floor must hold exactly one number " +
+                    "line and holds ${numberLines.size} (${numberLines.joinToString(", ")}), " +
+                    "so nothing says which versionCodes are spent. Refusing to sign versionCode " +
+                    "$code under $source."
+            )
+        val rows = mintLedgerReadFiles.flatMap { readMintLedger(it) }
         val highest = (rows.map { it.code } + floor).maxOrNull() ?: floor
         val move = "Move `version:` in pubspec.yaml to +${highest + 1} or higher; " +
             "a versionCode names one build."
         if (code <= floor) {
-            val named = floorLines.filter { Regex("^#\\s*[0-9][0-9-]*:").containsMatchIn(it) }
+            val named = floorLines.filter { Regex("^#\\s*[0-9][0-9, -]*:").containsMatchIn(it) }
             throw GradleException(
                 "VERSION CODE FLOOR: versionCode $code is spent. tool/version_code_floor " +
                     "says every code up to $floor is already used" +
@@ -320,7 +382,7 @@ val assertVersionCodeUnspent = tasks.register("assertVersionCodeUnspent") {
         if (newer.isNotEmpty()) {
             throw GradleException(
                 "VERSION CODE FLOOR: versionCode $code is below what this host has " +
-                    "already minted (${ledger.path}):\n  " +
+                    "already minted (${describeLedgers()}):\n  " +
                     newer.sortedByDescending { it.code }.joinToString("\n  ") { describeMint(it) } +
                     "\n$move"
             )
@@ -334,7 +396,7 @@ val assertVersionCodeUnspent = tasks.register("assertVersionCodeUnspent") {
             if (!oneRelease) {
                 throw GradleException(
                     "VERSION CODE FLOOR: versionCode $code already names these bytes " +
-                        "(${ledger.path}):\n  " +
+                        "(${describeLedgers()}):\n  " +
                         same.joinToString("\n  ") { describeMint(it) } +
                         "\nThis build (${kinds.sorted().joinToString("+").ifEmpty { "no artifact" }} " +
                         "from git $commit) would be another set of bytes at the same code. " +
@@ -343,19 +405,18 @@ val assertVersionCodeUnspent = tasks.register("assertVersionCodeUnspent") {
                 )
             }
             logger.quiet(
-                "VERSION CODE FLOOR OK: $code is above the floor $floor " +
+                "VERSION CODE FLOOR OK: $code under $source is above the floor $floor " +
                     "(tool/version_code_floor); it already holds " +
                     held.sorted().joinToString("+") + " from git $commit, and this build " +
                     "adds the " + kinds.sorted().joinToString("+") + " of the same release " +
-                    "(ledger ${ledger.path})"
+                    "(${describeLedgers()})"
             )
             return@doLast
         }
         logger.quiet(
-            "VERSION CODE FLOOR OK: $code is above the floor $floor " +
-                "(tool/version_code_floor) and above every code in ${ledger.path} " +
-                "(${rows.size} rows" +
-                (rows.maxOfOrNull { it.code }?.let { ", highest $it" } ?: "") + ")"
+            "VERSION CODE FLOOR OK: $code under $source is above the floor $floor " +
+                "(tool/version_code_floor) and above every code in the mint ledgers " +
+                "(${describeLedgers()})"
         )
     }
 }
@@ -365,12 +426,14 @@ tasks.configureEach {
     }
 }
 
-// The ledger rows: written after packaging, from the bytes packaging produced
-// (the APKs listed in output-metadata.json, and the signed bundle), only when
-// the release key signed them. A row already present for the same sha256 is
-// not written twice.
-fun appendMints(ledger: File, kind: String, files: List<File>, code: Int, commit: String) {
-    val have = readMintLedger(ledger).map { it.sha256 }.toSet()
+// The ledger rows: written by the packaging tasks themselves (packageRelease
+// for APKs, whichever lifecycle or install task asked for it; signReleaseBundle
+// for the bundle), from the bytes they produced, each with its own versionCode,
+// and only when the release key signed them. A row already present for the
+// same sha256 is not written twice.
+fun appendMints(kind: String, artifacts: List<Pair<File, Int>>, commit: String) {
+    val ledger = mintLedgerWriteFile
+    val have = mintLedgerReadFiles.flatMap { readMintLedger(it) }.map { it.sha256 }.toSet()
     ledger.parentFile?.mkdirs()
     if (!ledger.exists()) {
         ledger.writeText(
@@ -378,7 +441,7 @@ fun appendMints(ledger: File, kind: String, files: List<File>, code: Int, commit
                 "# code\tkind\tsha256\tgit\tutc\n"
         )
     }
-    for (f in files) {
+    for ((f, code) in artifacts) {
         if (!f.isFile) {
             logger.quiet("MINT LEDGER: no $kind at ${f.path}; nothing written for it")
             continue
@@ -394,7 +457,7 @@ fun appendMints(ledger: File, kind: String, files: List<File>, code: Int, commit
         }
         val sha = md.digest().joinToString("") { "%02x".format(it) }
         if (sha in have) {
-            logger.quiet("MINT LEDGER: $kind sha256=$sha is already in ${ledger.path}")
+            logger.quiet("MINT LEDGER: $kind sha256=$sha is already recorded")
             continue
         }
         val row = "$code\t$kind\t$sha\t$commit\t${Instant.now()}"
@@ -405,37 +468,47 @@ fun appendMints(ledger: File, kind: String, files: List<File>, code: Int, commit
 
 androidComponents {
     onVariants(selector().withBuildType("release")) { variant ->
+        for (o in variant.outputs) {
+            val name = o.filters.joinToString(",") { "${it.filterType}=${it.identifier}" }
+                .ifEmpty { "main" }
+            releaseOutputCodes.add(name to { o.versionCode.orNull })
+        }
         val apkDir = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.APK)
         val apkLoader = variant.artifacts.getBuiltArtifactsLoader()
         val bundle = variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.BUNDLE)
-        val active = hasReleaseKeystore
-        val ledger = mintLedgerFile
-        val commit = gitSha
+        val active = releaseKeySigning
+        val commit = gitCommitFull
         val code = flutter.versionCode
+        val bundleCode = variant.outputs.singleOrNull()?.versionCode
         tasks.register("recordMintedReleaseApk") {
             inputs.files(apkDir)
             doLast {
                 if (!active) return@doLast
                 val built = apkLoader.load(apkDir.get())
-                val files = built?.elements?.map { File(it.outputFile) }.orEmpty()
-                if (files.isEmpty()) {
+                val artifacts = built?.elements?.map { e ->
+                    if (e.versionCode == null) {
+                        logger.quiet("MINT LEDGER: ${e.outputFile} lists no versionCode; recording $code")
+                    }
+                    File(e.outputFile) to (e.versionCode ?: code)
+                }.orEmpty()
+                if (artifacts.isEmpty()) {
                     logger.quiet("MINT LEDGER: no APK listed in ${apkDir.get().asFile}; nothing written")
                 }
-                appendMints(ledger, "apk", files, code, commit)
+                appendMints("apk", artifacts, commit)
             }
         }
         tasks.register("recordMintedReleaseBundle") {
             inputs.file(bundle)
             doLast {
                 if (!active) return@doLast
-                appendMints(ledger, "aab", listOf(bundle.get().asFile), code, commit)
+                appendMints("aab", listOf(bundle.get().asFile to (bundleCode?.orNull ?: code)), commit)
             }
         }
     }
 }
 tasks.configureEach {
-    if (name == "assembleRelease") finalizedBy("recordMintedReleaseApk")
-    if (name == "bundleRelease") finalizedBy("recordMintedReleaseBundle")
+    if (name == "packageRelease") finalizedBy("recordMintedReleaseApk")
+    if (name == "signReleaseBundle") finalizedBy("recordMintedReleaseBundle")
 }
 
 kotlin {
