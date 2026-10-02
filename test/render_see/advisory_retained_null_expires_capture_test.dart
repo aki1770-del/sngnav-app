@@ -63,6 +63,8 @@ void main() {
 
     await tester.pumpWidget(MaterialApp(
       locale: const Locale('ja'),
+      // She never sees the debug ribbon: a release build does not draw it.
+      debugShowCheckedModeBanner: false,
       localizationsDelegates: const [
         AppL10n.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -101,6 +103,14 @@ void main() {
     expect(find.textContaining('30分'), findsOneWidget); // ja stale-age stamp
     // …and NO fabricated "expires …" line (null-expires stays null on-card).
     expect(find.textContaining('expires'), findsNothing);
+
+    // The golden must be able to show the whole stale banner. Flutter's debug
+    // ribbon is drawn over the top-end corner of the app, which is exactly
+    // where this banner's sentence ends (…表示しません。); a release build never
+    // draws it. This is a widget-tree check, so it also holds where the pixel
+    // comparison is skipped.
+    expect(find.byType(CheckedModeBanner), findsNothing,
+        reason: 'the debug ribbon would cover the end of the stale banner');
 
     await expectLater(
       find.byType(MaterialApp),
