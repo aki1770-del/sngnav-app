@@ -385,6 +385,17 @@ LocationSettings driveLocationSettings({DriveNotificationText? notification}) {
       notificationTitle: notification.title,
       notificationText: notification.body,
       notificationChannelName: notification.channelName,
+      // The icon in her status bar and at the head of the shade card. The
+      // plugin's default is mipmap/ic_launcher, which in this app is
+      // Flutter's template icon, so a drive showed the Flutter mark. This is
+      // a white-on-transparent drawable, as Android requires for a status bar
+      // icon (android/app/src/main/res/drawable/ic_stat_sngnav.xml). The
+      // plugin finds it by this name at run time; res/raw/keep.xml stops
+      // release resource shrinking from removing it.
+      notificationIcon: const AndroidResource(
+        name: 'ic_stat_sngnav',
+        defType: 'drawable',
+      ),
       // TRUE, and the dignity reasoning runs the opposite way to the obvious
       // one. `setOngoing: false` would let her swipe the notification away —
       // and then location keeps being collected with NO visible indicator,

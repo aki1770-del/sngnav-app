@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Resources that release resource shrinking must keep although nothing in the
+  APK refers to them.
+
+  ic_stat_sngnav: the drive notification's small icon. geolocator looks it up
+  by the name the Dart side passes (Resources.getIdentifier), which the
+  shrinker cannot see. If it were removed the lookup would return 0, and
+  geolocator passes that 0 to setSmallIcon.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_sngnav" />

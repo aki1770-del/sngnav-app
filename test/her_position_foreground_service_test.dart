@@ -359,4 +359,59 @@ void main() {
               'a notification the OS silently dropped');
     });
   });
+
+  // THE ICON IN HER STATUS BAR AND IN THE SHADE.
+  //
+  // geolocator's ForegroundNotificationConfig defaults its small icon to
+  // mipmap/ic_launcher, and this app's ic_launcher is Flutter's template art,
+  // byte for byte. So during a drive her status bar and her shade showed the
+  // Flutter mark, not this app. Android draws a small icon from its alpha
+  // channel only, so the icon must be a white silhouette on transparent.
+  //
+  // The plugin resolves the icon BY NAME at run time
+  // (Resources.getIdentifier, BackgroundNotification.java:42) and, when the
+  // name resolves to nothing, still passes 0 to setSmallIcon (its fallback at
+  // :81-82 discards the id it looks up). Release builds shrink resources, and
+  // a drawable named only from Dart has no reference the shrinker can see. So
+  // three things must hold together: the config names the drawable, the
+  // drawable exists and is a silhouette, and the shrinker is told to keep it.
+  group('the drive notification small icon', () {
+    setUp(() => debugDefaultTargetPlatformOverride = TargetPlatform.android);
+
+    AndroidResource icon() => (driveLocationSettings(
+          notification: _shipped('ja'),
+        ) as AndroidSettings)
+            .foregroundNotificationConfig!
+            .notificationIcon;
+
+    test('is a drawable of this app, not the launcher icon', () {
+      expect(icon().defType, 'drawable');
+      expect(icon().name, isNot('ic_launcher'),
+          reason: "ic_launcher is Flutter's template icon in this app");
+    });
+
+    test('names a drawable that exists and is white on transparent', () {
+      final file =
+          File('android/app/src/main/res/drawable/${icon().name}.xml');
+      expect(file.existsSync(), isTrue,
+          reason: 'a name with no resource reaches setSmallIcon as 0');
+      final xml = file.readAsStringSync();
+      final colours = RegExp(r'android:(fillColor|strokeColor)="([^"]*)"')
+          .allMatches(xml)
+          .map((m) => m.group(2)!.toUpperCase())
+          .toList();
+      expect(colours, isNotEmpty);
+      for (final c in colours) {
+        expect(['#FFFFFFFF', '#FFFFFF', '#FFF', '@ANDROID:COLOR/WHITE'],
+            contains(c),
+            reason: 'Android reads only the alpha of a status bar icon');
+      }
+    });
+
+    test('is kept by the release resource shrinker', () {
+      final keep = File('android/app/src/main/res/raw/keep.xml');
+      expect(keep.existsSync(), isTrue);
+      expect(keep.readAsStringSync(), contains('@drawable/${icon().name}'));
+    });
+  });
 }
