@@ -116,6 +116,10 @@ class AkitaMap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Half the drawn mark: ring 34 px, mock square 20 px, dot 22 px.
+    final double markHalfExtent = (positionDegraded || positionLost)
+        ? 17
+        : (isHerPositionMock ? 10 : 11);
     return SizedBox(
       height: height,
       child: ClipRRect(
@@ -197,13 +201,18 @@ class AkitaMap extends StatelessWidget {
                   ),
                 ],
               ),
+            // Her mark is the LAST marker, so it is drawn above the station's
+            // pin and name and above A and B. Nothing on the map covers it.
             MarkerLayer(
               markers: [
-                const Marker(
+                Marker(
                   point: akitaStation,
                   width: 60,
                   height: 60,
-                  child: _StationMarker(),
+                  child: _StationMarker(
+                    herPosition: herPosition,
+                    herHalfExtent: markHalfExtent,
+                  ),
                 ),
                 if (origin != null)
                   Marker(
@@ -242,10 +251,7 @@ class AkitaMap extends StatelessWidget {
               positionLost: positionLost,
               positionRefused: positionRefused,
               positionNoneYet: positionNoneYet,
-              // Half the drawn mark: ring 34 px, mock square 20 px, dot 22 px.
-              markHalfExtent: (positionDegraded || positionLost)
-                  ? 17
-                  : (isHerPositionMock ? 10 : 11),
+              markHalfExtent: markHalfExtent,
             ),
             const _AttributionBar(),
           ],
@@ -255,56 +261,226 @@ class AkitaMap extends StatelessWidget {
   }
 }
 
+/// The JMA station's pin and its name, 秋田, kept off her position mark.
+///
+/// Why. Seen 2026-10-02 in release builds on two emulators, the camera
+/// following her at zoom 12 with her fix 390 m from the station: her blue dot
+/// was drawn over the name and hid half of 田. A marker is drawn in pixels at
+/// every zoom, so the zone where the two meet is about 58 x 44 px: 1.7 x 1.3 km
+/// at zoom 12, and most of central Akita at zoom 8, the lowest zoom follow
+/// uses. The degraded ring was worse. It held the red pin in its hole, a
+/// target on a named place, which reads as a confident position in the state
+/// that exists to say the position is not known.
+///
+/// What she sees first is her mark, and this marker yields to it:
+///
+/// * Her mark is the last marker on the map, so nothing is drawn over it.
+/// * The pin is not drawn where its red would come within [_pinGap] of her
+///   mark. Partly under her dot, the pin read as the dot's own tail. Inside
+///   the ring, it answered "where in here?" with a point the position does
+///   not have. Where she covers the pin, her mark marks that place.
+/// * The name is never under her mark. It takes the first place, in order,
+///   that keeps [_nameGap] from her mark and from the pin. Above the pin,
+///   where it has always been, comes first. While the pin is drawn, the name
+///   stays with it: below, right and left of the pin, then above or below her
+///   mark. Where her mark has taken the pin's place, the name goes beside her
+///   mark: above, below, right, left. A place inside the map wins over one
+///   the edge cuts.
+///
+/// With no position near, the marker draws as it always has at default text.
+///
+/// Bounds. Her mark's size is the drawn size of each state, not its shadow:
+/// the dot's soft glow can tint the name's edge. Which places are inside the
+/// map is known only while the map is not rotated; rotated, the first clear
+/// place wins. The marker is culled with its 60 px box, as before, so a name
+/// placed outside that box leaves with it.
 class _StationMarker extends StatelessWidget {
-  const _StationMarker();
+  const _StationMarker({this.herPosition, this.herHalfExtent = 0});
+
+  /// Where her mark is drawn, or null when there is none.
+  final LatLng? herPosition;
+
+  /// Half the side of her drawn mark: dot 11, mock square 10, ring 17.
+  final double herHalfExtent;
+
+  /// The pin's box, relative to the station point.
+  ///
+  /// It is where the pin has sat at default text since the marker was first
+  /// drawn, under a 22 px name. Until 2026-10-02 the pin was stacked under the
+  /// name, so large text pushed it down: at text scale 2.0 its tip sat 32 px
+  /// south of the station, 15 km at zoom 8, and the name covered the station
+  /// point. Now the pin stays here and a larger name grows upward.
+  ///
+  /// Named, not changed here: the pin's tip points 17 px south of the station
+  /// point at every text size, because the station point sits in the pin's
+  /// head, not at its tip.
+  static const Rect _pinBox = Rect.fromLTWH(-14, -8, 28, 28);
+
+  /// The red of [Icons.place] at size 28 inside [_pinBox], relative to the
+  /// station point: measured from pixels on 2026-10-02 as (-8, -5)..(8, 17),
+  /// and widened by 1 px.
+  static const Rect _pinInk = Rect.fromLTRB(-9, -6, 9, 18);
+
+  /// How close the pin's red may come to her mark.
+  static const double _pinGap = 3;
+
+  /// How close the name may come to her mark. Beside the pin, the name is
+  /// placed this far from the pin's ink, except above it, where it has always
+  /// sat 2 px clear.
+  static const double _nameGap = 4;
 
   @override
   Widget build(BuildContext context) {
-    // flutter_map lays a marker child out under TIGHT constraints (the 60 px
-    // box). At system text scale 2.0 the label and the pin needed 65 px, and
-    // the column overflowed by 5 px (rendered 2026-09-14). The column now
-    // takes its own height, top-aligned where it always sat, so large text
-    // is drawn at full size and nothing overflows. At default scale it fits
-    // the box and lays out exactly as before.
-    //
-    // The width is freed the same way (2026-09-19): on an English page the
-    // label is "Akita", and at text scale 2.0 the 60 px box broke it into
-    // "Akit" and "a" (rendered). The label now takes the width its word
-    // needs, centred over the pin as before.
-    return OverflowBox(
-      alignment: Alignment.topCenter,
-      minWidth: 0,
-      maxWidth: double.infinity,
-      minHeight: 0,
-      maxHeight: double.infinity,
-      child: _stationColumn(AppL10n.of(context).akitaStationMapLabel),
-    );
-  }
-
-  Widget _stationColumn(String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: Colors.blueGrey.shade700, width: 1),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              color: Colors.blueGrey.shade900,
-            ),
-          ),
+    final name = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: Colors.blueGrey.shade700, width: 1),
+      ),
+      child: Text(
+        AppL10n.of(context).akitaStationMapLabel,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: Colors.blueGrey.shade900,
         ),
-        Icon(Icons.place, color: Colors.red.shade700, size: 28),
+      ),
+    );
+
+    // Her mark and the map's edges, in this marker's own frame: pixels from
+    // the station point, north up before any map rotation. Markers are laid
+    // out in the projected frame, so the offset is a projected one.
+    Rect? her;
+    Rect? view;
+    final position = herPosition;
+    if (position != null && herHalfExtent > 0) {
+      final camera = MapCamera.of(context);
+      final offset = camera.projectAtZoom(position) -
+          camera.projectAtZoom(akitaStation);
+      her = Rect.fromCenter(
+          center: offset,
+          width: 2 * herHalfExtent,
+          height: 2 * herHalfExtent);
+      if (camera.rotation == 0) {
+        final s = camera.latLngToScreenOffset(akitaStation);
+        view = Rect.fromLTWH(-s.dx, -s.dy, camera.nonRotatedSize.width,
+            camera.nonRotatedSize.height);
+      }
+    }
+    final pinShown = her == null || !_pinInk.overlaps(her.inflate(_pinGap));
+
+    // flutter_map lays a marker child out under TIGHT constraints (the 60 px
+    // box). The name takes the size its word needs and may be placed outside
+    // that box: at text scale 2.0 the old column overflowed by 5 px
+    // (2026-09-14), and in English the box broke "Akita" into "Akit" and "a"
+    // (2026-09-19). Nothing here is constrained by the box.
+    return CustomMultiChildLayout(
+      delegate: _StationLayout(her: her, view: view, pinShown: pinShown),
+      children: [
+        LayoutId(id: _StationPart.name, child: name),
+        if (pinShown)
+          LayoutId(
+            id: _StationPart.pin,
+            child: Icon(Icons.place, color: Colors.red.shade700, size: 28),
+          ),
       ],
     );
   }
+}
+
+enum _StationPart { name, pin }
+
+/// Places the station's name and pin around the station point, which is the
+/// centre of the marker's box. See [_StationMarker].
+class _StationLayout extends MultiChildLayoutDelegate {
+  _StationLayout({required this.her, required this.view, required this.pinShown});
+
+  /// Her drawn mark, relative to the station point, or null.
+  final Rect? her;
+
+  /// The map's visible area, relative to the station point, or null when it
+  /// is not known.
+  final Rect? view;
+
+  final bool pinShown;
+
+  @override
+  void performLayout(Size size) {
+    final station = size.center(Offset.zero);
+    if (hasChild(_StationPart.pin)) {
+      layoutChild(_StationPart.pin, const BoxConstraints());
+      positionChild(_StationPart.pin, station + _StationMarker._pinBox.topLeft);
+    }
+    final n = layoutChild(_StationPart.name, const BoxConstraints());
+    positionChild(_StationPart.name, station + _namePlace(n).topLeft);
+  }
+
+  /// The first place for a name of size [n] that keeps clear of her mark and
+  /// of the pin, preferring places inside the map.
+  Rect _namePlace(Size n) {
+    const pin = _StationMarker._pinBox;
+    const ink = _StationMarker._pinInk;
+    const gap = _StationMarker._nameGap;
+    final above = Rect.fromLTWH(-n.width / 2, pin.top - n.height, n.width, n.height);
+    final mark = her;
+    if (mark == null) return above;
+
+    final clearOfHer = mark.inflate(gap);
+    final aboveHer = Rect.fromLTWH(mark.center.dx - n.width / 2,
+        clearOfHer.top - n.height, n.width, n.height);
+    final belowHer = Rect.fromLTWH(
+        mark.center.dx - n.width / 2, clearOfHer.bottom, n.width, n.height);
+    final places = pinShown
+        // The name stays with its pin.
+        ? <Rect>[
+            above,
+            Rect.fromLTWH(-n.width / 2, pin.bottom, n.width, n.height),
+            Rect.fromLTWH(ink.right + gap, -n.height / 2, n.width, n.height),
+            Rect.fromLTWH(
+                ink.left - gap - n.width, -n.height / 2, n.width, n.height),
+            aboveHer,
+            belowHer,
+          ]
+        // Her mark has taken the pin's place, so the name labels the place
+        // she is at, beside her mark. Rendered 2026-10-02: placed below the
+        // hidden pin instead, it floated 30 px south of her with nothing
+        // under it, naming a place 900 m from the station at zoom 12.
+        : <Rect>[
+            above,
+            aboveHer,
+            belowHer,
+            Rect.fromLTWH(clearOfHer.right, mark.center.dy - n.height / 2,
+                n.width, n.height),
+            Rect.fromLTWH(clearOfHer.left - n.width,
+                mark.center.dy - n.height / 2, n.width, n.height),
+          ];
+    // Against the pin, the test is its ink, not ink plus the gap: the usual
+    // place sits 2 px above the ink, as it always has. Tested with the gap
+    // (2026-10-02), it refused the usual place everywhere, and a position
+    // anywhere on the map moved the name off its pin.
+    bool clear(Rect r) =>
+        !r.overlaps(clearOfHer) && !(pinShown && r.overlaps(ink));
+    bool inside(Rect r) =>
+        view == null ||
+        (view!.contains(r.topLeft) && view!.contains(r.bottomRight));
+    for (final r in places) {
+      if (clear(r) && inside(r)) return r;
+    }
+    for (final r in places) {
+      if (clear(r)) return r;
+    }
+    // Not reached for either language at text scale 1.0 or 2.0: checked on
+    // 2026-10-02 at every half pixel within 100 px of the station, for every
+    // mark size (beyond that the first place is clear). Should a larger name
+    // ever get here, it goes above her mark, which is clear of her mark by
+    // construction; it may then sit on the pin, never on her.
+    return aboveHer;
+  }
+
+  @override
+  bool shouldRelayout(_StationLayout old) =>
+      old.her != her || old.view != view || old.pinShown != pinShown;
 }
 
 class _EndpointMarker extends StatelessWidget {
