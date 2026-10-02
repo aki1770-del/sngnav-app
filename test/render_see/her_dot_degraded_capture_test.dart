@@ -44,8 +44,11 @@ void main() {
       installNoopGoldenComparator();
     }
     // The station pin is an Icons.* glyph. Unloaded, it draws as a red hollow
-    // box — and inside frame 15's hollow ring that box reads as part of the
-    // degraded state.
+    // box — and inside frame 15's hollow ring that box read as part of the
+    // degraded state. Her mark is on the station in both frames, so the map
+    // no longer draws the pin under it (akita_map.dart, _StationMarker). The
+    // font is still loaded: a change that draws the pin there again must show
+    // the pin, not a box that could pass for part of the ring.
     await loadMaterialIconsFont();
     // flutter_map's built-in cache calls path_provider — give it a temp dir.
     final tmp = await Directory.systemTemp.createTemp('her_dot_render_see');
