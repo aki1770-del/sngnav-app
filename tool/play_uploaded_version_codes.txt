@@ -26,8 +26,12 @@
 # device in his hand is. Nothing is appended below until an upload is ACCEPTED.
 #
 # CORRECTED 2026-10-03: "0.0.2 ships at versionCode 3" above is out of date.
-# 0.0.2 has since been built at codes 3 to 12, pubspec.yaml stamps a later
-# code, and the phone above last reported 12. Still nothing has been uploaded
-# to Play, so this file still holds no integers. A code used OFF Play (built,
-# or on a phone) is recorded in tool/version_code_floor, not here: this file
-# says what Play has received, and nothing else.
+# 0.0.2 has since been built at codes 3 to 12, and the phone above reported 12
+# when last read (2026-10-02T00:34:10Z). pubspec.yaml stamps 10, below the
+# spent floor in tool/version_code_floor, so a release-key build of it is
+# refused until it says 13 or more. No local record shows an upload to Play,
+# so this file still holds no integers; that is UNVERIFIED against Play
+# itself, which no one here has read. A code used OFF Play (minted under the
+# release key, or reported back by a device) is recorded in
+# tool/version_code_floor, not here: this file says what Play has received,
+# and nothing else.
