@@ -81,6 +81,8 @@ void main() {
   Widget host(AdvisoryAggregateResult result, {bool pointCovered = true}) =>
       MaterialApp(
         locale: const Locale('ja'),
+        // She never sees the debug ribbon: a release build does not draw it.
+        debugShowCheckedModeBanner: false,
         // Mirrors main.dart's ThemeData.fontFamilyFallback (const
         // ['SnGNavSymbols']) so the glyphs resolve through the same chain the
         // phone uses: system fonts first, the bundled subset filling holes.
@@ -129,6 +131,9 @@ void main() {
     // …and what she reads instead names the unknown, not a hazard.
     expect(find.textContaining('不明です'), findsOneWidget);
 
+    // No debug ribbon over the top-end corner of the stored render: a
+    // release build never draws it, so the golden must not either.
+    expect(find.byType(CheckedModeBanner), findsNothing);
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('../../render_out/18a_advisory_outage_unknown.png'),
@@ -155,6 +160,9 @@ void main() {
     expect(find.byKey(const Key('advisory-unknown-degraded')), findsOneWidget);
     expect(find.text('この地点に有効な警報・注意報はありません。'), findsNothing);
 
+    // No debug ribbon over the top-end corner of the stored render: a
+    // release build never draws it, so the golden must not either.
+    expect(find.byType(CheckedModeBanner), findsNothing);
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('../../render_out/18b_advisory_degraded_unknown.png'),
@@ -186,6 +194,9 @@ void main() {
     );
     expect(find.text('この地点に有効な警報・注意報はありません。'), findsNothing);
 
+    // No debug ribbon over the top-end corner of the stored render: a
+    // release build never draws it, so the golden must not either.
+    expect(find.byType(CheckedModeBanner), findsNothing);
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('../../render_out/18d_advisory_uncatalogued_jp.png'),
@@ -207,6 +218,9 @@ void main() {
     expect(find.text('この地点に有効な警報・注意報はありません。'), findsOneWidget);
     expect(find.byKey(const Key('advisory-lookup-incomplete')), findsNothing);
 
+    // No debug ribbon over the top-end corner of the stored render: a
+    // release build never draws it, so the golden must not either.
+    expect(find.byType(CheckedModeBanner), findsNothing);
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('../../render_out/18c_advisory_true_all_clear.png'),

@@ -139,6 +139,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('ja'),
+        // She never sees the debug ribbon: a release build does not draw it.
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,
           fontFamily: 'NotoCJK',
@@ -154,6 +156,9 @@ void main() {
       ),
     );
     await tester.pump();
+    // No debug ribbon over the top-end corner of the stored render: a
+    // release build never draws it, so the golden must not either.
+    expect(find.byType(CheckedModeBanner), findsNothing);
     await expectLater(find.byType(MaterialApp),
         matchesGoldenFile('../../render_out/13_drive_hud_lowest_rung_neutral.png'));
   });
