@@ -115,6 +115,19 @@
 #   versionName are compared with the APK's before any gate uses the APK, and a
 #   difference FAILS the run. --self-test drives the predicate with that pair.
 #
+# ⚑ GATE 4 PASSED SPENT CODES — FOUND 2026-10-02, REPAIRED 2026-10-03.
+#
+#   Reading the bundle, gate 4 printed "OK versionCode=2" for the July bundle:
+#   true, because Play has never seen code 2, and the wrong question, because
+#   code 2 already named several release builds and the phone it was meant for
+#   held code 12, so no update at 2 could ever reach it. The Play ledger
+#   records Play uploads only, and it stays that way.
+#
+#   Repair: gate 4 also refuses a code at or below tool/version_code_floor (the
+#   highest code spent under any signer), and a code below any code in this
+#   host's mint ledger ($HOME/.sngnav/minted_release.tsv, written by the
+#   release build itself). Each refusal names the channel that spent the code.
+#
 # USAGE
 #   tool/preflight_play_upload.sh                     # build both here, then gate
 #   tool/preflight_play_upload.sh --skip-build        # gate whatever is already built
@@ -128,6 +141,10 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AAB="$REPO_ROOT/build/app/outputs/bundle/release/app-release.aab"
 APK="$REPO_ROOT/build/app/outputs/flutter-apk/app-release.apk"
 LEDGER="$REPO_ROOT/tool/play_uploaded_version_codes.txt"
+# Codes spent under any signer (a floor), and this host's own mint record. Not
+# the Play record: a code can be spent without ever reaching Play.
+FLOOR_FILE="$REPO_ROOT/tool/version_code_floor"
+MINT_LEDGER="${SNGNAV_MINTED_LEDGER:-$HOME/.sngnav/minted_release.tsv}"
 
 # The upload identity, pinned. Read from the keystore 2026-08-10:
 #   keytool -list -v -keystore android/app/upload-keystore.jks -alias upload
@@ -196,6 +213,53 @@ check_version_code() {
   [ -n "$vc" ] || { echo "versionCode not readable"; return 1; }
   if printf '%s\n' "$used" | grep -qx "$vc"; then
     echo "versionCode $vc HAS ALREADY BEEN UPLOADED — Play will refuse it. Bump pubspec.yaml (+N)."
+    return 1
+  fi
+  return 0
+}
+
+# $1 = the text of tool/version_code_floor. Echoes its number: the first line
+# that is neither blank nor a comment, if it is an integer. Otherwise nothing.
+floor_number() {
+  printf '%s\n' "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' \
+    | grep -v -e '^#' -e '^$' | head -1 | grep -E '^[0-9]+$' || true
+}
+
+# $1 = candidate versionCode; $2 = the floor; $3 = the floor file's notes on
+# what its codes already name (may be empty). A code at or below the floor is
+# SPENT, whether or not Play ever saw it.
+check_version_code_floor() {
+  local vc="$1" floor="$2" notes="$3"
+  [ -n "$vc" ] || { echo "versionCode not readable"; return 1; }
+  [ -n "$floor" ] || { echo "tool/version_code_floor is missing or holds no number: nothing says which codes are spent. UNVERIFIED, not clear."; return 1; }
+  if [ "$vc" -le "$floor" ]; then
+    echo "versionCode $vc IS SPENT (channel: tool/version_code_floor): every code up to $floor is already used."
+    [ -z "$notes" ] || printf '%s\n' "$notes" | sed 's/^/    /'
+    echo "    Play may never have seen it; it is spent all the same. Move pubspec.yaml above $floor."
+    return 1
+  fi
+  return 0
+}
+
+# $1 = candidate versionCode; $2 = the text of the host mint ledger
+# (code<TAB>kind<TAB>sha256<TAB>git<TAB>utc rows, # comments; may be empty).
+# Refuses when this host minted a HIGHER code: this bundle is older than a
+# release already made here. A row AT this code is not refused: it is usually
+# this very bundle, recorded by the build that made it. A line that is not a
+# row is a refusal, never skipped: skipping it could hide a spent code.
+check_host_mint_ledger() {
+  local vc="$1" ledger="$2" bad newer
+  [ -n "$vc" ] || { echo "versionCode not readable"; return 1; }
+  bad="$(printf '%s\n' "$ledger" | grep -v -e '^#' -e '^[[:space:]]*$' | grep -vE '^[0-9]+	[^	]+	[^	]+	[^	]+	[^	]+$' || true)"
+  if [ -n "$bad" ]; then
+    echo "host mint ledger has a line that is not a row — cannot say which codes it spends. UNVERIFIED, not clear:"
+    printf '%s\n' "$bad" | head -3 | sed 's/^/    /'
+    return 1
+  fi
+  newer="$(printf '%s\n' "$ledger" | grep -v '^#' | awk -F'\t' -v vc="$vc" '$1 ~ /^[0-9]+$/ && $1+0 > vc+0' | sort -t"$(printf '\t')" -k1,1nr)"
+  if [ -n "$newer" ]; then
+    echo "versionCode $vc IS BELOW A CODE THIS HOST HAS ALREADY MINTED (channel: host mint ledger):"
+    printf '%s\n' "$newer" | tr '\t' ' ' | sed 's/^/    /'
     return 1
   fi
   return 0
@@ -434,6 +498,25 @@ if [ "${1:-}" = "--self-test" ]; then
   t "a ZIP that is not a bundle yields no manifest" 0 test -z "$(bundle_badging false "$REAL_ZIP" "$NOT_A_BUNDLE_OUT")"
   rm -f "$NOT_A_ZIP" "$EMPTY_FILE" "$REAL_ZIP" "$NOT_A_BUNDLE_OUT"
 
+  # SPENT CODES (2026-10-03). The first case is the real one: the July bundle
+  # at code 2, which gate 4 passed because Play had never seen code 2.
+  t "a code-2 bundle is refused by the spent floor 12" 1 check_version_code_floor 2 12 ""
+  t "the floor itself is spent"            1 check_version_code_floor 12 12 ""
+  t "a code above the floor is accepted"   0 check_version_code_floor 13 12 ""
+  t "no floor is a refusal, not a pass"    1 check_version_code_floor 13 "" ""
+  t "an unreadable code is refused"        1 check_version_code_floor "" 12 ""
+  FLOOR_TEXT="$(printf '# a note\n# 12: bytes it names\n\n  12  \n')"
+  t "the floor number is read past comments" 0 test "$(floor_number "$FLOOR_TEXT")" = "12"
+  t "a floor that is not a number reads as none" 0 test -z "$(floor_number "$(printf '# a note\ntwelve\n')")"
+  t "an empty floor file reads as none"    0 test -z "$(floor_number "")"
+  t "the tracked floor file holds a number" 0 test -n "$(floor_number "$(cat "$FLOOR_FILE" 2>/dev/null)")"
+  ROW14="$(printf '14\taab\t0f00\tabc1234\t2026-10-03T00:00:00Z')"
+  ROW13="$(printf '13\taab\t0f13\tabc1234\t2026-10-03T00:00:00Z')"
+  t "a bundle below a code this host minted is refused" 1 check_host_mint_ledger 13 "$(printf '# header\n%s\n' "$ROW14")"
+  t "a row at the same code (this bundle) is not a refusal" 0 check_host_mint_ledger 13 "$ROW13"
+  t "an empty host ledger refuses nothing"  0 check_host_mint_ledger 13 ""
+  t "a host ledger line that is not a row is a refusal" 1 check_host_mint_ledger 13 "$(printf '%s\n14 aab spaces-not-tabs' "$ROW13")"
+
   echo "SELF-TEST: $pass/$total PASS"
   [ "$pass" -eq "$total" ] || exit 1
   exit 0
@@ -596,11 +679,36 @@ fi
 
 # --- gate 4: versionCode not already spent — the BUNDLE's own, which is what
 # Play receives. Never the APK's (the 2026-10-02 defect in the header).
-echo "-- gate 4/5  versionCode of the BUNDLE"
+echo "-- gate 4/5  versionCode of the BUNDLE (Play record, spent floor, host mint ledger)"
 vc="$(badging_field "$aab_badging" versionCode)"
 used="$( [ -f "$LEDGER" ] && grep -E '^[0-9]+$' "$LEDGER" || true )"
+g4=0
+# (1) Play's own record. It says what Play has received, and nothing else.
 if check_version_code "$vc" "$used"; then
-  note "OK  versionCode=$vc not in $(basename "$LEDGER")"
+  note "OK  versionCode=$vc not in $(basename "$LEDGER") (Play has not received it)"
+else
+  g4=1
+fi
+# (2) Spent under any signer, before any ledger on this host saw it.
+floor_text="$( [ -f "$FLOOR_FILE" ] && cat "$FLOOR_FILE" || true )"
+floor="$(floor_number "$floor_text")"
+floor_notes="$(printf '%s\n' "$floor_text" | grep -E '^#[[:space:]]*[0-9][0-9-]*:' || true)"
+if check_version_code_floor "$vc" "$floor" "$floor_notes"; then
+  note "OK  versionCode=$vc is above the spent floor $floor ($(basename "$FLOOR_FILE"))"
+else
+  g4=1
+fi
+# (3) Minted on this host by a release build since its ledger began.
+if [ -f "$MINT_LEDGER" ]; then
+  if check_host_mint_ledger "$vc" "$(cat "$MINT_LEDGER")"; then
+    note "OK  versionCode=$vc is not below any code in $MINT_LEDGER"
+  else
+    g4=1
+  fi
+else
+  note "--  no host mint ledger at $MINT_LEDGER: no release-key build has run on this host since it began; the floor above covers the earlier ones"
+fi
+if [ "$g4" -eq 0 ]; then
   note "    AFTER a successful upload, append $vc to $LEDGER and commit it."
 else
   fails=$((fails+1))
