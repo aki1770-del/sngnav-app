@@ -284,6 +284,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('ja'),
+        // She never sees the debug ribbon: a release build does not draw it.
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,
           fontFamily: 'NotoCJK',
@@ -314,6 +316,9 @@ void main() {
       ),
     );
     await tester.pump();
+    // No debug ribbon over the top-end corner of the stored render: a
+    // release build never draws it, so the golden must not either.
+    expect(find.byType(CheckedModeBanner), findsNothing);
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('../../render_out/04_advisory_ja_ordering.png'),
@@ -349,6 +354,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('ja'),
+        // She never sees the debug ribbon: a release build does not draw it.
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,
           fontFamily: 'NotoCJK',
@@ -378,6 +385,8 @@ void main() {
     await tester.pump();
     // The captured surface must NOT contain any NWS marker (label or error).
     expect(find.textContaining('NWS'), findsNothing);
+    // No debug ribbon over the top-end corner of the stored render.
+    expect(find.byType(CheckedModeBanner), findsNothing);
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('../../render_out/06_advisory_jp_jma_only.png'),

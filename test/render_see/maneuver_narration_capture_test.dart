@@ -209,6 +209,8 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         locale: const Locale('ja'),
+        // She never sees the debug ribbon: a release build does not draw it.
+        debugShowCheckedModeBanner: false,
         theme: ThemeData(
           useMaterial3: true,
           fontFamily: 'NotoCJK',
@@ -227,6 +229,9 @@ void main() {
     // The raw English engine instruction must NEVER reach the driver's surface.
     expect(find.text('Right onto Main St'), findsNothing,
         reason: 'raw English maneuver instruction must not be rendered to the driver');
+    // No debug ribbon over the top-end corner of the stored render: a
+    // release build never draws it, so the golden must not either.
+    expect(find.byType(CheckedModeBanner), findsNothing);
     await expectLater(find.byType(MaterialApp), matchesGoldenFile(out));
   }
 
