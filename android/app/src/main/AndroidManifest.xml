@@ -137,10 +137,18 @@
         <!-- BIS A-2: the commit this artifact was built from, stamped by
              gradle at build time. Read back via PackageManager
              (GET_META_DATA) so the app's identity comes from the installed
-             package record rather than a compiled-in Dart constant. -->
+             package record rather than a compiled-in Dart constant.
+
+             The "git:" prefix keeps the value a STRING. aapt2 stores a
+             meta-data value it can parse as a number as that number: an
+             all-digit sha such as 4370561 becomes an integer (0123456 loses
+             its leading zero), 0e12345 becomes the float 0.0, which keeps
+             none of the digits, and 1234e05 becomes the float 123400000.
+             getString() returns null for a number, so the app could not show
+             those shas. MainActivity strips the prefix. -->
         <meta-data
             android:name="dev.aki1770del.sngnav_app.gitSha"
-            android:value="${gitSha}" />
+            android:value="git:${gitSha}" />
 
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->

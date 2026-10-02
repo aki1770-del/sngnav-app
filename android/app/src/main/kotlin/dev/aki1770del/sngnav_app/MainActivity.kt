@@ -137,9 +137,7 @@ class MainActivity : FlutterActivity() {
                             mapOf(
                                 "selfSha256" to hex,
                                 "artifactCount" to parts.size,
-                                "gitSha" to (meta?.getString(
-                                    "dev.aki1770del.sngnav_app.gitSha",
-                                ) ?: "UNKNOWN"),
+                                "gitSha" to gitShaFromManifest(meta),
                             )
                         } catch (e: Exception) {
                             // A build that cannot name itself must still drive
@@ -460,7 +458,36 @@ class MainActivity : FlutterActivity() {
         pendingNotificationPermission = null
     }
 
+    // The commit this build was made from, exactly as gradle stamped it.
+    //
+    // The manifest carries it as "git:<sha>" (see AndroidManifest.xml): without
+    // the prefix aapt2 stores a sha that parses as a number AS a number, and
+    // getString() returns null for it. That is how 4370561 and 0e12345 used to
+    // read as UNKNOWN, which is the word for "the build had no git", so a sha
+    // the app failed to read looked like a sha that never existed.
+    //
+    // So: a string value is returned byte for byte, with the one known
+    // "git:" prefix removed when it is there (gradle's own UNKNOWN and any
+    // -dirty suffix pass through as written). No string at all, or nothing
+    // after the prefix, returns UNREADABLE and says why in the log. A number
+    // is never turned back into text: 0123456 is stored as 123456 and 0e12345
+    // as 0.0, so any text made from them would be a wrong sha that looks right.
+    private fun gitShaFromManifest(meta: android.os.Bundle?): String {
+        val stamped = meta?.getString(GIT_SHA_KEY)
+        val sha = stamped?.removePrefix(GIT_SHA_PREFIX)
+        if (!sha.isNullOrEmpty()) return sha
+        android.util.Log.w(
+            "SngnavBuildIdentity",
+            "could not read the commit stamp: key present=" +
+                "${meta?.containsKey(GIT_SHA_KEY) == true}, " +
+                "string value=${stamped?.let { "\"$it\"" } ?: "none"}",
+        )
+        return "UNREADABLE"
+    }
+
     companion object {
         private const val POST_NOTIFICATIONS_REQUEST = 4331
+        private const val GIT_SHA_KEY = "dev.aki1770del.sngnav_app.gitSha"
+        private const val GIT_SHA_PREFIX = "git:"
     }
 }
