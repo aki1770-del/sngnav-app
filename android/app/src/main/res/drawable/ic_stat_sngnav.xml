@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The small icon of the drive notification (位置情報を使用中), shown in the
+  status bar and in the notification shade for as long as a drive runs.
+
+  Android draws a status bar icon from its alpha channel only, so this is a
+  white silhouette on a transparent ground: 24dp, the glyph centred and
+  spanning 0.98 to 23.02 of the 24 units, where the font places it.
+
+  The shape is the location glyph this app already draws on its
+  現在地に戻る control (Icons.my_location): the outline of U+E418 in the
+  MaterialIcons-Regular.otf that Flutter ships, scaled from 512 font units to
+  this 24-unit viewport and flipped to y-down. The app has no artwork of its
+  own to derive from: its launcher icon is still Flutter's template.
+
+  Material Icons by Google, licensed under CC BY 4.0
+  (https://creativecommons.org/licenses/by/4.0/). Changes: the one glyph,
+  rescaled, reflected vertically and filled white.
+
+  geolocator finds this drawable by name at run time, so nothing in the APK
+  refers to it; res/raw/keep.xml keeps it through release resource shrinking.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12 8.016C9.797 8.016 8.016 9.797 8.016 12C8.016 14.203 9.797 15.984 12 15.984C14.203 15.984 15.984 14.203 15.984 12C15.984 9.797 14.203 8.016 12 8.016ZM20.953 11.016C20.484 6.844 17.156 3.516 12.984 3.047V0.984H11.016V3.047C6.844 3.516 3.516 6.844 3.047 11.016H0.984V12.984H3.047C3.516 17.156 6.844 20.484 11.016 20.953V23.016H12.984V20.953C17.156 20.484 20.484 17.156 20.953 12.984H23.016V11.016H20.953ZM12 18.984C8.109 18.984 5.016 15.891 5.016 12C5.016 8.109 8.109 5.016 12 5.016C15.891 5.016 18.984 8.109 18.984 12C18.984 15.891 15.891 18.984 12 18.984Z" />
+</vector>
