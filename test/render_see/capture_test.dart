@@ -13,6 +13,7 @@
 /// produced PNGs are inspected visually to confirm real glyphs.
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:condition_aggregator/condition_aggregator.dart';
@@ -22,6 +23,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'render_see_env.dart';
+import 'package:sngnav_app/akita_map.dart' show akitaStation;
+import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart';
@@ -122,6 +125,32 @@ void main() {
     await expectLater(find.byType(MaterialApp), matchesGoldenFile(out));
   }
 
+  /// Starts sharing her position the way she does: the consent she gave, then
+  /// 現在地を共有 on her card. The fixes come from the test's stream, standing
+  /// in for the platform GPS stream through the seam the app keeps for it
+  /// ([SngnavApp.positionSource]).
+  ///
+  /// 02 and 03 are frames of her drive screen, so they are reached the way a
+  /// release build reaches it. Until 2026-10-02 they were reached from the
+  /// development page (the Akita mock, the blackout simulator). A release
+  /// build never offers that page (`_developerPageOffered` requires
+  /// `!kReleaseMode`), and its entry stood in her app bar in both stored
+  /// images, drawn as an empty box.
+  Future<void> shareHerPosition(WidgetTester tester) async {
+    await tester.ensureVisible(find.text('現在地を共有'));
+    await tester.pump();
+    await tester.tap(find.text('現在地を共有'));
+    await tester.pump();
+  }
+
+  /// A fix where the Akita mock put her: the station, ±35 m.
+  PositionAvailable fixAtAkita(DateTime at) => PositionAvailable(
+        latitude: akitaStation.latitude,
+        longitude: akitaStation.longitude,
+        accuracyMeters: 35,
+        timestamp: at,
+      );
+
   testWidgets('01 — JA consent gate (deny-by-default)', (tester) async {
     await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
     await tester.pump();
@@ -146,6 +175,8 @@ void main() {
     // The lowest rung comes from a measured clear reading (2026-09-16): a demo
     // value may add caution and never clear it, so the station reads 1500 m.
     final at = DateTime.now();
+    final positions = StreamController<PositionFix>.broadcast();
+    addTearDown(positions.close);
     await tester.pumpWidget(
       SngnavApp(
           actuators: fake,
@@ -163,14 +194,18 @@ void main() {
                 observedAtJstKey: '20260115060000',
                 fetchedAt: at,
               )),
-          developerPageEntry: true),
+          locationConsent: true,
+          positionSource: () => positions.stream,
+          developerPageEntry: false),
     );
     await tester.pump();
     await tester.pump();
 
-    // The mock, the band and the blackout simulator are on the development
-    // page since 2026-09-15.
-    await tapOnDeveloperPage(tester, const Key('use-mock-button'));
+    // She shares her position and the GPS gives a fix.
+    await shareHerPosition(tester);
+    positions.add(fixAtAkita(at));
+    await tester.pump();
+    await tester.pump();
 
     // The honest default is UNKNOWN (未計測 → heightened); the only truthful way
     // to reach the lowest, choice-neutral rung (特段の注意なし) is an actual clear
@@ -204,6 +239,8 @@ void main() {
       findsOneWidget,
       reason: 'the honest STATE is kept; the CLAIM is scoped to it',
     );
+    // Her app bar, as a release build draws it: no developer entry.
+    expect(find.byKey(kDeveloperPageEntryKey), findsNothing);
     await captureApp(
       tester,
       target: banner,
@@ -214,29 +251,41 @@ void main() {
 
   testWidgets('03 — JA drive HUD, RISEN to STOP (停車の検討)', (tester) async {
     final fake = FakeAlertActuators();
+    final t0 = DateTime.now();
+    var now = t0;
+    final positions = StreamController<PositionFix>.broadcast();
+    addTearDown(positions.close);
     await tester.pumpWidget(
       SngnavApp(
           actuators: fake,
           locale: const Locale('ja'),
-          developerPageEntry: true),
+          clock: () => now,
+          locationConsent: true,
+          positionSource: () => positions.stream,
+          developerPageEntry: false),
     );
     await tester.pump();
 
-    // The mock, the band and the blackout simulator are on the development
-    // page since 2026-09-15.
-    await tapOnDeveloperPage(tester, const Key('use-mock-button'));
+    // She shares her position and the GPS gives one fix.
+    await shareHerPosition(tester);
+    positions.add(fixAtAkita(t0));
+    await tester.pump();
+    await tester.pump();
 
-    // Simulate GPS blackout: 3 × +60 s → past the 120 s honesty horizon →
-    // honest dot degrades to `lost` → the caution rung RISES to 停車の検討.
-    for (var i = 0; i < 3; i++) {
-      await tapOnDeveloperPage(tester, const Key('drive-hud-blackout-button'));
-    }
+    // Then the GPS goes silent for 180 s, past the 120 s honesty horizon. The
+    // blackout watchdog's next tick reads the clock, her position degrades to
+    // `lost`, and the caution rung RISES to 停車の検討.
+    now = t0.add(const Duration(seconds: 180));
+    await tester.pump(const Duration(seconds: 15));
+    await tester.pump();
 
     final banner = find.byKey(const Key('drive-hud-caution-banner'));
     expect(
       find.descendant(of: banner, matching: find.text('停車の検討')),
       findsOneWidget,
     );
+    // Her app bar, as a release build draws it: no developer entry.
+    expect(find.byKey(kDeveloperPageEntryKey), findsNothing);
     await captureApp(
       tester,
       target: banner,
@@ -397,7 +446,8 @@ void main() {
       '13 — road-surface default is UNKNOWN, not a fabricated ice hazard '
       '(路面状況不明)', (tester) async {
     // The road-condition names card is on the development page (2026-09-15);
-    // this capture is of that page now.
+    // this capture is of that page now. A release build never offers that
+    // page, so this golden documents a developer surface, not her screen.
     await tester.pumpWidget(
         const SngnavApp(locale: Locale('ja'), developerPageEntry: true));
     await tester.pump();

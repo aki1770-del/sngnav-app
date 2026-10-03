@@ -13,8 +13,10 @@
 /// bytes resolve ⚠ through the app's own theme fallback in a real widget
 /// tree. On-device rendering (the phone's own fallback chain ahead of ours)
 /// is DEFERRED — no device/emulator in this env.
-/// Existing capture suites deliberately do NOT load this font, so their
-/// goldens stay pixel-stable (opt-in per render_see_env.dart).
+/// Until 2026-10-02 the other capture suites did not load this font, and three
+/// of their goldens stored ⚠ as a box. test/flutter_test_config.dart now loads
+/// every font the app ships for every test; this suite's own call loads the
+/// same bytes a second time.
 library;
 
 import 'dart:io';

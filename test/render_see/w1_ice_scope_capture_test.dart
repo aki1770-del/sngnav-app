@@ -32,18 +32,22 @@
 ///    evidence is a human viewing the PNG on a font-bearing desktop.
 ///    On-device render remains the emulator ladder / device hour's job.
 ///
-/// 2. THE HARNESS CANNOT SEE NON-CJK SYMBOL DEFECTS — a blind spot in our own
-///    instrument, found by looking at `w1_ice_watch_ja.png`. `loadCjkFamily`
-///    installs IPAGothic + DroidSansFallback UNDER THE FAMILY NAME 'Roboto',
-///    REPLACING it rather than supplementing it. Neither font maps U+26A0
-///    WARNING SIGN (verified by cmap parse: ABSENT in both; the CJK controls
-///    U+8DEF 路 / U+8A72 該 are PRESENT in both), so the ⚠ that opens the
-///    black-ice row renders as TOFU in the capture. On the driver's Android device the
-///    system stack is expected to supply it — but that is UNVERIFIED, and it
-///    is exactly what this harness cannot distinguish: a symbol genuinely
-///    broken on-device and a symbol merely missing from the test substitute
-///    produce the SAME picture here. Every render_see capture we hold shares
-///    this blind spot.
+/// 2. WHERE THE ⚠ COMES FROM. `loadCjkFamily` installs IPAGothic +
+///    DroidSansFallback UNDER THE FAMILY NAME 'Roboto', replacing it rather
+///    than supplementing it. Neither font maps U+26A0 WARNING SIGN (verified
+///    by cmap parse: ABSENT in both; the CJK controls U+8DEF 路 / U+8A72 該
+///    are PRESENT in both). The app does not rely on the system for it: it
+///    ships `assets/fonts/SnGNavSymbols.ttf`, which maps U+26A0, and names it
+///    as the theme's `fontFamilyFallback`. Until 2026-10-02 this suite did not
+///    load that font (`flutter test` leaves the app's fonts out), so the ⚠
+///    that opens the row was stored as a box. test/flutter_test_config.dart
+///    now loads every font the app ships, and the ⚠ here is drawn from the
+///    shipped bytes, through the same fallback the app's theme names.
+///    Measured 2026-10-02 from source: on a stock Android 14 system image,
+///    no family is named `roboto` and its Roboto face lacks U+26A0, so the
+///    app's ⚠ there also comes from the shipped font. A phone whose system
+///    names a `roboto` family that maps U+26A0 would draw its own instead;
+///    the driver's phone is UNVERIFIED.
 ///
 /// The injected [SngnavApp.jmaFetch] supplies a canned observation, so the
 /// REAL `_jmaPanel` renders hermetically — the same code path a live fetch

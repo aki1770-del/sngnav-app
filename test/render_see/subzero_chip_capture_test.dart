@@ -9,14 +9,13 @@
 /// are the app's own, icon (Icons.ac_unit, a Material glyph — never tofu) and
 /// contrast (blue.900 on lightBlue.50, ~7.7:1) included.
 ///
-/// HONEST BOUND (measured 2026-07-23): the Icons.ac_unit snowflake renders as
-/// TOFU (□) in this capture — the same harness blind-spot that tofus the ⚠
-/// emoji (the render_see env installs CJK fonts under 'Roboto' and the test
-/// renderer does not pick up MaterialIcons here). It is NOT an on-device
-/// defect: pubspec has `uses-material-design: true` (ships MaterialIcons) and
-/// Icons.ac_unit already renders elsewhere in this app (main.dart:3254). The
-/// load-bearing WORDS 「路面凍結のおそれ」 render legibly; the icon is device-
-/// deferred but low-risk (an established, shipped glyph).
+/// The icons in this frame (the Icons.ac_unit snowflake, and the route control
+/// further down) are drawn from MaterialIcons, which the app ships
+/// (`uses-material-design: true`). From 2026-07-23 until 2026-10-02 this
+/// capture drew both as empty squares, because `flutter test` leaves the app's
+/// fonts out and this suite never loaded them. test/flutter_test_config.dart
+/// now loads every font the app ships for every test, so the stored image
+/// carries the real glyphs.
 ///
 /// On-device render remains the emulator ladder / device hour's job (on-device
 /// verification): nobody affirms this PNG as phone evidence, and on a fontless

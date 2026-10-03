@@ -401,8 +401,9 @@ List<String> robotoSearchOrder() => _firstNonEmpty([
 /// `assets/fonts/SnGNavSymbols.ttf`) under its REAL family name — the one
 /// `ThemeData.fontFamilyFallback` in main.dart names — so a capture renders
 /// the ⚠/❄-class glyphs from the same bytes the phone ships instead of
-/// tofu. Opt-in per capture suite: existing goldens were cut without it and
-/// stay pixel-stable unless a suite loads it deliberately.
+/// tofu. Since 2026-10-02 test/flutter_test_config.dart loads every font the
+/// app ships for every test, this one included, so a suite no longer needs to
+/// call this; the calls that remain load the same bytes a second time.
 Future<bool> loadBundledSymbolsFont() =>
     loadCjkFamily('SnGNavSymbols', ['assets/fonts/SnGNavSymbols.ttf']);
 
@@ -411,7 +412,10 @@ Future<bool> loadBundledSymbolsFont() =>
 /// `flutter test` does not load it by itself, so an `Icons.*` glyph renders
 /// as a hollow box — and on a map, a hollow box next to a marker reads as a
 /// shape of its own. Returns `false` when the font is not where a standard
-/// SDK keeps it. Opt-in per capture suite, like [loadBundledSymbolsFont].
+/// SDK keeps it. Like [loadBundledSymbolsFont], it is no longer needed:
+/// test/flutter_test_config.dart loads MaterialIcons for every test, from the
+/// copy `flutter test` puts in the test asset bundle (byte-identical to the
+/// SDK's, measured 2026-10-02).
 Future<bool> loadMaterialIconsFont() async {
   // Resolved through [_sdkMaterialFonts] since 2026-09-18, so this and Roboto
   // find the SDK by ONE mechanism. It tries the same resolvedExecutable path

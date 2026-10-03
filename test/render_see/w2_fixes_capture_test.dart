@@ -104,7 +104,8 @@ void main() {
   testWidgets('w2c — threshold-preview labels readable at phone width',
       (tester) async {
     // The thresholds card is on the development page (2026-09-15); this
-    // capture is of that page now.
+    // capture is of that page now. A release build never offers that page,
+    // so this golden documents a developer surface, not her screen.
     await tester.pumpWidget(
         const SngnavApp(locale: Locale('en'), developerPageEntry: true));
     await tester.pump();
