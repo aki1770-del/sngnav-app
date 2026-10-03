@@ -1,0 +1,23 @@
+# The highest Android versionCode already SPENT by this app under its release
+# (upload) key, or reported back by a device, recorded here because no ledger
+# on any one machine saw them all. Debug and test-key builds do not count.
+#
+# A versionCode names one build. Android refuses an update whose versionCode is
+# not higher than the installed one, and Play refuses a code it has seen, so a
+# second build at a spent code reaches nobody as an update and makes the code
+# name two different things.
+#
+# Read by:
+#   android/app/build.gradle.kts  assertVersionCodeUnspent: a build signed with
+#                                 the release key refuses a code at or below it.
+#   tool/preflight_play_upload.sh gate 4: refuses a bundle at or below it.
+#
+# Raise it, never lower it, and keep exactly ONE number line: a second number
+# appended below the first is refused, not read. It is NOT the Play upload record
+# (tool/play_uploaded_version_codes.txt is), and a code below it may still be
+# absent from Play.
+#
+# What the number already names (each line: code, then the bytes):
+# 12: 0.0.2, release key (cert 6a4906ed...0f14), sha256 561b56fac98b6c1898d4dee6de988faca5eb1d35f31cf49b1a099c18c5994bc1, built 2026-10-02 and installed on the maintainer's phone (device read 2026-10-02T00:34:10Z)
+# 2-11: each minted under the release key before this file existed; codes 2 and 9 each name more than one release APK, and codes 2, 3 and 10 also name release bundles
+12
