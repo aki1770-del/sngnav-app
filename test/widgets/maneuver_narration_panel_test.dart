@@ -11,12 +11,24 @@
 /// the app's language, her line (and never the routing engine's English),
 /// the position row only when the position is this drive's, where an icy
 /// mark came from, a narrate button that works, what the last narration did,
-/// and words she can read on their fill (4.5:1). They do not pin colours or
-/// layout, so the panel can change its look and stay green while it keeps
-/// those.
+/// and banner words at 4.5:1 or more against their fill. They do not pin
+/// colours or layout, so the panel can change its look and stay green while
+/// it keeps those.
+///
+/// The 4.5:1 floor is read from the PAINTED raster, not from the widgets'
+/// declared colours: a style-reading check passes a word an `Opacity` has
+/// faded, and that is how the glance-paint register
+/// (test/widgets/glance_paint_coverage_test.dart) was founded. It is a floor,
+/// not legibility: whether she can tell the three states apart at a glance,
+/// and at her width, is not measured here, and this file does not certify the
+/// panel legible.
 library;
 
+import 'dart:typed_data' show ByteData;
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderRepaintBoundary;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:latlong2/latlong.dart' show LatLng;
@@ -77,15 +89,18 @@ Future<void> _pump(
       supportedLocales: AppL10n.supportedLocales,
       home: Scaffold(
         body: SingleChildScrollView(
-          child: ManeuverNarrationPanel(
-            preview: preview,
-            mode: mode,
-            isMockPosition: isMockPosition,
-            icySource: icySource,
-            onNarrate: () {},
-            lastNarration: lastNarration,
-            speechUnverified: speechUnverified,
-            hapticUnverified: hapticUnverified,
+          child: RepaintBoundary(
+            key: _shot,
+            child: ManeuverNarrationPanel(
+              preview: preview,
+              mode: mode,
+              isMockPosition: isMockPosition,
+              icySource: icySource,
+              onNarrate: () {},
+              lastNarration: lastNarration,
+              speechUnverified: speechUnverified,
+              hapticUnverified: hapticUnverified,
+            ),
           ),
         ),
       ),
@@ -102,26 +117,65 @@ double _contrast(Color a, Color b) {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/// Every text in the banner can be read on the banner's fill.
-void _expectBannerLegible(WidgetTester tester) {
-  final fill =
-      (tester.widget<Container>(find.byKey(_bannerKey)).decoration!
-              as BoxDecoration)
-          .color!;
-  final texts = find.descendant(
+const _shot = Key('maneuver-panel-shot');
+
+/// The panel's raster, read back at pixelRatio 1.0. `toImage` awaited inside
+/// the fake-async zone never completes, so it runs in `runAsync` and the
+/// bytes are carried out.
+Future<({ByteData rgba, int width})> _raster(WidgetTester tester) async {
+  final r = await tester.runAsync(() async {
+    final b = tester.renderObject<RenderRepaintBoundary>(find.byKey(_shot));
+    final img = await b.toImage(pixelRatio: 1.0);
+    final d = await img.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final w = img.width;
+    img.dispose();
+    return (rgba: d!, width: w);
+  });
+  return r!;
+}
+
+/// Every word in the banner, as painted, is at 4.5:1 or more against the
+/// banner's fill as painted. The fill is read just inside the banner's left
+/// edge, inside its padding; each word's ink is its pixel that contrasts most
+/// with that fill.
+Future<void> _expectBannerInkOnFill(WidgetTester tester) async {
+  final r = await _raster(tester);
+  Color px(int x, int y) {
+    final i = (y * r.width + x) * 4;
+    return Color.fromARGB(
+      r.rgba.getUint8(i + 3),
+      r.rgba.getUint8(i),
+      r.rgba.getUint8(i + 1),
+      r.rgba.getUint8(i + 2),
+    );
+  }
+
+  final origin = tester.getTopLeft(find.byKey(_shot));
+  final banner = tester.getRect(find.byKey(_bannerKey)).shift(-origin);
+  final fill = px((banner.left + 4).round(), banner.center.dy.round());
+
+  final words = find.descendant(
     of: find.byKey(_bannerKey),
-    matching: find.byType(Text),
+    matching: find.byType(RichText),
   );
-  expect(texts, findsWidgets);
-  for (final e in texts.evaluate()) {
-    final t = e.widget as Text;
-    final ink = t.style!.color!;
+  expect(words, findsWidgets);
+  for (final e in words.evaluate()) {
+    final box = e.renderObject! as RenderBox;
+    final rect = (box.localToGlobal(Offset.zero) - origin) & box.size;
+    var best = 1.0;
+    for (var y = rect.top.floor(); y < rect.bottom.ceil(); y++) {
+      for (var x = rect.left.floor(); x < rect.right.ceil(); x++) {
+        final c = _contrast(px(x, y), fill);
+        if (c > best) best = c;
+      }
+    }
+    final text = (e.widget as RichText).text.toPlainText();
     expect(
-      _contrast(ink, fill),
+      best,
       greaterThanOrEqualTo(4.5),
       reason:
-          '"${t.data}" is ${_contrast(ink, fill).toStringAsFixed(2)}:1 '
-          'on its fill; she must be able to read it',
+          '"$text" paints at ${best.toStringAsFixed(2)}:1 at most against '
+          'its fill; she must be able to read it',
     );
   }
 }
@@ -138,7 +192,7 @@ void main() {
     expect(_tier(tester), _ja.maneuverTierSpeak);
     expect(find.text(preview.text), findsOneWidget);
     expect(find.text('Right onto Main St'), findsNothing);
-    _expectBannerLegible(tester);
+    await _expectBannerInkOnFill(tester);
   });
 
   testWidgets('hedge: the state and her softened line, legible', (
@@ -151,7 +205,7 @@ void main() {
     expect(_tier(tester), _ja.maneuverTierHedge);
     expect(find.text(preview.text), findsOneWidget);
     expect(find.text('Right onto Main St'), findsNothing);
-    _expectBannerLegible(tester);
+    await _expectBannerInkOnFill(tester);
   });
 
   testWidgets('suppressed: no turn, the paused line instead, legible', (
@@ -172,7 +226,7 @@ void main() {
     // No icy mark on a turn that is not spoken.
     expect(find.text(_ja.maneuverIcyMark), findsNothing);
     expect(find.byKey(const Key('maneuver-measured-road-ice')), findsNothing);
-    _expectBannerLegible(tester);
+    await _expectBannerInkOnFill(tester);
   });
 
   testWidgets('the words follow the app\'s language', (tester) async {
@@ -238,7 +292,7 @@ void main() {
     expect(find.text(_ja.maneuverIcyMark), findsOneWidget);
     expect(find.byKey(const Key('maneuver-measured-road-ice')), findsOneWidget);
     expect(find.byKey(const Key('maneuver-test-road-condition')), findsNothing);
-    _expectBannerLegible(tester);
+    await _expectBannerInkOnFill(tester);
 
     await _pump(
       tester,

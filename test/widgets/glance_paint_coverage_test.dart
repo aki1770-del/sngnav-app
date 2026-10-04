@@ -72,6 +72,16 @@ const Map<String, String> kCovered = {
   // is HIE's, and this surface is PROVISIONAL pending WDA's verdict on it.
   'lib/widgets/update_notice.dart':
       'test/widgets/update_notice_pixel_guard_test.dart',
+  // 2026-10-04 AAE: this register fired on maneuver_narration_panel.dart the
+  // turn the next-turn panel left lib/main.dart. Its 8 paint positions had
+  // sat under main.dart's line in kNoPixelGuard; in a file of their own they
+  // were in neither register. The guard reads the raster back and holds every
+  // word in the banner to 4.5:1 against the banner's painted fill, in each
+  // state the gate returns. WHETHER SHE CAN TELL THE STATES APART AT A GLANCE,
+  // AND AT HER WIDTH, IS NOT COVERED AND IS NOT CLAIMED: that is HIE's, and
+  // this seat does not certify its own surface legible.
+  'lib/widgets/maneuver_narration_panel.dart':
+      'test/widgets/maneuver_narration_panel_test.dart',
 };
 
 /// lib path -> why it has NO PIXEL-SAMPLING guard, and what DOES cover it.
