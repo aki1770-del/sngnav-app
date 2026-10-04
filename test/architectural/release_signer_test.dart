@@ -166,6 +166,58 @@ void main() {
     expect(s, contains(r'check_not_dev_release "$dev_release_state"'));
   });
 
+  test("the preflight's live run FAILS on gate 1's verdict and on the "
+      'package, at their call sites', () {
+    // --self-test drives the predicates, never their call sites. With gate
+    // 1's `if` made to ignore its verdict (`check_signer ... || true`), the
+    // self-test stayed 80/80 and this file stayed green, and a bundle signed
+    // by another key got PREFLIGHT PASS (FBR R131 mutation M2c, 2026-10-04).
+    // So each call site is pinned whole: the bare predicate is the condition,
+    // and its else-branch counts the failed gate.
+    final s = File('tool/preflight_play_upload.sh').readAsStringSync();
+    final live = s.substring(s.indexOf('# ---------------------------------'
+        '------------------------------- live run'));
+    void site(String call, {String indent = ''}) {
+      final i = RegExp.escape(indent);
+      final block = RegExp(
+          '^${i}if ${RegExp.escape(call)}; then\n'
+          '(?:$i  [^\n]*\n)+'
+          '${i}else\n'
+          '$i  fails=\\\$\\(\\(fails\\+1\\)\\)\n'
+          '${i}fi\$',
+          multiLine: true);
+      expect(block.allMatches(live).length, 1,
+          reason: 'the call site `if $call; then … else fails=… fi` is '
+              'missing or altered');
+    }
+
+    site(r'check_signer "$upload_pin" "$signer_out"');
+    site(r'check_app_id "$APP_ID" "$aab_pkg" bundle');
+    site(r'check_app_id "$APP_ID" "$apk_pkg" APK', indent: '  ');
+    // Those are the only calls in the live run: no second call can carry
+    // the verdict past the pinned one.
+    expect('check_signer '.allMatches(live).length, 1);
+    expect('check_app_id '.allMatches(live).length, 2);
+  });
+
+  test("the preflight's APP_ID is the build's applicationId, and a bundle "
+      'named alone reads no APK', () {
+    final s = File('tool/preflight_play_upload.sh').readAsStringSync();
+    final appId = RegExp(r'^APP_ID="([^"]+)"$', multiLine: true)
+        .allMatches(s)
+        .map((m) => m[1])
+        .toList();
+    expect(appId, hasLength(1));
+    expect(gradle, contains('applicationId = "${appId.single}"'));
+    // The default APK path is replaced, before any gate, by what apk_to_read
+    // says (nothing, when a bundle was named alone): FBR R131 run I10a2.
+    final live = s.substring(s.indexOf('# ---------------------------------'
+        '------------------------------- live run'));
+    expect(live, contains(r'APK="$(apk_to_read "$GIVEN_AAB" "$GIVEN_APK" "$APK")"'));
+    expect(live.indexOf(r'APK="$(apk_to_read'),
+        lessThan(live.indexOf('-- artifacts under test')));
+  });
+
   test('the fallback is no longer described as unable to ship', () {
     // The comment this gate replaces said a debug-signed release "cannot
     // silently ship" because Play rejects it. It shipped by sideload.

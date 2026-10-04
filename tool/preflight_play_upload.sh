@@ -138,10 +138,34 @@
 #   bundle's own code, a bundle the ledger records must be this bundle. Each
 #   refusal names the channel that spent the code.
 #
+# ⚑ ANOTHER APP PASSED ALL FIVE GATES — FOUND AND REPAIRED 2026-10-04.
+#
+#   A development build is another app, dev.aki1770del.sngnav_app.dev (see
+#   android/app/build.gradle.kts). No gate read the bundle's package. A .dev
+#   bundle signed by the pinned key ended in "PREFLIGHT PASS — this is the file
+#   to upload" given as --aab with --apk, as --aab alone with a .dev APK left
+#   at the default path, and as --skip-build (FBR R131 item 10, board 36.17).
+#   Play fixes an app's package at the first accepted upload, so that upload
+#   would have named another app for good.
+#
+#   Repair: before any gate, the bundle's own package, and the APK's when one
+#   is read, must be APP_ID (below), her app; anything else, or a package that
+#   cannot be read, FAILS the run.
+#
+# ⚑ A BUNDLE NAMED ALONE READ THE DEFAULT APK — FOUND AND REPAIRED 2026-10-04.
+#
+#   With --aab and no --apk this script said gates 2 and 5 "will report
+#   UNVERIFIED rather than pass", and then read build/app/outputs/flutter-apk/
+#   app-release.apk anyway, the APK path's default, and passed both when a
+#   file was there (FBR R131, run I10a2). That file is whatever this tree
+#   built last. Now a bundle named alone gets no APK (apk_to_read), and the
+#   note is true.
+#
 # USAGE
 #   tool/preflight_play_upload.sh                     # build both here, then gate
 #   tool/preflight_play_upload.sh --skip-build        # gate whatever is already built
-#   tool/preflight_play_upload.sh <file.aab>          # gate THIS bundle (implies --skip-build)
+#   tool/preflight_play_upload.sh <file.aab>          # gate THIS bundle (implies --skip-build);
+#                                                     #   with no --apk, gates 2 and 5 say UNVERIFIED
 #   tool/preflight_play_upload.sh --aab A --apk B     # gate these two explicitly
 #   tool/preflight_play_upload.sh --self-test         # prove the guards fail
 #
@@ -163,6 +187,10 @@ MINT_LEDGER_EXTRA="${SNGNAV_MINTED_LEDGER:-}"
 # this script's gate 1 and by android/app/build.gradle.kts (assertReleaseSigner
 # and the mint ledger rows), so the two can never name different keys.
 PIN_FILE="$REPO_ROOT/tool/upload_key_certificate_sha256"
+# Her app's package: android/app/build.gradle.kts `applicationId`, which
+# test/architectural/release_signer_test.dart pins equal to this line. Play
+# fixes an app's package at the first accepted upload.
+APP_ID="dev.aki1770del.sngnav_app"
 MIN_TARGET_SDK=36
 MIN_SO_ALIGN=16384   # 0x4000
 
@@ -227,6 +255,38 @@ check_not_dev_release() {
   [ "$1" = "set" ] || return 0
   echo "SNGNAV_DEV_RELEASE is set (to \"$2\"). A development build is another app and never goes to Play. Unset it, then run this again."
   return 1
+}
+
+# $1 = `aapt2 dump badging` output. Echoes the package name on its `package:`
+# line, or nothing. Gate 5 and the package check read it through this one
+# function.
+badging_package() {
+  printf '%s\n' "$1" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -1
+}
+
+# $1 = her app's package (APP_ID); $2 = the package read from an artifact;
+# $3 = which artifact. Passes only on an exact match. Refusing to run while
+# SNGNAV_DEV_RELEASE is set does not cover a .dev bundle built EARLIER and
+# handed over with --aab or left for --skip-build, and the pinned key may have
+# signed it.
+check_app_id() {
+  local want="$1" got="$2" what="$3"
+  [ -n "$got" ] || { echo "the $what's package could not be read, so it cannot be confirmed as her app $want. UNVERIFIED, not clear."; return 1; }
+  if [ "$got" != "$want" ]; then
+    echo "WRONG PACKAGE: the $what is $got, not her app $want. Play fixes an app's package at the first accepted upload; this file would name another app for good."
+    return 1
+  fi
+  return 0
+}
+
+# $1 = 1 when a bundle was named (--aab, or a bare .aab path); $2 = 1 when an
+# APK was named; $3 = the APK path in force. Echoes the APK path this run
+# reads, or nothing. A bundle named alone gets NO APK: the default path holds
+# whatever this tree built last, which is not known to be this bundle's build,
+# so gates 2 and 5 say UNVERIFIED instead of reading it.
+apk_to_read() {
+  if [ "$1" -eq 1 ] && [ "$2" -eq 0 ]; then return 0; fi
+  printf '%s\n' "$3"
 }
 
 # $1 = targetSdk as integer
@@ -519,6 +579,18 @@ if [ "${1:-}" = "--self-test" ]; then
   t "SNGNAV_DEV_RELEASE=0 refuses the run" 1 check_not_dev_release set 0
   t "SNGNAV_DEV_RELEASE set but empty refuses the run" 1 check_not_dev_release set ""
   t "SNGNAV_DEV_RELEASE unset runs"   0 check_not_dev_release unset ""
+  # HER APP, BY PACKAGE (2026-10-04). The first case is the real one: a .dev
+  # bundle signed by the pinned key passed all five gates (FBR R131 item 10).
+  t "the .dev development app is not her app"   1 check_app_id "$APP_ID" "dev.aki1770del.sngnav_app.dev" bundle
+  t "an unreadable package is a refusal, not a pass" 1 check_app_id "$APP_ID" "" bundle
+  t "a package that only starts with hers is not hers" 1 check_app_id "$APP_ID" "dev.aki1770del.sngnav_app2" bundle
+  t "her package is accepted"                    0 check_app_id "$APP_ID" "dev.aki1770del.sngnav_app" bundle
+  t "APP_ID is the build's applicationId"        0 grep -qx "        applicationId = \"$APP_ID\"" "$REPO_ROOT/android/app/build.gradle.kts"
+  # A bundle named alone gets no APK; every other shape keeps the path in force.
+  t "a bundle named alone reads no APK"          0 test -z "$(apk_to_read 1 0 /tree/build/app/outputs/flutter-apk/app-release.apk)"
+  t "a bundle and an APK named: that APK"        0 test "$(apk_to_read 1 1 /given/x.apk)" = "/given/x.apk"
+  t "nothing named: the tree's APK"              0 test "$(apk_to_read 0 0 /tree/app-release.apk)" = "/tree/app-release.apk"
+  t "an APK named alone: that APK"               0 test "$(apk_to_read 0 1 /given/x.apk)" = "/given/x.apk"
   t "targetSdk 35 rejected"           1 check_target_sdk 35
   t "targetSdk 34 rejected"           1 check_target_sdk 34
   t "unreadable targetSdk rejected"   1 check_target_sdk ""
@@ -597,6 +669,9 @@ if [ "${1:-}" = "--self-test" ]; then
   t "versionCode read, not platformBuildVersionCode" 0 test "$(badging_field "$BADGING" versionCode)" = "2"
   t "versionName read, not platformBuildVersionName" 0 test "$(badging_field "$BADGING" versionName)" = "0.0.5"
   t "no package line, no versionCode"      0 test -z "$(badging_field "targetSdkVersion:'36'" versionCode)"
+  t "the package is read from the package line" 0 test "$(badging_package "$BADGING")" = "dev.aki1770del.sngnav_app"
+  t "a .dev package is read as .dev"       0 test "$(badging_package "$(printf '%s\n' "$BADGING" | sed "s/sngnav_app'/sngnav_app.dev'/")")" = "dev.aki1770del.sngnav_app.dev"
+  t "no package line, no package"          0 test -z "$(badging_package "targetSdkVersion:'36'")"
   NOT_A_BUNDLE_OUT="$(mktemp)"
   t "a ZIP that is not a bundle yields no manifest" 0 test -z "$(bundle_badging false "$REAL_ZIP" "$NOT_A_BUNDLE_OUT")"
   rm -f "$NOT_A_ZIP" "$EMPTY_FILE" "$REAL_ZIP" "$NOT_A_BUNDLE_OUT"
@@ -672,9 +747,12 @@ echo "commit: $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo '
 if [ -n "$(git -C "$REPO_ROOT" status --porcelain 2>/dev/null)" ]; then
   echo "NOTE:   working tree is DIRTY — the artifact does not correspond to any commit."
 fi
+APK="$(apk_to_read "$GIVEN_AAB" "$GIVEN_APK" "$APK")"
 if [ "$GIVEN_AAB" -eq 1 ] && [ "$GIVEN_APK" -eq 0 ]; then
   echo "NOTE:   a bundle was given and no APK. Gates 2 and 5 read the APK (see"
-  echo "        HONEST BOUNDS) and will report UNVERIFIED rather than pass."
+  echo "        HONEST BOUNDS) and will report UNVERIFIED rather than pass. The"
+  echo "        default APK path is not read: a file there is whatever this"
+  echo "        tree built last. Name the APK of this bundle's build with --apk."
 fi
 
 if [ "$SKIP_BUILD" -eq 0 ]; then
@@ -696,7 +774,7 @@ fi
 check_artifact_readable "$AAB" "AAB" || exit 1
 AAB="$(cd "$(dirname "$AAB")" && pwd)/$(basename "$AAB")"
 HAVE_APK=0
-if [ -f "$APK" ] && check_artifact_readable "$APK" "APK"; then
+if [ -n "$APK" ] && [ -f "$APK" ] && check_artifact_readable "$APK" "APK"; then
   APK="$(cd "$(dirname "$APK")" && pwd)/$(basename "$APK")"
   HAVE_APK=1
 fi
@@ -706,6 +784,8 @@ echo "        $(stat -c%s "$AAB") bytes  sha256=$(sha256sum "$AAB" | cut -c1-64)
 if [ "$HAVE_APK" -eq 1 ]; then
   echo "   APK: $APK"
   echo "        $(stat -c%s "$APK") bytes  sha256=$(sha256sum "$APK" | cut -c1-64)"
+elif [ -z "$APK" ]; then
+  echo "   APK: NOT READ (a bundle was named and no APK) — gates 2 and 5 are UNVERIFIED, not clear."
 else
   echo "   APK: ABSENT ($APK) — gates 2 and 5 are UNVERIFIED, not clear."
 fi
@@ -722,7 +802,7 @@ tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
 echo "-- identity  the BUNDLE's own manifest, and the APK beside it"
 aab_badging=""; badging=""; APK_IS_BUNDLE=0
 if [ -z "$AAPT2" ]; then
-  note "no aapt2 found — neither manifest can be read; gates 2, 4 and 5 will say so."
+  note "no aapt2 found — neither manifest can be read; the package check and gates 2, 4 and 5 will say so."
 else
   aab_badging="$(bundle_badging "$AAPT2" "$AAB" "$tmp/bundle_manifest.zip")"
   aab_vc="$(badging_field "$aab_badging" versionCode)"
@@ -741,6 +821,23 @@ else
     fi
   else
     note "APK  ABSENT"
+  fi
+fi
+# Her app, by package: the bundle's own manifest, and the APK's when one is
+# read. Every gate below reads the signer, the SDK, the code or the
+# permissions; none of them can tell her app from another one.
+aab_pkg="$(badging_package "$aab_badging")"
+if check_app_id "$APP_ID" "$aab_pkg" bundle; then
+  note "OK  package=$aab_pkg (the bundle's own manifest): her app"
+else
+  fails=$((fails+1))
+fi
+if [ "$HAVE_APK" -eq 1 ]; then
+  apk_pkg="$(badging_package "$badging")"
+  if check_app_id "$APP_ID" "$apk_pkg" APK; then
+    note "OK  package=$apk_pkg (the APK): her app"
+  else
+    fails=$((fails+1))
   fi
 fi
 
@@ -847,7 +944,7 @@ fi
 # --- gate 5: what we DECLARE vs what the artifact SHIPS
 echo "-- gate 5/5  permission parity (authored manifest vs built artifact)"
 MANIFEST="$REPO_ROOT/android/app/src/main/AndroidManifest.xml"
-PKG="$(printf '%s\n' "${badging:-}" | sed -n "s/^package: name='\([^']*\)'.*/\1/p" | head -1)"
+PKG="$(badging_package "${badging:-}")"
 # DECLARED: parsed as XML, not grepped — a commented-out <uses-permission> is not a
 # declaration, and a regex cannot tell the difference. Same discipline (and the same
 # reason) as tool/assert_manifest_perms.sh, which an audit falsified in its regex form.
