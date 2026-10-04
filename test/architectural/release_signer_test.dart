@@ -136,6 +136,51 @@ void main() {
     expect(gradle, contains('if (signers.singleOrNull() != pin) {'));
   });
 
+  test('a ledger row needs her package, read from the built bytes, on the '
+      "writer's own terms", () {
+    // Until 2026-10-04 the writer read no package: with the suffix applied
+    // and the allowance unset, a pin-signed .dev APK wrote a row (FBR R131,
+    // mutation M9). The writer's own check does not lean on devReleaseAllowed.
+    expect(
+        gradle,
+        contains('val herApplicationId: String = '
+            'checkNotNull(android.defaultConfig.applicationId)'));
+    expect(gradle,
+        contains('com.android.apksig.apk.ApkUtils.getPackageNameFromBinaryAndroidManifest('));
+    expect(gradle, contains('com.android.aapt.Resources.XmlNode.parseFrom(it)'));
+    final check = RegExp(r'val pkg = try \{\s*builtPackage\(kind, f\)\s*\}'
+        r'[\s\S]*?if \(pkg != herApplicationId\) \{\s*throw GradleException\(');
+    expect(check.hasMatch(gradle), isTrue,
+        reason: 'another package must be refused by a thrown exception');
+    // Before the signer: a pin-signed .dev must never get as far as a row.
+    expect(gradle.indexOf('if (pkg != herApplicationId) {'),
+        lessThan(gradle.indexOf('if (signers.singleOrNull() != pin) {')));
+  });
+
+  test('the upload key signs only her app: never a development release or a '
+      'profile build', () {
+    // A .dev bundle signed by the pinned key passed every Play preflight gate
+    // (FBR R131 item 10). Under the allowance the release config is the debug
+    // key, and the injected upload key is refused for release and profile.
+    expect(gradle,
+        contains('signingConfig = if (hasReleaseKeystore && !devReleaseAllowed) {'));
+    expect(
+      RegExp(r'if \(!debugKey && c != null && pin\.getOrNull\(\) == c\.sha256\) \{'
+              r'(?:\s*//[^\n]*)*\s*if \(allowed\) \{\s*throw GradleException\(')
+          .hasMatch(gradle),
+      isTrue,
+      reason: 'the upload key under SNGNAV_DEV_RELEASE=1 must be refused',
+    );
+    expect(
+      RegExp(r'if \(!source\.debugKeyByConstruction\) \{[\s\S]*?'
+              r'if \(c == null \|\| p == null \|\| c\.sha256 == p\) \{[\s\S]*?'
+              r'throw GradleException\(')
+          .hasMatch(gradle),
+      isTrue,
+      reason: 'a profile build the upload key would sign must be refused',
+    );
+  });
+
   test('an injected signing property with an empty value is refused', () {
     expect(gradle, contains('fun emptyInjectedSigning(): List<String>'));
     // The predicate itself, over every property AGP reads: present AND empty.
