@@ -42,6 +42,11 @@
 ///      the floor), must read above 1.0 and below 4.5; and on a line painted
 ///      in the ground's own colour it must report no ink at all.
 ///
+/// And the button itself is offered only when the turn will be read aloud
+/// (O1 to O5, at the test that holds them; under 「読み上げません」 it was
+/// enabled and said 「次の案内を読み上げる」), and a line about an earlier press
+/// is drawn only while it agrees with the banner (O6).
+///
 /// What this file cannot see: her phone's own fonts (a host Japanese face
 /// stands in, and the file refuses to run without one), a real panel, glare,
 /// distance, and time. A line held at the floor is a line that can be read;
@@ -401,6 +406,144 @@ void main() {
         }
       });
     }
+  }
+
+  // The narrate button is offered only when the turn will be read aloud
+  // (2026-10-04). Under 「読み上げません」 it was enabled and said
+  // 「次の案内を読み上げる」: the same card offered what its banner had just
+  // said would not happen. The criteria it is held to:
+  //  O1 the words: under not read aloud, nothing on the panel offers to read
+  //     the turn, and the button says reading is on hold, in the word her
+  //     line uses (保留); under read aloud, it still says what it does;
+  //  O2 the state: not offered (no press handler) exactly when the banner
+  //     says not read aloud, from the same decision, in every position mode;
+  //  O3 a screen reader hears the on-hold words and that it is not enabled;
+  //  O4 a channel that survives losing colour and words: a different glyph;
+  //  O5 a press on it does nothing.
+  for (final lang in ['ja', 'en']) {
+    testWidgets(
+        '$lang: the narrate button is offered only when the turn will be read '
+        'aloud, and says so in words, state and mark', (tester) async {
+      final handle = tester.ensureSemantics();
+      tester.view.devicePixelRatio = _dpr;
+      tester.view.physicalSize = const Size(1080, 2340);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final l = AppL10n(Locale(lang));
+      final seen = <NarrationConfidence>{};
+      for (final mode in LocalizationMode.values) {
+        final preview = _decide(mode, lang);
+        seen.add(preview.confidence);
+        var pressed = 0;
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpWidget(_host(
+          locale: Locale(lang),
+          child: SizedBox(
+            key: _panelKey,
+            width: _panelWidthDp,
+            child: ManeuverNarrationPanel(
+              preview: preview,
+              mode: mode,
+              isMockPosition: false,
+              icySource: IcyTurnSource.none,
+              onNarrate: () => pressed++,
+              lastNarration: null,
+              speechUnverified: false,
+              hapticUnverified: false,
+            ),
+          ),
+        ));
+        await tester.pump();
+        expect(tester.takeException(), isNull, reason: '$lang ${mode.name}');
+        final where = '$lang ${mode.name} (${preview.confidence.name})';
+        final offered = preview.confidence != NarrationConfidence.suppressed;
+        final button = find.byKey(_buttonKey);
+        expect(button, findsOneWidget, reason: where);
+        // O2.
+        expect(tester.widget<ButtonStyleButton>(button).onPressed != null,
+            offered,
+            reason: '$where: offered must follow the banner\'s decision');
+        // O1.
+        final words = offered ? l.maneuverNarrateButton : l.maneuverNarrateButtonOnHold;
+        expect(
+            find.descendant(of: button, matching: findWords(words)),
+            findsOneWidget,
+            reason: '$where: the button does not say 「$words」');
+        expect(findWords(l.maneuverNarrateButton),
+            offered ? findsOneWidget : findsNothing,
+            reason: '$where: the offer to read the turn');
+        // O3.
+        final node = tester.getSemantics(button);
+        expect(node.label, contains(words), reason: where);
+        expect(
+            node,
+            isSemantics(
+                isButton: true, hasEnabledState: true, isEnabled: offered),
+            reason: '$where: a screen reader must hear whether it is enabled');
+        // O4.
+        expect(
+            tester
+                .widget<Icon>(
+                    find.descendant(of: button, matching: find.byType(Icon)))
+                .icon,
+            offered ? Icons.record_voice_over : Icons.voice_over_off,
+            reason: where);
+        // O5.
+        await tester.tap(button, warnIfMissed: false);
+        await tester.pump();
+        expect(pressed, offered ? 1 : 0, reason: '$where: the press');
+      }
+      // Every decision was met: the file did not pass by meeting one.
+      expect(seen, NarrationConfidence.values.toSet(), reason: lang);
+      handle.dispose();
+    });
+
+    // O6. What an earlier press did is not drawn under a banner that now
+    // says the opposite: a 「送りました」 from a press made while the turn was
+    // read aloud stayed under 「読み上げません」 after 停止, and with the button
+    // withdrawn nothing could replace it.
+    testWidgets(
+        '$lang: a line about an earlier press is drawn only while it agrees '
+        'with the banner', (tester) async {
+      tester.view.devicePixelRatio = _dpr;
+      tester.view.physicalSize = const Size(1080, 2340);
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final spoken = _decide(LocalizationMode.gpsTrusted, lang);
+      final silent = _decide(LocalizationMode.lost, lang);
+      for (final (now, earlier, drawn) in [
+        (spoken, spoken, true),
+        (silent, silent, true),
+        (silent, spoken, false),
+        (spoken, silent, false),
+      ]) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpWidget(_host(
+          locale: Locale(lang),
+          child: SizedBox(
+            width: _panelWidthDp,
+            child: ManeuverNarrationPanel(
+              preview: now,
+              mode: LocalizationMode.gpsTrusted,
+              isMockPosition: false,
+              icySource: IcyTurnSource.none,
+              onNarrate: () {},
+              lastNarration: earlier,
+              speechUnverified: true,
+              hapticUnverified: true,
+            ),
+          ),
+        ));
+        await tester.pump();
+        final where = '$lang: banner ${now.confidence.name}, earlier press '
+            '${earlier.confidence.name}';
+        expect(find.byKey(_resultKey), drawn ? findsOneWidget : findsNothing,
+            reason: where);
+        if (!drawn) {
+          expect(find.byKey(_deliveryKey), findsNothing, reason: where);
+        }
+      }
+    });
   }
 
   testWidgets(

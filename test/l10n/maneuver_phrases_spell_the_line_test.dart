@@ -93,6 +93,7 @@ void main() {
       _ja.maneuverMeasuredRoadIceInForce,
       // Under the banner (2026-10-04).
       _ja.maneuverNarrateButton,
+      _ja.maneuverNarrateButtonOnHold,
       _ja.maneuverNarrationSent,
       _ja.maneuverNarrationNotSpoken,
       for (final (speech, haptic) in [(true, false), (false, true), (true, true)])
@@ -114,6 +115,7 @@ void main() {
       _en.maneuverTestRoadConditionInForce,
       _en.maneuverMeasuredRoadIceInForce,
       _en.maneuverNarrateButton,
+      _en.maneuverNarrateButtonOnHold,
       _en.maneuverNarrationSent,
       _en.maneuverNarrationNotSpoken,
       for (final (speech, haptic) in [(true, false), (false, true), (true, true)])

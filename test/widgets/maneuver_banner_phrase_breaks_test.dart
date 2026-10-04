@@ -489,6 +489,7 @@ void main() {
           drawnSeen,
           containsAll(<String>[
             _ja.maneuverNarrateButton,
+            _ja.maneuverNarrateButtonOnHold,
             _ja.maneuverNarrationSent,
             _ja.maneuverNarrationNotSpoken,
             _ja.maneuverNarrationDeliveryUnverified(speech: true, haptic: false),

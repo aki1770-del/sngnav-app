@@ -577,6 +577,7 @@ class AppL10n {
     // none; given the panel's width and drawn plain, at text size 2.0 the
     // warning broke as 確認できていま｜せん, and at 1.5 as 確認できていませ｜ん.
     '次の案内を読み上げる': ['次の', '案内を', '読み上げる'],
+    '読み上げは保留中です': ['読み上げは', '保留中です'],
     '音声と振動に送りました。': ['音声と', '振動に', '送りました。'],
     '何も読み上げていません。': ['何も', '読み上げていません。'],
     '音声も振動も、届いたか確認できていません。': [
@@ -589,6 +590,14 @@ class AppL10n {
   /// The control that reads the next maneuver aloud, through the same gate.
   String get maneuverNarrateButton =>
       _ja ? '次の案内を読み上げる' : 'Read the next maneuver aloud';
+
+  /// The same control while the turn is not read aloud, when it is not
+  /// offered (2026-10-04). Until then it kept [maneuverNarrateButton]'s words
+  /// under 「読み上げません」. It says where reading stands in the word her line
+  /// uses for the same state ([maneuverGuidancePaused]: 保留), and it differs
+  /// from the offer from its first word, not only in a negation at its end.
+  String get maneuverNarrateButtonOnHold =>
+      _ja ? '読み上げは保留中です' : 'Reading aloud is on hold';
 
   /// After her press, when the announcement was DISPATCHED on both channels.
   ///

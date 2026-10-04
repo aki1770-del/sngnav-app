@@ -156,8 +156,24 @@ class ManeuverNarrationPanel extends StatelessWidget {
           : Text.rich(key: key, span, semanticsLabel: line, style: style);
     }
 
-    final buttonLabel = l.maneuverNarrateButton;
-    final last = lastNarration;
+    // The control is offered only when the gate would read the turn aloud,
+    // from the same decision the banner draws.
+    final canNarrate = preview.confidence != NarrationConfidence.suppressed;
+    final buttonLabel =
+        canNarrate ? l.maneuverNarrateButton : l.maneuverNarrateButtonOnHold;
+    // What her last press did is drawn only while it agrees with the banner
+    // about whether the turn is read aloud (2026-10-04). A press made while
+    // the turn was read aloud left 「音声と振動に送りました」 on the card, and
+    // after 停止, or when her position stopped being trusted, that line stayed
+    // under 「読み上げません」. Until the button was withdrawn in that state a
+    // press there replaced it; now nothing can, so the line is not drawn
+    // while the two disagree. The cost: a delivery warning from that earlier
+    // press is not drawn either while the turn is not read aloud; the
+    // drive-HUD chips above carry the same two channel facts.
+    final last = lastNarration != null &&
+            lastNarration!.shouldAnnounce == preview.shouldAnnounce
+        ? lastNarration
+        : null;
     final resultLine = last == null
         ? null
         : last.shouldAnnounce
@@ -298,8 +314,18 @@ class ManeuverNarrationPanel extends StatelessWidget {
           alignment: AlignmentDirectional.centerStart,
           child: ElevatedButton.icon(
             key: const Key('maneuver-narrate-button'),
-            onPressed: onNarrate,
-            icon: const Icon(Icons.record_voice_over),
+            // Not offered while the turn is not read aloud (2026-10-04). It
+            // was enabled under 「読み上げません」 and said 「次の案内を読み上げる」,
+            // offering on the same card what the banner had just said would
+            // not happen. The press was safe (the gate spoke nothing, and the
+            // line under it said so), but a label that contradicts its own
+            // banner leaves her to work out which of the two is true. It now
+            // says where reading stands, in the word her line uses (保留), and
+            // carries a crossed mark, so the state is in its words, its mark
+            // and whether it can be pressed.
+            onPressed: canNarrate ? onNarrate : null,
+            icon: Icon(
+                canNarrate ? Icons.record_voice_over : Icons.voice_over_off),
             label: drawn(buttonLabel, l.maneuverPanelPhrases(buttonLabel)),
           ),
         ),

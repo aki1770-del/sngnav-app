@@ -282,20 +282,39 @@ String _textOfKey(WidgetTester tester, String key) {
   return words;
 }
 
-Future<({String tier, String result, int spokenByPress})> _narration(
-    WidgetTester tester, FakeAlertActuators a) async {
+/// The next-turn section as she meets it: the banner's state, the button's
+/// words and whether it is offered, and, after a tap on it, what the card says
+/// her press did (null when nothing was drawn) and how many lines were spoken.
+/// Since 2026-10-04 the button is not offered while the turn is not read
+/// aloud, so a tap then draws nothing.
+Future<
+    ({
+      String tier,
+      String button,
+      bool offered,
+      String? result,
+      int spokenByPress,
+    })> _narration(WidgetTester tester, FakeAlertActuators a) async {
   final tier = _textOfKey(tester, 'maneuver-narration-tier');
   final before = a.spoken.length;
   final b = find.byKey(const Key('maneuver-narrate-button'));
   await tester.ensureVisible(b);
   await tester.pump();
-  await tester.tap(b);
+  final offered = tester.widget<ButtonStyleButton>(b).onPressed != null;
+  final button = wordsOf(tester
+      .widget<Text>(find.descendant(of: b, matching: find.byType(Text)).first));
+  expect(button, isNotEmpty, reason: 'the button draws no words');
+  await tester.tap(b, warnIfMissed: false);
   for (var i = 0; i < 5; i++) {
     await tester.pump();
   }
+  final drawn =
+      find.byKey(const Key('maneuver-narration-result')).evaluate().isNotEmpty;
   return (
     tier: tier,
-    result: _textOfKey(tester, 'maneuver-narration-result'),
+    button: button,
+    offered: offered,
+    result: drawn ? _textOfKey(tester, 'maneuver-narration-result') : null,
     spokenByPress: a.spoken.length - before,
   );
 }
@@ -393,6 +412,8 @@ void main() {
     final never = await _narration(tester, a);
     expect(never.spokenByPress, 0,
         reason: 'control: the never-shared driver hears no turn');
+    expect(never.offered, isFalse,
+        reason: 'control: the never-shared driver is not offered a reading');
 
     final p = _Positioned();
     a = await _boot(tester,
@@ -404,6 +425,10 @@ void main() {
     final sharing = await _narration(tester, a);
     expect(sharing.spokenByPress, greaterThan(0),
         reason: 'control: a trusted turn in the share is read aloud');
+    expect(sharing.offered, isTrue,
+        reason: 'control: a trusted turn in the share is offered');
+    expect(sharing.button, isNot(never.button),
+        reason: 'control: the button says something else when it is offered');
     await _tapStop(tester);
     for (final (at, step) in [
       ('just after 停止', const Duration(seconds: 1)),
@@ -412,6 +437,8 @@ void main() {
       await _advance(tester, step);
       final ended = await _narration(tester, a);
       expect(ended.tier, never.tier, reason: '$at: the banner\'s state');
+      expect(ended.button, never.button, reason: '$at: the button\'s words');
+      expect(ended.offered, never.offered, reason: '$at: whether it is offered');
       expect(ended.result, never.result, reason: '$at: what her press did');
       expect(ended.spokenByPress, 0, reason: '$at: no turn read aloud');
     }
