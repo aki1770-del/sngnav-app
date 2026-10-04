@@ -91,6 +91,12 @@ void main() {
       _ja.maneuverIcyMark,
       _ja.maneuverTestRoadConditionInForce,
       _ja.maneuverMeasuredRoadIceInForce,
+      // Under the banner (2026-10-04).
+      _ja.maneuverNarrateButton,
+      _ja.maneuverNarrationSent,
+      _ja.maneuverNarrationNotSpoken,
+      for (final (speech, haptic) in [(true, false), (false, true), (true, true)])
+        _ja.maneuverNarrationDeliveryUnverified(speech: speech, haptic: haptic),
     ];
     expect(lines.toSet(), kPanelPhrasesSpec.keys.toSet(),
         reason: 'the pinned lines are not the lines the panel draws');
@@ -107,6 +113,11 @@ void main() {
       _en.maneuverIcyMark,
       _en.maneuverTestRoadConditionInForce,
       _en.maneuverMeasuredRoadIceInForce,
+      _en.maneuverNarrateButton,
+      _en.maneuverNarrationSent,
+      _en.maneuverNarrationNotSpoken,
+      for (final (speech, haptic) in [(true, false), (false, true), (true, true)])
+        _en.maneuverNarrationDeliveryUnverified(speech: speech, haptic: haptic),
     ]) {
       expect(_en.maneuverPanelPhrases(line), isNull, reason: line);
     }

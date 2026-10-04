@@ -25,6 +25,14 @@
 ///        banner carries a joiner, and each carries its line.
 ///  R4-5  without a Japanese face the file refuses to run: kanji drawn as
 ///        boxes break where boxes break, and that measures character counts.
+///  R4-6  under the banner, after her press (added 2026-10-04): the button's
+///        words and each line saying what her press did begin every line at
+///        a phrase boundary, at the same five text sizes, and a screen reader
+///        reads them plain. Until then these never wrapped: they shared a row
+///        that gave them no width at all.
+///
+/// No exception of any kind is let through. Until 2026-10-04 a RenderFlex
+/// overflow was, for the narrate button's row; that row is fixed.
 ///
 /// The phrase boundaries come from test/support/maneuver_phrase_spec.dart,
 /// pinned apart from lib/, never from the app's own lists.
@@ -151,7 +159,13 @@ Widget _host(Widget child) => MaterialApp(
       ),
     );
 
-Future<void> _pumpCase(WidgetTester tester, _Case c) async {
+Future<void> _pumpCase(
+  WidgetTester tester,
+  _Case c, {
+  bool pressed = false,
+  bool speechUnverified = false,
+  bool hapticUnverified = false,
+}) async {
   final preview = _decide(c);
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pumpWidget(_host(SizedBox(
@@ -162,21 +176,32 @@ Future<void> _pumpCase(WidgetTester tester, _Case c) async {
       isMockPosition: false,
       icySource: c.ice,
       onNarrate: () {},
-      lastNarration: null,
-      speechUnverified: false,
-      hapticUnverified: false,
+      lastNarration: pressed ? preview : null,
+      speechUnverified: speechUnverified,
+      hapticUnverified: hapticUnverified,
     ),
   )));
   await tester.pump();
-  // The narrate button's row overflows the panel at large text sizes; that is
-  // named and held in test/widgets/maneuver_banner_states_test.dart, not here.
-  // Only that overflow is let through.
+  // No exception of any kind (2026-10-04). Until then the narrate button's
+  // row overflowed at large text sizes and that overflow was let through.
   final e = tester.takeException();
-  if (e != null) {
-    expect('$e', contains('A RenderFlex overflowed by'),
-        reason: '$c: an exception other than the known button-row overflow');
-  }
+  expect(e, isNull, reason: '$c: an exception: $e');
 }
+
+/// What R4-6 presses: each thing the card can say about her press.
+const _pressCases = [
+  ('nothing read', LocalizationMode.lost, false, false),
+  ('sent', LocalizationMode.gpsTrusted, false, false),
+  ('sent, voice unconfirmed', LocalizationMode.gpsTrusted, true, false),
+  ('sent, vibration unconfirmed', LocalizationMode.gpsTrusted, false, true),
+  ('sent, both unconfirmed', LocalizationMode.gpsTrusted, true, true),
+];
+
+const _buttonKey = Key('maneuver-narrate-button');
+const _underBanner = [
+  Key('maneuver-narration-result'),
+  Key('maneuver-narration-delivery-unverified'),
+];
 
 /// The first offset, in the PLAIN line, of every line [rp] lays out.
 ///
@@ -374,4 +399,118 @@ void main() {
     }
     handle.dispose();
   });
+
+  for (final scale in _scales) {
+    testWidgets(
+        'R4-6 at text size $scale, under the banner after her press: the '
+        "button's words and each line about her press begin between two "
+        'phrases, and a screen reader reads them plain', (tester) async {
+      final handle = tester.ensureSemantics();
+      tester.view.devicePixelRatio = _dpr;
+      tester.view.physicalSize = const Size(1080, 2340);
+      tester.platformDispatcher.textScaleFactorTestValue = scale;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+      var lines = 0;
+      final inside = <String>[];
+      final tooWide = <String>[];
+      final drawnSeen = <String>{};
+      for (final (name, mode, speech, haptic) in _pressCases) {
+        final c = _Case('right', mode, IcyTurnSource.none);
+        await _pumpCase(tester, c,
+            pressed: true, speechUnverified: speech, hapticUnverified: haptic);
+        // The button's words: its paragraphs, its icon's glyph excepted.
+        final iconTexts = find
+            .descendant(
+                of: find.byKey(_buttonKey), matching: find.byType(Icon))
+            .evaluate()
+            .expand((e) => find
+                .descendant(
+                    of: find.byWidget(e.widget),
+                    matching: find.byType(RichText))
+                .evaluate())
+            .map((e) => e.widget)
+            .toSet();
+        final paragraphs = <RenderParagraph>[
+          for (final e in find
+              .descendant(
+                  of: find.byKey(_buttonKey), matching: find.byType(RichText))
+              .evaluate())
+            if (!iconTexts.contains(e.widget)) e.renderObject! as RenderParagraph,
+          for (final k in _underBanner)
+            for (final e in find
+                .descendant(of: find.byKey(k), matching: find.byType(RichText))
+                .evaluate())
+              e.renderObject! as RenderParagraph,
+        ];
+        // The button and the result line, at least, in every case.
+        expect(paragraphs.length, greaterThanOrEqualTo(2),
+            reason: '$name at $scale: the lines under the banner were not '
+                'found. Not measured is a FAIL.');
+        for (final rp in paragraphs) {
+          final plain = _plain(rp.text.toPlainText());
+          final phrases = kPanelPhrasesSpec[plain];
+          expect(phrases, isNotNull,
+              reason: '$name at $scale: the panel draws "$plain" under the '
+                  'banner, a line the pinned spec does not know. Not measured '
+                  'is a FAIL.');
+          drawnSeen.add(plain);
+          final ok = phraseBoundaries(phrases!);
+          final starts = _lineStarts(rp);
+          lines += starts.length;
+          for (final s in starts.skip(1)) {
+            if (ok.contains(s)) continue;
+            var at = 0;
+            final p = phrases.firstWhere((p) {
+              final hit = s > at && s < at + p.length;
+              at += p.length;
+              return hit;
+            });
+            final tp = TextPainter(
+              text: TextSpan(text: p.trimRight(), style: rp.text.style),
+              textDirection: TextDirection.ltr,
+              textScaler: rp.textScaler,
+            )..layout();
+            final wide = tp.width > rp.constraints.maxWidth;
+            tp.dispose();
+            final shown = '${plain.substring(0, s)}｜${plain.substring(s)}';
+            (wide ? tooWide : inside).add('$name: $shown');
+          }
+          // A screen reader reads the plain line.
+          final node = tester.getSemantics(find.bySemanticsLabel(plain));
+          expect(node.label.contains(kSpecWordJoiner), isFalse,
+              reason: '$name at $scale: "$plain" is read with a joiner');
+        }
+      }
+      // Every line under the banner was met at least once.
+      expect(
+          drawnSeen,
+          containsAll(<String>[
+            _ja.maneuverNarrateButton,
+            _ja.maneuverNarrationSent,
+            _ja.maneuverNarrationNotSpoken,
+            _ja.maneuverNarrationDeliveryUnverified(speech: true, haptic: false),
+            _ja.maneuverNarrationDeliveryUnverified(speech: false, haptic: true),
+            _ja.maneuverNarrationDeliveryUnverified(speech: true, haptic: true),
+          ]),
+          reason: 'at $scale: a line under the banner was never drawn');
+      // ignore: avoid_print
+      print('R4-6 x$scale: ${_pressCases.length} presses, $lines lines under '
+          'the banner, ${inside.length} begin inside a phrase, '
+          '${tooWide.length} phrases too wide');
+      if (inside.isNotEmpty || tooWide.isNotEmpty) {
+        // ignore: avoid_print
+        print('  ${[...inside, ...tooWide].join('\n  ')}');
+      }
+      expect(inside, isEmpty,
+          reason: 'at $scale, ${inside.length} lines under the banner begin '
+              'inside a phrase');
+      expect(tooWide, isEmpty,
+          reason: 'at $scale, ${tooWide.length} phrases under the banner are '
+              'wider than their line');
+      handle.dispose();
+    });
+  }
 }

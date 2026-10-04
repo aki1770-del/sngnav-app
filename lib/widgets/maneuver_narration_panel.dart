@@ -156,6 +156,22 @@ class ManeuverNarrationPanel extends StatelessWidget {
           : Text.rich(key: key, span, semanticsLabel: line, style: style);
     }
 
+    final buttonLabel = l.maneuverNarrateButton;
+    final last = lastNarration;
+    final resultLine = last == null
+        ? null
+        : last.shouldAnnounce
+            ? l.maneuverNarrationSent
+            : l.maneuverNarrationNotSpoken;
+    final deliveryLine = last != null &&
+            last.shouldAnnounce &&
+            (speechUnverified || hapticUnverified)
+        ? l.maneuverNarrationDeliveryUnverified(
+            speech: speechUnverified,
+            haptic: hapticUnverified,
+          )
+        : null;
+
     // Not drawn since 2026-09-15, because they are for the people who build
     // the app and not for her: a paragraph naming the routing class, its
     // request flag and the gate's state names; a count of parsed maneuvers;
@@ -264,58 +280,60 @@ class ManeuverNarrationPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            ElevatedButton.icon(
-              key: const Key('maneuver-narrate-button'),
-              onPressed: onNarrate,
-              icon: const Icon(Icons.record_voice_over),
-              label: Text(l.maneuverNarrateButton),
-            ),
-            const SizedBox(width: 8),
-            if (lastNarration != null)
-              Expanded(
-                // `shouldAnnounce` is a PRE-DISPATCH gate verdict, not a
-                // delivery report: the announce is fire-and-forget and this
-                // widget is built before either channel has answered. So the
-                // first line says SENT, and the second says what the channels
-                // did or did not report. The drive-HUD chips hold the same two
-                // facts two Cards above; a driver reading this card is not
-                // reading those.
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      key: const Key('maneuver-narration-result'),
-                      lastNarration!.shouldAnnounce
-                          ? l.maneuverNarrationSent
-                          : l.maneuverNarrationNotSpoken,
-                      style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade700),
-                    ),
-                    if (lastNarration!.shouldAnnounce &&
-                        (speechUnverified || hapticUnverified)) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        key: const Key(
-                            'maneuver-narration-delivery-unverified'),
-                        l.maneuverNarrationDeliveryUnverified(
-                          speech: speechUnverified,
-                          haptic: hapticUnverified,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: kCautionTextOnAmber,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-          ],
+        // The control, then what her press did, each given the panel's whole
+        // width (2026-10-04). Until then the three shared one Row, and a Row
+        // lays out the button first, at its own unbounded width, and gives the
+        // lines what is left. Measured in the app at her geometry (the banner
+        // 328.7 dp): in Japanese the lines got 113.7 dp at text size 1.0,
+        // 55.7 dp at 1.5 and nothing at 2.0; in English 55.9 dp at 1.0, 4.5 dp
+        // at 1.3 and nothing at 1.5 and 2.0. A Text 0 dp wide is not clipped
+        // (its painter's width is clamped to the same 0, so no overflow is
+        // seen): each line was drawn one character per line beside the button,
+        // in English at 2.0 wholly past the edge of her screen. The row grew to
+        // as much as 2,360 dp around them, and the button she had just pressed
+        // moved as much as 1,156 dp down. In English at 2.0 the button itself
+        // ran 108 dp past the banner and 76 dp past her screen's edge.
+        // test/widgets/maneuver_press_result_test.dart holds all of it.
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: ElevatedButton.icon(
+            key: const Key('maneuver-narrate-button'),
+            onPressed: onNarrate,
+            icon: const Icon(Icons.record_voice_over),
+            label: drawn(buttonLabel, l.maneuverPanelPhrases(buttonLabel)),
+          ),
         ),
+        if (resultLine != null) ...[
+          const SizedBox(height: 4),
+          // `shouldAnnounce` is a PRE-DISPATCH gate verdict, not a delivery
+          // report: the announce is fire-and-forget and this widget is built
+          // before either channel has answered. So the first line says SENT,
+          // and the second says what the channels did or did not report. The
+          // drive-HUD chips hold the same two facts two Cards above; a driver
+          // reading this card is not reading those. Both are drawn so that a
+          // Japanese line breaks only between phrases: given the panel's width
+          // and drawn plain, at text size 2.0 the warning broke as
+          // 確認できていま｜せん, a first line that ends on the affirmative.
+          drawn(
+            resultLine,
+            l.maneuverPanelPhrases(resultLine),
+            key: const Key('maneuver-narration-result'),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          ),
+          if (deliveryLine != null) ...[
+            const SizedBox(height: 4),
+            drawn(
+              deliveryLine,
+              l.maneuverPanelPhrases(deliveryLine),
+              key: const Key('maneuver-narration-delivery-unverified'),
+              style: const TextStyle(
+                fontSize: 11,
+                color: kCautionTextOnAmber,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
       ],
     );
   }

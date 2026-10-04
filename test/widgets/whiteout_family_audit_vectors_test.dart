@@ -38,6 +38,7 @@ import 'package:sngnav_app/main.dart' show SngnavApp;
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 
 import '../support/fake_alert_actuators.dart';
+import '../support/plain_words.dart';
 
 const _hud = DriveHudLocalizer();
 const _words = AppL10n(Locale('ja'));
@@ -272,7 +273,13 @@ Future<void> _routeWithOneTurn(WidgetTester tester) async {
 String _textOfKey(WidgetTester tester, String key) {
   final f = find.byKey(Key(key));
   expect(f, findsOneWidget, reason: '$key is drawn');
-  return tester.widget<Text>(f).data ?? '';
+  // Through the words she reads (2026-10-04). The next-turn panel draws its
+  // state and the line about her press as spans, whose `data` is null; read
+  // as `data ?? ''`, every state was '' and W1's "same state as a share that
+  // never started" compared '' with '' on any screen.
+  final words = wordsOf(tester.widget<Text>(f));
+  expect(words, isNotEmpty, reason: '$key draws no words');
+  return words;
 }
 
 Future<({String tier, String result, int spokenByPress})> _narration(

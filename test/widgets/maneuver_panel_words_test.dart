@@ -214,7 +214,7 @@ void main() {
       expect(
           find.descendant(
               of: find.byKey(const Key('maneuver-narrate-button')),
-              matching: find.text(_button[lang]!)),
+              matching: findWords(_button[lang]!)),
           findsOneWidget);
       _expectNoDiagnostics(tester, '$lang before');
 

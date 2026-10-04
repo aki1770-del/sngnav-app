@@ -40,9 +40,11 @@ import 'package:sngnav_app/akita_map.dart';
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
+import 'package:sngnav_app/widgets/keep_together.dart' show plainOf;
 
 import '../support/fake_alert_actuators.dart';
 import '../support/painted_text_contrast.dart';
+import '../support/plain_words.dart';
 
 const _kResult = Key('maneuver-narration-result');
 const _kUnverified = Key('maneuver-narration-delivery-unverified');
@@ -181,7 +183,7 @@ Future<void> _pressNarrate(WidgetTester tester) async {
 String _unverifiedText(WidgetTester tester) {
   final f = find.byKey(_kUnverified);
   expect(f, findsOneWidget, reason: 'the unverified line is drawn');
-  return tester.widget<Text>(f).data ?? '';
+  return wordsOf(tester.widget<Text>(f));
 }
 
 void main() {
@@ -197,7 +199,7 @@ void main() {
     await _trustedFix(tester, positions);
     await _pressNarrate(tester);
 
-    expect(tester.widget<Text>(find.byKey(_kResult)).data, _sent['ja']);
+    expect(wordsOf(tester.widget<Text>(find.byKey(_kResult))), _sent['ja']);
     expect(find.byKey(_kUnverified), findsNothing,
         reason: 'a line that is always drawn tells her nothing');
     await positions.close();
@@ -228,7 +230,7 @@ void main() {
     expect(t, isNot(contains('音声')),
         reason: 'the voice reported fine; do not accuse it');
     // The first line is unchanged and still says SENT, never told.
-    expect(tester.widget<Text>(find.byKey(_kResult)).data, _sent['ja']);
+    expect(wordsOf(tester.widget<Text>(find.byKey(_kResult))), _sent['ja']);
     await positions.close();
   });
 
@@ -326,7 +328,7 @@ void main() {
     await _trustedFix(tester, positions);
     await _pressNarrate(tester);
 
-    expect(tester.widget<Text>(find.byKey(_kResult)).data, _sent['en']);
+    expect(wordsOf(tester.widget<Text>(find.byKey(_kResult))), _sent['en']);
     haptic.value = true;
     await tester.pump();
     expect(_unverifiedText(tester).toLowerCase(), contains('vibration'));
@@ -348,9 +350,16 @@ void main() {
     haptic.value = true;
     await tester.pump();
 
+    // Found by the line's key (2026-10-04): the line is drawn as one span per
+    // character so that it breaks only between phrases, and the helper
+    // reports each span on its own, so no single run contains the sentence.
     final painted = paintedTextOutsideMap(tester)
-        .where((p) => p.text.contains('確認できていません'))
+        .where((p) => p.key == 'maneuver-narration-delivery-unverified')
         .toList();
+    expect(
+        plainOf(painted.map((p) => p.text).join()),
+        contains('確認できていません'),
+        reason: 'precondition: the runs found are the delivery line');
     expect(painted, isNotEmpty,
         reason: 'precondition: the line is in the render tree');
     for (final p in painted) {

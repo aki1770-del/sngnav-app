@@ -195,7 +195,7 @@ void main() {
     expect(findWords(herLine), findsOneWidget);
     expect(find.text('${_ja.driveHudPositionTrustLabel}:'), findsOneWidget);
     expect(find.text(positionLabel), findsOneWidget);
-    expect(find.text(_ja.maneuverNarrateButton), findsOneWidget);
+    expect(findWords(_ja.maneuverNarrateButton), findsOneWidget);
     // No debug ribbon over the top-end corner of the stored render: a
     // release build never draws it, so the golden must not either.
     expect(find.byType(CheckedModeBanner), findsNothing);

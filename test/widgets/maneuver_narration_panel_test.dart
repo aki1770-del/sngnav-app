@@ -337,7 +337,7 @@ void main() {
     );
     final button = find.byKey(const Key('maneuver-narrate-button'));
     expect(button, findsOneWidget);
-    expect(find.text(_ja.maneuverNarrateButton), findsOneWidget);
+    expect(findWords(_ja.maneuverNarrateButton), findsOneWidget);
     await tester.tap(button);
     expect(narrated, 1);
     expect(find.byKey(const Key('maneuver-narration-result')), findsNothing);
@@ -355,7 +355,7 @@ void main() {
       mode: LocalizationMode.gpsTrusted,
       lastNarration: spoken,
     );
-    expect(find.text(_ja.maneuverNarrationSent), findsOneWidget);
+    expect(findWords(_ja.maneuverNarrationSent), findsOneWidget);
     expect(
       find.byKey(const Key('maneuver-narration-delivery-unverified')),
       findsNothing,
@@ -369,7 +369,7 @@ void main() {
       speechUnverified: true,
     );
     expect(
-      find.text(
+      findWords(
         _ja.maneuverNarrationDeliveryUnverified(speech: true, haptic: false),
       ),
       findsOneWidget,
@@ -384,7 +384,7 @@ void main() {
       lastNarration: silent,
       speechUnverified: true,
     );
-    expect(find.text(_ja.maneuverNarrationNotSpoken), findsOneWidget);
+    expect(findWords(_ja.maneuverNarrationNotSpoken), findsOneWidget);
     // Nothing was sent, so there is no delivery to call unverified.
     expect(
       find.byKey(const Key('maneuver-narration-delivery-unverified')),

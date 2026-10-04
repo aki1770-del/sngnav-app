@@ -73,8 +73,10 @@ List<String> herLinePhrasesSpec(
   ];
 }
 
-/// The banner's own lines: the three states, the paused line, the icy mark
-/// and the two lines that say where the icy mark came from.
+/// The panel's own lines: on the banner, the three states, the paused line,
+/// the icy mark and the two lines that say where the icy mark came from;
+/// under it (2026-10-04), the narrate button's words and the lines that say
+/// what her press did.
 const Map<String, List<String>> kPanelPhrasesSpec = {
   'そのまま読み上げます': ['そのまま', '読み上げます'],
   '確認をお願いして読み上げます': ['確認を', 'お願いして', '読み上げます'],
@@ -90,6 +92,14 @@ const Map<String, List<String>> kPanelPhrasesSpec = {
     '凍結の', '表示は', '気象庁の', '気温・湿度からの', '推定です', '（路面は', //
     '測定していません）',
   ],
+  '次の案内を読み上げる': ['次の', '案内を', '読み上げる'],
+  '音声と振動に送りました。': ['音声と', '振動に', '送りました。'],
+  '何も読み上げていません。': ['何も', '読み上げていません。'],
+  '音声も振動も、届いたか確認できていません。': [
+    '音声も', '振動も、', '届いたか', '確認できていません。', //
+  ],
+  '振動が届いたか確認できていません。': ['振動が', '届いたか', '確認できていません。'],
+  '音声が届いたか確認できていません。': ['音声が', '届いたか', '確認できていません。'],
 };
 
 /// U+2060 WORD JOINER, written here rather than imported, so that this spec

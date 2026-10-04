@@ -74,17 +74,20 @@ const double _dpr = 2.75;
 /// 2026-10-04 (outputs/hie/r128_golden_09_her_panel_2026_10_04/).
 const double _bannerWidthDp = 328.7;
 
-/// KNOWN, NOT THIS FILE'S, AND NOT HIDDEN. At her width the narrate button's
-/// row overflows the panel at text size 2.0, before and after the state marks
-/// (measured 2026-10-04 on both): in Japanese its trailing 8 dp gap runs
-/// 2.3 dp past the banner, in English the button itself runs 108 dp past it
-/// (and 22 dp at 1.5, a size this file does not render). Found by this file,
-/// not fixed by it; it is a surface change of its own.
+/// Overflows this file tolerates, by (language, text size). NONE since
+/// 2026-10-04, and an empty set means any exception FAILS.
 ///
-/// This file tolerates that overflow ONLY in the cases named here, and only
-/// when the button's row is measured to be the one past the banner. Any other
-/// exception fails. A named case that no longer overflows fails too, so the
-/// day the row is fixed this entry has to be deleted rather than left behind.
+/// Until then it named ('ja', 2.0) and ('en', 2.0): at her width the narrate
+/// button's row overflowed the panel, its trailing 8 dp gap 2.3 dp past the
+/// banner in Japanese, the button itself 108 dp past it in English. The row
+/// is fixed (the button and the lines under it now take the panel's width,
+/// test/widgets/maneuver_press_result_test.dart), the named cases stopped
+/// overflowing, and this file failed them until they were deleted, as it was
+/// written to.
+///
+/// The machinery stays, so that a case named here is still checked to be the
+/// button's row, still fails when it stops overflowing, and still has its
+/// debug label masked:
 ///
 /// In those cases Flutter's debug overflow label ("RIGHT OVERFLOWED BY ...",
 /// dark red #900000 on a white box, drawn turned on its side at the row's
@@ -93,7 +96,7 @@ const double _bannerWidthDp = 328.7;
 /// them, which no banner fill or ink is, and painted over with the banner's
 /// ground before anything is measured; the count is printed. Anywhere else, or
 /// touching the mark, it FAILS.
-final _knownButtonRowOverflow = {('ja', 2.0), ('en', 2.0)};
+final _knownButtonRowOverflow = <(String, double)>{};
 
 /// Whether [c] is one of the debug overflow label's pixels: white, #900000, or
 /// a blend of the two, on which green equals blue and red rises with them.

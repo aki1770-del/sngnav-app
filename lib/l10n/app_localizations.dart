@@ -547,8 +547,8 @@ class AppL10n {
   /// Beside a line that also says the turn may be icy.
   String get maneuverIcyMark => _ja ? '❄ 凍結のおそれ' : '❄ May be icy';
 
-  /// The phrases (文節) of one of the next-turn banner's own Japanese lines,
-  /// for DRAWING only (2026-10-04): the banner lets a line break between two
+  /// The phrases (文節) of one of the next-turn panel's own Japanese lines,
+  /// for DRAWING only (2026-10-04): the panel lets a line break between two
   /// phrases and never inside one (`lib/widgets/keep_together.dart`). Null in
   /// English, where a line breaks at its spaces, and for any other text. Keyed
   /// by the exact line, so a reworded line finds no list and is drawn plain;
@@ -572,6 +572,18 @@ class AppL10n {
       '凍結の', '表示は', '気象庁の', '気温・湿度からの', '推定です', '（路面は', //
       '測定していません）',
     ],
+    // Under the banner (2026-10-04): the control's words, and what her press
+    // did. Until then they shared a row that gave them too little width, or
+    // none; given the panel's width and drawn plain, at text size 2.0 the
+    // warning broke as 確認できていま｜せん, and at 1.5 as 確認できていませ｜ん.
+    '次の案内を読み上げる': ['次の', '案内を', '読み上げる'],
+    '音声と振動に送りました。': ['音声と', '振動に', '送りました。'],
+    '何も読み上げていません。': ['何も', '読み上げていません。'],
+    '音声も振動も、届いたか確認できていません。': [
+      '音声も', '振動も、', '届いたか', '確認できていません。', //
+    ],
+    '振動が届いたか確認できていません。': ['振動が', '届いたか', '確認できていません。'],
+    '音声が届いたか確認できていません。': ['音声が', '届いたか', '確認できていません。'],
   };
 
   /// The control that reads the next maneuver aloud, through the same gate.
