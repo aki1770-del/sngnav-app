@@ -439,14 +439,14 @@ void main() {
       ], 'N1');
     });
 
-    test('N2a a 90° right turn at 5 m/s (2 m/s² sideways)', () async {
-      // Straight 6 s, a quarter turn in 4 s (radius 12.7 m), straight 6 s.
-      // Fails a gate on sideways or vector acceleration set below a real
-      // turn: the turn is the moment narration exists for.
+    test('N2a a 90° right turn at 5 m/s (2.6 m/s² sideways)', () async {
+      // Straight 6 s, a quarter turn in 3 s at an intersection (radius 9.5 m),
+      // straight 6 s. Fails a gate on sideways or vector acceleration set
+      // below a real turn: the turn is the moment narration exists for.
       await _expectHonestDrive(
         _path([
           (seconds: 6, heading: 0, turnRate: 0, speed: 5),
-          (seconds: 4, heading: 0, turnRate: 22.5, speed: 5),
+          (seconds: 3, heading: 0, turnRate: 30, speed: 5),
           (seconds: 6, heading: 90, turnRate: 0, speed: 5),
         ]),
         'N2a',
