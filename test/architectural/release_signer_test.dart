@@ -181,6 +181,37 @@ void main() {
     );
   });
 
+  test('the .dev build types carry another launcher label', () {
+    // Two "SNGNav" icons on one phone are one glance from the wrong app
+    // (BIS round 2, N2).
+    final manifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    expect(manifest, contains(r'android:label="${appLabel}"'));
+    expect(gradle, contains('val herAppLabel = "SNGNav"'));
+    expect(gradle, contains('val devAppLabel = "@string/dev_app_label"'));
+    expect(gradle, contains('manifestPlaceholders["appLabel"] = herAppLabel'));
+    expect(gradle,
+        contains('if (devReleaseAllowed) manifestPlaceholders["appLabel"] = devAppLabel'));
+    expect(
+      RegExp(r'getByName\("profile"\)\s*\{\s*'
+              r'applicationIdSuffix = devApplicationIdSuffix\s*'
+              r'manifestPlaceholders\["appLabel"\] = devAppLabel')
+          .hasMatch(gradle),
+      isTrue,
+    );
+    expect('manifestPlaceholders["appLabel"] ='.allMatches(gradle).length, 3);
+    for (final dir in ['values', 'values-ja']) {
+      final xml = File('android/app/src/main/res/$dir/dev_app_label.xml')
+          .readAsStringSync();
+      final label = RegExp(r'<string name="dev_app_label"[^>]*>([^<]+)</string>')
+          .firstMatch(xml)?[1];
+      expect(label, isNotNull, reason: '$dir has no dev_app_label');
+      // Her label is "SNGNav"; the .dev label must differ in its FIRST word,
+      // so a launcher that truncates the end still shows the difference.
+      expect(label!.startsWith('SNGNav'), isFalse, reason: '$dir: $label');
+    }
+  });
+
   test('an injected signing property with an empty value is refused', () {
     expect(gradle, contains('fun emptyInjectedSigning(): List<String>'));
     // The predicate itself, over every property AGP reads: present AND empty.

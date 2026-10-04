@@ -83,6 +83,11 @@ if (hasReleaseKeystore) {
 // upload key would sign (it can only arrive as injected signing). A row in the
 // mint ledger also needs her package in the built bytes (appendMints).
 //
+// THE LAUNCHER LABEL. A .dev build installs beside hers, so her phone can show
+// two apps. It is labelled "DEV SNGNav" (開発用 SNGNav on a Japanese phone), not
+// "SNGNav", so a glance does not land on the wrong one. The icon is still the
+// same.
+//
 // NOT CLOSED HERE, said so plainly: debug builds keep her ID, because changing
 // it would change the app every emulator instrument drives by name. With her
 // phone attached, a debug `flutter run` takes the same uninstall-retry. And
@@ -97,6 +102,8 @@ if (hasReleaseKeystore) {
 val devApplicationIdSuffix = ".dev"
 val devReleaseValue: String? = System.getenv("SNGNAV_DEV_RELEASE")
 val devReleaseAllowed: Boolean = devReleaseValue == "1"
+val herAppLabel = "SNGNav"
+val devAppLabel = "@string/dev_app_label"
 
 android {
     namespace = "dev.aki1770del.sngnav_app"
@@ -124,6 +131,9 @@ android {
         // constant), so versionCode, versionName and gitSha all reach the
         // app from one source of truth: the installed package record.
         manifestPlaceholders["gitSha"] = gitSha
+        // Her launcher label (AndroidManifest.xml android:label). The .dev
+        // build types below replace it (see THE LAUNCHER LABEL above).
+        manifestPlaceholders["appLabel"] = herAppLabel
     }
 
     signingConfigs {
@@ -154,12 +164,14 @@ android {
             }
             // A development release is another app (see above).
             if (devReleaseAllowed) applicationIdSuffix = devApplicationIdSuffix
+            if (devReleaseAllowed) manifestPlaceholders["appLabel"] = devAppLabel
         }
         // The Flutter plugin creates the profile build type (initWith debug).
         // Profile builds are for measuring on a development device, so every
         // one is another app, whichever key signs it (see above).
         getByName("profile") {
             applicationIdSuffix = devApplicationIdSuffix
+            manifestPlaceholders["appLabel"] = devAppLabel
         }
     }
 }
