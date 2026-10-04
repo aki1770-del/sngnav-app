@@ -4,18 +4,29 @@
   status bar and in the notification shade for as long as a drive runs.
 
   Android draws a status bar icon from its alpha channel only, so this is a
-  white silhouette on a transparent ground: 24dp, the glyph centred and
-  spanning 0.98 to 23.02 of the 24 units, where the font places it.
+  white silhouette on a transparent ground: 24dp, on a 24-unit viewport.
 
-  The shape is the location glyph this app already draws on its
-  現在地に戻る control (Icons.my_location): the outline of U+E418 in the
-  MaterialIcons-Regular.otf that Flutter ships, scaled from 512 font units to
-  this 24-unit viewport and flipped to y-down. The app has no artwork of its
-  own to derive from: its launcher icon is still Flutter's template.
+  THE SHAPE IS A ROAD, AND IT IS DELIBERATELY NOT A LOCATION MARK. While any
+  app uses location, Android draws its own location indicator in the same
+  status bar. This icon used to be the location crosshair (Icons.my_location).
+  Seen on an Android 14 emulator with another app still using location: one
+  second after 停止, this app's icon was gone and Android's location pin
+  stayed. A driver who had learned "the location mark is my drive" could take
+  that pin for her drive, and its warnings, still running. A road is not a
+  location mark, it is not one of Android's status icons, and it is present
+  only while her drive is. test/drive_notification_icon_not_location_test.dart
+  fails if this shape is ever a location glyph again.
 
-  Material Icons by Google, licensed under CC BY 4.0
-  (https://creativecommons.org/licenses/by/4.0/). Changes: the one glyph,
-  rescaled, reflected vertically and filled white.
+  It is not a snowflake or a warning triangle on purpose: inside the app those
+  two mean "the road may be frozen" and "a caution is raised", and an icon
+  shown for every drive would claim them on every drive.
+
+  Two edges converging on the horizon, and a centre line of three dashes
+  that narrow with distance. Each piece is a separate filled shape; none
+  overlap, so no fill rule is needed.
+
+  Drawn for this app; derived from no font glyph or icon set. Licensed with
+  the rest of this repository (BSD 3-Clause, see LICENSE).
 
   geolocator finds this drawable by name at run time, so nothing in the APK
   refers to it; res/raw/keep.xml keeps it through release resource shrinking.
@@ -25,7 +36,16 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- left edge -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M12 8.016C9.797 8.016 8.016 9.797 8.016 12C8.016 14.203 9.797 15.984 12 15.984C14.203 15.984 15.984 14.203 15.984 12C15.984 9.797 14.203 8.016 12 8.016ZM20.953 11.016C20.484 6.844 17.156 3.516 12.984 3.047V0.984H11.016V3.047C6.844 3.516 3.516 6.844 3.047 11.016H0.984V12.984H3.047C3.516 17.156 6.844 20.484 11.016 20.953V23.016H12.984V20.953C17.156 20.484 20.484 17.156 20.953 12.984H23.016V11.016H20.953ZM12 18.984C8.109 18.984 5.016 15.891 5.016 12C5.016 8.109 8.109 5.016 12 5.016C15.891 5.016 18.984 8.109 18.984 12C18.984 15.891 15.891 18.984 12 18.984Z" />
+        android:pathData="M8.4,2.5 L10.4,2.5 L6.2,21.5 L2.2,21.5 Z" />
+    <!-- right edge -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M13.6,2.5 L15.6,2.5 L21.8,21.5 L17.8,21.5 Z" />
+    <!-- centre line: near, middle and far dash -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M10.75,15.2 L13.25,15.2 L13.25,21.5 L10.75,21.5 Z M11.1,8.6 L12.9,8.6 L12.9,12.9 L11.1,12.9 Z M11.5,3.0 L12.5,3.0 L12.5,6.4 L11.5,6.4 Z" />
 </vector>
