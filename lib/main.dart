@@ -106,6 +106,8 @@ import 'services/drive_diary.dart';
 import 'services/drive_hud_localizer.dart';
 import 'widgets/update_notice.dart';
 import 'widgets/keep_together.dart';
+import 'widgets/kv_row.dart';
+import 'widgets/maneuver_narration_panel.dart';
 import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
 import 'services/turmoil_watch.dart';
@@ -617,22 +619,6 @@ FeedLossVerdict feedLossVerdict({
     );
   }
   return FeedLossRetainedQuiet(ageMinutes: ageMinutes);
-}
-
-/// Where the icy-turn mark's truth comes from.
-///
-/// The mark and the spoken line are the same shape either way; what differs is
-/// what her card is ENTITLED to say about the road, and whether the voice
-/// carries the test-value prefix.
-enum _IcyTurnSource {
-  /// No ice reaches the next turn.
-  none,
-
-  /// A MEASURED radiative-frost watch, from the live JMA observation.
-  measured,
-
-  /// The simulated road condition, which only the development page can set.
-  testValue,
 }
 
 class SngnavApp extends StatelessWidget {
@@ -4200,16 +4186,16 @@ class _HomePageState extends State<HomePage> {
   /// PRECEDENCE: a measured watch outranks a test value, because when it fires
   /// the mark IS justified by an observation. A test value can still raise the
   /// mark on its own, and then the card says so.
-  _IcyTurnSource _icyTurnSource() {
+  IcyTurnSource _icyTurnSource() {
     if (_invisibleIceResult == InvisibleIceWatchResult.watch) {
-      return _IcyTurnSource.measured;
+      return IcyTurnSource.measured;
     }
     // Couple the icy-turn advisory ONLY on a genuinely slippery surface — NOT
     // on any heightened-caution state. A dry-road gpsSuspect must never raise a
     // false CRITICAL "the turn may be icy / 路面が凍結"; low visibility is warned
     // separately by the drive HUD, not mis-narrated as ice here.
-    if (isSlipperySurface(_condition)) return _IcyTurnSource.testValue;
-    return _IcyTurnSource.none;
+    if (isSlipperySurface(_condition)) return IcyTurnSource.testValue;
+    return IcyTurnSource.none;
   }
 
   /// Narrate the next maneuver through the drive HUD's announcer, GATED on the
@@ -4221,7 +4207,7 @@ class _HomePageState extends State<HomePage> {
     final icySource = _icyTurnSource();
     final decision = _driveHud.narrateNextManeuver(
       next,
-      icyTurn: icySource != _IcyTurnSource.none,
+      icyTurn: icySource != IcyTurnSource.none,
       positionIsThisShares: _driveHudPositionIsThisDrives,
       // The spoken test-value prefix belongs to a value nobody measured. Until
       // 2026-09-23 this was hardcoded `true`, which was correct while the
@@ -4229,7 +4215,7 @@ class _HomePageState extends State<HomePage> {
       // watch must not carry it: prefixing a real observation with "test value"
       // is the same defect as calling a test value measured, pointed the other
       // way.
-      icyTurnFromTestValue: icySource == _IcyTurnSource.testValue,
+      icyTurnFromTestValue: icySource == IcyTurnSource.testValue,
     );
     setState(() => _lastManeuverNarration = decision);
   }
@@ -5307,44 +5293,10 @@ class _HomePageState extends State<HomePage> {
 
   /// Key/value row with an adaptive label column.
   ///
-  /// Ladder fix (a) — the old fixed 110-px label column mangled long
-  /// labels: 路面凍結ウォッチ wrapped MID-WORD (ladder_out/api30/03_jma_card.png)
-  /// and the threshold-preview labels stacked one word per line
-  /// (05b_airplane_top.png). The label is now measured at the live text
-  /// scale: short labels keep the exact 110-px column (no visual change),
-  /// longer ones take their natural single-line width, capped at 60% of the
-  /// row so the value column always keeps room (word-boundary wrap beyond
-  /// the cap — never a forced mid-word break at 110).
-  Widget _kv(String k, String v) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
-      child: LayoutBuilder(builder: (context, constraints) {
-        final labelStyle = TextStyle(color: Colors.grey.shade700);
-        final painter = TextPainter(
-          text: TextSpan(
-            text: '$k:',
-            style: DefaultTextStyle.of(context).style.merge(labelStyle),
-          ),
-          textDirection: Directionality.of(context),
-          textScaler: MediaQuery.textScalerOf(context),
-        )..layout();
-        var labelWidth = painter.width + 8; // breathing room before value
-        painter.dispose();
-        if (labelWidth < 110) labelWidth = 110;
-        if (constraints.hasBoundedWidth &&
-            labelWidth > constraints.maxWidth * 0.6) {
-          labelWidth = constraints.maxWidth * 0.6;
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(width: labelWidth, child: Text('$k:', style: labelStyle)),
-            Expanded(child: Text(v)),
-          ],
-        );
-      }),
-    );
-  }
+  /// One label and its value on one row. The body is `kvRow` in
+  /// lib/widgets/kv_row.dart (2026-10-04), so the next-turn panel, now its
+  /// own widget, draws its position row with the same code as every row here.
+  Widget _kv(String k, String v) => kvRow(k, v);
 
   /// Renders the rolling LoomFitTelemetry record list as
   /// development-class observability. Article 17 (β) discipline:
@@ -6386,9 +6338,9 @@ class _HomePageState extends State<HomePage> {
 
   /// (e) The next maneuver, narrated ONLY when the honest position allows it.
   ///
-  /// The panel reflects the SAME gate the announcer uses, so what is shown
-  /// on-screen matches what would be spoken — including SUPPRESSION, because a
-  /// wrong "turn right" is confidently-wrong whether heard OR seen.
+  /// The panel is `ManeuverNarrationPanel` (lib/widgets/, 2026-10-04). This
+  /// method reads the app's state for it, or draws the placeholder when there
+  /// is no next maneuver.
   Widget _maneuverNarrationPanel() {
     final next = _nextManeuver;
     if (next == null) {
@@ -6409,181 +6361,18 @@ class _HomePageState extends State<HomePage> {
         _driveHudPositionIsThisDrives ? _driveHud.estimate?.mode : null;
     final icySource = _icyTurnSource();
     final preview = _driveHud.previewNextManeuver(next,
-        icyTurn: icySource != _IcyTurnSource.none,
+        icyTurn: icySource != IcyTurnSource.none,
         positionIsThisShares: _driveHudPositionIsThisDrives);
 
-    // The banner's state in the app's language (2026-09-15). Until then it was
-    // the gate's internal name and an English reason in every language; the
-    // reason is carried by the position row above and by her line.
-    final l = AppL10n.of(context);
-    final (Color bg, Color fg, String tier) = switch (preview.confidence) {
-      NarrationConfidence.speak => (
-          Colors.green.shade100,
-          Colors.green.shade900,
-          l.maneuverTierSpeak,
-        ),
-      // amber.shade900 here was 2.38:1 (2026-09-15). No position the app
-      // gives the drive brain reaches this state today, so no rendered test
-      // reaches it; kCautionTextOnAmber on amber.shade100 is 7.16:1.
-      NarrationConfidence.hedge => (
-          Colors.amber.shade100,
-          kCautionTextOnAmber,
-          l.maneuverTierHedge,
-        ),
-      NarrationConfidence.suppressed => (
-          Colors.blueGrey.shade100,
-          Colors.blueGrey.shade900,
-          l.maneuverTierSuppressed,
-        ),
-    };
-
-    // When suppressed there is NO maneuver phrase to show (the decision carries
-    // empty text by construction) — show the honest "guidance paused" line, not
-    // a turn.
-    // In the app's resolved locale (2026-09-14; was a Japanese literal on every
-    // device), like the narration text it stands in for.
-    final herLine = preview.confidence == NarrationConfidence.suppressed
-        ? l.maneuverGuidancePaused
-        : preview.text;
-
-    // Not drawn since 2026-09-15, because they are for the people who build
-    // the app and not for her: a paragraph naming the routing class, its
-    // request flag and the gate's state names; a count of parsed maneuvers;
-    // and a note that turn timing and hearing are unverified in this
-    // environment. That bound is recorded in KNOWN_LIMITATIONS.md.
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (mode != null)
-          // The THIRD modeLabel site, and the
-          // one an earlier change missed. It carries the SAME 現在地の信頼度 label as the
-          // drive card's trust row, and nothing about a route depends on the
-          // position being real — _fetchRoute (:3351) returns only on a missing
-          // tapped origin or destination, then on her routing consent; it never
-          // reads the position. Until this line took isMock, a route set with the
-          // mock in force put two honesty labels for one fabricated fix on one
-          // screen: the card said テスト位置, this panel said GPS 良好.
-          _kv(
-              l.driveHudPositionTrustLabel,
-              _driveHudText.modeLabel(mode, l.locale.languageCode,
-                  isMock: _isMockPosition)),
-        // NOTE: the raw ENGLISH engine instruction is deliberately NOT rendered
-        // to the driver — it would both leak English to a JA driver and show a
-        // confident "turn" string even when the position gate suppresses it.
-        // The driver sees only the gated, JA-localized narration banner below.
-        const SizedBox(height: 8),
-        Container(
-          key: const Key('maneuver-narration-banner'),
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                key: const Key('maneuver-narration-tier'),
-                tier,
-                style: TextStyle(
-                  color: fg,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(herLine, style: TextStyle(color: fg, fontSize: 15)),
-              if (preview.icyCoupled &&
-                  preview.confidence != NarrationConfidence.suppressed) ...[
-                const SizedBox(height: 4),
-                Text(
-                  l.maneuverIcyMark,
-                  style: TextStyle(
-                    color: fg,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                // THE MARK'S PROVENANCE, in the same glance as the mark.
-                // Until 2026-09-23 this line said "test value" unconditionally,
-                // which was true while a test value was the only thing that
-                // could reach the mark. A measured radiative-frost watch can
-                // now, and telling her the road was not measured when it WAS
-                // would be this same defect inverted. Exactly one of the two
-                // renders, and which one is the answer to "why am I being told
-                // this turn is icy?".
-                if (icySource == _IcyTurnSource.measured)
-                  Text(
-                    key: const Key('maneuver-measured-road-ice'),
-                    l.maneuverMeasuredRoadIceInForce,
-                    style: TextStyle(color: fg, fontSize: 12),
-                  )
-                else
-                  Text(
-                    key: const Key('maneuver-test-road-condition'),
-                    l.maneuverTestRoadConditionInForce,
-                    style: TextStyle(color: fg, fontSize: 12),
-                  ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            ElevatedButton.icon(
-              key: const Key('maneuver-narrate-button'),
-              onPressed: _narrateNextManeuver,
-              icon: const Icon(Icons.record_voice_over),
-              label: Text(l.maneuverNarrateButton),
-            ),
-            const SizedBox(width: 8),
-            if (_lastManeuverNarration != null)
-              Expanded(
-                // `shouldAnnounce` is a PRE-DISPATCH gate verdict, not a
-                // delivery report: the announce is fire-and-forget and this
-                // widget is built before either channel has answered. So the
-                // first line says SENT, and the second says what the channels
-                // did or did not report. The drive-HUD chips hold the same two
-                // facts two Cards above; a driver reading this card is not
-                // reading those.
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      key: const Key('maneuver-narration-result'),
-                      _lastManeuverNarration!.shouldAnnounce
-                          ? l.maneuverNarrationSent
-                          : l.maneuverNarrationNotSpoken,
-                      style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade700),
-                    ),
-                    if (_lastManeuverNarration!.shouldAnnounce &&
-                        (_speechUnverified.value ||
-                            _hapticUnverified.value)) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        key: const Key(
-                            'maneuver-narration-delivery-unverified'),
-                        l.maneuverNarrationDeliveryUnverified(
-                          speech: _speechUnverified.value,
-                          haptic: _hapticUnverified.value,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: kCautionTextOnAmber,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ],
+    return ManeuverNarrationPanel(
+      preview: preview,
+      mode: mode,
+      isMockPosition: _isMockPosition,
+      icySource: icySource,
+      onNarrate: _narrateNextManeuver,
+      lastNarration: _lastManeuverNarration,
+      speechUnverified: _speechUnverified.value,
+      hapticUnverified: _hapticUnverified.value,
     );
   }
 
