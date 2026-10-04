@@ -102,15 +102,12 @@ enum _IcyTurnSource {
 /// hedge arm had painted its words in `kCautionTextOnAmber` (7.16:1 on
 /// `amber.shade100`) since 2026-09-15, and this copy still painted
 /// `amber.shade900` (2.38:1), so golden 09 showed a contrast the app no
-/// longer had. The copy also differed from the app in three places no golden
-/// showed yet: a position row drawn even with no position, no test-position
-/// label, and no line saying where an icy mark came from. From the confidence
-/// `switch` to the end of the banner, the code below is now the app's own,
+/// longer had. The copy also differed from the app in four places no golden
+/// showed yet: a fixed 110 px label column where the app measures the label,
+/// a position row drawn even with no position, no test-position label, and no
+/// line saying where an icy mark came from. From the confidence `switch` to
+/// the end of the banner, and in `_kv`, the code below is now the app's own,
 /// and `maneuver_panel_copy_is_the_app_panel_test.dart` compares the two.
-///
-/// One difference is kept, and it shows in all three goldens: `_kv` below
-/// still draws a fixed 110 px label column where the app's measures the
-/// label (115 px here). See the comment on `_kv`.
 ///
 /// What the copy still leaves out, on purpose and named here: the
 /// narrate-button row under the banner, the `_section` card and title the
@@ -135,24 +132,34 @@ class _ManeuverNarrationPanelCopy {
 
   static const DriveHudLocalizer _driveHudText = DriveHudLocalizer();
 
-  // NOT the app's `_kv` yet. The app measures the label and gives it a
-  // column at least 110 px wide: 115 px for this label under the capture
-  // theme (107 px of text + 8). This copy still fixes the column at 110 px,
-  // because correcting it moves goldens 07 and 08 as well, and this change
-  // was scoped to golden 09. The copy-drift test names it as a skipped case.
   Widget _kv(String k, String v) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 110,
-            child: Text('$k:', style: TextStyle(color: Colors.grey.shade700)),
+      child: LayoutBuilder(builder: (context, constraints) {
+        final labelStyle = TextStyle(color: Colors.grey.shade700);
+        final painter = TextPainter(
+          text: TextSpan(
+            text: '$k:',
+            style: DefaultTextStyle.of(context).style.merge(labelStyle),
           ),
-          Expanded(child: Text(v)),
-        ],
-      ),
+          textDirection: Directionality.of(context),
+          textScaler: MediaQuery.textScalerOf(context),
+        )..layout();
+        var labelWidth = painter.width + 8; // breathing room before value
+        painter.dispose();
+        if (labelWidth < 110) labelWidth = 110;
+        if (constraints.hasBoundedWidth &&
+            labelWidth > constraints.maxWidth * 0.6) {
+          labelWidth = constraints.maxWidth * 0.6;
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(width: labelWidth, child: Text('$k:', style: labelStyle)),
+            Expanded(child: Text(v)),
+          ],
+        );
+      }),
     );
   }
 

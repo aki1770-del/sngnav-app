@@ -19,8 +19,7 @@
 /// comments and layout are removed:
 ///  1. the drawn region of the panel, from the `switch` on
 ///     `preview.confidence` to the end of the banner `Container`;
-///  2. the `_kv` helper that draws the position row (skipped while a known
-///     difference is held; the skip names it);
+///  2. the `_kv` helper that draws the position row;
 ///  3. the localizer the position row is worded by.
 /// It also pins what the copy leaves out on purpose: after the banner the app
 /// draws only the narrate-button row, and nothing after that. A new line
@@ -246,26 +245,17 @@ void main() {
     );
   });
 
-  test(
-    'the position row is drawn by the app\'s own _kv',
-    () {
-      final a = _normalize(_kvHelper(app, file: _appPath));
-      final c = _normalize(_kvHelper(copy, file: _copyPath));
-      expect(
-        c,
-        a,
-        reason:
-            'The copy lays out the position row differently from the '
-            'app. ${_firstDifference(a, c)}\n$_remedy',
-      );
-    },
-    skip:
-        'KNOWN DRIFT, held: the copy\'s _kv fixes the label column at '
-        '110 px; the app measures it, and draws 115 px for this label '
-        'under the capture theme. Correcting it moves goldens 07 and 08 as '
-        'well as 09, beyond the change that re-copied the hedge colour. '
-        'Remove this skip when the copy takes the app\'s _kv.',
-  );
+  test('the position row is drawn by the app\'s own _kv', () {
+    final a = _normalize(_kvHelper(app, file: _appPath));
+    final c = _normalize(_kvHelper(copy, file: _copyPath));
+    expect(
+      c,
+      a,
+      reason:
+          'The copy lays out the position row differently from the '
+          'app. ${_firstDifference(a, c)}\n$_remedy',
+    );
+  });
 
   test('the position row is worded by the app\'s own localizer', () {
     const decl =
