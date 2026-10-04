@@ -25,6 +25,11 @@
 ///        banner carries a joiner, and each carries its line.
 ///  R4-5  without a Japanese face the file refuses to run: kanji drawn as
 ///        boxes break where boxes break, and that measures character counts.
+///  R4-7  in a turn read with a check, the turn never ends a line: its の is
+///        on the same line (added 2026-10-04). At text size 2.0 「この先 右折」
+///        stood alone on its line, with 「の可能性が」 on the next, and read as
+///        the plain instruction the hedged line exists not to give. Not finding
+///        the turn, or checking none, FAILS.
 ///  R4-6  under the banner, after her press (added 2026-10-04): the button's
 ///        words and each line saying what her press did begin every line at
 ///        a phrase boundary, at the same five text sizes, and a screen reader
@@ -80,7 +85,9 @@ const _markKey = Key('maneuver-narration-state-mark');
 const _narrator = ManeuverNarrator(text: DriveHudLocalizer());
 const _ja = AppL10n(Locale('ja'));
 
-String _plain(String drawn) => drawn.replaceAll(kSpecWordJoiner, '');
+String _plain(String drawn) => drawn
+    .replaceAll(kSpecWordJoiner, '')
+    .replaceAll(kSpecNoBreakSpace, ' ');
 
 class _Case {
   _Case(this.type, this.mode, this.ice);
@@ -280,6 +287,8 @@ void main() {
       var tallestCase = '';
       final inside = <String>[];
       final tooWide = <String>[];
+      final endsOnTurn = <String>[];
+      var turnsChecked = 0;
       for (final c in _cases) {
         await _pumpCase(tester, c);
         final expected = _expectedLines(c);
@@ -303,6 +312,20 @@ void main() {
           final ok = phraseBoundaries(phrases!);
           final starts = _lineStarts(rp);
           lines += starts.length;
+          // R4-7, on her line in a turn read with a check.
+          if (c.hedged && c.type != 'arrive' && plain.startsWith('現在地が')) {
+            final m = RegExp(r'この先 (.+?) の可能性').firstMatch(plain);
+            expect(m, isNotNull,
+                reason: '$c at $scale: R4-7 could not find the turn in '
+                    '"$plain". Not measured is a FAIL.');
+            final turnEnd = m!.start + 'この先 '.length + m.group(1)!.length - 1;
+            final no = m.end - 'の可能性'.length;
+            int lineOf(int k) => starts.where((s) => s <= k).length;
+            if (lineOf(turnEnd) != lineOf(no)) {
+              endsOnTurn.add('$c: ${plain.substring(0, no)}｜${plain.substring(no)}');
+            }
+            turnsChecked++;
+          }
           for (final s in starts.skip(1)) {
             if (ok.contains(s)) continue;
             // Which phrase does the line begin inside, and is it wider than
@@ -348,6 +371,14 @@ void main() {
         print('lines that begin inside a phrase, as she reads them '
             '(｜ marks a line break):\n  ${[...inside, ...tooWide].take(40).join('\n  ')}');
       }
+      // ignore: avoid_print
+      print('R4-7 x$scale: $turnsChecked hedged turns, ${endsOnTurn.length} '
+          'end a line on the turn${endsOnTurn.isEmpty ? '' : ':\n  ${endsOnTurn.take(10).join('\n  ')}'}');
+      expect(turnsChecked, greaterThan(0),
+          reason: 'R4-7 checked no hedged turn at $scale: it measured nothing');
+      expect(endsOnTurn, isEmpty,
+          reason: 'at text size $scale, ${endsOnTurn.length} hedged turns end '
+              'a line on the turn itself');
       expect(inside, isEmpty,
           reason: 'at text size $scale, ${inside.length} lines begin inside a '
               'phrase');

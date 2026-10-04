@@ -105,7 +105,9 @@ class KeepTogetherText extends StatelessWidget {
 /// own theme: the same joiners in a plain string, as [keepTogether] writes
 /// them, made 83 of 83 banner lines wider than the plain line; through this
 /// span, 0 of 83 differ by a byte. A space at the end of a phrase stays a
-/// space, so a line may break after it.
+/// space, so a line may break after it. A space inside a phrase is drawn as
+/// [kNoBreakSpace]: the engine breaks at an ordinary space whatever its
+/// neighbours, as [kNoBreakSpace]'s own note records.
 ///
 /// For DRAWING only: pass the plain [line] as the semantics label.
 TextSpan? keepPhrasesTogether(String line, List<String>? phrases) {
@@ -116,8 +118,10 @@ TextSpan? keepPhrasesTogether(String line, List<String>? phrases) {
   for (final phrase in phrases) {
     final chars = phrase.characters.toList();
     for (var i = 0; i < chars.length; i++) {
-      children.add(TextSpan(text: chars[i]));
-      if (i < chars.length - 1) children.add(joiner);
+      final inside = i < chars.length - 1;
+      children.add(TextSpan(
+          text: inside && chars[i] == ' ' ? kNoBreakSpace : chars[i]));
+      if (inside) children.add(joiner);
     }
   }
   return TextSpan(children: children);

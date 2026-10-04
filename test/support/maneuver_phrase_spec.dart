@@ -60,8 +60,10 @@ List<String> herLinePhrasesSpec(
       '位置を', 'ご確認ください。',
     ];
   } else {
+    // The turn and its の are one phrase, 「右折の」 (2026-10-04), so that no
+    // line ends on the turn itself.
     line = [
-      '現在地が', '不確かです。', 'この先 ', '$noun ', 'の可能性が', //
+      '現在地が', '不確かです。', 'この先 ', '$noun の', '可能性が', //
       'ありますが、', '位置を', 'ご確認のうえ', 'ご判断ください。',
     ];
   }
@@ -118,7 +120,15 @@ Set<int> phraseBoundaries(List<String> phrases) {
   return out..remove(at);
 }
 
-/// [phrases] with a word joiner between the characters of each phrase.
+/// U+00A0 NO-BREAK SPACE, written here for the same reason.
+const String kSpecNoBreakSpace = '\u00A0';
+
+/// [phrases] with a word joiner between the characters of each phrase, and a
+/// space inside a phrase as a no-break space.
 String joinedSpec(List<String> phrases) => [
-      for (final p in phrases) p.split('').join(kSpecWordJoiner),
+      for (final p in phrases)
+        [
+          for (var i = 0; i < p.length; i++)
+            i < p.length - 1 && p[i] == ' ' ? kSpecNoBreakSpace : p[i],
+        ].join(kSpecWordJoiner),
     ].join();

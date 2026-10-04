@@ -364,8 +364,14 @@ class DriveHudLocalizer {
         '位置を', 'ご確認ください。',
       ];
     } else {
+      // The turn and its の are one phrase (文節), 「右折の」 (2026-10-04). They
+      // were two, '$noun ' and 'の可能性が', so a line could end on the turn:
+      // at text size 2.0 「この先 右折」 stood alone on its line and read as
+      // the plain instruction this line exists not to give. A line may now
+      // end on 「…右折 の」, which reads as unfinished. The space the builder
+      // puts between them is drawn as a no-break space (keepPhrasesTogether).
       line = [
-        '現在地が', '不確かです。', 'この先 ', '$noun ', 'の可能性が', //
+        '現在地が', '不確かです。', 'この先 ', '$noun の', '可能性が', //
         'ありますが、', '位置を', 'ご確認のうえ', 'ご判断ください。',
       ];
     }
