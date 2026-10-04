@@ -24,9 +24,9 @@
 # (Gate 5 added 2026-08-10 after a second pass found the defect it catches
 #  was ALREADY LIVE in this repo and had been for a month — see its own header.)
 #
-#   1. SIGNATURE — android/app/build.gradle.kts:65-69 falls back to DEBUG keys
-#      when android/key.properties is absent. That fallback is a development
-#      convenience and it is silent. A debug-signed bundle is rejected by Play,
+#   1. SIGNATURE — android/app/build.gradle.kts configures the DEBUG key when
+#      android/key.properties is absent, and its assertReleaseSigner refuses
+#      that build unless SNGNAV_DEV_RELEASE=1. A debug-signed bundle is rejected by Play,
 #      and worse, an upload signed by the WRONG release key can never be undone:
 #      the first artifact accepted on a track pins the upload identity forever.
 #   2. targetSdk — from 2026-08-31 Play requires new apps and updates to target

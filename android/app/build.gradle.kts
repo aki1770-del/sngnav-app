@@ -1,6 +1,6 @@
 import java.util.Properties
 import java.io.FileInputStream
-import java.security.MessageDigest
+import java.security.MessageDigest; import java.security.KeyStore; import java.security.cert.X509Certificate
 import java.time.Instant
 
 plugins {
@@ -11,8 +11,8 @@ plugins {
 
 // Release signing (see BETA_PLAN.md): reads android/key.properties when present
 // (keystore + key.properties are the maintainer's secrets, NEVER committed —
-// key.properties is gitignored). Absent the file, release falls back to
-// debug keys so `flutter run --release` keeps working for development.
+// key.properties is gitignored). Absent it, release is configured with the
+// debug key, and assertReleaseSigner refuses it unless SNGNAV_DEV_RELEASE=1.
 // BIS A-2 (ruling 2026-09-24) -- the git SHA is DERIVED BY GRADLE ON EVERY
 // BUILD, never typed and never checked in. `--dart-define` was REJECTED by
 // that ruling: `String.fromEnvironment` silently defaults to '' and
@@ -92,11 +92,11 @@ android {
 
     buildTypes {
         release {
-            // Real release signing when android/key.properties exists
-            // (Play-track builds); debug keys otherwise so
-            // `flutter run --release` works in development. A Play upload
-            // with debug keys is rejected by the store, so the fallback
-            // cannot silently ship.
+            // The key named in android/key.properties when it exists; the
+            // debug key otherwise. A debug-signed APK installs by sideload
+            // like any other, so this fallback CAN ship: assertReleaseSigner
+            // (below) refuses it, and every key but the upload key, before
+            // packaging, unless SNGNAV_DEV_RELEASE=1 (a development build).
             signingConfig = if (hasReleaseKeystore) {
                 signingConfigs.getByName("release")
             } else {
@@ -509,6 +509,225 @@ androidComponents {
 tasks.configureEach {
     if (name == "packageRelease") finalizedBy("recordMintedReleaseApk")
     if (name == "signReleaseBundle") finalizedBy("recordMintedReleaseBundle")
+}
+
+// ⚑ RELEASE SIGNER: a release build is signed by the upload key, or it stops
+// before anything is packaged.
+//
+// WHY. Builds of this app reach phones by sideload: `adb install`, or a tap on
+// the file in Download/. Play has received none (tool/
+// play_uploaded_version_codes.txt holds no code). Android installs a
+// debug-signed APK as readily as any other, and an installed app takes an
+// update only from the certificate that signed it. So a release APK signed by
+// the debug key or a test key either cannot update the build on her phone or,
+// installed first, blocks every upload-signed fix after it until the app is
+// uninstalled, which deletes its data. The one check that refused a debug
+// signature, check_signer in tool/preflight_play_upload.sh, runs only in CI's
+// release-apk job, which runs only on manual dispatch. Read 2026-10-04: the
+// repository holds 0 Actions secrets, and 0 of its 133 workflow runs were
+// dispatched. Every build for a phone is made on a laptop, and there a
+// debug-signed release build printed one quiet line and succeeded.
+//
+// WHAT. A task on preReleaseBuild, the seam the version-code floor uses, so it
+// runs for `flutter build apk` / `appbundle`, `flutter run --release`,
+// assembleRelease, bundleRelease and installRelease, and for Android Studio's
+// "Generate Signed Bundle / APK". It reads the certificate AGP will sign with,
+// in AGP's own order (injected signing when all four android.injected.signing.*
+// properties are set, else the release signingConfig, i.e. android/
+// key.properties or the debug key), and compares its SHA-256 with tool/
+// upload_key_certificate_sha256. Anything else is refused, and the refusal
+// says why and what to do instead.
+//
+// THE DEVELOPMENT LINE. Gradle cannot tell `flutter run --release` from
+// `flutter build apk --release`: the flutter tool runs the same assembleRelease
+// for both (flutter_tools gradle.dart; only -Ptarget-platform differs), and
+// both leave the same app-release.apk behind. So the line is the developer's
+// own word: SNGNAV_DEV_RELEASE=1 in the environment allows a release build
+// signed by another key, and every such build says, at the level
+// `flutter build` prints, that its artifact is not for her phone. Debug builds
+// are untouched. A profile build is signed with the debug key by the Flutter
+// plugin (initWith debug); it is not refused, and it says so on every run.
+//
+// WHY THE DIGEST AND NOT THE NAME. check_signer accepts any certificate whose
+// owner contains "CN=SNGNav Upload", and any throwaway key can carry that name.
+// A certificate's SHA-256 names one key.
+//
+// BOUNDS. This reads the keystore the build is configured with, not the bytes
+// it produces, and AGP's order is read from AGP 9.1.0. It cannot see an APK
+// built before this gate existed or on another machine; whoever stages a file
+// for a phone still reads its signer from the file (apksigner verify
+// --print-certs).
+val uploadKeyPinFile: File = rootProject.file("../tool/upload_key_certificate_sha256")
+val devReleaseValue: String? = System.getenv("SNGNAV_DEV_RELEASE")
+val devReleaseAllowed: Boolean = devReleaseValue == "1"
+
+class SignerSource(
+    val describe: String,
+    val debugKeyByConstruction: Boolean,
+    val store: File?,
+    val storePassword: String?,
+    val keyAlias: String?,
+    val storeType: String?,
+)
+
+class SignerCert(val subject: String, val sha256: String)
+
+fun injectedSigning(name: String): String? =
+    (findProperty("android.injected.signing.$name") as String?)?.takeIf { it.isNotEmpty() }
+
+// The key a build type will be signed with, in AGP's order: the injected
+// config overrides the build type's own when all four properties are present
+// (AGP ignores an incomplete set, and so does this).
+fun signerSourceFor(buildType: String): SignerSource {
+    val storeFile = injectedSigning("store.file")
+    val storePassword = injectedSigning("store.password")
+    val keyAlias = injectedSigning("key.alias")
+    val keyPassword = injectedSigning("key.password")
+    if (storeFile != null && storePassword != null && keyAlias != null && keyPassword != null) {
+        return SignerSource(
+            "injected signing (android.injected.signing.*)", false,
+            file(storeFile), storePassword, keyAlias, injectedSigning("store.type"),
+        )
+    }
+    val partial = if (storeFile != null) {
+        " (android.injected.signing.store.file is set without all four " +
+            "android.injected.signing.* properties, so AGP ignores injected signing)"
+    } else {
+        ""
+    }
+    val debugConfig = android.signingConfigs.getByName("debug")
+    val config = android.buildTypes.getByName(buildType).signingConfig
+    if (config == null || config === debugConfig) {
+        val store = debugConfig.storeFile
+            ?: File(System.getProperty("user.home"), ".android/debug.keystore")
+        val reason = if (buildType == "release") {
+            "there is no android/key.properties and no injected signing"
+        } else {
+            "the $buildType build type's own signing config, with no injected signing"
+        }
+        return SignerSource(
+            "the debug keystore ($reason)$partial",
+            true, store, debugConfig.storePassword ?: "android",
+            debugConfig.keyAlias ?: "androiddebugkey", debugConfig.storeType,
+        )
+    }
+    return SignerSource(
+        "android/key.properties$partial", false,
+        config.storeFile, config.storePassword, config.keyAlias, config.storeType,
+    )
+}
+
+fun readSignerCert(s: SignerSource): SignerCert {
+    val store = s.store ?: throw GradleException("no keystore file is configured")
+    if (!store.isFile) throw GradleException("${store.path} is not a file")
+    val password = (s.storePassword ?: "").toCharArray()
+    val keyStore = if (s.storeType.isNullOrBlank()) {
+        KeyStore.getInstance(store, password)
+    } else {
+        KeyStore.getInstance(s.storeType).apply {
+            store.inputStream().use { load(it, password) }
+        }
+    }
+    val alias = s.keyAlias ?: throw GradleException("no key alias is configured")
+    val cert = keyStore.getCertificate(alias) as? X509Certificate
+        ?: throw GradleException("${store.path} holds no certificate under the alias \"$alias\"")
+    val sha = MessageDigest.getInstance("SHA-256").digest(cert.encoded)
+        .joinToString("") { "%02x".format(it) }
+    return SignerCert(cert.subjectX500Principal.toString(), sha)
+}
+
+// The pinned digest: the file's only line that is neither blank nor a comment.
+fun readUploadKeyPin(f: File): String {
+    if (!f.isFile) throw GradleException("${f.path} is missing")
+    val lines = f.readLines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
+    val line = lines.singleOrNull()
+        ?: throw GradleException("${f.path} must hold exactly one digest line and holds ${lines.size}")
+    val digest = line.replace(":", "").lowercase()
+    if (!Regex("^[0-9a-f]{64}$").matches(digest)) {
+        throw GradleException("${f.path}: \"$line\" is not a SHA-256 digest")
+    }
+    return digest
+}
+
+fun describeSigner(source: SignerSource, cert: Result<SignerCert>): String =
+    cert.fold(
+        { "${it.subject} (certificate SHA-256 ${it.sha256}), from ${source.describe}" },
+        { "a key whose certificate could not be read (${it.message}), from ${source.describe}" },
+    )
+
+val assertReleaseSigner = tasks.register("assertReleaseSigner") {
+    group = "verification"
+    description = "Refuses a release build that is not signed by the upload key " +
+        "(SNGNAV_DEV_RELEASE=1 allows one for development, and says so)."
+    val source = signerSourceFor("release")
+    val pinFile = uploadKeyPinFile
+    val allowed = devReleaseAllowed
+    val envValue = devReleaseValue
+    mustRunAfter(assertVersionIdentity)
+    doLast {
+        val pin = runCatching { readUploadKeyPin(pinFile) }
+        val cert = runCatching { readSignerCert(source) }
+        val c = cert.getOrNull()
+        val debugKey = source.debugKeyByConstruction || c?.subject?.contains("CN=Android Debug") == true
+        if (!debugKey && c != null && pin.getOrNull() == c.sha256) {
+            logger.quiet(
+                "RELEASE SIGNER OK: signed by ${c.subject}, the upload key (certificate SHA-256 " +
+                    "${c.sha256} matches tool/upload_key_certificate_sha256), from ${source.describe}" +
+                    (if (allowed) "; SNGNAV_DEV_RELEASE=1 changes nothing for this build" else "")
+            )
+            return@doLast
+        }
+        val why = when {
+            debugKey -> "would be signed with the debug key: ${describeSigner(source, cert)}"
+            c == null -> "would be signed by ${describeSigner(source, cert)}, so its signer cannot be confirmed"
+            pin.isFailure -> "would be signed by ${describeSigner(source, cert)}, and the upload key's " +
+                "digest cannot be read (${pin.exceptionOrNull()?.message}), so it cannot be confirmed as the upload key"
+            else -> "would be signed by ${describeSigner(source, cert)}, which is not the upload key " +
+                "(tool/upload_key_certificate_sha256: ${pin.getOrNull()})"
+        }
+        if (allowed) {
+            logger.quiet(
+                "RELEASE SIGNER: NOT THE UPLOAD KEY, allowed because SNGNAV_DEV_RELEASE=1 says this is a " +
+                    "development build. This release build $why. Its APK or bundle must not be installed " +
+                    "on a phone that holds an SNGNav release, or handed on: that phone would refuse " +
+                    "every upload-signed update until the app is uninstalled, which deletes its data."
+            )
+            return@doLast
+        }
+        val refusal = "RELEASE SIGNER: refused before packaging. This release build $why.\n" +
+            "An installed app takes an update only from the certificate that signed it, and builds of " +
+            "this app reach phones by sideload. A release signed by any other key cannot update the app " +
+            "on her phone, or, installed first, blocks every upload-signed fix until the app is " +
+            "uninstalled, which deletes its data.\n" +
+            "To build for a phone: sign with the upload key, through android/key.properties or Android " +
+            "Studio's \"Generate Signed Bundle / APK\".\n" +
+            "To build release mode for development on your own device or an emulator, say so:\n" +
+            "    SNGNAV_DEV_RELEASE=1 flutter run --release" +
+            (if (envValue != null) "\n(SNGNAV_DEV_RELEASE is set to \"$envValue\"; only 1 allows a development build.)" else "")
+        throw GradleException(refusal)
+    }
+}
+assertVersionCodeUnspent.configure { mustRunAfter(assertReleaseSigner) }
+
+val reportProfileSigner = tasks.register("reportProfileSigner") {
+    group = "verification"
+    description = "Says which key signs a profile build. A profile build is not refused."
+    val source = signerSourceFor("profile")
+    doLast {
+        logger.quiet(
+            "RELEASE SIGNER: a profile build is not refused. It is signed by " +
+                "${describeSigner(source, runCatching { readSignerCert(source) })}. It is for measuring " +
+                "on a development device; do not install it on a phone that holds an SNGNav release."
+        )
+    }
+}
+tasks.configureEach {
+    if (name == "preReleaseBuild") {
+        dependsOn(assertReleaseSigner)
+    }
+    if (name == "preProfileBuild") {
+        dependsOn(reportProfileSigner)
+    }
 }
 
 kotlin {

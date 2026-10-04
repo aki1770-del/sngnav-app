@@ -598,10 +598,10 @@ jobs:
   # So this job cannot sign until the maintainer adds:
   #   ANDROID_KEYSTORE_BASE64  - base64 of android/app/upload-keystore.jks
   #   ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_PASSWORD, ANDROID_KEY_ALIAS
-  # Until then the job FAILS LOUDLY on the guard below. That is the intent: the
-  # alternative is gradle's dev-convenience fallback quietly debug-signing an
-  # artifact labelled "release", which is precisely the thing we must never hand
-  # to a stranger.
+  # Until then the job FAILS LOUDLY on the guard below. Without the secrets, gradle
+  # would configure the debug key and its own assertReleaseSigner would refuse the
+  # build; before that gate (2026-10-04) it quietly debug-signed an artifact
+  # labelled "release", the thing we must never hand to a stranger.
   # ---------------------------------------------------------------------------
   release-apk:
     if: github.event_name == 'workflow_dispatch'
@@ -719,8 +719,8 @@ jobs:
         run: |
           if [ -z "$KS" ]; then
             echo "::error::ANDROID_KEYSTORE_BASE64 is not set."
-            echo "Refusing to build: without it, gradle falls back to DEBUG keys"
-            echo "and would produce a debug-signed APK labelled 'release'."
+            echo "Refusing to build: without it, gradle configures the DEBUG key,"
+            echo "and its release-signer gate would refuse the build anyway."
             echo "Add the keystore secrets, or build locally where key.properties exists."
             exit 1
           fi
