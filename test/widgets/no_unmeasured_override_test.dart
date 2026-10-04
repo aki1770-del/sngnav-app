@@ -63,6 +63,7 @@ import 'package:sngnav_app/main.dart' show SngnavApp;
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 
 import '../support/fake_alert_actuators.dart';
+import '../support/plain_words.dart';
 import '../support/rung_on_card.dart';
 
 const _hud = DriveHudLocalizer();
@@ -447,7 +448,7 @@ bool _toldBare(FakeAlertActuators a, String line) {
 }
 
 String _textOf(WidgetTester tester, Key key) =>
-    tester.widget<Text>(find.byKey(key)).data ?? '';
+    wordsOf(tester.widget<Text>(find.byKey(key)));
 
 void main() {
   // ================================================== (O1) the demo band ====
@@ -1119,7 +1120,7 @@ void main() {
           }
           final icy = find.descendant(
             of: turnCard(),
-            matching: find.textContaining('凍結のおそれ'),
+            matching: findWordsContaining('凍結のおそれ'),
           );
           expect(
             _drawn(icy),

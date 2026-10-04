@@ -81,6 +81,7 @@ import 'package:sngnav_app/services/maneuver_narration.dart';
 import 'package:sngnav_app/widgets/maneuver_narration_panel.dart';
 
 import '../support/fake_alert_actuators.dart';
+import '../support/plain_words.dart';
 
 /// The driver-facing localizer the narrator words its line with (JA by default).
 const _text = DriveHudLocalizer();
@@ -188,11 +189,10 @@ void main() {
     // The words this golden shows, checked as words, so a harness that drew
     // another language or another state goes red on CI too.
     expect(
-        tester
-            .widget<Text>(find.byKey(const Key('maneuver-narration-tier')))
-            .data,
+        wordsOf(tester
+            .widget<Text>(find.byKey(const Key('maneuver-narration-tier')))),
         tier);
-    expect(find.text(herLine), findsOneWidget);
+    expect(findWords(herLine), findsOneWidget);
     expect(find.text('${_ja.driveHudPositionTrustLabel}:'), findsOneWidget);
     expect(find.text(positionLabel), findsOneWidget);
     expect(find.text(_ja.maneuverNarrateButton), findsOneWidget);

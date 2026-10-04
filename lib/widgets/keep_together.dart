@@ -87,3 +87,38 @@ class KeepTogetherText extends StatelessWidget {
     );
   }
 }
+
+/// [line] as a span to DRAW, in which a line may break only between two of
+/// its [phrases] (文節), never inside one; null when [phrases] is null or does
+/// not spell [line] exactly, and then the caller draws the plain line, never
+/// other words.
+///
+/// The sibling of [keepTogether] for a line that must not split anywhere but
+/// at chosen boundaries, rather than at a few named words (2026-10-04, the
+/// next-turn banner). At her width its lines broke inside 可能｜性, ご判｜断 and
+/// （現｜在地, and where they broke moved with every text size, so no list of
+/// words and no shorter wording held from 1.0 to 2.0.
+///
+/// Each joiner is a span of its own with no letter spacing. A joiner has no
+/// width, but a theme's letter spacing (Material 3 body text adds 0.25 after
+/// every character) is added after it too. Measured 2026-10-04 in the app's
+/// own theme: the same joiners in a plain string, as [keepTogether] writes
+/// them, made 83 of 83 banner lines wider than the plain line; through this
+/// span, 0 of 83 differ by a byte. A space at the end of a phrase stays a
+/// space, so a line may break after it.
+///
+/// For DRAWING only: pass the plain [line] as the semantics label.
+TextSpan? keepPhrasesTogether(String line, List<String>? phrases) {
+  if (phrases == null || phrases.join() != line) return null;
+  const joiner =
+      TextSpan(text: kWordJoiner, style: TextStyle(letterSpacing: 0));
+  final children = <InlineSpan>[];
+  for (final phrase in phrases) {
+    final chars = phrase.characters.toList();
+    for (var i = 0; i < chars.length; i++) {
+      children.add(TextSpan(text: chars[i]));
+      if (i < chars.length - 1) children.add(joiner);
+    }
+  }
+  return TextSpan(children: children);
+}

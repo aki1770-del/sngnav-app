@@ -34,6 +34,7 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
+import '../support/plain_words.dart';
 import '../support/rung_on_card.dart';
 
 final _start = DateTime.utc(2026, 1, 14, 21);
@@ -320,12 +321,12 @@ void main() {
           latitude: 39.7186, longitude: 140.1024, accuracyMeters: 10,
           timestamp: _clockNow));
       await _settle(tester);
-      expect(find.textContaining(_speakTier), findsOneWidget,
+      expect(findWordsContaining(_speakTier), findsOneWidget,
           reason: 'control: a trusted fix of this share narrates as trusted');
       await _tapStop(tester);
       await _advance(tester, const Duration(seconds: 5));
       await _tapShare(tester);
-      expect(find.textContaining(_speakTier), findsNothing);
+      expect(findWordsContaining(_speakTier), findsNothing);
       await positions.close();
     });
 
@@ -338,13 +339,13 @@ void main() {
           latitude: 39.7186, longitude: 140.1024, accuracyMeters: 10,
           timestamp: _clockNow));
       await _settle(tester);
-      expect(find.textContaining(_speakTier), findsOneWidget,
+      expect(findWordsContaining(_speakTier), findsOneWidget,
           reason: 'control: a trusted fix of this share narrates as trusted');
       await _tapStop(tester);
       await _advance(tester, const Duration(seconds: 5));
       await _tapShare(tester);
       await _advance(tester, const Duration(seconds: 1));
-      expect(find.textContaining(_speakTier), findsNothing);
+      expect(findWordsContaining(_speakTier), findsNothing);
       await positions.close();
     });
   });

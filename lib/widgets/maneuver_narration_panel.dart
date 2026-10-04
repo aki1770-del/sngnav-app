@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../services/drive_hud_localizer.dart';
 import '../services/maneuver_narration.dart';
 import 'advisory_cards.dart' show kCautionTextOnAmber;
+import 'keep_together.dart';
 import 'kv_row.dart';
 
 /// Where the icy-turn mark's truth comes from.
@@ -135,6 +136,25 @@ class ManeuverNarrationPanel extends StatelessWidget {
     final herLine = preview.confidence == NarrationConfidence.suppressed
         ? l.maneuverGuidancePaused
         : preview.text;
+    // Each Japanese line is DRAWN so that it breaks only between two phrases
+    // (2026-10-04, keep_together.dart): at her width it broke inside 可能｜性,
+    // ご判｜断 and （現｜在地, and where it broke moved with her text size. What
+    // she hears and what a screen reader reads are the plain lines.
+    final herPhrases = preview.confidence == NarrationConfidence.suppressed
+        ? l.maneuverPanelPhrases(herLine)
+        : _driveHudText.maneuverLinePhrases(
+            preview.routeManeuver.type,
+            l.locale.languageCode,
+            hedged: preview.confidence == NarrationConfidence.hedge,
+            icy: preview.icyCoupled,
+          );
+    Text drawn(String line, List<String>? phrases,
+        {Key? key, TextStyle? style}) {
+      final span = keepPhrasesTogether(line, phrases);
+      return span == null
+          ? Text(key: key, line, style: style)
+          : Text.rich(key: key, span, semanticsLabel: line, style: style);
+    }
 
     // Not drawn since 2026-09-15, because they are for the people who build
     // the app and not for her: a paragraph naming the routing class, its
@@ -189,9 +209,10 @@ class ManeuverNarrationPanel extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Expanded(
-                    child: Text(
-                      key: const Key('maneuver-narration-tier'),
+                    child: drawn(
                       tier,
+                      l.maneuverPanelPhrases(tier),
+                      key: const Key('maneuver-narration-tier'),
                       style: TextStyle(
                         color: fg,
                         fontSize: 13,
@@ -202,12 +223,14 @@ class ManeuverNarrationPanel extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              Text(herLine, style: TextStyle(color: fg, fontSize: 15)),
+              drawn(herLine, herPhrases,
+                  style: TextStyle(color: fg, fontSize: 15)),
               if (preview.icyCoupled &&
                   preview.confidence != NarrationConfidence.suppressed) ...[
                 const SizedBox(height: 4),
-                Text(
+                drawn(
                   l.maneuverIcyMark,
+                  l.maneuverPanelPhrases(l.maneuverIcyMark),
                   style: TextStyle(
                     color: fg,
                     fontSize: 12,
@@ -223,15 +246,17 @@ class ManeuverNarrationPanel extends StatelessWidget {
                 // renders, and which one is the answer to "why am I being told
                 // this turn is icy?".
                 if (icySource == IcyTurnSource.measured)
-                  Text(
-                    key: const Key('maneuver-measured-road-ice'),
+                  drawn(
                     l.maneuverMeasuredRoadIceInForce,
+                    l.maneuverPanelPhrases(l.maneuverMeasuredRoadIceInForce),
+                    key: const Key('maneuver-measured-road-ice'),
                     style: TextStyle(color: fg, fontSize: 12),
                   )
                 else
-                  Text(
-                    key: const Key('maneuver-test-road-condition'),
+                  drawn(
                     l.maneuverTestRoadConditionInForce,
+                    l.maneuverPanelPhrases(l.maneuverTestRoadConditionInForce),
+                    key: const Key('maneuver-test-road-condition'),
                     style: TextStyle(color: fg, fontSize: 12),
                   ),
               ],

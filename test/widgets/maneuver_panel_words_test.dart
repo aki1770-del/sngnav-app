@@ -31,6 +31,7 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
+import '../support/plain_words.dart';
 
 // Two of the banner's three states, the button, and what her press did. The
 // third state, a position that is only suspect, is reached by no position the
@@ -171,15 +172,13 @@ List<String> _cardTexts(WidgetTester tester) => [
       for (final e in find
           .descendant(of: _card(), matching: find.byType(Text))
           .evaluate())
-        (e.widget as Text).data ??
-            (e.widget as Text).textSpan?.toPlainText() ??
-            '',
+        wordsOf(e.widget as Text),
     ];
 
 String _textOfKey(WidgetTester tester, String key) {
   final f = find.byKey(Key(key));
   expect(f, findsOneWidget, reason: '$key is drawn');
-  return tester.widget<Text>(f).data ?? '';
+  return wordsOf(tester.widget<Text>(f));
 }
 
 void _expectNoDiagnostics(WidgetTester tester, String when) {

@@ -329,4 +329,51 @@ class DriveHudLocalizer {
         ? '$maneuverText この曲がり角は路面が凍結している可能性があります。'
         : '$maneuverText The turn may be icy.';
   }
+
+  /// The phrases (文節) of the Japanese line [maneuverInstruction] builds for
+  /// [type] ([hedgedManeuverInstruction] when [hedged]; with
+  /// [icyManeuverCoupling] when [icy]), for DRAWING only (2026-10-04): the
+  /// next-turn banner lets a line break between two phrases and never inside
+  /// one (`lib/widgets/keep_together.dart`). Null in English, where a line
+  /// breaks at its spaces.
+  ///
+  /// The builders above are what she HEARS and are not built from these. A
+  /// caller draws a list only when it spells the spoken line exactly, and
+  /// otherwise the plain line; `test/l10n/maneuver_phrases_spell_the_line_test.dart`
+  /// holds every type to that. A line may break where the sentence already
+  /// has a space, and between two phrases.
+  List<String>? maneuverLinePhrases(
+    String type,
+    String localeTag, {
+    required bool hedged,
+    required bool icy,
+  }) {
+    if (!_isJa(localeTag)) return null;
+    final noun = _maneuverNoun(type, true);
+    final List<String> line;
+    if (!hedged) {
+      line = switch (type) {
+        'depart' => const ['ルート案内を', '開始します。'],
+        'arrive' => const ['まもなく', '目的地です。'],
+        'straight' => const ['このまま', '直進します。'],
+        _ => ['この先、', '$noun ', 'です。'],
+      };
+    } else if (type == 'arrive') {
+      line = const [
+        '現在地が', '不確かですが、', 'まもなく', '目的地の', '付近です。', //
+        '位置を', 'ご確認ください。',
+      ];
+    } else {
+      line = [
+        '現在地が', '不確かです。', 'この先 ', '$noun ', 'の可能性が', //
+        'ありますが、', '位置を', 'ご確認のうえ', 'ご判断ください。',
+      ];
+    }
+    if (!icy) return line;
+    return [
+      ...line.sublist(0, line.length - 1),
+      '${line.last} ',
+      'この曲がり角は', '路面が', '凍結している', '可能性が', 'あります。', //
+    ];
+  }
 }
