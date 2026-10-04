@@ -750,7 +750,9 @@ echo "-- gate 1/5  signature of the BUNDLE (every signer, against tool/upload_ke
 signer_out="$(keytool -printcert -jarfile "$AAB" 2>/dev/null)"
 upload_pin="$(pin_digest "$(cat "$PIN_FILE" 2>/dev/null)")"
 if check_signer "$upload_pin" "$signer_out"; then
-  note "OK  one signer, certificate SHA-256 $upload_pin = tool/upload_key_certificate_sha256"
+  # The digest READ from the bundle, not the pin: the line is evidence only if
+  # it comes from the bytes.
+  note "OK  one signer, certificate SHA-256 $(signer_digests "$signer_out") read from the bundle = tool/upload_key_certificate_sha256"
   note "    $(printf '%s\n' "$signer_out" | grep -m1 '^Owner:')"
   note "    $(printf '%s\n' "$signer_out" | grep -m1 '^Valid from:')"
 else
