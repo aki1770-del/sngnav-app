@@ -13,6 +13,8 @@ import 'package:localization_fallback/localization_fallback.dart';
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/services/drive_safety_fusion.dart';
 
+import '../support/assessed_fix.dart';
+
 void main() {
   final t0 = DateTime.utc(2026, 1, 1, 8, 0, 0);
   PositionAvailable fix(DateTime t, {double acc = 15}) => PositionAvailable(
@@ -37,6 +39,7 @@ void main() {
   group('DriveLocalizer.onPositionFix — honest position, never a wrong dot', () {
     test('a trusted PositionAvailable → gpsTrusted, confident, plottable', () {
       final loc = DriveLocalizer();
+      loc.wouldTrust(justBefore(fix(t0)));
       final e = loc.onPositionFix(fix(t0), t0);
       expect(e.mode, LocalizationMode.gpsTrusted);
       expect(e.isConfident, isTrue);
@@ -57,6 +60,7 @@ void main() {
         'trusted fix then PositionUnavailable 200 s later (revoked mid-drive) → '
         'lost, held last-known, never confident', () {
       final loc = DriveLocalizer();
+      loc.wouldTrust(justBefore(fix(t0)));
       loc.onPositionFix(fix(t0), t0);
       final e = loc.onPositionFix(
         const PositionUnavailable('revoked'),
@@ -72,6 +76,7 @@ void main() {
 
     test('a blackout poll grows the confidence radius (never shrinks)', () {
       final loc = DriveLocalizer();
+      loc.wouldTrust(justBefore(fix(t0, acc: 20)));
       loc.onPositionFix(fix(t0, acc: 20), t0);
       final r30 = loc.poll(t0.add(const Duration(seconds: 30)))
           .confidenceRadiusMeters;

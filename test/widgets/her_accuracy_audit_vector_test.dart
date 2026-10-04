@@ -55,6 +55,22 @@ void main() {
       for (var i = 0; i < 5; i++) {
         await tester.pump();
       }
+      // A share's first fix is held (decided 2026-10-05): the same fix
+      // one second earlier comes first, and the fix below is judged.
+      platform.add(Position(
+        latitude: 39.7186,
+        longitude: 140.1024,
+        timestamp: start.subtract(const Duration(seconds: 1)),
+        accuracy: 0,
+        hasAccuracy: true,
+        altitude: 0,
+        altitudeAccuracy: 0,
+        heading: 0,
+        headingAccuracy: 0,
+        speed: 0,
+        speedAccuracy: 0,
+      ));
+      await tester.pump();
       platform.add(Position(
         latitude: 39.7186,
         longitude: 140.1024,

@@ -20,6 +20,7 @@ import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/services/drive_hud_controller.dart';
 import 'package:sngnav_app/services/measured_hazard_floor.dart';
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 
 Future<void> settle() => Future<void>.delayed(Duration.zero);
@@ -51,6 +52,7 @@ void main() {
       speedMetersPerSecond: null,
       measuredHazard: MeasuredWeatherHazard.blackIce,
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
 
@@ -80,6 +82,7 @@ void main() {
       speedMetersPerSecond: null,
       measuredHazard: MeasuredWeatherHazard.blackIce,
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0); // trusted baseline
     await settle();
     // Trusted + clear + hazard → heightened, shown-not-spoken.
@@ -111,6 +114,7 @@ void main() {
       speedMetersPerSecond: null,
       measuredHazard: MeasuredWeatherHazard.turmoil,
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
     // pc0 + vc3 (whiteout) → advisor considerStopping already; floor (heightened,
@@ -131,6 +135,7 @@ void main() {
       speedMetersPerSecond: null,
       // measuredHazard omitted → stays none
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
     expect(c.effectiveAction, DriveAction.continueDriving);
@@ -151,6 +156,7 @@ void main() {
       speedMetersPerSecond: null,
       measuredHazard: MeasuredWeatherHazard.blackIce,
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
     expect(c.advice!.action, DriveAction.heightenedCaution);
@@ -175,6 +181,7 @@ void main() {
       speedMetersPerSecond: null,
       measuredHazard: MeasuredWeatherHazard.blackIce,
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
     expect(c.effectiveAction, DriveAction.heightenedCaution);
@@ -210,6 +217,7 @@ void main() {
       speedMetersPerSecond: null,
       measuredHazard: MeasuredWeatherHazard.blackIce,
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
     expect(c.effectiveAction, DriveAction.heightenedCaution);
@@ -236,6 +244,7 @@ void main() {
       advisorySeverity: null,
       speedMetersPerSecond: null,
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
     expect(c.effectiveAction, DriveAction.continueDriving);
@@ -264,6 +273,7 @@ void main() {
       advisorySeverity: null,
       speedMetersPerSecond: null,
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
     expect(c.advice!.action, DriveAction.heightenedCaution);
@@ -294,6 +304,7 @@ void main() {
       speedMetersPerSecond: null,
       measuredHazard: MeasuredWeatherHazard.blackIce,
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0); // trusted baseline
     // Short blackout → dead-reckoning (NOT yet lost): the advisor alone is
     // heightened (degraded position, clear vis), so considerStopping here can

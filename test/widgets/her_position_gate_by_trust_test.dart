@@ -33,6 +33,7 @@ import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 import '../support/rung_on_card.dart';
 
@@ -268,9 +269,14 @@ void main() {
     final positions = StreamController<PositionFix>.broadcast();
     final a = await _boot(tester, source: () => positions.stream);
     await _tapShare(tester);
-    positions.add(PositionAvailable(
+    final firstFix = PositionAvailable(
         latitude: 39.7195, longitude: 140.1180, accuracyMeters: 15,
-        timestamp: first));
+        timestamp: first);
+    // A share's first fix is held (decided 2026-10-05): the same place one
+    // second earlier comes first, and the fix after it is judged and trusted.
+    positions.add(justBefore(firstFix));
+    await _settle(tester);
+    positions.add(firstFix);
     await _settle(tester);
     expect(find.textContaining('GPS 良好'), findsWidgets,
         reason: 'control: the first drive was trusted');
@@ -316,9 +322,13 @@ void main() {
       final positions = StreamController<PositionFix>.broadcast();
       await routeThenOneDrive(
           tester, [() => positions.stream, () => positions.stream]);
-      positions.add(PositionAvailable(
+      final here = PositionAvailable(
           latitude: 39.7186, longitude: 140.1024, accuracyMeters: 10,
-          timestamp: _clockNow));
+          timestamp: _clockNow);
+      // Held first, as a share's first fix is (decided 2026-10-05).
+      positions.add(justBefore(here));
+      await _settle(tester);
+      positions.add(here);
       await _settle(tester);
       expect(find.textContaining(_speakTier), findsOneWidget,
           reason: 'control: a trusted fix of this share narrates as trusted');
@@ -334,9 +344,13 @@ void main() {
         (tester) async {
       final positions = StreamController<PositionFix>.broadcast();
       await routeThenOneDrive(tester, [() => positions.stream, _failedStart]);
-      positions.add(PositionAvailable(
+      final here = PositionAvailable(
           latitude: 39.7186, longitude: 140.1024, accuracyMeters: 10,
-          timestamp: _clockNow));
+          timestamp: _clockNow);
+      // Held first, as a share's first fix is (decided 2026-10-05).
+      positions.add(justBefore(here));
+      await _settle(tester);
+      positions.add(here);
       await _settle(tester);
       expect(find.textContaining(_speakTier), findsOneWidget,
           reason: 'control: a trusted fix of this share narrates as trusted');

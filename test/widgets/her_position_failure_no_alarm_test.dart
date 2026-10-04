@@ -169,9 +169,13 @@ Stream<PositionFix> _neverArrives() => herPositionStream(
     );
 
 /// A share that gets one trusted fix at the app's clock and stays open (a
-/// closed platform stream would add its own "stream ended" event).
+/// closed platform stream would add its own "stream ended" event). Since
+/// 2026-10-05 a share's first fix is held for comparison, so the trusted fix
+/// has the same fix one second earlier before it.
 Stream<PositionFix> _oneFix() {
-  final platform = StreamController<Position>()..add(_position(_clockNow));
+  final platform = StreamController<Position>()
+    ..add(_position(_clockNow.subtract(const Duration(seconds: 1))))
+    ..add(_position(_clockNow));
   return herPositionStream(
     isServiceEnabled: () async => true,
     checkPermission: () async => LocationPermission.whileInUse,

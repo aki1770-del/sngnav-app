@@ -18,6 +18,7 @@ import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/services/drive_hud_controller.dart';
 import 'package:sngnav_app/services/maneuver_narration.dart';
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 
 /// Drain the fire-and-forget announce (haptic → speak) before reading the fake.
@@ -74,6 +75,7 @@ void main() {
     clearEnvironment(c);
 
     // A fresh accurate fix → gpsTrusted; good vis → no caution auto-announce.
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
     expect(fake.spoken, isEmpty, reason: 'no caution noise before we narrate');
@@ -95,6 +97,7 @@ void main() {
     final c = controllerWith(fake);
     clearEnvironment(c);
 
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     // GPS blackout: poll 300 s out with no fresh fix → mode degrades to `lost`.
     c.poll(now: t0.add(const Duration(seconds: 300)));
@@ -122,6 +125,7 @@ void main() {
     final c = controllerWith(fake);
     clearEnvironment(c);
 
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
 
@@ -139,6 +143,7 @@ void main() {
     final c = controllerWith(fake);
     clearEnvironment(c);
 
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
 

@@ -231,7 +231,9 @@ Future<_Given> _positionedAt(WidgetTester tester, int visibility,
 }
 
 /// A driver with one trusted fix and then silence, read at [at]: the app's own
-/// watchdog degrades her position.
+/// watchdog degrades her position. Since 2026-10-05 a share's first fix is
+/// held for comparison, so the trusted fix has the same place one second
+/// earlier before it.
 Future<_Given> _blackoutAt(
     WidgetTester tester, int visibility, Duration at) async {
   final platform = StreamController<Position>();
@@ -239,6 +241,8 @@ Future<_Given> _blackoutAt(
       source: () => _granted(platform),
       jma: () async => _observedNow(visibility));
   await _tapShare(tester);
+  platform.add(_position(_clockNow.subtract(const Duration(seconds: 1))));
+  await _settle(tester);
   platform.add(_position(_clockNow));
   await _settle(tester);
   await _advance(tester, at);

@@ -37,6 +37,7 @@ import 'package:sngnav_app/services/drive_hud_localizer.dart';
 import 'package:sngnav_app/services/measured_hazard_floor.dart';
 
 import 'render_see_env.dart';
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 
 const _text = DriveHudLocalizer();
@@ -154,6 +155,7 @@ void main() {
       speedMetersPerSecond: null,
       measuredHazard: hazard,
     );
+    c.wouldTrust(justBefore(freshFix(t0)));
     c.onPositionFix(freshFix(t0), now: t0);
     if (blackout) c.poll(now: t0.add(const Duration(seconds: 300)));
     return (c.advice!.action, c.effectiveAction!, c.estimate!.mode);

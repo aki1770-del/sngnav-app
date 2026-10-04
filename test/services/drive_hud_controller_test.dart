@@ -19,6 +19,7 @@ import 'package:navigation_safety_enums/navigation_safety_enums.dart'
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/services/drive_hud_controller.dart';
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 
 /// Drain pending microtasks so the fire-and-forget announce (speak → haptic)
@@ -52,6 +53,7 @@ void main() {
     );
 
     // Trusted position (pc 0) + low vis (vc 2) → heightenedCaution.
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
     expect(c.advice!.action, DriveAction.heightenedCaution);
@@ -91,6 +93,7 @@ void main() {
       advisorySeverity: null,
       speedMetersPerSecond: null,
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
     expect(c.advice!.action, DriveAction.continueDriving);
@@ -109,6 +112,7 @@ void main() {
       advisorySeverity: null,
       speedMetersPerSecond: null,
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0); // trusted baseline
     // Permission revoked 200 s later → PositionUnavailable → honest degrade.
     c.onPositionFix(const PositionUnavailable('revoked'),
@@ -129,6 +133,7 @@ void main() {
       advisorySeverity: null,
       speedMetersPerSecond: null,
     );
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     await settle();
     // WS6 announces through the injected actuator, but the wakelock is owned by

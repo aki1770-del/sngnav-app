@@ -45,6 +45,7 @@ import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 import 'render_see_env.dart';
 
@@ -250,6 +251,10 @@ void main() {
   testWidgets('control — a trusted fix: the solid dot and 「現在地 · ±15 m」',
       (tester) async {
     final positions = await pumpSharing(tester);
+    // A share's first fix is held (decided 2026-10-05): the same place one
+    // second earlier comes first, and the fix after it is judged and trusted.
+    positions.add(justBefore(_fix(15)));
+    await tester.pump();
     positions.add(_fix(15));
     await tester.pump();
 
@@ -267,6 +272,10 @@ void main() {
   testWidgets('dead reckoning 60 s: ring and circle, no words, line unchanged',
       (tester) async {
     final positions = await pumpSharing(tester);
+    // A share's first fix is held (decided 2026-10-05): the same place one
+    // second earlier comes first, and the fix after it is judged and trusted.
+    positions.add(justBefore(_fix(15)));
+    await tester.pump();
     positions.add(_fix(15));
     await tester.pump();
     await silentDrought(tester, const Duration(seconds: 60));
@@ -287,6 +296,10 @@ void main() {
   testWidgets('lost 180 s: the words, the ring, no circle, and the age',
       (tester) async {
     final positions = await pumpSharing(tester);
+    // A share's first fix is held (decided 2026-10-05): the same place one
+    // second earlier comes first, and the fix after it is judged and trusted.
+    positions.add(justBefore(_fix(15)));
+    await tester.pump();
     positions.add(_fix(15));
     await tester.pump();
     await silentDrought(tester, const Duration(seconds: 180));
@@ -305,6 +318,10 @@ void main() {
 
   testWidgets('lost 90 min: the same map, and an age in hours', (tester) async {
     final positions = await pumpSharing(tester);
+    // A share's first fix is held (decided 2026-10-05): the same place one
+    // second earlier comes first, and the fix after it is judged and trusted.
+    positions.add(justBefore(_fix(15)));
+    await tester.pump();
     positions.add(_fix(15));
     await tester.pump();
     await silentDrought(tester, const Duration(minutes: 90));
@@ -349,6 +366,10 @@ void main() {
       'the GPS stream errors after a trusted fix: the map is NOT empty',
       (tester) async {
     final positions = await pumpSharing(tester);
+    // A share's first fix is held (decided 2026-10-05): the same place one
+    // second earlier comes first, and the fix after it is judged and trusted.
+    positions.add(justBefore(_fix(15)));
+    await tester.pump();
     positions.add(_fix(15));
     await tester.pump();
     positions.addError(StateError('platform GPS stream failed'));
@@ -371,6 +392,10 @@ void main() {
   testWidgets('she stops sharing while lost: no ring and no words remain',
       (tester) async {
     final positions = await pumpSharing(tester);
+    // A share's first fix is held (decided 2026-10-05): the same place one
+    // second earlier comes first, and the fix after it is judged and trusted.
+    positions.add(justBefore(_fix(15)));
+    await tester.pump();
     positions.add(_fix(15));
     await tester.pump();
     await silentDrought(tester, const Duration(seconds: 180));

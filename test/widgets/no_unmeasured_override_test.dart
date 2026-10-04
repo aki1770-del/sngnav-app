@@ -232,6 +232,13 @@ class _Positioned {
     positionStream: () => platform.stream,
   );
   void fix() => platform.add(_position(_now));
+
+  /// A share's first fix is held (decided 2026-10-05): the same fix one second
+  /// earlier, then the fix itself, which is judged against it and trusted.
+  void anchoredFix() {
+    platform.add(_position(_now.subtract(const Duration(seconds: 1))));
+    platform.add(_position(_now));
+  }
 }
 
 Stream<PositionFix> _failedStart() => herPositionStream(
@@ -994,7 +1001,7 @@ void main() {
         await _boot(tester, source: p.source, visibilities: const [700]);
         await _tapShare(tester);
         await _advance(tester, const Duration(seconds: 7));
-        p.fix();
+        p.anchoredFix();
         await tester.pump();
         await tester.pump();
         await _advance(tester, const Duration(seconds: 68));

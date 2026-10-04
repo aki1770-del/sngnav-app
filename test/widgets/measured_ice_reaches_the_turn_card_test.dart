@@ -33,6 +33,7 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 
 final _start = DateTime.utc(2026, 1, 14, 21);
@@ -167,11 +168,16 @@ Future<void> _trustedFix(
   await tester.pump();
   await tester.tap(share);
   await _settle(tester);
-  positions.add(PositionAvailable(
+  final here = PositionAvailable(
       latitude: 39.7186,
       longitude: 140.1024,
       accuracyMeters: 10,
-      timestamp: _start));
+      timestamp: _start);
+  // A share's first fix is held (decided 2026-10-05): the same place one
+  // second earlier comes first, and the fix after it is judged and trusted.
+  positions.add(justBefore(here));
+  await _settle(tester);
+  positions.add(here);
   await _settle(tester);
 }
 

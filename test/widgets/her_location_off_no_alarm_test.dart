@@ -243,6 +243,10 @@ void main() {
                 positionStream: () => platform.stream,
               ));
       await _tapShare(tester);
+      // A share's first fix is held (decided 2026-10-05): the same fix one
+      // second earlier comes first, and the fix below is judged against it.
+      platform.add(trustedFix(_clockNow.subtract(const Duration(seconds: 1))));
+      await tester.pump();
       platform.add(trustedFix(_clockNow));
       await tester.pump();
       await tester.pump();

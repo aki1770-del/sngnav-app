@@ -22,6 +22,7 @@ import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 
 const _statusKey = Key('her-status-line');
@@ -71,12 +72,17 @@ void main() {
     await tester.pump();
     await tester.tap(find.text(shareLabel));
     await tester.pump();
-    positions.add(PositionAvailable(
+    final here = PositionAvailable(
       latitude: 39.7195,
       longitude: 140.1180,
       accuracyMeters: 15,
       timestamp: start,
-    ));
+    );
+    // A share's first fix is held (decided 2026-10-05): the same place one
+    // second earlier comes first, and the fix after it is judged and trusted.
+    positions.add(justBefore(here));
+    await tester.pump();
+    positions.add(here);
     await tester.pump();
     now = start.add(silence);
     await tester.pump(const Duration(seconds: 15));

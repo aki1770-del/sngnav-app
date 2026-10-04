@@ -22,6 +22,7 @@ import 'package:sngnav_app/main.dart' show SngnavApp;
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 
 import '../support/developer_page.dart';
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 
 void main() {
@@ -100,6 +101,15 @@ void main() {
       await tester.ensureVisible(share);
       await tester.pump();
       await tester.tap(share);
+      await tester.pump();
+      // A share's first fix is held (decided 2026-10-05): the same place
+      // one second earlier comes first, and the fix below is judged.
+      positions.add(justBefore(PositionAvailable(
+        latitude: 39.7167,
+        longitude: 140.0983,
+        accuracyMeters: 15,
+        timestamp: DateTime.utc(2026, 1, 14, 21),
+      )));
       await tester.pump();
       positions.add(PositionAvailable(
         latitude: 39.7167,

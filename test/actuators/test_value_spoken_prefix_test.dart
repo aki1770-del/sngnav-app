@@ -23,6 +23,7 @@ import 'package:sngnav_app/voice/bundled_audio_engine.dart';
 import 'package:sngnav_app/voice/offline_safety_voice.dart';
 import 'package:voice_guidance/voice_guidance.dart' show TtsEngine;
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 
 class _PrefixThrows implements AlertActuators {
@@ -142,15 +143,14 @@ void main() {
         speedMetersPerSecond: null,
       );
       final t0 = DateTime.utc(2026, 1, 1, 8);
-      c.onPositionFix(
-        PositionAvailable(
-          latitude: 39.72,
-          longitude: 140.10,
-          accuracyMeters: 20,
-          timestamp: t0,
-        ),
-        now: t0,
+      final here = PositionAvailable(
+        latitude: 39.72,
+        longitude: 140.10,
+        accuracyMeters: 20,
+        timestamp: t0,
       );
+      c.wouldTrust(justBefore(here));
+      c.onPositionFix(here, now: t0);
       await Future<void>.delayed(Duration.zero);
       final before = a.spoken.length;
       final d = c.narrateNextManeuver(
