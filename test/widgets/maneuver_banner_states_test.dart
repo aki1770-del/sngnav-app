@@ -17,8 +17,10 @@
 ///  1. One mark per banner, and the three marks are three different glyphs.
 ///     A banner with no mark FAILS; not finding a mark is never a pass.
 ///  2. Each mark is drawn: at least 3:1 against its own ground, as a glyph and
-///     not as an empty box. "Drawn" is measured against the same glyph drawn
-///     alone in the same ink and size, not against a number chosen here.
+///     not as an empty box. "Drawn" is measured against the same code point
+///     drawn alone from MaterialIcons in the same ink and size, not against a
+///     number chosen here and never against the mark's own font: a mark whose
+///     font did not load would be a box compared with a box, and pass.
 ///  3. Every pair of states differs in SHAPE: their contrasting pixels, with
 ///     the words masked, overlap at no more than half (intersection over union
 ///     at most 0.50, the banners aligned at their top-left corner). A speaker
@@ -479,8 +481,9 @@ void _maskWords(_Shot s) {
   }
 }
 
-/// The same glyph, drawn alone in the same ink and size on the same ground,
-/// from [family] (the glyph's own font, or one never loaded).
+/// The same code point, drawn alone in the same ink and size on the same
+/// ground, from [family]: MaterialIcons for the reference, or a font that was
+/// never loaded for the control. Null draws [icon] as it is.
 Future<List<List<bool>>> _referenceMask(WidgetTester tester, IconData icon,
     double size, Color ink, (int, int, int) ground, List<double>? model,
     {String? family}) async {
@@ -603,7 +606,8 @@ void main() {
             // 2. The mark is drawn: as its glyph, at 3:1 against its ground.
             final mark = _inkMask(shot.raster, shot.mark!, shot.ground, model);
             final reference = await _referenceMask(tester, shot.markIcon!,
-                shot.markSize, shot.ink!, shot.ground, model);
+                shot.markSize, shot.ink!, shot.ground, model,
+                family: 'MaterialIcons');
             final (ok, how) = _isGlyph(mark, reference);
             expect(ok, isTrue,
                 reason: '$s under ${entry.key}: the mark is not drawn as '
