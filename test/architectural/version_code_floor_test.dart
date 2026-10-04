@@ -54,8 +54,12 @@ void main() {
         contains('if (name == "packageRelease") finalizedBy("recordMintedReleaseApk")'));
     expect(g,
         contains('if (name == "signReleaseBundle") finalizedBy("recordMintedReleaseBundle")'));
-    // Injected signing (the IDE path, no key.properties) is release signing.
-    expect(g, contains('hasProperty("android.injected.signing.store.file")'));
+    // Which key signs a release is read by ONE rule, the signer gate's:
+    // injected signing only when all four android.injected.signing.*
+    // properties are set, as AGP requires. Until 2026-10-04 this line pinned
+    // the floor's own rule, store.file alone, under which a debug-signed APK
+    // wrote a ledger row as "injected signing".
+    expect(g, contains('val releaseSignerSource = signerSourceFor("release")'));
     // One APK output at the release code: split-per-abi codes are refused.
     expect(g, contains('codes.size != 1 || codes.any { it.second != code }'));
   });

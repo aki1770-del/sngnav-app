@@ -7,7 +7,13 @@
 #                                 any other key, the debug key included, is
 #                                 refused before packaging, unless
 #                                 SNGNAV_DEV_RELEASE=1 says it is a development
-#                                 build (and then it says so on every run).
+#                                 build (and then it is another app,
+#                                 dev.aki1770del.sngnav_app.dev, and says so).
+#                                 The mint ledger: a row is written only when
+#                                 the built bytes' one signer is this key.
+#   tool/preflight_play_upload.sh gate 1: the bundle's only signer must be this
+#                                 key.
+#   test/architectural/release_signer_test.dart pins this VALUE as well.
 #
 # Keep exactly ONE digest line (64 hex digits; colons and upper case are
 # accepted). It is changed only when the maintainer changes the upload key.
