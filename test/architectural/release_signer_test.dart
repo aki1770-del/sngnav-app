@@ -138,6 +138,21 @@ void main() {
 
   test('an injected signing property with an empty value is refused', () {
     expect(gradle, contains('fun emptyInjectedSigning(): List<String>'));
+    // The predicate itself, over every property AGP reads: present AND empty.
+    // A mutation that disables it keeps the function's name, so the name
+    // alone passed it (M4, 2026-10-04).
+    expect(
+        gradle,
+        contains('listOf("store.file", "store.password", "key.alias", '
+            '"key.password", "store.type").filter {'));
+    expect(
+      RegExp(r'\.filter \{\s*hasProperty\("android\.injected\.signing\.\$it"\) &&\s*'
+              r'\(findProperty\("android\.injected\.signing\.\$it"\) as String\?\)'
+              r'\.isNullOrBlank\(\)\s*\}')
+          .hasMatch(gradle),
+      isTrue,
+      reason: 'an injected property must be refused when present and empty',
+    );
     // Both tasks that read a signer refuse it: release and profile.
     expect('source.problem?.let {'.allMatches(gradle).length, 2);
   });
