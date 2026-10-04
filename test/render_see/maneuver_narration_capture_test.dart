@@ -38,12 +38,11 @@
 /// the app's delegates and locales, and every test checks the state's words
 /// in Japanese. Those checks are not pixel comparisons, so they run on CI too.
 ///
-/// What these goldens still leave out, named here: the `_section` card and
-/// title the app sets the panel in, and the app's theme (a blueGrey-seeded
-/// colour scheme with the bundled symbol font as fallback). The goldens draw
-/// the panel bare on white in the default Material 3 scheme, so the narrate
-/// button is not in her colours. flutter_test also draws a shadow as a solid
-/// outline, which she does not see.
+/// The panel is drawn in the app's own theme (`sngnavTheme`), so its text and
+/// the narrate button are in her colours. What these goldens still leave out,
+/// named here: the `_section` card and title the app sets the panel in; the
+/// goldens draw the panel bare on white. flutter_test also draws a shadow as
+/// a solid outline, which she does not see.
 ///
 /// And the width. These goldens draw the banner 788 dp wide (820 less 16 on
 /// each side). On a phone 392.7 dp wide (1080 x 2340 px at 2.75) the app
@@ -56,10 +55,9 @@
 /// glance, and a reviewer must not judge that from them.
 ///
 /// Real Japanese glyphs: a system CJK font (IPAGothic + DroidSansFallback) is
-/// loaded under both `Roboto` (the Material default family) and `NotoCJK`; the
-/// harness theme uses `NotoCJK` (proven to render CJK+Latin in the sibling
-/// `capture_test.dart`). If the font failed to load these would render tofu —
-/// the produced PNGs are inspected visually to confirm real glyphs.
+/// loaded under `Roboto`, the Material default family the app's theme uses.
+/// If the font failed to load these would render tofu — the produced PNGs
+/// are inspected visually to confirm real glyphs.
 library;
 
 import 'dart:io';
@@ -74,6 +72,7 @@ import 'package:latlong2/latlong.dart' show LatLng;
 import 'package:localization_fallback/localization_fallback.dart'
     show LocalizationMode;
 import 'package:routing_engine/routing_engine.dart' show RouteManeuver;
+import 'package:sngnav_app/app_theme.dart';
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/services/drive_hud_controller.dart';
@@ -127,7 +126,6 @@ void main() {
     if (!cjkLoaded || !goldenPixelsComparableHere()) {
       installNoopGoldenComparator();
     }
-    await loadCjkFamily('NotoCJK', [ipa, droid]);
     final tmp = await Directory.systemTemp.createTemp('fm_cache_maneuver_see');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
@@ -171,11 +169,9 @@ void main() {
         supportedLocales: AppL10n.supportedLocales,
         // She never sees the debug ribbon: a release build does not draw it.
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          fontFamily: 'NotoCJK',
-          fontFamilyFallback: const ['NotoCJK', 'Roboto'],
-        ),
+        // The app's own theme. Its text is in Material's 'Roboto', which
+        // setUpAll loads with the CJK fonts above.
+        theme: sngnavTheme(),
         home: Scaffold(
           backgroundColor: Colors.white,
           body: SingleChildScrollView(

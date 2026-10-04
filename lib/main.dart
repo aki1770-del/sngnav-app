@@ -106,6 +106,7 @@ import 'services/drive_diary.dart';
 import 'services/drive_hud_localizer.dart';
 import 'widgets/update_notice.dart';
 import 'widgets/keep_together.dart';
+import 'app_theme.dart';
 import 'widgets/kv_row.dart';
 import 'widgets/maneuver_narration_panel.dart';
 import 'services/maneuver_narration.dart';
@@ -779,24 +780,7 @@ class SngnavApp extends StatelessWidget {
       // follow the device. supportedLocales lists ja FIRST so a device set to
       // neither ja nor en falls back to Japanese, the driver's tongue, not English.
       locale: locale,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueGrey),
-        useMaterial3: true,
-        // Tofu fix (2026-07-25): driver-facing strings carry a small
-        // symbol set (⚠ ❄ ※ → ° …) the ja system font stack does not
-        // guarantee (measured 2026-07-30: Noto Sans CJK JP lacks U+2744 ❄).
-        // This 15.7 KB bundled subset covers it for every theme-derived
-        // TextStyle. The shaper tries the requested families (Material's
-        // 'Roboto', then this one) before any system fallback (Skia
-        // 8df24be6, pinned by Flutter 3.47.5: OneLineShaper::
-        // matchResolvedFonts). Read 2026-10-02 from a stock Android 14
-        // system image: no family answers to 'Roboto' and its Roboto face
-        // lacks U+26A0, so ⚠ comes from this subset there. Her phone is
-        // UNVERIFIED: a system whose 'Roboto' covers U+26A0 draws its own.
-        // Tests load this font (test/flutter_test_config.dart); coverage is
-        // drift-guarded by test/fonts/symbol_font_coverage_test.dart.
-        fontFamilyFallback: const ['SnGNavSymbols'],
-      ),
+      theme: sngnavTheme(),
       // The driver reads Japanese. The Global*Localizations delegates localize the
       // Material/Cupertino/Widgets chrome (date pickers, tooltips, semantics)
       // for ja + en; AppL10n (WS7) localizes the app's own dignity-bearing
