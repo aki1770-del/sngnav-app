@@ -19,6 +19,7 @@ import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/services/drive_hud_controller.dart';
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 
 const _ja = AppL10n(Locale('ja'));
@@ -37,6 +38,9 @@ PositionFix _fix(double acc) => fixFromSample(
 LocalizationEstimate _drought(Duration d) {
   final hud =
       DriveHudController(actuators: FakeAlertActuators(), localeTag: 'ja');
+  // Asked about first and held, as the app holds a share's first fix, so the
+  // fix fed is judged against it and trusted (decided 2026-10-05).
+  hud.wouldTrust(justBefore(_fix(15) as PositionAvailable));
   hud.onPositionFix(_fix(15), now: _t0);
   hud.poll(now: _t0.add(d));
   return hud.estimate!;
@@ -77,23 +81,33 @@ void main() {
           'Position unknown · no last position');
     });
 
-    test('lost the instant a trusted fix is too imprecise (800 m): under a '
-        'minute', () {
+    // Changed 2026-10-05, by a ruling, not by re-timing: a fix whose own
+    // accuracy is over 150 m is `suspect` and never adopted, so an 800 m fix
+    // leaves no last position. Until then it was trusted and adopted, and the
+    // line said 「最後の位置 1分以内」 about a position the receiver itself put
+    // anywhere within 800 m. The under-a-minute wording is still held by the
+    // boundaries group below.
+    test('lost on an 800 m fix, which is never adopted: no age is claimed',
+        () {
       final hud =
           DriveHudController(actuators: FakeAlertActuators(), localeTag: 'ja');
+      hud.wouldTrust(justBefore(_fix(800) as PositionAvailable));
       hud.onPositionFix(_fix(800), now: _t0);
       final e = hud.estimate!;
       expect(e.mode, LocalizationMode.lost, reason: 'control');
       expect(_ja.positionLostStatus(e.secondsSinceTrustedFix),
-          '現在地 不明 · 最後の位置 1分以内');
+          '現在地 不明 · 最後の位置 なし');
       expect(_en.positionLostStatus(e.secondsSinceTrustedFix),
-          'Position unknown · last position within 1 min');
+          'Position unknown · no last position');
     });
   });
 
   group('boundaries', () {
     test('whole minutes, rounded down: the age is a lower bound', () {
       expect(_ja.positionLostStatus(59.999), '現在地 不明 · 最後の位置 1分以内');
+      // Held from the real controller until 2026-10-05 (see above).
+      expect(_en.positionLostStatus(59.999),
+          'Position unknown · last position within 1 min');
       expect(_ja.positionLostStatus(60), '現在地 不明 · 最後の位置 1分前');
       expect(_ja.positionLostStatus(179.9), '現在地 不明 · 最後の位置 2分前');
       expect(_ja.positionLostStatus(25 * 3600), '現在地 不明 · 最後の位置 25時間0分前');

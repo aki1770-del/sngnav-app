@@ -14,10 +14,12 @@
 ///    the mode through its public seam (a fresh accurate fix → gpsTrusted; a
 ///    fix then a 300 s blackout `poll` → lost/dead-reckoning), then the REAL
 ///    `controller.previewNextManeuver(...)` produces the decision.
-///  - 09 HEDGE: `gpsSuspect` is NOT reachable through `DriveHudController`'s
-///    public `onPositionFix`/`poll` seam (a `PositionAvailable` is always fed as
-///    `TrustSignal.trusted`; only a suspect trust signal — which the app-level
-///    seam never emits — yields gpsSuspect). So the HEDGE decision is produced
+///  - 09 HEDGE: the drive brain's own gate does not hedge. `gpsSuspect` is
+///    reachable through `onPositionFix` since 2026-10-05 (a fix whose accuracy
+///    is over 150 m), but while `kSuspectWithholdsTurn` stands the gate
+///    withholds the turn there instead of hedging it. Until 2026-10-05 no
+///    `PositionAvailable` reached gpsSuspect at all (every one was fed as
+///    `TrustSignal.trusted`). So the HEDGE decision is produced
 ///    by calling `ManeuverNarrator.decide(mode: gpsSuspect, ...)` DIRECTLY —
 ///    which is the EXACT delegate `previewNextManeuver` calls internally
 ///    (`_narrator.decide(maneuver, mode, icyTurn, localeTag)`). Same code, same
@@ -58,6 +60,7 @@ import 'package:sngnav_app/services/drive_hud_localizer.dart';
 import 'package:sngnav_app/services/maneuver_narration.dart';
 import 'package:sngnav_app/widgets/advisory_cards.dart' show kCautionTextOnAmber;
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 
 
@@ -338,6 +341,7 @@ void main() {
   testWidgets('07 — SPEAK (gpsTrusted): the JA right-turn line', (tester) async {
     // REAL live controller → gpsTrusted → REAL previewNextManeuver.
     final c = DriveHudController(actuators: FakeAlertActuators(), localeTag: 'ja');
+    c.wouldTrust(justBefore(freshFix(t0)));
     c.onPositionFix(freshFix(t0), now: t0);
     expect(c.estimate?.mode, LocalizationMode.gpsTrusted);
 
@@ -360,6 +364,7 @@ void main() {
     // REAL live controller → fix then a 300 s blackout poll → lost / DR →
     // REAL previewNextManeuver → SUPPRESS.
     final c = DriveHudController(actuators: FakeAlertActuators(), localeTag: 'ja');
+    c.wouldTrust(justBefore(freshFix(t0)));
     c.onPositionFix(freshFix(t0), now: t0);
     c.poll(now: t0.add(const Duration(seconds: 300)));
     final mode = c.estimate!.mode;

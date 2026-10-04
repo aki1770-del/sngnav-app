@@ -230,6 +230,80 @@ dot. There is no vehicle-bus (CAN/OBD) integration; sensor-grade dead
 reckoning is out of scope for this app today.
 <!-- AndroidManifest.xml:6-8; README.md:23 -->
 
+## The GPS trust verdict: what 「GPS 良好」 means, and what it does not catch
+
+**Added 2026-10-05, when the verdict was wired.** Until then every fix with
+finite coordinates was fed to the position controller as trusted, so a jump no
+car made, a fix the receiver itself put at ±400 m, or a replayed timestamp read
+「GPS 良好」, the map followed it, and a turn was read as given.
+
+Now each fix is judged before it is trusted (`lib/services/gps_trust.dart`,
+called from `DriveLocalizer`). It is trusted only when none of these checks
+finds a fault: it is newer than the last fix; its reported accuracy is 150 m or
+less; the speed it implies is 50 m/s or less, both from the previous fix
+(position_integrity 0.1.1's speed and teleport checks) and from the last fix
+the app trusted (with both reported accuracies taken off the distance); fixes
+under 0.5 s apart are judged by a 30 m jump check instead of a speed. A fix
+over 150 m is `suspect`: 「GPS 不確か」, the turn is not read, and the caution
+rung rises to at least heightened caution. A fix that fails a speed or replay check is not used
+at all, and the app degrades from the last trusted fix.
+
+**Trusted means "no fault found by these checks", never "position verified".**
+The word on the label, 「GPS 良好」 ("GPS good"), claims more than that; its
+wording is under review and not changed here.
+
+What it does not catch, or costs, stated so nobody reads more into it:
+
+- **The interval decides the reach.** A speed check catches a jump only if it
+  is larger than 50 m/s times the time since the fix before. Measured on
+  synthetic fixes at 15 m/s: one fix a second, a 300 m jump is caught; one fix
+  every five seconds, the interval the fused provider is asked for when the app
+  sets none, a sideways jump of 200 m is trusted, and a 250 to 400 m jump is
+  caught on its own fix only, with the next fix on the displaced track trusted
+  again. How often her phone delivers a fix has not been measured.
+- **A displaced track that stays self-consistent** is trusted again once it is
+  reachable at 50 m/s from her last trusted fix, about (distance / 50) seconds
+  after the jump. Only the transition onto it is caught.
+- **An offset that builds up slowly**, or a multipath step small enough to
+  imply a legal speed, is not caught by any check that acts. The two checks
+  that could catch some of it (a change of speed between fixes, and a position
+  that stops while the platform says she is moving) are computed and recorded
+  but act on nothing until their false alarms have been counted on honest
+  fixes from a real phone.
+- **The first fix after a long gap** is checked only weakly: 50 m/s times the
+  gap allows a long way.
+- **A share's first fix is held, never trusted**, because nothing can judge it.
+  She sees 現在地不明 for about one fix interval at every share start (about
+  5 s on the fused provider). Where a measured condition already raises caution
+  she is given the road's own rung meanwhile, and if no second fix comes by the
+  end of the 30 s drought, the rung of a start that failed. A bias present in both of
+  the first two fixes passes; the hold catches only a one-off first outlier.
+- **A jump costs two fixes, not one.** After a rejected jump, the fix that
+  comes back is judged against the jump and is not trusted either
+  (position_integrity's own KNOWN_LIMITATIONS §7); the fix after it is.
+- **A run of coarse fixes reaches the top rung.** The app holds her last
+  trusted position and grows its circle while fixes stay over 150 m. Measured
+  on synthetic fixes at 15 m/s in a measured clear 1,500 m: heightened caution
+  at the first coarse fix (spoken, a warning vibration), then lost and the top
+  rung, with the critical vibration and the line inviting her to stop, about
+  30 to 35 s after her last trusted fix. Where satellite and network fixes
+  alternate, the heightened line can be spoken again at each rise.
+- **A doubtful fix withholds the turn instead of reading a hedged one**, until
+  the hedged line has been seen at her text sizes and on a device
+  (`kSuspectWithholdsTurn` in `lib/services/maneuver_narration.dart`).
+- **The map has no state of its own for a doubtful fix.** A fix over 150 m is
+  drawn where the receiver put it, with its own large circle and the real-fix
+  mark, beside the label 「GPS 不確か」.
+- **The development page's test position is not judged**; it is not GPS and is
+  labelled テスト位置.
+- **No real fix has been run through it.** Every threshold is an advisory
+  value, every result above comes from synthetic fixes in tests, and nothing
+  here is a device reading.
+<!-- lib/services/gps_trust.dart; lib/services/drive_safety_fusion.dart
+     DriveLocalizer; test/services/drive_gps_trust_invariant_test.dart;
+     test/services/gps_trust_wiring_test.dart;
+     test/widgets/her_first_fix_held_test.dart -->
+
 ## Dev-only mock GPS button still ships
 
 A 「秋田のモック位置（開発用）」 / "Use Akita mock (dev)" button injects a fixed

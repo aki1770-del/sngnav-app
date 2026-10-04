@@ -174,6 +174,12 @@ HerMapInputs herMapInputs({
   final mode = estimate?.mode;
   final unlocatable =
       mode == LocalizationMode.deadReckoning || mode == LocalizationMode.lost;
+  // `gpsSuspect` lands here too, and is drawn from the raw fix. It was
+  // reachable by no fix the app fed until the GPS trust verdict was wired
+  // (2026-10-05); since then a fix whose own accuracy is over 150 m reaches
+  // it, and is drawn as before: its own coordinates, its own large circle, the
+  // real-fix mark, beside the label 「GPS 不確か」. What the map should draw for
+  // a doubtful fix is not decided here.
   if (isMock || estimate == null || !unlocatable) {
     // A sample with no measured accuracy is never drawn from its own
     // coordinates, whatever the drive brain holds (decided 2026-09-14): not a

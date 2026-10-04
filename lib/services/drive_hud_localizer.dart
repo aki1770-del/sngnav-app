@@ -169,11 +169,19 @@ class DriveHudLocalizer {
     switch (mode) {
       case LocalizationMode.gpsTrusted:
         if (isMock) return ja ? 'テスト位置（GPS ではありません）' : 'Test position (not GPS)';
+        // Since 2026-10-05 this is shown for a fix the GPS trust verdict
+        // found no fault with (lib/services/gps_trust.dart): "no fault found
+        // by these checks", not a verified position, while 良好 / "good"
+        // claims quality. The wording is under review and not changed here.
         return ja ? 'GPS 良好' : 'GPS good';
       case LocalizationMode.gpsSuspect:
         if (isMock) return ja ? 'テスト位置（GPS ではありません）' : 'Test position (not GPS)';
         return ja ? 'GPS 不確か' : 'GPS suspect';
       case LocalizationMode.deadReckoning:
+        // Since 2026-10-05 also shown when a fix arrived and the GPS trust
+        // verdict rejected it: then 途絶 ("lost") is not what happened, and
+        // no dead reckoning is wired (drive_safety_fusion.dart), so 推測航法
+        // is not either. The wording is under review and not changed here.
         return ja ? 'GPS 途絶（推測航法）' : 'GPS lost — dead reckoning';
       case LocalizationMode.lost:
         return ja ? '現在地 不明' : 'Position unknown';

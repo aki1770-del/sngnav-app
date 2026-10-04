@@ -36,4 +36,5 @@ PositionAvailable justBefore(
       timestamp: fix.timestamp.subtract(by),
       speedFloorMps: fix.speedFloorMps,
       motion: fix.motion,
+      speedLowerBoundMps: fix.speedLowerBoundMps,
     );

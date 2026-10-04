@@ -38,6 +38,7 @@ import '../actuators/alert_announcer.dart';
 import '../her_position.dart';
 import 'drive_hud_localizer.dart';
 import 'drive_safety_fusion.dart';
+import 'gps_trust.dart';
 import 'maneuver_narration.dart';
 import 'measured_hazard_floor.dart';
 
@@ -87,7 +88,12 @@ class DriveHudController extends ChangeNotifier {
       localizer: DriveLocalizer(controller: localization),
       announcer: announcer ?? AlertAnnouncer(actuators: actuators),
       text: text,
-      narrator: ManeuverNarrator(text: text),
+      // A doubtful position withholds the turn until the hedged line has been
+      // seen where she would hear it (decided 2026-10-05).
+      narrator: ManeuverNarrator(
+        text: text,
+        withholdSuspect: kSuspectWithholdsTurn,
+      ),
       localeTag: localeTag,
     );
   }
@@ -166,10 +172,14 @@ class DriveHudController extends ChangeNotifier {
   /// A share she starts herself begins with nothing told and no rung held
   /// (decided 2026-09-15). The estimate is kept: reset, a replayed fix from
   /// another place became a trusted position.
+  ///
+  /// The GPS trust verdict starts again too (decided 2026-10-05): the share's
+  /// first fix is judged against nothing, so it is held, not trusted.
   void startShare() {
     _lastSpokenRung = null;
     _startRungHeld = null;
     _startRung = StartRung.none;
+    _localizer.resetAssessment();
   }
 
   /// The highest rung told in this share, or `null`.
@@ -287,9 +297,36 @@ class DriveHudController extends ChangeNotifier {
     _recompute();
   }
 
+  /// Feed the development page's test position
+  /// ([DriveLocalizer.onTestPosition]): not a GPS fix, not judged as one, and
+  /// labelled テスト位置 wherever it is shown. Never for her position stream.
+  void onTestPosition(PositionAvailable fix) {
+    _estimate = _localizer.onTestPosition(fix);
+    _recompute();
+  }
+
   /// Whether [fix] would be taken as a trusted fix if fed now
-  /// ([DriveLocalizer.wouldTrust]). Asking feeds nothing.
+  /// ([DriveLocalizer.wouldTrust]). Asking feeds nothing to the position
+  /// controller; it does let the GPS trust verdict take the fix as the base
+  /// for the next one.
   bool wouldTrust(PositionFix fix) => _localizer.wouldTrust(fix);
+
+  /// Whether [fix] is a share's first fix held only because nothing can judge
+  /// it yet ([DriveLocalizer.awaitsComparison]): a normal start, not a failed
+  /// one. Asking feeds nothing to the position controller.
+  bool awaitsComparison(PositionFix fix) => _localizer.awaitsComparison(fix);
+
+  /// The GPS trust verdict on the last fix fed, or `null` before any.
+  GpsTrustVerdict? get gpsTrustVerdict => _localizer.lastVerdict;
+
+  /// What the GPS trust gates kept in shadow said about the last fix fed:
+  /// computed and kept, never acted on (decided 2026-10-05). `null` before
+  /// any fix. Not `trusted` when they could not run.
+  TrustSignal? get shadowGpsTrust => _localizer.lastVerdict?.shadow;
+
+  /// How many times the GPS trust verdict could not be computed. Each such fix
+  /// was given as `suspect`.
+  int get gpsTrustFaults => _localizer.assessorFaults;
 
   /// Advance the honest position during a blackout (no fix this tick) so the
   /// radius grows and the mode can reach `lost`.

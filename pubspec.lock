@@ -709,6 +709,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.8"
+  position_integrity:
+    dependency: "direct main"
+    description:
+      name: position_integrity
+      sha256: "1db8947c00ccddccba0a8b3f09cba394bb7279bcfee946c7f717a358861aa056"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.1.1"
   posix:
     dependency: transitive
     description:

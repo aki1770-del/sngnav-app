@@ -18,6 +18,16 @@
 ///
 /// Road points are from the same drive (OpenStreetMap, ODbL): index, then
 /// distance along the road.
+///
+/// Re-timed 2026-10-05, the coordinates and every expected value unchanged.
+/// The drive brain now judges each fix against the one before it, so:
+///  - a share's first fix is held and the camera does not move to it; each
+///    share here begins with [anchorAt], a held fix one second before the
+///    first fix the test follows;
+///  - the fixes were 10 s apart while 4 to 12 km apart (400 to 1,170 m/s), a
+///    drive compressed in time that the verdict now rightly rejects. They are
+///    now spaced at [_vRoad] along the road, from the distances in the
+///    constants' own comments.
 library;
 
 import 'dart:async';
@@ -40,6 +50,12 @@ const _r13At4km = LatLng(39.6878127, 140.1243230); // idx 29, 4.0 km
 const _r13At8km = LatLng(39.6720544, 140.1572568); // idx 58, 8.1 km
 const _r13At8_2km = LatLng(39.6714637, 140.1586867); // idx 59, 8.2 km
 const _r13At20km = LatLng(39.6469828, 140.2833640); // idx 143, 19.9 km
+
+/// 60 km/h, a speed she drives on Route 13: the re-timing's spacing.
+const double _vRoad = 16.7;
+
+/// Seconds after the first fix to reach [km] along Route 13 from 0 km.
+int _at(double km) => 10 + (km * 1000 / _vRoad).round();
 
 const _returnKey = Key('her-map-return-to-position');
 const _realDotKey = ValueKey('her-dot-real-fix');
@@ -104,6 +120,14 @@ void main() {
     await tester.pump();
   }
 
+  /// A share's first fix at [p], one second before [seconds], then the fix at
+  /// [seconds]: the first is held (nothing to judge it against, and the camera
+  /// stays put), the second is judged against it and trusted.
+  Future<void> anchorAt(WidgetTester tester, LatLng p, int seconds) async {
+    await fixAt(tester, p, seconds - 1);
+    await fixAt(tester, p, seconds);
+  }
+
   /// No fix for [silence] after [lastFixSeconds]: the watchdog polls.
   Future<void> silence(
       WidgetTester tester, int lastFixSeconds, Duration silence) async {
@@ -162,9 +186,16 @@ void main() {
       await tapText(tester, '現在地を共有');
       expectCameraAt(tester, akitaStation, reason: 'control: starts there');
 
-      var t = 0;
-      for (final p in [_r13At0km, _r13At4km, _r13At8_2km, _r13At20km]) {
-        await fixAt(tester, p, t += 10);
+      await fixAt(tester, _r13At0km, 9);
+      expectCameraAt(tester, akitaStation,
+          reason: 'a share\'s first fix is held: nothing to judge it against');
+      for (final (p, t) in [
+        (_r13At0km, _at(0)),
+        (_r13At4km, _at(4.0)),
+        (_r13At8_2km, _at(8.2)),
+        (_r13At20km, _at(19.9)),
+      ]) {
+        await fixAt(tester, p, t);
         expectCameraAt(tester, p);
         expect(camera(tester).zoom, 12);
         expect(onMap(tester, _realDotKey), isTrue,
@@ -181,16 +212,17 @@ void main() {
         'trusted fix, so the ring stays in view', (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await fixAt(tester, _r13At8km, 10);
-      await fixAt(tester, _r13At20km, 20);
+      await anchorAt(tester, _r13At8km, 10);
+      final t20 = 10 + ((19.9 - 8.1) * 1000 / _vRoad).round();
+      await fixAt(tester, _r13At20km, t20);
 
-      await silence(tester, 20, const Duration(seconds: 60));
+      await silence(tester, t20, const Duration(seconds: 60));
       expect(find.byKey(_ringKey), findsOneWidget,
           reason: 'control: dead reckoning');
       expectCameraAt(tester, _r13At20km);
       expect(onMap(tester, _ringKey), isTrue);
 
-      await silence(tester, 20, const Duration(seconds: 180));
+      await silence(tester, t20, const Duration(seconds: 180));
       expect(onMap(tester, _unknownKey), isTrue, reason: 'control: lost');
       expectCameraAt(tester, _r13At20km);
       expect(onMap(tester, _ringKey), isTrue);
@@ -200,7 +232,7 @@ void main() {
     testWidgets('a GPS stream error: the camera holds', (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await fixAt(tester, _r13At8_2km, 10);
+      await anchorAt(tester, _r13At8_2km, 10);
       positions.addError(StateError('platform GPS stream failed'));
       await tester.pump();
       await tester.pump();
@@ -210,13 +242,20 @@ void main() {
       await positions.close();
     });
 
+    // Re-timed 2026-10-05: 15.9 km in 10 s became 15.9 km at 60 km/h, and the
+    // expected values are unchanged. What makes it lost changed: a fix whose
+    // own accuracy is over 150 m is now `suspect` and never adopted, so the
+    // drive brain degrades from her last trusted fix, 952 s old, past its
+    // 120 s horizon. Until then it adopted the 900 m fix and was lost because
+    // the fix was too imprecise.
     testWidgets(
-        'a trusted fix too imprecise to be confident (lost on arrival): the '
+        'a fix too imprecise to be confident (900 m), arriving lost: the '
         'camera does not move to it', (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await fixAt(tester, _r13At4km, 10);
-      now = start.add(const Duration(seconds: 20));
+      await anchorAt(tester, _r13At4km, 10);
+      now = start.add(
+          Duration(seconds: 10 + ((19.9 - 4.0) * 1000 / _vRoad).round()));
       positions.add(PositionAvailable(
         latitude: _r13At20km.latitude,
         longitude: _r13At20km.longitude,
@@ -236,7 +275,7 @@ void main() {
         'trusted: the camera holds', (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await fixAt(tester, _r13At8_2km, 20);
+      await anchorAt(tester, _r13At8_2km, 20);
       expectCameraAt(tester, _r13At8_2km, reason: 'control: followed her');
       // Stamped 10 s before the trusted fix above, at another place.
       positions.add(PositionAvailable(
@@ -256,7 +295,7 @@ void main() {
         'camera holds', (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await fixAt(tester, _r13At4km, 10);
+      await anchorAt(tester, _r13At4km, 10);
       now = start.add(const Duration(seconds: 20));
       positions.add(PositionAvailable(
         latitude: _r13At20km.latitude,
@@ -275,7 +314,7 @@ void main() {
         'does not go to the station', (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await fixAt(tester, _r13At8_2km, 10);
+      await anchorAt(tester, _r13At8_2km, 10);
       await tapText(tester, '停止');
 
       // The mock is on the development page (2026-09-15).
@@ -294,7 +333,7 @@ void main() {
         'follow paused by hand', (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await fixAt(tester, _r13At8_2km, 10);
+      await anchorAt(tester, _r13At8_2km, 10);
       expectCameraAt(tester, _r13At8_2km, reason: 'control: followed her');
       await handDrag(tester);
       expect(find.byKey(_returnKey), findsOneWidget, reason: 'control: paused');
@@ -325,7 +364,7 @@ void main() {
         'sets no route point; return then brings her back', (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await fixAt(tester, _r13At0km, 10);
+      await anchorAt(tester, _r13At0km, 10);
       expectCameraAt(tester, _r13At0km, reason: 'control: followed her');
 
       await tester.ensureVisible(find.byType(AkitaMap));
@@ -333,7 +372,7 @@ void main() {
       final touch = await tester
           .startGesture(tester.getCenter(flutterMap) + const Offset(-60, 40));
       await tester.pump(const Duration(milliseconds: 40));
-      await fixAt(tester, _r13At8_2km, 20);
+      await fixAt(tester, _r13At8_2km, _at(8.2));
       expectCameraAt(tester, _r13At0km,
           reason: 'nothing moves under her finger');
       await touch.up();
@@ -347,7 +386,7 @@ void main() {
       expectCameraAt(tester, _r13At0km, reason: 'still paused after the tap');
       expect(find.byKey(_returnKey), findsOneWidget);
 
-      await fixAt(tester, _r13At20km, 30);
+      await fixAt(tester, _r13At20km, _at(19.9));
       expectCameraAt(tester, _r13At0km, reason: 'paused: no fix moves it');
 
       await tapReturn(tester);
@@ -360,7 +399,7 @@ void main() {
         'put it; return brings it to her and follow resumes', (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await fixAt(tester, _r13At0km, 10);
+      await anchorAt(tester, _r13At0km, 10);
       expectCameraAt(tester, _r13At0km);
       expect(find.byKey(_returnKey), findsNothing,
           reason: 'following: no return control');
@@ -371,7 +410,7 @@ void main() {
           reason: 'control: the drag moved the camera');
       expect(find.byKey(_returnKey), findsOneWidget);
 
-      await fixAt(tester, _r13At8_2km, 20);
+      await fixAt(tester, _r13At8_2km, _at(8.2));
       expectCameraAt(tester, handPut, reason: 'paused: the camera is hers');
       expect(onMap(tester, _offMapKey), isTrue,
           reason: 'her mark is off the map she moved, and the map says so');
@@ -382,7 +421,7 @@ void main() {
       expect(find.byKey(_returnKey), findsNothing);
       expect(find.byKey(_offMapKey), findsNothing);
 
-      await fixAt(tester, _r13At20km, 30);
+      await fixAt(tester, _r13At20km, _at(19.9));
       expectCameraAt(tester, _r13At20km, reason: 'follow resumed');
       await positions.close();
     });
@@ -392,7 +431,7 @@ void main() {
         'where the ring is', (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await fixAt(tester, _r13At8_2km, 10);
+      await anchorAt(tester, _r13At8_2km, 10);
       await handDrag(tester);
       await silence(tester, 10, const Duration(seconds: 180));
       expect(find.byKey(_unknownKey), findsOneWidget, reason: 'control: lost');
@@ -409,7 +448,7 @@ void main() {
         (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await fixAt(tester, _r13At20km, 10);
+      await anchorAt(tester, _r13At20km, 10);
       await tapText(tester, '停止');
       await handDrag(tester);
       final handPut = camera(tester).center;
@@ -426,7 +465,9 @@ void main() {
           reason: 'no position from this session to return to');
       expect(find.byKey(_returnKey), findsNothing, reason: 'follow resumed');
 
-      await fixAt(tester, _r13At0km, 20);
+      // A new share's first fix is held too; the verdict starts again with
+      // each share, so this one is not judged against the last share's place.
+      await anchorAt(tester, _r13At0km, 20);
       expectCameraAt(tester, _r13At0km);
       await positions.close();
     });
@@ -436,7 +477,7 @@ void main() {
         'at least, inside the offline archive', (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await fixAt(tester, _r13At4km, 10);
+      await anchorAt(tester, _r13At4km, 10);
 
       await handWheel(tester, -400); // two levels in
       expect(camera(tester).zoom, greaterThan(12), reason: 'control: zoomed');

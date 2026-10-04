@@ -48,6 +48,7 @@ import 'package:sngnav_app/services/drive_hud_controller.dart';
 import 'package:sngnav_app/services/measured_hazard_floor.dart';
 
 import '../support/developer_page.dart';
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 import '../support/rung_on_card.dart';
 
@@ -77,15 +78,21 @@ final _t0 = DateTime.utc(2026, 1, 15, 21, 0, 0);
     speedMetersPerSecond: null,
     measuredHazard: hazard,
   );
-  c.onPositionFix(
-    PositionAvailable(
-      latitude: 39.7167,
-      longitude: 140.0983,
-      accuracyMeters: accuracy,
-      timestamp: _t0,
-    ),
-    now: _t0,
-  );
+  // A trusted history first (decided 2026-10-05): one fix asked about and
+  // held, as the app holds a share's first fix, then one fed and trusted. The
+  // input measured is the fix after them, so every table reads a drive that
+  // has already anchored. Until then this fed the measured fix alone, and the
+  // drive brain trusted any first fix whatever it was.
+  PositionAvailable here(DateTime t, double acc) => PositionAvailable(
+        latitude: 39.7167,
+        longitude: 140.0983,
+        accuracyMeters: acc,
+        timestamp: t,
+      );
+  c.wouldTrust(here(_t0.subtract(const Duration(seconds: 2)), 15));
+  c.onPositionFix(here(_t0.subtract(const Duration(seconds: 1)), 15),
+      now: _t0.subtract(const Duration(seconds: 1)));
+  c.onPositionFix(here(_t0, accuracy), now: _t0);
   if (secondsWithoutFix > 0) {
     c.poll(now: _t0.add(Duration(seconds: secondsWithoutFix)));
   }
@@ -161,6 +168,12 @@ Map<String, List<String>> _measuredTables() => {
 /// concern at any radius; its 150 m neighbourhood radius applies to suspect
 /// and degraded positions only (compound_failure_advisor 0.1.2,
 /// in_drive_advisor.dart:203-229).
+///
+/// Changed 2026-10-05, the fix accuracy table only, by the GPS trust verdict
+/// and on purpose: a fix whose own accuracy is over 150 m is now `suspect`, not
+/// trusted. Measured after a trusted fix in a measured clear 1,500 m, that one
+/// coarse fix gives heightened caution, never the top rung (it was the lowest
+/// rung up to 500 m, and the top rung above). Every other table is unchanged.
 const Map<String, List<String>> _pinned = {
   'visibility m, fresh, trusted fix': [
     '0-199 considerStopping',
@@ -179,8 +192,8 @@ const Map<String, List<String>> _pinned = {
     '301-900 heightenedCaution',
   ],
   'fix accuracy m, visibility 1500 m (mode rung)': [
-    '0-500 gpsTrusted continueDriving',
-    '501-1000 lost considerStopping',
+    '0-150 gpsTrusted continueDriving',
+    '151-1000 gpsSuspect heightenedCaution',
   ],
   'seconds without a fix, visibility 1500 m (mode rung)': [
     '0-0 gpsTrusted continueDriving',
@@ -338,6 +351,15 @@ Future<List<String>> _scriptedDrive(
   await tester.ensureVisible(share);
   await tester.pump();
   await tester.tap(share);
+  await tester.pump();
+  // A share's first fix is held (decided 2026-10-05): the same place
+  // one second earlier comes first, and the fix below is judged.
+  positions.add(justBefore(PositionAvailable(
+    latitude: 39.7167,
+    longitude: 140.0983,
+    accuracyMeters: 15,
+    timestamp: _t0,
+  )));
   await tester.pump();
   positions.add(PositionAvailable(
     latitude: 39.7167,

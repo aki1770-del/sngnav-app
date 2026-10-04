@@ -2204,10 +2204,17 @@ class _HomePageState extends State<HomePage> {
     _lastPositionEventAt = _now();
     setState(() => _herFix = fix);
     _maybeRefreshAdvisoriesForFix(fix);
-    // Ruled 2026-09-15: asked before feeding.
+    // Ruled 2026-09-15: asked before feeding. A share's first fix that nothing
+    // found wrong is held only because nothing can judge it yet: a share
+    // starting normally, so the road's own rung, never the failed-start rung
+    // (decided 2026-10-05). Under a measured 300 m the failed-start rung is the
+    // top one, with its critical vibration and the line inviting her to stop,
+    // at every share start, for one fix interval.
     _driveHud.startRung =
         !_herAnchoredThisSession && !_driveHud.wouldTrust(fix)
-            ? StartRung.unlocated
+            ? (_driveHud.awaitsComparison(fix)
+                ? StartRung.road
+                : StartRung.unlocated)
             : StartRung.none;
     _feedDriveHud(fix);
     _herFedThisShare = true;
@@ -2328,6 +2335,17 @@ class _HomePageState extends State<HomePage> {
       demoClock: _driveHudBaseTime
           ?.add(Duration(seconds: _blackoutSeconds)),
     );
+    // A share's first fix, held for comparison and given the road's rung, and
+    // then nothing for the drought: the share did not start after all, and
+    // takes the failed-start rung (decided 2026-10-05). Without this, a share
+    // whose GPS died right after its first fix would keep the road's rung for
+    // good, where before the GPS trust verdict it degraded from that fix.
+    if (pollAt != null &&
+        !_herAnchoredThisSession &&
+        !_herNoEventYet &&
+        _driveHud.startRung == StartRung.road) {
+      _driveHud.startRung = StartRung.unlocated;
+    }
     if (pollAt != null) _driveHud.poll(now: pollAt);
     // A stop is current for no longer than the drought cadence (decided
     // 2026-09-14), checked here on the same tick, so route setting closes
@@ -2371,7 +2389,10 @@ class _HomePageState extends State<HomePage> {
     _maybeRefreshAdvisoriesForFix(mockFix);
     _herNoEventYet = false;
     _driveHud.startRung = StartRung.none;
-    _feedDriveHud(mockFix);
+    // Not a GPS fix, so not judged as one (decided 2026-10-05): fed as the
+    // test position it is, labelled テスト位置 wherever it is shown.
+    _prepareDriveHudFor(mockFix);
+    _driveHud.onTestPosition(mockFix);
   }
 
   // ===== WS6 — feed the live drive brain + the on-screen caution panel =====
@@ -2431,6 +2452,12 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _feedDriveHud(PositionFix fix) {
+    _prepareDriveHudFor(fix);
+    _driveHud.onPositionFix(fix);
+  }
+
+  /// Everything [_feedDriveHud] does before the drive brain takes [fix].
+  void _prepareDriveHudFor(PositionFix fix) {
     // Set the environment fields directly (no recompute yet), so onPositionFix
     // does the single recompute+announce with the current environment.
     _driveHud.visibilityMeters = _effectiveVisibilityMeters;
@@ -2449,7 +2476,6 @@ class _HomePageState extends State<HomePage> {
       _driveHudBaseTime = fix.timestamp;
       _blackoutSeconds = 0;
     }
-    _driveHud.onPositionFix(fix);
   }
 
   /// The current measured-weather hazard floor from the app's own JMA watches.
@@ -2577,7 +2603,10 @@ class _HomePageState extends State<HomePage> {
     // Ruled 2026-09-15: the absence of any
     // event is the road's own rung inside 60 s; a failure, or the absence from
     // 60 s, is an unlocated position.
-    _driveHud.startRung = _herNoEventYet && !_herFirstEventOverdue
+    // A held first fix that nothing found wrong is a normal start too (decided
+    // 2026-10-05; see _onPositionEvent).
+    _driveHud.startRung = (_herNoEventYet && !_herFirstEventOverdue) ||
+            _driveHud.awaitsComparison(held)
         ? StartRung.road
         : StartRung.unlocated;
     _feedDriveHud(held);
