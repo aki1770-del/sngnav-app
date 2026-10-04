@@ -109,6 +109,7 @@ import 'widgets/keep_together.dart';
 import 'app_theme.dart';
 import 'widgets/kv_row.dart';
 import 'widgets/maneuver_narration_panel.dart';
+import 'widgets/keep_clear_of_floating_windows.dart';
 import 'services/maneuver_narration.dart';
 import 'services/invisible_ice_watch.dart';
 import 'services/turmoil_watch.dart';
@@ -6167,14 +6168,19 @@ class _HomePageState extends State<HomePage> {
             style: TextStyle(fontSize: 12, color: color),
           ),
         ),
-        TextButton(
-          // Brought onto her screen when she returns during a drive
-          // (_bringDriveStopIntoView).
-          key: _driveStopKey,
-          onPressed: _clearPosition,
-          // After a denial nothing was started, so the same action is
-          // offered as 閉じる / "Close", not 停止 / "Stop".
-          child: Text(isLocationRefusal(fix) ? l.close : l.stop),
+        // Asks Android to keep another app's floating window off 停止: Maps'
+        // picture-in-picture window covered it and took her tap (2026-10-04,
+        // lib/services/keep_clear.dart). API 33 and later only.
+        KeepClearOfFloatingWindows(
+          child: TextButton(
+            // Brought onto her screen when she returns during a drive
+            // (_bringDriveStopIntoView).
+            key: _driveStopKey,
+            onPressed: _clearPosition,
+            // After a denial nothing was started, so the same action is
+            // offered as 閉じる / "Close", not 停止 / "Stop".
+            child: Text(isLocationRefusal(fix) ? l.close : l.stop),
+          ),
         ),
       ],
     );
