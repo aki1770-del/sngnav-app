@@ -22,6 +22,9 @@
 /// 「GPS 良好」 would never be shown, so the label would stop telling her
 /// anything, and the hedged turn would be spoken on a clean road. The controls
 /// make that wiring red. They are green on `fc53fd6` and must stay green.
+/// One control (C5) is a fault the app already catches: it must stay caught
+/// at least as strictly as it is today, so a verdict can tighten the outcome
+/// but never loosen it.
 ///
 /// Why default construction. The verdict must be computed inside the seam,
 /// not passed in by each caller. A verdict a caller has to remember to supply
@@ -264,11 +267,18 @@ void main() {
       await _expectPresentedAsGood(c, fake, 'C4 accuracy 30 m on track');
     });
 
-    test('C5 a fix replayed with the SAME timestamp is already not trusted',
+    test('C5 a fix replayed with the SAME timestamp: no turn, as today',
         () async {
       // Protection that exists today (localization_fallback 0.1.4,
       // `localization_controller.dart:108-110`): a fix no newer than the last
-      // trusted one is not current. It must stay that way.
+      // trusted one is not current, so the estimate degrades to dead
+      // reckoning and the turn is suppressed. A verdict computed in front of
+      // the controller must not LOOSEN that. The guard only runs on a fix fed
+      // as `trusted`: a monitor that calls a duplicate timestamp `suspect`
+      // (position_integrity 0.1.1 does: "out-of-order or duplicate timestamp
+      // — skipped") and is fed straight through turns this stale fix into
+      // `gpsSuspect`, and the hedged turn is spoken from a fix that is not
+      // current. A replay carries no new position at all.
       final fake = FakeAlertActuators();
       final c = _controller(fake);
       final track = _cleanTrack(6);
@@ -276,8 +286,19 @@ void main() {
         _feed(c, f);
       }
       _feed(c, _at(6, northM: _v * 5, timestampSecond: 5));
-      await _expectNotPresentedAsGood(
-          c, fake, 'C5 frozen fix replayed with its old timestamp');
+      const why = 'C5 frozen fix replayed with its old timestamp';
+      await _expectNotPresentedAsGood(c, fake, why);
+      expect(c.estimate!.mode, isNot(LocalizationMode.gpsSuspect),
+          reason: '$why: a replay is not a present, doubtful fix');
+      final spokenBefore = fake.spoken.length;
+      final d = c.narrateNextManeuver(_rightTurn(), icyTurn: false);
+      await _settle();
+      expect(d.confidence, NarrationConfidence.suppressed, reason: why);
+      expect(
+        fake.spoken.skip(spokenBefore).any((s) => s.text.contains('右折')),
+        isFalse,
+        reason: '$why: a turn, plain or hedged, reached the audio channel',
+      );
     });
   });
 
