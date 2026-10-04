@@ -29,6 +29,13 @@
 #      that build unless SNGNAV_DEV_RELEASE=1. A debug-signed bundle is rejected by Play,
 #      and worse, an upload signed by the WRONG release key can never be undone:
 #      the first artifact accepted on a track pins the upload identity forever.
+#      So the bundle must have exactly ONE signer, and that signer's certificate
+#      SHA-256 must be tool/upload_key_certificate_sha256, the digest the Gradle
+#      gate reads. Until 2026-10-04 this gate matched the first signer's NAME
+#      ("CN=SNGNav Upload" anywhere in the first Owner line), which a throwaway
+#      key can carry and a second signer can hide behind. And because a
+#      development build (SNGNAV_DEV_RELEASE) is another app that never goes to
+#      Play, this script refuses to run at all while that variable is set.
 #   2. targetSdk — from 2026-08-31 Play requires new apps and updates to target
 #      API 36 (measured live 2026-08-10 at
 #      support.google.com/googleplay/android-developer/answer/11926878). That is
@@ -152,9 +159,10 @@ FLOOR_FILE="$REPO_ROOT/tool/version_code_floor"
 MINT_LEDGER_REAL="$HOME/.sngnav/minted_release.tsv"
 MINT_LEDGER_EXTRA="${SNGNAV_MINTED_LEDGER:-}"
 
-# The upload identity, pinned. Read from the keystore 2026-08-10:
-#   keytool -list -v -keystore android/app/upload-keystore.jks -alias upload
-EXPECTED_SIGNER_CN="CN=SNGNav Upload"
+# The upload key, pinned by its certificate's SHA-256: one tracked file, read by
+# this script's gate 1 and by android/app/build.gradle.kts (assertReleaseSigner
+# and the mint ledger rows), so the two can never name different keys.
+PIN_FILE="$REPO_ROOT/tool/upload_key_certificate_sha256"
 MIN_TARGET_SDK=36
 MIN_SO_ALIGN=16384   # 0x4000
 
@@ -162,15 +170,63 @@ MIN_SO_ALIGN=16384   # 0x4000
 # Pure decisions. Every one of these is exercised by --self-test with input it
 # MUST reject, because a guard nobody has watched fail is not known to guard.
 
-# $1 = signer Owner line as printed by keytool
+# $1 = the text of tool/upload_key_certificate_sha256. Echoes its digest when
+# exactly one line is neither blank nor a comment and it is 64 hex digits
+# (colons and upper case are accepted, as the Gradle gate accepts them).
+# Otherwise nothing.
+pin_digest() {
+  local lines
+  lines="$(printf '%s\n' "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' | grep -v -e '^#' -e '^$' || true)"
+  [ -n "$lines" ] || return 0
+  [ "$(printf '%s\n' "$lines" | wc -l)" -eq 1 ] || return 0
+  printf '%s\n' "$lines" | tr -d ':' | tr 'A-F' 'a-f' | grep -E '^[0-9a-f]{64}$' || true
+}
+
+# $1 = `keytool -printcert -jarfile` output. Echoes one line per signer (each
+# "Signer #N:" block): the SHA-256 of that signer's first certificate, its own,
+# lower-case and without colons.
+signer_digests() {
+  printf '%s\n' "$1" | awk '
+    /^Signer #[0-9]+:/ { want = 1; next }
+    want && /^[[:space:]]*SHA256:/ { d = $2; gsub(":", "", d); print tolower(d); want = 0 }'
+}
+
+# $1 = the pinned digest (may be empty); $2 = `keytool -printcert -jarfile`
+# output. Passes only when the bundle has exactly ONE signer and that signer's
+# certificate SHA-256 is the pin.
 check_signer() {
-  case "$1" in
-    *"CN=Android Debug"*) echo "DEBUG-SIGNED: $1"; return 1 ;;
+  local pin="$1" out="$2" digests n
+  [ -n "$pin" ] || { echo "the upload key's digest cannot be read from tool/upload_key_certificate_sha256 (it must hold exactly one 64-hex-digit line). UNVERIFIED, not clear."; return 1; }
+  case "$out" in
+    *"CN=Android Debug"*) echo "DEBUG-SIGNED: $(printf '%s\n' "$out" | grep -m1 '^Owner:')"; return 1 ;;
   esac
-  case "$1" in
-    *"$EXPECTED_SIGNER_CN"*) return 0 ;;
-    *) echo "WRONG SIGNER: expected '$EXPECTED_SIGNER_CN', got: $1"; return 1 ;;
-  esac
+  digests="$(signer_digests "$out")"
+  n="$(printf '%s' "$digests" | grep -c . || true)"
+  if [ "$n" -eq 0 ]; then
+    echo "NO SIGNER READ: keytool names no signer certificate in this bundle. UNVERIFIED, not clear."
+    return 1
+  fi
+  if [ "$n" -gt 1 ]; then
+    echo "$n SIGNERS: the upload key must be the bundle's only signer. Certificate SHA-256s:"
+    printf '    %s\n' $digests
+    return 1
+  fi
+  if [ "$digests" != "$pin" ]; then
+    echo "WRONG SIGNER: certificate SHA-256 $digests ($(printf '%s\n' "$out" | grep -m1 '^Owner:')) is not the upload key's $pin (tool/upload_key_certificate_sha256)."
+    return 1
+  fi
+  return 0
+}
+
+# $1 = "set" or "unset" (SNGNAV_DEV_RELEASE); $2 = its value. Under
+# SNGNAV_DEV_RELEASE=1 the Gradle build makes another app
+# (dev.aki1770del.sngnav_app.dev), and this script's default mode builds with
+# the caller's environment. A development build never goes to Play, so the
+# script refuses to run while the variable is set to anything.
+check_not_dev_release() {
+  [ "$1" = "set" ] || return 0
+  echo "SNGNAV_DEV_RELEASE is set (to \"$2\"). A development build is another app and never goes to Play. Unset it, then run this again."
+  return 1
 }
 
 # $1 = targetSdk as integer
@@ -431,10 +487,38 @@ if [ "${1:-}" = "--self-test" ]; then
     fi
   }
 
+  # `keytool -printcert -jarfile` output, in the shape keytool 21 prints it:
+  # KT <owner> <sha256> [<owner> <sha256> ...], one "Signer #N:" block each.
+  KT() {
+    local i=1
+    while [ $# -ge 2 ]; do
+      printf 'Signer #%d:\n\nCertificate #1:\nOwner: %s\nIssuer: %s\nCertificate fingerprints:\n\t SHA1: 00:11:22\n\t SHA256: %s\n\n' \
+        "$i" "$1" "$1" "$(printf '%s' "$2" | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//')"
+      i=$((i+1)); shift 2
+    done
+  }
+  PIN="$(pin_digest "$(cat "$PIN_FILE" 2>/dev/null)")"
+  UPLOAD_DN="CN=SNGNav Upload, OU=SNGNav, O=SNGNav, L=Nagoya, ST=Aichi, C=JP"
+  DEBUG_SHA=8d40d1fc61aad914d7bf81956f6142f7e6afaebbab4d851cc276b0503f1742e4
+  # A throwaway key made 2026-10-04 bearing the upload key's exact name.
+  NAMESAKE_SHA=2c1e74b45f1fd86218d14189b8253b5ec2c622c7abf21be61afd15eb3667cf5e
+
   # Each guard must REJECT the thing it exists to catch...
-  t "debug signature rejected"        1 check_signer "Owner: CN=Android Debug, OU=Android, O=Android, C=US"
-  t "foreign release signer rejected" 1 check_signer "Owner: CN=Someone Else, O=Other"
-  t "empty signer rejected"           1 check_signer ""
+  t "debug signature rejected"        1 check_signer "$PIN" "$(KT "CN=Android Debug, O=Android, C=US" $DEBUG_SHA)"
+  t "foreign release signer rejected" 1 check_signer "$PIN" "$(KT "CN=Someone Else, O=Other" $NAMESAKE_SHA)"
+  t "empty signer rejected"           1 check_signer "$PIN" ""
+  t "the upload key's NAME on another key rejected" 1 check_signer "$PIN" "$(KT "$UPLOAD_DN" $NAMESAKE_SHA)"
+  t "a second signer after the upload key rejected" 1 check_signer "$PIN" "$(KT "$UPLOAD_DN" "$PIN" "CN=Someone Else" $NAMESAKE_SHA)"
+  t "a second signer before the upload key rejected" 1 check_signer "$PIN" "$(KT "CN=Someone Else" $NAMESAKE_SHA "$UPLOAD_DN" "$PIN")"
+  t "no readable pin is a refusal, not a pass" 1 check_signer "" "$(KT "$UPLOAD_DN" "$PIN")"
+  t "the tracked pin file holds one digest" 0 test -n "$PIN"
+  t "the pin is read with colons and upper case" 0 test "$(pin_digest "$(printf '# a note\n%s\n' "$(printf '%s' "$PIN" | tr 'a-f' 'A-F' | sed 's/../&:/g; s/:$//')")")" = "$PIN"
+  t "two pin lines read as none"      0 test -z "$(pin_digest "$(printf '%s\n%s\n' "$PIN" "$PIN")")"
+  t "63 hex digits read as none"      0 test -z "$(pin_digest "${PIN#?}")"
+  t "SNGNAV_DEV_RELEASE=1 refuses the run" 1 check_not_dev_release set 1
+  t "SNGNAV_DEV_RELEASE=0 refuses the run" 1 check_not_dev_release set 0
+  t "SNGNAV_DEV_RELEASE set but empty refuses the run" 1 check_not_dev_release set ""
+  t "SNGNAV_DEV_RELEASE unset runs"   0 check_not_dev_release unset ""
   t "targetSdk 35 rejected"           1 check_target_sdk 35
   t "targetSdk 34 rejected"           1 check_target_sdk 34
   t "unreadable targetSdk rejected"   1 check_target_sdk ""
@@ -471,7 +555,7 @@ if [ "${1:-}" = "--self-test" ]; then
 
   # ...and ACCEPT the real, correct values measured on 2026-08-10, so a guard
   # that rejects everything (equally useless) is caught too.
-  t "expected signer accepted"        0 check_signer "Owner: CN=SNGNav Upload, OU=SNGNav, O=SNGNav, L=Nagoya, ST=Aichi, C=JP"
+  t "the upload key alone accepted"   0 check_signer "$PIN" "$(KT "$UPLOAD_DN" "$PIN")"
   t "targetSdk 36 accepted"           0 check_target_sdk 36
   t "targetSdk 37 accepted"           0 check_target_sdk 37
   t "16 KB align accepted"            0 check_so_align 0x4000 libdartjni.so
@@ -575,6 +659,13 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# A development build never goes to Play (see check_not_dev_release).
+if [ -n "${SNGNAV_DEV_RELEASE+x}" ]; then dev_release_state=set; else dev_release_state=unset; fi
+if ! check_not_dev_release "$dev_release_state" "${SNGNAV_DEV_RELEASE-}"; then
+  echo "FAIL: REFUSING TO RUN."
+  exit 2
+fi
+
 echo "== Play upload preflight =="
 echo "repo:   $REPO_ROOT"
 echo "commit: $(git -C "$REPO_ROOT" rev-parse --short HEAD 2>/dev/null || echo '(not a git tree)')"
@@ -653,12 +744,15 @@ else
   fi
 fi
 
-# --- gate 1: the BUNDLE's own signature (this is the uploaded artifact)
-echo "-- gate 1/5  signature of the BUNDLE"
-signer_line="$(keytool -printcert -jarfile "$AAB" 2>/dev/null | grep -m1 '^Owner:')"
-if check_signer "$signer_line"; then
-  note "OK  $signer_line"
-  note "    $(keytool -printcert -jarfile "$AAB" 2>/dev/null | grep -m1 '^Valid from:')"
+# --- gate 1: the BUNDLE's own signature (this is the uploaded artifact):
+# every signer, by certificate digest, against the tracked pin.
+echo "-- gate 1/5  signature of the BUNDLE (every signer, against tool/upload_key_certificate_sha256)"
+signer_out="$(keytool -printcert -jarfile "$AAB" 2>/dev/null)"
+upload_pin="$(pin_digest "$(cat "$PIN_FILE" 2>/dev/null)")"
+if check_signer "$upload_pin" "$signer_out"; then
+  note "OK  one signer, certificate SHA-256 $upload_pin = tool/upload_key_certificate_sha256"
+  note "    $(printf '%s\n' "$signer_out" | grep -m1 '^Owner:')"
+  note "    $(printf '%s\n' "$signer_out" | grep -m1 '^Valid from:')"
 else
   fails=$((fails+1))
 fi
