@@ -419,6 +419,18 @@ void main() {
         lessThan(live.indexOf('-- artifacts under test')));
   });
 
+  test('the development command the refusal prints builds before it runs', () {
+    // `flutter run --release` picks the app it stops on quit before it
+    // builds; on a tree with no .dev APK left, that is her ID. The printed
+    // command builds the .dev APK first (FBR R133 D4b; AAE round 4 D4r/D4g).
+    const twoStep = 'SNGNAV_DEV_RELEASE=1 flutter build apk --release && '
+        'SNGNAV_DEV_RELEASE=1 flutter run --release';
+    expect(gradle, contains('"    $twoStep\\n" +'));
+    // No line of the refusal suggests the run alone.
+    expect(gradle, isNot(contains('"    SNGNAV_DEV_RELEASE=1 flutter run --release"')));
+    expect(gradle, isNot(contains('"    SNGNAV_DEV_RELEASE=1 flutter run --release\\n"')));
+  });
+
   test('the fallback is no longer described as unable to ship', () {
     // The comment this gate replaces said a debug-signed release "cannot
     // silently ship" because Play rejects it. It shipped by sideload.

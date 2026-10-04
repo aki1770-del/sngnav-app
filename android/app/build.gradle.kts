@@ -105,6 +105,18 @@ if (hasReleaseKeystore) {
 // "SNGNav", so a glance does not land on the wrong one. The icon is still the
 // same.
 //
+// THE COMMAND THE REFUSAL SUGGESTS builds first, then runs. `flutter run
+// --release` picks the app it force-stops on quit BEFORE it builds: from
+// build/app/outputs/flutter-apk/app-release.apk if that file exists, else
+// from this project's package, which is her ID (flutter_tools 3.47.5
+// run_cold.dart preExit, application_package.dart). Run alone on a tree with
+// no .dev APK there, the development release's quit stops her app on that
+// device (FBR R131 D4, round 3; AAE round 4, D4r). Built first, the APK there
+// is the .dev one, and no adb call names her ID (FBR R133 D4b; AAE round 4,
+// D4g). A drive ended is not a version or data loss, and no build script can
+// make `flutter run` read anything else; what the repo controls is the
+// command it prints.
+//
 // NOT CLOSED HERE, said so plainly: debug builds keep her ID, because changing
 // it would change the app every emulator instrument drives by name. With her
 // phone attached, a debug `flutter run` takes the same uninstall-retry. And
@@ -1019,8 +1031,11 @@ val assertReleaseSigner = tasks.register("assertReleaseSigner") {
             "To build for a phone: sign with the upload key, through android/key.properties or Android " +
             "Studio's \"Generate Signed Bundle / APK\".\n" +
             "To build release mode for development on your own device or an emulator, say so. The " +
-            "build is then another app, $devId, which installs beside hers:\n" +
-            "    SNGNAV_DEV_RELEASE=1 flutter run --release" +
+            "build is then another app, $devId, which installs beside hers. Build it first, then " +
+            "run it, as one line:\n" +
+            "    SNGNAV_DEV_RELEASE=1 flutter build apk --release && SNGNAV_DEV_RELEASE=1 flutter run --release\n" +
+            "(flutter run decides which app to stop on quit before it builds, from the APK an earlier " +
+            "build left; with none it takes $herId and stops her app on that device.)" +
             (if (envValue != null) "\n(SNGNAV_DEV_RELEASE is set to \"$envValue\"; only 1 allows a development build.)" else "")
         throw GradleException(refusal)
     }
