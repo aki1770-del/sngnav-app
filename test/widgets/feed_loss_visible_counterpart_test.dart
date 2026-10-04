@@ -97,12 +97,19 @@ Future<void> _refetch(WidgetTester tester, {required bool fromSuccess}) async {
   await tester.pump();
 }
 
+/// The words the first [Text] under [key] draws, as she reads them. The
+/// absence line is drawn through a span with word joiners (2026-10-04, so a
+/// line breaks only between phrases), and its `Text.data` is then null: read
+/// from `data` alone, the screen-equals-voice checks below would compare null
+/// with the spoken line.
 String? _singleTextUnder(WidgetTester tester, Key key) {
   final texts = find.descendant(
     of: find.byKey(key),
     matching: find.byType(Text),
   );
-  return tester.widget<Text>(texts.first).data;
+  final t = tester.widget<Text>(texts.first);
+  final raw = t.data ?? t.textSpan?.toPlainText();
+  return raw == null ? null : plainOf(raw);
 }
 
 void main() {

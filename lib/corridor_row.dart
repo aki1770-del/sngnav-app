@@ -85,14 +85,44 @@ class CorridorColumnHead extends StatelessWidget {
   /// share one baseline and the table does not step.
   final String? unit;
 
+  /// The word is one line, whole, and drawn smaller only when the column, less
+  /// the gutter beside it, is narrower than it.
+  ///
+  /// Why (2026-10-04, measured at her geometry, 1080 x 2340 px at 2.75). The
+  /// data columns are 42.9 dp at every text size, because the station and time
+  /// columns are fixed. A wrapping head broke inside its word wherever her text
+  /// size made the word wider than that: 「積雪｜深」 at 1.3 and 1.5;
+  /// 「積｜雪｜深」, 「気｜温」, 「風｜速」 and 「観測時｜刻」 at 2.0; "Sno|w",
+  /// "Tem|p", "Win|d" and "Observ|ed" at 2.0; and with Roboto "Observe|d" at
+  /// 1.5. Joining the word cannot help: at 2.0 even 気温, two kanji, broke one
+  /// kanji per line in that column, so a word that may not break would
+  /// overflow into the next one. This is the value cells' `FittedBox`, for the
+  /// same reason.
+  ///
+  /// The cost, measured: at 2.0 積雪深 is drawn at 12.82 px where her text
+  /// size asks 22, above this card's 11 px floor; where the word fits it is
+  /// not scaled at all. test/support/weather_card_breaks_check.dart holds both.
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     mainAxisSize: MainAxisSize.min,
     children: [
-      Text(
-        label,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+      // The gutter: a word scaled to exactly its column touched the next one,
+      // and at 2.0 the heads drew 「積雪深気温風速観測時刻」 as one run of kanji
+      // (0.00 dp between words, measured). The same 4 dp this card holds
+      // between neighbouring columns.
+      Padding(
+        padding: const EdgeInsetsDirectional.only(end: corridorPillInset),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: AlignmentDirectional.centerStart,
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+            softWrap: false,
+            maxLines: 1,
+          ),
+        ),
       ),
       Text(
         unit ?? '',

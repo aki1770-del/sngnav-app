@@ -5718,6 +5718,11 @@ class _HomePageState extends State<HomePage> {
   /// voice speaks (same locale source [_spokenJa]). Amber, not grey body
   /// text: "we do not know the road state" is caution-class information, and
   /// absence must never render as calm. liveRegion for assistive tech.
+  /// The absence line in the spoken locale, exactly as the voice speaks it.
+  String get _conditionsUnknownLine => _spokenJa
+      ? kConditionsUnknownJaSpokenText
+      : kConditionsUnknownEnSpokenText;
+
   Widget _conditionsUnknownVisibleRow() {
     return Container(
       key: const Key('conditions-unknown-visible'),
@@ -5731,10 +5736,18 @@ class _HomePageState extends State<HomePage> {
       child: Semantics(
         container: true,
         liveRegion: true,
-        child: Text(
-          _spokenJa
-              ? kConditionsUnknownJaSpokenText
-              : kConditionsUnknownEnSpokenText,
+        // Drawn so that a line breaks only between two phrases (2026-10-04):
+        // at text size 2.0 the plain line ended its first line on
+        // 「取得できてい」, the affirmative stem of "not measured". The plain
+        // line is the semantics label, so the screen reader and the voice say
+        // the same words. kConditionsUnknownJaPhrases says why.
+        child: Text.rich(
+          keepPhrasesTogether(
+                _conditionsUnknownLine,
+                _spokenJa ? kConditionsUnknownJaPhrases : null,
+              ) ??
+              TextSpan(text: _conditionsUnknownLine),
+          semanticsLabel: _conditionsUnknownLine,
           // Contrast floor — see _staleIceVisibleCard.
           style: const TextStyle(
             color: kCautionTextOnAmber,

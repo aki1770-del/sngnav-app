@@ -48,6 +48,30 @@ const String kConditionsUnknownJaSpokenText =
 const String kConditionsUnknownEnSpokenText =
     'Road conditions unavailable — drive to what you can see.';
 
+/// [kConditionsUnknownJaSpokenText] as the screen draws it: its phrases (文節),
+/// a line breaking only between two of them (keepPhrasesTogether,
+/// lib/widgets/keep_together.dart). The voice and the screen reader still get
+/// the plain line.
+///
+/// Why (2026-10-04, measured at her geometry, 1080 x 2340 px at 2.75). At text
+/// size 2.0 the line drew 「路面状況を取得できてい｜ません。見える範囲で運｜転してください。」:
+/// its first line ended on the affirmative stem of a line that says the road
+/// was NOT measured, and 運転 split in two. Where it broke moved with every text
+/// size, so no shorter wording would hold from 1.0 to 2.0.
+///
+/// Joined, these must spell the line exactly; if they stop doing so the line
+/// is drawn plain, never as other words, and
+/// test/l10n/conditions_unknown_phrases_spell_the_line_test.dart fails.
+/// English needs none: measured at the same sizes in IPAGothic and Roboto, it
+/// broke only at spaces.
+const List<String> kConditionsUnknownJaPhrases = [
+  '路面状況を',
+  '取得できていません。',
+  '見える',
+  '範囲で',
+  '運転してください。',
+];
+
 /// Parse a 14-digit JMA observedAtJstKey (yyyymmddHHMMSS, JST wall-clock) into a
 /// LOCAL DateTime. Returns null if the key is not 14 digits (caller then treats
 /// it as no-reading → absence-line). NOTE: parsed as LOCAL time — correct only on
