@@ -211,6 +211,26 @@ void main() {
   });
 
   test(
+      'a replay is failed: never the package\'s "skipped" suspect, never '
+      'trusted, and nothing is advanced by it', () {
+    // Found by mutation (2026-10-05): with this check deleted, the controller's
+    // own stale guard still degrades the replay, so no test of what she is
+    // shown went red, while the verdict on record read `trusted` for a fix
+    // that carried no new position.
+    final c = DriveHudController(
+        actuators: FakeAlertActuators(), localeTag: 'ja');
+    _anchor(c, _at(0), _at(1, northM: 15));
+    c.onPositionFix(_at(1, northM: 15), now: _at(1).timestamp);
+    expect(c.gpsTrustVerdict!.acting, TrustSignal.failed);
+    expect(c.gpsTrustVerdict!.reasons.single, contains('not newer'));
+    expect(c.estimate!.mode, isNot(LocalizationMode.gpsSuspect));
+    // The next fix is judged against the last real fix, not the replay.
+    c.onPositionFix(_at(2, northM: 30), now: _at(2).timestamp);
+    expect(c.gpsTrustVerdict!.acting, TrustSignal.trusted);
+    expect(c.estimate!.mode, LocalizationMode.gpsTrusted);
+  });
+
+  test(
       'a share starts the verdict again: its first fix is not judged against '
       'the last share\'s place, and the fix after it anchors', () {
     final c = DriveHudController(
