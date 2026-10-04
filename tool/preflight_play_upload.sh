@@ -972,6 +972,9 @@ fi
 if [ "$HAVE_APK" -eq 1 ] && [ -n "$AAPT2" ] && [ "$APK_IS_BUNDLE" -eq 0 ]; then
   note "FAIL: the APK is not the bundle's build (identity, above) — its permissions say nothing about the bundle. UNVERIFIED, not clear."
   fails=$((fails+1))
+elif [ "$HAVE_APK" -eq 0 ]; then
+  note "FAIL: no APK beside this bundle — the shipped permissions cannot be read, so parity is UNVERIFIED, not clear."
+  fails=$((fails+1))
 elif [ -z "${badging:-}" ]; then
   note "FAIL: no badging (aapt2 missing above) — parity UNVERIFIED, not clear."
   fails=$((fails+1))
