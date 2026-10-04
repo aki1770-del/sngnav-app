@@ -15,7 +15,11 @@
   that pin for her drive, and its warnings, still running. A road is not a
   location mark, it is not one of Android's status icons, and it is present
   only while her drive is. test/drive_notification_icon_not_location_test.dart
-  fails if this shape is ever a location glyph again.
+  fails if this file draws a location glyph again: on its own, or as a
+  separate piece spanning at least half of the drawing, at any size or
+  position. It cannot see a location glyph whose ink touches another shape
+  (a pin with a bar joined to it passes), and it does not read meaning; its
+  header lists what else it cannot see.
 
   It is not a snowflake or a warning triangle on purpose: inside the app those
   two mean "the road may be frozen" and "a caution is raised", and an icon
