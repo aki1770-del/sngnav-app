@@ -34,10 +34,15 @@
 ///    such a wiring makes the hedged state universal. A probe run showed it
 ///    makes `lost` universal; corrected here.)
 ///  - Against a wiring that is too tight: each fault case could also be
-///    passed by a gate that fires on honest driving. N1 to N6 are honest
+///    passed by a gate that fires on honest driving. N1 to N7 are honest
 ///    drives that such a gate would flag: fix noise, a turn and a curve, an
 ///    expressway speed, a crawl, a stop that repeats its coordinates, a
-///    140 m fix. Each was shown to fail its too-tight gate before it was kept.
+///    140 m fix, and a burst of fixes at a tunnel exit. Each was shown to
+///    fail its too-tight gate before it was kept.
+///
+/// Two fault cases, MULTIPATH and FROZEN, are skipped while the gates that
+/// catch them run in shadow (see [_inShadow]); the SHADOW group holds that
+/// their verdict is still computed and is not "trusted".
 /// One control (C5) is a fault the app already catches: it must stay caught
 /// at least as strictly as it is today, so a verdict can tighten the outcome
 /// but never loosen it.
@@ -77,7 +82,7 @@ import 'package:geolocator/geolocator.dart'
     show LocationPermission, Position;
 import 'package:latlong2/latlong.dart' show LatLng;
 import 'package:localization_fallback/localization_fallback.dart'
-    show LocalizationMode;
+    show LocalizationMode, TrustSignal;
 import 'package:routing_engine/routing_engine.dart' show RouteManeuver;
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/services/drive_hud_controller.dart';
@@ -102,6 +107,37 @@ const double _v = 15.0;
 /// The platform's reported speed accuracy, unless a case says otherwise.
 const double _speedAcc = 1.5;
 
+/// Why MULTIPATH and FROZEN are skipped, and what still holds them.
+///
+/// The two gates that catch them (a change of speed between fixes, and a
+/// position that stops while the platform says it moves) are sensitive to
+/// ordinary fix noise, and nobody has yet measured how often they would flag
+/// honest fixes on a phone. Until that is measured, they run in shadow: they
+/// are computed and recorded, but they do not change what she sees or hears
+/// (wiring criterion W10; measurement plan F). The SHADOW group below asserts
+/// that their verdict IS computed for these same two vectors, so a skip here is
+/// never an absent verdict. Remove the skip when plan F passes; do not relax
+/// either case to make it pass.
+const String _inShadow = 'in shadow until honest phone fixes are measured '
+    '(wiring criterion W10, measurement plan F); the SHADOW group holds the '
+    'computed verdict for this vector';
+
+/// The verdict of the gates kept in shadow, read from the seam. It is a
+/// contract the wiring must provide: `DriveHudController.shadowGpsTrust`, a
+/// [TrustSignal] for the last fix fed. On a tree with no such verdict the
+/// read fails, and says why.
+TrustSignal _shadowOf(DriveHudController c) {
+  try {
+    final Object? v = (c as dynamic).shadowGpsTrust;
+    if (v is TrustSignal) return v;
+    fail('shadowGpsTrust is $v, not a TrustSignal: no shadow verdict');
+  } on NoSuchMethodError {
+    fail('no shadow verdict is computed: DriveHudController has no '
+        'shadowGpsTrust, so the gates in shadow leave no record (an absent '
+        'verdict reads as a pass)');
+  }
+}
+
 /// One platform sample at [second], [northM] up the road and [eastM] across
 /// it, reporting horizontal accuracy [acc] and ground speed [speed] with
 /// speed accuracy [speedAcc]. A `null` [speed] is a platform that reported
@@ -114,11 +150,14 @@ Position _p(
   double? speed = _v,
   double speedAcc = _speedAcc,
   int? timestampSecond,
+  int? atMs,
 }) =>
     Position(
       latitude: _lat0 + northM / _mPerDegLat,
       longitude: _lon0 + eastM / _mPerDegLon,
-      timestamp: _t0.add(Duration(seconds: timestampSecond ?? second)),
+      timestamp: atMs != null
+          ? _t0.add(Duration(milliseconds: atMs))
+          : _t0.add(Duration(seconds: timestampSecond ?? second)),
       accuracy: acc,
       hasAccuracy: true,
       altitude: 0,
@@ -514,6 +553,44 @@ void main() {
       ], 'N5b');
     });
 
+    test('N7 a tunnel exit at 90 km/h: three fixes 0.3 s apart, each ±20 m',
+        () async {
+      // After a 20 s tunnel the receiver reacquires in a burst: three fixes
+      // 0.3 s apart, each reporting ±20 m, whose errors are +6, -6 and +6 m
+      // along the road. Every fix is honest: each error is well inside its own
+      // reported accuracy. But the last step looks like 19.5 m in 0.3 s, which
+      // is 65 m/s. Fails a speed limit computed on raw distance over a
+      // sub-second interval, which would reject her position at the tunnel
+      // exit, where she needs the next turn.
+      const v = 25.0;
+      final fake = FakeAlertActuators();
+      final c = _controller(fake);
+      for (final f in await _parse([
+        for (var s = 0; s < 6; s++) _p(s, northM: v * s, speed: v),
+      ])) {
+        _feed(c, f);
+      }
+      for (var s = 6; s <= 25; s++) {
+        c.poll(now: _t0.add(Duration(seconds: s)));
+      }
+      final burst = await _parse([
+        _p(0, northM: v * 26.0 + 6, acc: 20, speed: v, atMs: 26000),
+        _p(0, northM: v * 26.3 - 6, acc: 20, speed: v, atMs: 26300),
+        _p(0, northM: v * 26.6 + 6, acc: 20, speed: v, atMs: 26600),
+        _p(0, northM: v * 27.6, acc: 10, speed: v, atMs: 27600),
+        _p(0, northM: v * 28.6, acc: 10, speed: v, atMs: 28600),
+      ]);
+      for (var i = 0; i < burst.length; i++) {
+        _feed(c, burst[i]);
+        // The first fix after the gap may carry one fix of caution (as C3).
+        if (i >= 1) {
+          expect(c.estimate!.mode, LocalizationMode.gpsTrusted,
+              reason: 'N7: fix $i after the tunnel');
+        }
+      }
+      await _expectPresentedAsGood(c, fake, 'N7 after the burst');
+    });
+
     test('N6 a 140 m accuracy fix where she plausibly is stays trusted',
         () async {
       // Under the 150 m line for "not network-grade". Fails an accuracy
@@ -523,6 +600,35 @@ void main() {
         _p(8, northM: _v * 8, acc: 140),
       ]);
       await _expectPresentedAsGood(c, fake, 'N6 accuracy 140 m on track');
+    });
+  });
+
+  group('SHADOW: the gates kept in shadow are computed, and say so', () {
+    test('MULTIPATH onset: the shadow verdict is not trusted', () async {
+      final (c, _) = await _drive([
+        ..._cleanTrack(6),
+        _p(6, northM: _v * 6, eastM: 40, acc: 8),
+      ]);
+      expect(_shadowOf(c), isNot(TrustSignal.trusted),
+          reason: 'the 40 m onset must be on the record even while it does '
+              'not change what she sees');
+    });
+
+    test('FROZEN: the shadow verdict is not trusted', () async {
+      final (c, _) = await _drive([
+        ..._cleanTrack(6),
+        for (var s = 6; s <= 8; s++) _p(s, northM: _v * 5),
+      ]);
+      expect(_shadowOf(c), isNot(TrustSignal.trusted),
+          reason: 'the frozen position must be on the record even while it '
+              'does not change what she sees');
+    });
+
+    test('control: on a clean drive the shadow verdict is trusted', () async {
+      // A shadow that always says "suspect" would pass the two cases above
+      // and record nothing true.
+      final (c, _) = await _drive(_cleanTrack(10));
+      expect(_shadowOf(c), TrustSignal.trusted);
     });
   });
 
@@ -581,7 +687,7 @@ void main() {
       ]);
       await _expectNotPresentedAsGood(
           c, fake, 'MULTIPATH onset of a 40 m offset at ±8 m');
-    });
+    }, skip: _inShadow);
 
     test('FROZEN the position stops while the platform says 15 m/s',
         () async {
@@ -595,7 +701,7 @@ void main() {
       ]);
       await _expectNotPresentedAsGood(
           c, fake, 'FROZEN three frozen fixes against a moving speed');
-    });
+    }, skip: _inShadow);
 
     test('COARSE a 400 m accuracy fix where she plausibly is', () async {
       // A network-grade fix (no satellites in the valley). Its position is
