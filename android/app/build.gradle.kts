@@ -65,6 +65,21 @@ if (hasReleaseKeystore) {
 // that refuses every upload-signed fix after it. A warning printed during the
 // build stops none of that; it relies on someone reading it in time (V9).
 //
+// ON HER PHONE, AN adb INSTALL FAILS, WHATEVER THE KEY. Its system (MIUI)
+// refused `adb install` on 2026-09-19 and again on 2026-10-02 ("Failure
+// [INSTALL_FAILED_USER_RESTRICTED: Install canceled by user]"): a refusal of
+// the install channel, not of a key, which stands while that phone's setting
+// does. And installApp uninstalls after ANY failed install while the app is
+// present, not only after a signer mismatch: `flutter run` stops the app,
+// calls installApp, and on failure prints "Uninstalling old version..." and
+// runs the uninstall, asking no one (flutter_tools 3.47.5 android_device.dart,
+// startApp and installApp). So her OWN release, signed by the upload key, run
+// with `flutter run --release` against her phone, takes that path to her app
+// too, and the reinstall after it would fail the same way. Whether her phone
+// lets an adb uninstall through is not known. The upload key does not protect
+// her app from `flutter run`, and no build script can. What keeps her app safe
+// is that a build reaches her phone only by push and tap (BIS round 3, O2).
+//
 // WHAT. The release build under SNGNAV_DEV_RELEASE=1, and every profile
 // build, get applicationIdSuffix ".dev". Android keys an installed app and its
 // data by application ID, so such a build installs BESIDE hers and can never
