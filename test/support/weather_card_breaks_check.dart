@@ -25,6 +25,8 @@
 ///       agree with itself; English: after a space), and no line ends on
 ///       「取得できてい」;
 ///   A3. no character of it lies past the width it was given;
+///   A4. a screen reader hears it as the plain line: exactly one live region
+///       is labelled with it, and no live region's label carries a joiner;
 ///   H1. each column head's word is one line, as the app's own words give it;
 ///   H2. no character of it lies outside its column;
 ///   H3. it is drawn at >= 11 px, this card's floor: its font size through its
@@ -270,6 +272,37 @@ void weatherCardBreakTests({
         if (out.isNotEmpty) {
           problems.add('A3: ${out.length} characters of the absence line lie '
               'past its width: ${out.join()}');
+        }
+
+        // A4: a screen reader hears the plain line. Added 2026-10-04: with the
+        // line drawn through joiners, removing its semantics label passed the
+        // two tests that read this row (+17, rc 0), and no other test reads
+        // its semantics.
+        final semantics = tester.ensureSemantics();
+        await tester.pump();
+        var root = tester.getSemantics(find.byType(Scaffold).first);
+        while (root.parent != null) {
+          root = root.parent!;
+        }
+        final live = <String>[];
+        void visit(SemanticsNode n) {
+          final d = n.getSemanticsData();
+          if (d.flagsCollection.isLiveRegion) live.add(d.label);
+          n.visitChildren((c) {
+            visit(c);
+            return true;
+          });
+        }
+
+        visit(root);
+        semantics.dispose();
+        if (live.where((l) => l == spoken).length != 1) {
+          problems.add('A4: no single live region is labelled with the line '
+              'the voice speaks; live regions: $live');
+        }
+        if (live.any((l) => l.contains('\u2060'))) {
+          problems.add('A4: a live region\'s label carries a word joiner: '
+              '${live.where((l) => l.contains('\u2060')).toList()}');
         }
 
         // H: the column heads.
