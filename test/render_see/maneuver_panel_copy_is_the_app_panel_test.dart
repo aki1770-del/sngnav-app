@@ -33,6 +33,14 @@
 ///
 /// What it does not see: the theme and the card the app sets the panel in,
 /// and the narrate-button row. Those are named in the copy's own comment.
+///
+/// Nor does it see what the capture test feeds the copy. It compares the
+/// copied code, not the inputs: the locale `l`, `mode`, `preview`, the
+/// test-position flag and the icy source are set before the region starts.
+/// Switch the copy's locale to English and this test stays green; only the
+/// local pixel comparison of 07, 08 and 09 goes red (measured 2026-10-04).
+/// On CI that comparison is skipped (`goldenPixelsComparableHere`), so there
+/// only this test runs, and it is blind to those inputs.
 library;
 
 import 'dart:io';

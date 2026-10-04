@@ -114,6 +114,16 @@ enum _IcyTurnSource {
 /// app sets the panel in, and the app's theme (a blueGrey-seeded colour
 /// scheme with the bundled symbol font as fallback). The goldens draw the
 /// panel bare on white.
+///
+/// And the width. These goldens draw the banner 788 dp wide (820 less 16 on
+/// each side). On a phone 392.7 dp wide (1080 x 2340 px at 2.75) the app
+/// draws it 328.7 dp wide, and there its lines wrap. The hedge line takes
+/// three lines and breaks inside words (可能|性, ご判|断); the paused line
+/// takes two and breaks inside （現|在地. Measured 2026-10-04 on the app's own
+/// panel at that size, with this harness's fonts; a phone's own fonts may
+/// break elsewhere. So 07, 08 and 09 pin the panel's code (colours, words,
+/// padding, the `_kv` column). They are not what she reads at a glance, and
+/// a reviewer must not judge that from them.
 class _ManeuverNarrationPanelCopy {
   const _ManeuverNarrationPanelCopy({
     required this.preview,
