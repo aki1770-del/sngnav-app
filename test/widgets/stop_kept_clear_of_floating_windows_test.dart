@@ -147,7 +147,11 @@ void main() {
         .ancestor(of: _driveStop(), matching: find.byType(Scrollable))
         .first);
     final before = calls.length;
-    page.position.jumpTo(page.position.pixels + 40);
+    // A fractional scroll puts 停止's top and bottom on fractional physical
+    // pixels, so rounding inward and rounding outward give different rects
+    // (at her geometry the left and right edges land on whole pixels,
+    // 816 and 992, where the two roundings agree).
+    page.position.jumpTo(page.position.pixels + 40.3);
     await tester.pump();
     await tester.pump();
     final afterScroll = tester.getRect(_driveStop());
@@ -156,6 +160,9 @@ void main() {
     expect(calls.length, greaterThan(before),
         reason: 'the page scrolled and the rect was not sent again');
     expect(_rectsOf(calls.last), [_expectedEdges(afterScroll)]);
+    expect((afterScroll.top * _dpr) % 1, isNot(0),
+        reason: 'the scroll must leave 停止\'s top on a fractional pixel, or '
+            'this step cannot tell outward rounding from inward');
 
     // A frame with nothing moved sends nothing.
     final settled = calls.length;
