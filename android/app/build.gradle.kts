@@ -80,8 +80,10 @@ if (hasReleaseKeystore) {
 // R131 item 10, 2026-10-04). So under SNGNAV_DEV_RELEASE=1 the release build
 // is signed with the debug key, never with android/key.properties, and
 // assertReleaseSigner and reportProfileSigner refuse a .dev build that the
-// upload key would sign (it can only arrive as injected signing). A row in the
-// mint ledger also needs her package in the built bytes (appendMints).
+// upload key would sign (it can only arrive as injected signing), or whose
+// injected signer or pin they cannot read: one rule, notHerAppSignerRefusal.
+// A row in the mint ledger also needs her package in the built bytes
+// (appendMints).
 //
 // THE LAUNCHER LABEL. A .dev build installs beside hers, so her phone can show
 // two apps. It is labelled "DEV SNGNav" (開発用 SNGNav on a Japanese phone), not
@@ -881,6 +883,62 @@ fun describeSigner(source: SignerSource, cert: Result<SignerCert>): String =
         { "a key whose certificate could not be read (${it.message}), from ${source.describe}" },
     )
 
+// THE UPLOAD KEY SIGNS ONLY HER APP (top of this file): the one rule for a
+// build that is NOT her app, a development release (SNGNAV_DEV_RELEASE=1) or
+// any profile build. Null when the build may go on; otherwise why it must not.
+// Their build types are signed with the debug key, so another key can arrive
+// only as injected signing, and then it must be KNOWN not to be the upload
+// key: its certificate read, the pin read, and the two different. A signer
+// read as the pin is refused whatever its source.
+//
+// WHY ONE FUNCTION. Until 2026-10-04 this rule was written twice.
+// reportProfileSigner refused a signer or a pin it could not read;
+// assertReleaseSigner under SNGNAV_DEV_RELEASE=1 allowed both and logged "NOT
+// THE UPLOAD KEY" about a signer it had not read. With a two-line pin file, a
+// development release signed by the injected upload key was built (BIS ruling,
+// board 36.17 row 7, round 3, F1). Both tasks now call this.
+fun notHerAppSignerRefusal(
+    source: SignerSource,
+    cert: Result<SignerCert>,
+    pin: Result<String>,
+): String? {
+    val c = cert.getOrNull()
+    val p = pin.getOrNull()
+    return when {
+        c != null && p != null && c.sha256 == p -> "it would be signed by the upload key"
+        source.debugKeyByConstruction -> null
+        c == null -> "its signer's certificate cannot be read, so it cannot be confirmed not to " +
+            "be the upload key"
+        p == null -> "the upload key's digest cannot be read (${pin.exceptionOrNull()?.message}), " +
+            "so its signer cannot be confirmed not to be it"
+        else -> null
+    }
+}
+
+// What the log of an allowed development release may say about its signer.
+// "NOT THE UPLOAD KEY" only when the certificate AND the pin were read and
+// differ; otherwise it says what was not read.
+fun devReleaseSignerStatement(
+    source: SignerSource,
+    cert: Result<SignerCert>,
+    pin: Result<String>,
+): String {
+    val c = cert.getOrNull()
+    val p = pin.getOrNull()
+    return when {
+        c != null && p != null ->
+            "NOT THE UPLOAD KEY. This release build would be signed by ${describeSigner(source, cert)}, " +
+                "whose certificate SHA-256 is not the one in tool/upload_key_certificate_sha256 ($p)"
+        c == null ->
+            "SIGNER NOT READ. This release build would be signed by ${describeSigner(source, cert)}; " +
+                "it was not compared with the upload key"
+        else ->
+            "NOT COMPARED WITH THE UPLOAD KEY. This release build would be signed by " +
+                "${describeSigner(source, cert)}; the upload key's digest cannot be read " +
+                "(${pin.exceptionOrNull()?.message})"
+    }
+}
+
 val assertReleaseSigner = tasks.register("assertReleaseSigner") {
     group = "verification"
     description = "Refuses a release build that is not signed by the upload key " +
@@ -899,16 +957,14 @@ val assertReleaseSigner = tasks.register("assertReleaseSigner") {
         val pin = runCatching { readUploadKeyPin(pinFile) }
         val cert = runCatching { readSignerCert(source) }
         val c = cert.getOrNull()
-        val debugKey = source.debugKeyByConstruction || c?.subject?.contains("CN=Android Debug") == true
-        if (!debugKey && c != null && pin.getOrNull() == c.sha256) {
-            // THE UPLOAD KEY SIGNS ONLY HER APP (top of this file). Under the
-            // allowance the release signing config is the debug key, so this
-            // is reached only through injected signing.
-            if (allowed) {
+        if (allowed) {
+            // A development release is another app, so it takes the rule
+            // every build that is not her app takes (notHerAppSignerRefusal,
+            // the same call reportProfileSigner makes).
+            notHerAppSignerRefusal(source, cert, pin)?.let { why ->
                 throw GradleException(
                     "RELEASE SIGNER: refused before packaging. SNGNAV_DEV_RELEASE=1 builds this release " +
-                        "as $devId, another app, and it would be signed by the upload key: " +
-                        "${describeSigner(source, cert)}.\n" +
+                        "as $devId, another app, and $why: ${describeSigner(source, cert)}.\n" +
                         "The upload key signs only her app, $herId. Play fixes an app's package " +
                         "at the first accepted upload, and an upload-key bundle of another app passes every " +
                         "check that reads only the signer.\n" +
@@ -916,6 +972,16 @@ val assertReleaseSigner = tasks.register("assertReleaseSigner") {
                         "with the debug key. To build her release, unset SNGNAV_DEV_RELEASE."
                 )
             }
+            logger.quiet(
+                "RELEASE SIGNER: ${devReleaseSignerStatement(source, cert, pin)}. Allowed because " +
+                    "SNGNAV_DEV_RELEASE=1 says this is a development build. It is built as $devId, another " +
+                    "app: it installs beside an SNGNav release and cannot replace it or its data, and it " +
+                    "writes no ledger row. Do not hand it on as SNGNav."
+            )
+            return@doLast
+        }
+        val debugKey = source.debugKeyByConstruction || c?.subject?.contains("CN=Android Debug") == true
+        if (!debugKey && c != null && pin.getOrNull() == c.sha256) {
             logger.quiet(
                 "RELEASE SIGNER OK: signed by ${c.subject}, the upload key (certificate SHA-256 " +
                     "${c.sha256} matches tool/upload_key_certificate_sha256), from ${source.describe}"
@@ -929,15 +995,6 @@ val assertReleaseSigner = tasks.register("assertReleaseSigner") {
                 "digest cannot be read (${pin.exceptionOrNull()?.message}), so it cannot be confirmed as the upload key"
             else -> "would be signed by ${describeSigner(source, cert)}, which is not the upload key " +
                 "(tool/upload_key_certificate_sha256: ${pin.getOrNull()})"
-        }
-        if (allowed) {
-            logger.quiet(
-                "RELEASE SIGNER: NOT THE UPLOAD KEY, allowed because SNGNAV_DEV_RELEASE=1 says this is a " +
-                    "development build. This release build $why. It is built as $devId, another app: " +
-                    "it installs beside an SNGNav release and cannot replace it or its data, and it " +
-                    "writes no ledger row. Do not hand it on as SNGNav."
-            )
-            return@doLast
         }
         val refusal = "RELEASE SIGNER: refused before packaging. This release build $why.\n" +
             "An installed app takes an update only from the certificate that signed it, and builds of " +
@@ -967,28 +1024,18 @@ val reportProfileSigner = tasks.register("reportProfileSigner") {
             throw GradleException("RELEASE SIGNER: refused before packaging. $it.")
         }
         val cert = runCatching { readSignerCert(source) }
-        // THE UPLOAD KEY SIGNS ONLY HER APP (top of this file). The profile
-        // build type is signed with the debug key; another key arrives only as
-        // injected signing, and then it must be known NOT to be the upload key.
-        if (!source.debugKeyByConstruction) {
-            val pin = runCatching { readUploadKeyPin(pinFile) }
-            val c = cert.getOrNull()
-            val p = pin.getOrNull()
-            if (c == null || p == null || c.sha256 == p) {
-                val why = when {
-                    c == null -> "and its signer cannot be confirmed not to be the upload key"
-                    p == null -> "and the upload key's digest cannot be read " +
-                        "(${pin.exceptionOrNull()?.message}), so its signer cannot be confirmed not to be it"
-                    else -> "and it would be signed by the upload key"
-                }
-                throw GradleException(
-                    "RELEASE SIGNER: refused before packaging. A profile build is $devId, another app, " +
-                        "$why: ${describeSigner(source, cert)}.\n" +
-                        "The upload key signs only her app, $herId. Play fixes an app's package " +
-                        "at the first accepted upload. Build profile with the debug key: leave " +
-                        "android.injected.signing.* unset."
-                )
-            }
+        val pin = runCatching { readUploadKeyPin(pinFile) }
+        // A profile build is another app, so it takes the rule every build
+        // that is not her app takes (notHerAppSignerRefusal, the same call
+        // assertReleaseSigner makes under SNGNAV_DEV_RELEASE=1).
+        notHerAppSignerRefusal(source, cert, pin)?.let { why ->
+            throw GradleException(
+                "RELEASE SIGNER: refused before packaging. A profile build is $devId, another app, " +
+                    "and $why: ${describeSigner(source, cert)}.\n" +
+                    "The upload key signs only her app, $herId. Play fixes an app's package " +
+                    "at the first accepted upload. Build profile with the debug key: leave " +
+                    "android.injected.signing.* unset."
+            )
         }
         logger.quiet(
             "RELEASE SIGNER: a profile build is not refused. It is built as $devId, another app, " +

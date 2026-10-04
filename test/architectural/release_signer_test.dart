@@ -164,21 +164,68 @@ void main() {
     // key, and the injected upload key is refused for release and profile.
     expect(gradle,
         contains('signingConfig = if (hasReleaseKeystore && !devReleaseAllowed) {'));
+    // ONE rule for every build that is not her app. Until 2026-10-04 it was
+    // written twice, and the development-release copy allowed a signer or a
+    // pin it could not read (BIS round 3, F1).
+    final rule = RegExp(
+        r'fun notHerAppSignerRefusal\([\s\S]*?\): String\? \{\s*'
+        r'val c = cert\.getOrNull\(\)\s*'
+        r'val p = pin\.getOrNull\(\)\s*'
+        r'return when \{\s*'
+        r'c != null && p != null && c\.sha256 == p -> "[^"]+"\s*'
+        r'source\.debugKeyByConstruction -> null\s*'
+        r'c == null -> "[^"]+" \+\s*"[^"]+"\s*'
+        r'p == null -> "[^"]+" \+\s*"[^"]+"\s*'
+        r'else -> null\s*\}');
+    expect(rule.hasMatch(gradle), isTrue,
+        reason: 'the rule must refuse the upload key from any source, and an '
+            'unreadable signer or pin unless the source is the debug key by '
+            'construction');
+    // Both tasks call it, and each call throws.
+    final call = RegExp(r'notHerAppSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
+        r'throw GradleException\(');
+    expect(call.allMatches(gradle).length, 2);
+    // Under SNGNAV_DEV_RELEASE=1 the call comes first, before anything is
+    // logged or allowed.
     expect(
-      RegExp(r'if \(!debugKey && c != null && pin\.getOrNull\(\) == c\.sha256\) \{'
-              r'(?:\s*//[^\n]*)*\s*if \(allowed\) \{\s*throw GradleException\(')
-          .hasMatch(gradle),
-      isTrue,
-      reason: 'the upload key under SNGNAV_DEV_RELEASE=1 must be refused',
-    );
-    expect(
-      RegExp(r'if \(!source\.debugKeyByConstruction\) \{[\s\S]*?'
-              r'if \(c == null \|\| p == null \|\| c\.sha256 == p\) \{[\s\S]*?'
+      RegExp(r'if \(allowed\) \{(?:\s*//[^\n]*)*\s*'
+              r'notHerAppSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
               r'throw GradleException\(')
           .hasMatch(gradle),
       isTrue,
-      reason: 'a profile build the upload key would sign must be refused',
+      reason: 'a development release must take the rule before it is allowed',
     );
+    final allowedAt = gradle.indexOf('        if (allowed) {');
+    expect(allowedAt, greaterThan(0));
+    expect(allowedAt, lessThan(gradle.indexOf('RELEASE SIGNER OK:')),
+        reason: 'the allowance must be decided before her release can pass');
+    // Inside reportProfileSigner too.
+    final profile = gradle.substring(
+        gradle.indexOf('tasks.register("reportProfileSigner")'));
+    expect(call.hasMatch(profile), isTrue,
+        reason: 'a profile build must take the same rule');
+  });
+
+  test('"NOT THE UPLOAD KEY" is said only of a signer read and compared', () {
+    // At f0c3fc5 the allowed development release logged "NOT THE UPLOAD
+    // KEY" about a signer whose certificate, or whose pin, was never read: a
+    // sentence shaped like a check that did not happen. Now the words exist
+    // once in code (comments aside), in the branch where both were read.
+    final saying = gradle
+        .split('\n')
+        .where((l) =>
+            !l.trimLeft().startsWith('//') && l.contains('NOT THE UPLOAD KEY'))
+        .toList();
+    expect(saying, hasLength(1), reason: saying.join('\n'));
+    expect(
+      RegExp(r'fun devReleaseSignerStatement\([\s\S]*?return when \{\s*'
+              r'c != null && p != null ->\s*"NOT THE UPLOAD KEY\.')
+          .hasMatch(gradle),
+      isTrue,
+      reason: 'the words must sit in the branch where cert and pin were read',
+    );
+    expect(gradle,
+        contains(r'"RELEASE SIGNER: ${devReleaseSignerStatement(source, cert, pin)}. Allowed because "'));
   });
 
   test('the .dev build types carry another launcher label', () {
