@@ -776,18 +776,27 @@ jobs:
         run: bash tool/preflight_play_upload.sh --skip-build
 
       # THE LOOM. Signing is the whole point of this job, so it is verified,
-      # not assumed — and it is verified by REFUSING the debug certificate by
-      # name rather than by trusting that the fallback did not fire.
-      - name: Verify the APK is NOT debug-signed
+      # not assumed: the APK's ONLY signer must be the upload key, by the
+      # certificate SHA-256 in tool/upload_key_certificate_sha256, the pin the
+      # Gradle gate and the Play preflight read. Until 2026-10-04 this step
+      # refused the debug certificate by NAME, and any other key passed it.
+      # A signer apksigner cannot read is a refusal, never a pass.
+      - name: Verify the APK's only signer is the upload key (tool/upload_key_certificate_sha256)
         run: |
           APK=build/app/outputs/flutter-apk/app-release.apk
-          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | tail -1)
-          "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/certs.txt
-          if grep -q "CN=Android Debug" /tmp/certs.txt; then
-            echo "::error::APK is DEBUG-SIGNED. Refusing to upload."
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          PIN=$(grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' tool/upload_key_certificate_sha256 | tr -d ': ' | tr 'A-F' 'a-f')
+          if [ "$(printf '%s\n' "$PIN" | grep -c .)" -ne 1 ] || ! printf '%s\n' "$PIN" | grep -Eqx '[0-9a-f]{64}'; then
+            echo "::error::tool/upload_key_certificate_sha256 does not hold exactly one SHA-256 digest. Refusing to upload."
             exit 1
           fi
-          echo "Release signature confirmed."
+          "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/certs.txt
+          SIGNERS=$(sed -n 's/^Signer #[0-9]* certificate SHA-256 digest: //p' /tmp/certs.txt | tr -d '\r')
+          if [ "$(printf '%s\n' "$SIGNERS" | grep -c .)" -ne 1 ] || [ "$SIGNERS" != "$PIN" ]; then
+            echo "::error::The APK's signer certificate(s) [$(echo $SIGNERS)] are not the upload key alone ($PIN). Refusing to upload."
+            exit 1
+          fi
+          echo "Release signature confirmed: one signer, certificate SHA-256 $SIGNERS = tool/upload_key_certificate_sha256."
 
       - name: Clean up signing material
         if: always()
