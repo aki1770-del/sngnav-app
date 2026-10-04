@@ -84,11 +84,27 @@ class ManeuverNarrationPanel extends StatelessWidget {
     // the gate's internal name and an English reason in every language; the
     // reason is carried by the position row above and by her line.
     final l = AppL10n.of(context);
-    final (Color bg, Color fg, String tier) = switch (preview.confidence) {
+    // Each state carries a mark at the head of its line, and the state in
+    // which she is not told the turn carries a form of its own (2026-10-04).
+    // Until then the three were one rounded block told apart by fill alone,
+    // 1.08 to 1.23:1 apart in luminance, so with colour lost (a colour-vision
+    // deficiency, glare, a dim panel) only the words told them apart, and
+    // words are read, not glanced. The marks: a speaker for read aloud, a
+    // question mark for read aloud with a request to check, a crossed speaker
+    // for not read aloud; not the warning sign or the snowflake, which on this
+    // page already mean a raised caution and a frozen road. A speaker and a
+    // crossed speaker are nearly one shape on their own (their silhouettes
+    // overlap at 0.739), so not read aloud is also drawn as an empty frame on
+    // the card's own colour. test/widgets/maneuver_banner_states_test.dart
+    // holds all of this with the words masked and colour taken away.
+    final (Color bg, Color fg, String tier, IconData mark, bool outlined) =
+        switch (preview.confidence) {
       NarrationConfidence.speak => (
           Colors.green.shade100,
           Colors.green.shade900,
           l.maneuverTierSpeak,
+          Icons.volume_up,
+          false,
         ),
       // amber.shade900 here was 2.38:1 (2026-09-15). No position the app
       // gives the drive brain reaches this state today, so no rendered test
@@ -97,13 +113,19 @@ class ManeuverNarrationPanel extends StatelessWidget {
           Colors.amber.shade100,
           kCautionTextOnAmber,
           l.maneuverTierHedge,
+          Icons.help_outline,
+          false,
         ),
       NarrationConfidence.suppressed => (
-          Colors.blueGrey.shade100,
+          Theme.of(context).colorScheme.surfaceContainerLow,
           Colors.blueGrey.shade900,
           l.maneuverTierSuppressed,
+          Icons.volume_off,
+          true,
         ),
     };
+    // The mark grows with her text size, as the words beside it do.
+    final markSize = MediaQuery.textScalerOf(context).scale(18);
 
     // When suppressed there is NO maneuver phrase to show (the decision carries
     // empty text by construction) — show the honest "guidance paused" line, not
@@ -144,22 +166,40 @@ class ManeuverNarrationPanel extends StatelessWidget {
         Container(
           key: const Key('maneuver-narration-banner'),
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
+          // The outlined banner gives its 2 dp border back from its padding,
+          // so the mark and the words sit in the same place in every state.
+          padding: EdgeInsets.all(outlined ? 10 : 12),
           decoration: BoxDecoration(
             color: bg,
+            border: outlined ? Border.all(color: fg, width: 2) : null,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                key: const Key('maneuver-narration-tier'),
-                tier,
-                style: TextStyle(
-                  color: fg,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Icon(
+                    key: const Key('maneuver-narration-state-mark'),
+                    mark,
+                    color: fg,
+                    size: markSize,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      key: const Key('maneuver-narration-tier'),
+                      tier,
+                      style: TextStyle(
+                        color: fg,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(herLine, style: TextStyle(color: fg, fontSize: 15)),
