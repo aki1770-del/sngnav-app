@@ -323,6 +323,84 @@ void main() {
     expect('check_app_id '.allMatches(live).length, 2);
   });
 
+  test("the preflight's live run never forgets a failed gate, and passes "
+      'only at its verdict', () {
+    // The call-site pins read the shape of each `if`, not what its OK branch
+    // does. With `fails=0` added to gate 1's OK branch, the self-test stayed
+    // 92/92 and this file stayed green, and a .dev bundle printed WRONG
+    // PACKAGE twice and then PREFLIGHT PASS, rc 0 (FBR mutation M2f,
+    // 2026-10-04). So the counter is pinned whole: set to 0 once, before any
+    // gate; after that only ever incremented; read only by the verdict.
+    final s = File('tool/preflight_play_upload.sh').readAsStringSync();
+    final live = s.substring(s.indexOf('# ---------------------------------'
+        '------------------------------- live run'));
+    const inc = r'fails=$((fails+1))';
+    const init = 'fails=0';
+    const verdict = r'if [ "$fails" -eq 0 ]; then';
+    const report =
+        r'echo "PREFLIGHT FAIL — $fails gate(s) failed. Do not upload."';
+    final other = <String>[];
+    var inits = 0, verdicts = 0, reports = 0, incs = 0;
+    for (final raw in live.split('\n')) {
+      final l = raw.trim();
+      if (l.startsWith('#') || !l.contains('fails')) continue;
+      if (l == init) {
+        inits++;
+      } else if (l == verdict) {
+        verdicts++;
+      } else if (l == report) {
+        reports++;
+      } else {
+        incs += inc.allMatches(l).length;
+        if (l.replaceAll(inc, '').contains('fails')) other.add(l);
+      }
+    }
+    expect(other, isEmpty,
+        reason: 'after it is set, only `$inc` may touch the counter');
+    expect(inits, 1, reason: 'the counter is set to 0 exactly once');
+    expect(verdicts, 1);
+    expect(reports, 1);
+    // Every failed gate counts. With one increment deleted, the self-test
+    // stayed 92/92 and this file stayed green (AAE round 4, MF5). Each FAIL
+    // note in the live run carries an increment on its own line or the next,
+    // and the number of increments is pinned, so adding or removing a gate
+    // takes two deliberate edits, as changing the upload key does.
+    final lines = live.split('\n');
+    for (var i = 0; i < lines.length; i++) {
+      if (!lines[i].contains('note "FAIL')) continue;
+      final counted = lines[i].contains(inc) ||
+          (i + 1 < lines.length && lines[i + 1].trim() == inc);
+      expect(counted, isTrue,
+          reason: 'a FAIL that is not counted: ${lines[i].trim()}');
+    }
+    expect(incs, 16,
+        reason: 'the live run had 16 increments on 2026-10-04; a gate was '
+            'added or one stopped counting');
+    final setAt = live.indexOf('\n$init\n');
+    expect(setAt, greaterThan(0));
+    expect(setAt, lessThan(live.indexOf('if check_bundle_matches_apk ')),
+        reason: 'the counter must be set before the first gate');
+    // The one way to PASS is the verdict: after the counter is set, `exit 0`
+    // appears once, inside it, and PREFLIGHT PASS is printed nowhere else.
+    final after = live.substring(setAt);
+    expect('exit 0'.allMatches(after).length, 1);
+    expect(
+      RegExp(r'\nif \[ "\$fails" -eq 0 \]; then\n'
+              r'  echo "PREFLIGHT PASS[^\n]*\n'
+              r'(?:  [^\n]*\n)*'
+              r'  exit 0\n'
+              r'fi\n')
+          .hasMatch(after),
+      isTrue,
+      reason: 'PASS and exit 0 must sit inside the verdict',
+    );
+    final printed = s
+        .split('\n')
+        .where((l) => !l.trimLeft().startsWith('#') && l.contains('PREFLIGHT PASS'))
+        .toList();
+    expect(printed, hasLength(1), reason: printed.join('\n'));
+  });
+
   test("the preflight's APP_ID is the build's applicationId, and a bundle "
       'named alone reads no APK', () {
     final s = File('tool/preflight_play_upload.sh').readAsStringSync();
