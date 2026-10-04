@@ -117,10 +117,10 @@ class _NotificationChannel {
   void answer({required bool allow}) => _answer?.complete(allow);
 }
 
-Position _akita() => Position(
+Position _akita({DateTime? at}) => Position(
   latitude: 39.7186,
   longitude: 140.1024,
-  timestamp: _start,
+  timestamp: at ?? _start,
   accuracy: 12,
   hasAccuracy: true,
   altitude: 20,
@@ -248,6 +248,10 @@ void main() {
         findsNothing,
         reason: 'control: no dot before a fix has arrived',
       );
+      // A share's first fix is held (decided 2026-10-05): the same fix one
+      // second earlier comes first, and the fix below is judged against it.
+      geo.positions.add(_akita(at: _start.subtract(const Duration(seconds: 1))));
+      await _settleIO(tester);
       geo.positions.add(_akita());
       await _settleIO(tester);
       expect(
