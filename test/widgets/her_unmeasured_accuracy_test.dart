@@ -287,6 +287,10 @@ void main() {
       await _share(tester);
 
       final atFix = _clockNow;
+      // A share's first fix is held (decided 2026-10-05): the same fix one
+      // second earlier comes first, and the fix below is judged against it.
+      platform.add(_sample(atFix.subtract(const Duration(seconds: 1))));
+      await _settle(tester);
       platform.add(_sample(atFix));
       await _settle(tester);
       expect(

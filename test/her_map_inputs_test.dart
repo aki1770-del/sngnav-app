@@ -21,6 +21,7 @@ import 'package:sngnav_app/her_map_inputs.dart';
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/services/drive_hud_controller.dart';
 
+import 'support/assessed_fix.dart';
 import 'support/fake_alert_actuators.dart';
 
 // The harness's constants, verbatim.
@@ -38,6 +39,14 @@ PositionFix _sample(double acc, {LatLng at = _her, DateTime? t}) =>
       timestamp: t ?? _t0,
     );
 
+/// Feeds [fix] as the app feeds a trusted fix (decided 2026-10-05): the same
+/// place one second earlier is asked about and held first, so [fix] is judged
+/// against it rather than held as a share's first fix.
+void _feedTrusted(DriveHudController h, PositionFix fix, {required DateTime now}) {
+  h.wouldTrust(justBefore(fix as PositionAvailable));
+  h.onPositionFix(fix, now: now);
+}
+
 class _Scenario {
   _Scenario(this.id, this.herFix, this.hud);
   final String id;
@@ -50,14 +59,14 @@ List<_Scenario> _hieScenarios() {
   _Scenario drought(String id, Duration d) {
     final h = _hud();
     final fix = _sample(15);
-    h.onPositionFix(fix, now: _t0);
+    _feedTrusted(h, fix, now: _t0);
     h.poll(now: _t0.add(d));
     return _Scenario(id, fix, h);
   }
 
   _Scenario streamError(String id, Duration d) {
     final h = _hud();
-    h.onPositionFix(_sample(15), now: _t0);
+    _feedTrusted(h, _sample(15), now: _t0);
     const u = PositionUnavailable('GPS stream error');
     h.onPositionFix(u, now: _t0.add(d));
     return _Scenario(id, u, h);
@@ -226,7 +235,7 @@ void main() {
     test('no event this session (stopped, or not yet shared): nothing, even '
         'while the controller still holds a lost estimate', () {
       final h = _hud();
-      h.onPositionFix(_sample(15), now: _t0);
+      _feedTrusted(h, _sample(15), now: _t0);
       h.poll(now: _t0.add(const Duration(minutes: 90)));
       expect(h.estimate!.mode, LocalizationMode.lost,
           reason: 'control: the controller really is lost here');
@@ -252,7 +261,7 @@ void main() {
         accuracyMeters: 35,
         timestamp: _t0,
       );
-      h.onPositionFix(mock, now: _t0);
+      h.onTestPosition(mock);
       h.poll(now: _t0.add(const Duration(minutes: 3)));
       expect(h.estimate!.mode, LocalizationMode.lost);
 
@@ -270,7 +279,7 @@ void main() {
     test('a real trusted fix draws where the fix is, unchanged', () {
       final h = _hud();
       final fix = _sample(15);
-      h.onPositionFix(fix, now: _t0);
+      _feedTrusted(h, fix, now: _t0);
       final app = herMapInputs(
           fix: fix,
           estimate: h.estimate,
@@ -286,7 +295,7 @@ void main() {
     test('a sample the controller refuses AFTER a trusted fix: the ring stays '
         'where the controller last trusted, not at the refused sample', () {
       final h = _hud();
-      h.onPositionFix(_sample(15), now: _t0);
+      _feedTrusted(h, _sample(15), now: _t0);
       final t = _t0.add(const Duration(seconds: 30));
       final refused =
           _sample(-1, at: const LatLng(39.8000, 140.3000), t: t);
@@ -310,13 +319,14 @@ void main() {
     test(
         'an unanchored guess — finite coordinates the controller never '
         'trusted — gets no ring either', () {
-      // Not reachable through today's DriveLocalizer, which passes every fix
-      // with the controller's default `trusted` verdict. Pinned because a
-      // real trust verdict (position_integrity) wired later reaches it: a
-      // `suspect` first fix becomes a lost estimate AT the sample's own
-      // coordinates, and a check on finite coordinates alone would put the
-      // ring there. Found by mutation: without this test, dropping the basis
-      // check changed no test outcome.
+      // Reachable since the GPS trust verdict was wired (2026-10-05): a
+      // share's first fix is `suspect`, and when the app feeds it (a measured
+      // condition raises caution before the share has anchored) it becomes a
+      // lost estimate AT the sample's own coordinates, so a check on finite
+      // coordinates alone would put the ring there. Until then every fix
+      // passed with the controller's default `trusted` verdict, and this was
+      // pinned ahead of the wiring. Found by mutation: without this test,
+      // dropping the basis check changed no test outcome.
       final controller = LocalizationController();
       final estimate = controller.onFix(
         RawFix(
@@ -359,7 +369,7 @@ void main() {
   group('an anchor not set in this session draws no ring', () {
     test('lost from a previous session\'s anchor: no position, the words', () {
       final h = _hud();
-      h.onPositionFix(_sample(15), now: _t0);
+      _feedTrusted(h, _sample(15), now: _t0);
       const u = PositionUnavailable('Location services disabled');
       h.onPositionFix(u, now: _t0.add(const Duration(hours: 20)));
       expect(h.estimate!.mode, LocalizationMode.lost, reason: 'control');
@@ -389,7 +399,7 @@ void main() {
     test('dead reckoning from a previous session\'s anchor: still no ring, '
         'and the words rather than silence', () {
       final h = _hud();
-      h.onPositionFix(_sample(15), now: _t0);
+      _feedTrusted(h, _sample(15), now: _t0);
       const u = PositionUnavailable('Location services disabled');
       h.onPositionFix(u, now: _t0.add(const Duration(seconds: 5)));
       expect(h.estimate!.mode, LocalizationMode.deadReckoning,
@@ -424,7 +434,7 @@ void main() {
     test('a trusted fix is drawn where it is, whatever the flag says', () {
       final h = _hud();
       final fix = _sample(15);
-      h.onPositionFix(fix, now: _t0);
+      _feedTrusted(h, fix, now: _t0);
       final app = herMapInputs(
           fix: fix,
           estimate: h.estimate,
@@ -439,24 +449,29 @@ void main() {
     test('a trusted fix does', () {
       final h = _hud();
       final fix = _sample(15);
-      h.onPositionFix(fix, now: _t0);
+      _feedTrusted(h, fix, now: _t0);
       expect(anchorsThisSession(fix: fix, estimate: h.estimate, isMock: false),
           isTrue);
     });
 
-    test('a trusted fix too imprecise to be confident is adopted, and does',
-        () {
+    // Changed 2026-10-05, by a ruling, not by re-timing: a fix whose own
+    // accuracy is over 150 m is now `suspect`, and a `suspect` fix is never
+    // adopted. Until then it was trusted, adopted, and lost on arrival.
+    test('a fix too imprecise to be confident (900 m) is not adopted, and '
+        'does not', () {
       final h = _hud();
       final fix = _sample(900);
-      h.onPositionFix(fix, now: _t0);
+      _feedTrusted(h, fix, now: _t0);
       expect(h.estimate!.mode, LocalizationMode.lost, reason: 'control');
+      expect(h.estimate!.basis, isNot(EstimateBasis.trustedGpsFix),
+          reason: 'control: the controller did not adopt it');
       expect(anchorsThisSession(fix: fix, estimate: h.estimate, isMock: false),
-          isTrue);
+          isFalse);
     });
 
     test('a fix no newer than the anchor does not: the old anchor stays', () {
       final h = _hud();
-      h.onPositionFix(_sample(15), now: _t0);
+      _feedTrusted(h, _sample(15), now: _t0);
       final stale =
           _sample(15, at: const LatLng(39.7300, 140.1000), t: _t0);
       h.onPositionFix(stale, now: _t0);
@@ -469,7 +484,7 @@ void main() {
 
     test('an unavailability does not', () {
       final h = _hud();
-      h.onPositionFix(_sample(15), now: _t0);
+      _feedTrusted(h, _sample(15), now: _t0);
       const u = PositionUnavailable('GPS stream error');
       h.onPositionFix(u, now: _t0.add(const Duration(seconds: 5)));
       expect(anchorsThisSession(fix: u, estimate: h.estimate, isMock: false),
@@ -492,7 +507,7 @@ void main() {
         accuracyMeters: 35,
         timestamp: _t0,
       );
-      h.onPositionFix(mock, now: _t0);
+      h.onTestPosition(mock);
       expect(h.estimate!.basis, EstimateBasis.trustedGpsFix,
           reason: 'control: the controller did adopt it');
       expect(anchorsThisSession(fix: mock, estimate: h.estimate, isMock: true),

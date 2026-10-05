@@ -189,6 +189,9 @@ void main() {
     await _share(tester);
     p.addError(StateError('provider hiccup'));
     await _advance(tester, const Duration(seconds: 5));
+    // The trusted fix has the same place one second earlier before it: a
+    // share's first fix is held for comparison (decided 2026-10-05).
+    p.add(_position(_now.subtract(const Duration(seconds: 1))));
     p.add(_position(_now));
     await _advance(tester, const Duration(seconds: 1));
     expect(_rung(tester), 'heightenedCaution',

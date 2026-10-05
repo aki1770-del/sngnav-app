@@ -215,13 +215,29 @@ void main() {
       semantics.dispose();
     });
 
-    testWidgets('a first fix after the words: her dot is drawn and the words go',
-        (tester) async {
+    // Changed 2026-10-05: a share's first fix has nothing to be judged
+    // against, so it is held and the words stay; the fix after it is judged,
+    // her dot is drawn and the words go. Until then the first fix drew her dot.
+    testWidgets(
+        'the first fixes after the words: the first is held and the words '
+        'stay; at the next her dot is drawn and the words go', (tester) async {
       final positions = StreamController<PositionFix>.broadcast();
       await _boot(tester, source: () => positions.stream);
       await _tapShare(tester);
       await _advance(tester, const Duration(seconds: 75));
       _expectPhase2(tester, 'precondition');
+
+      positions.add(PositionAvailable(
+        latitude: 39.7167,
+        longitude: 140.0983,
+        accuracyMeters: 15,
+        timestamp: _clockNow.subtract(const Duration(seconds: 1)),
+      ));
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const ValueKey('her-dot-real-fix')), findsNothing,
+          reason: 'a first fix is held: nothing to judge it against');
+      expect(find.byKey(_unknownWords), findsOneWidget);
 
       positions.add(PositionAvailable(
         latitude: 39.7167,

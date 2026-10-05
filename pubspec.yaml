@@ -218,6 +218,11 @@ dependencies:
     sdk: flutter
   compound_failure_advisor: ^0.1.1
   localization_fallback: ^0.1.1
+  # The GPS trust verdict's base layer (FSE R130-F1, W1). 0.1.1 and not 0.1.0:
+  # 0.1.0 accepted an infinite or NaN threshold in release builds and silently
+  # switched the gate off (its asserts were stripped). Archive sha256
+  # 1db8947c…a056, read against pub.dev's API on 2026-10-04.
+  position_integrity: ^0.1.1
   # Offline-basemap PoC wiring (option A, decided 2026-07-01): read the bundled
   # placeholder MBTiles archive + write it to a temp file for sqlite3 to open.
   # Both are already transitively present via offline_tiles; declared directly

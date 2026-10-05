@@ -176,6 +176,10 @@ void main() {
     final ta = await _boot(tester,
         source: () => _granted(platform), jma: () async => _observedNow(300));
     await _tapShare(tester);
+    // A share's first fix is held (decided 2026-10-05): the same fix
+    // one second earlier comes first, and the fix below is judged.
+    platform.add(_pos(_clockNow.subtract(const Duration(seconds: 1))));
+    await _settle(tester);
     platform.add(_pos(_clockNow));
     await _settle(tester);
     await _advance(tester, const Duration(seconds: 1));
@@ -205,6 +209,10 @@ void main() {
     platform.addError(StateError('provider hiccup'));
     await _settle(tester);
     await _advance(tester, const Duration(seconds: 2));
+    // A share's first fix is held (decided 2026-10-05): the same fix
+    // one second earlier comes first, and the fix below is judged.
+    platform.add(_pos(_clockNow.subtract(const Duration(seconds: 1))));
+    await _settle(tester);
     platform.add(_pos(_clockNow));
     await _settle(tester);
     expect(_mapIsTold(tester).degraded, isFalse,
@@ -251,6 +259,10 @@ void main() {
         ++shares == 1 ? _granted(first) : _failedStart();
     await _boot(tester, source: source);
     await _tapShare(tester);
+    // A share's first fix is held (decided 2026-10-05): the same fix
+    // one second earlier comes first, and the fix below is judged.
+    first.add(_pos(_clockNow.subtract(const Duration(seconds: 1))));
+    await _settle(tester);
     first.add(_pos(_clockNow));
     await _settle(tester);
     await _advance(tester, const Duration(seconds: 1));
@@ -276,6 +288,11 @@ void main() {
     final platform = StreamController<Position>();
     await _boot(tester, source: () => _granted(platform));
     await _tapShare(tester);
+    // A share's first fix is held (decided 2026-10-05): the same fix
+    // one second earlier comes first, and the fix below is judged.
+    platform.add(_pos(_clockNow.subtract(const Duration(seconds: 1)),
+        speed: 8.3, hasSpeed: true, speedAccuracy: 0.3, hasSpeedAccuracy: true));
+    await _settle(tester);
     platform.add(_pos(_clockNow,
         speed: 8.3, hasSpeed: true, speedAccuracy: 0.3, hasSpeedAccuracy: true));
     await _settle(tester);
@@ -299,6 +316,14 @@ void main() {
     final platform = StreamController<Position>();
     await _boot(tester, source: () => _granted(platform));
     await _tapShare(tester);
+    // A share's first fix is held (decided 2026-10-05): the same fix
+    // one second earlier comes first, and the fix below is judged.
+    platform.add(_pos(_clockNow.subtract(const Duration(seconds: 1)),
+        speed: 25,
+        hasSpeed: true,
+        speedAccuracy: double.nan,
+        hasSpeedAccuracy: true));
+    await _settle(tester);
     platform.add(_pos(_clockNow,
         speed: 25,
         hasSpeed: true,

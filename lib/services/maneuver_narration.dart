@@ -192,17 +192,51 @@ RouteManeuver? nextActionableManeuver(List<RouteManeuver> maneuvers) {
   return maneuvers.isEmpty ? null : maneuvers.last;
 }
 
+/// Whether a `gpsSuspect` position withholds the turn instead of hedging it
+/// (decided 2026-10-05). TRUE until all three of these are done, and only
+/// then may it be switched off:
+///  1. the hedged turn's line is seen rendered at text scales 1.0, 1.3 and
+///     2.0;
+///  2. the hedged state is seen on an emulator, by a hand that did not build
+///     it;
+///  3. the turn never ends a line, so a hedged line cannot be read as the
+///     plain one (criterion R4-7 of the hedged-line fix, at c9fee64).
+///
+/// Why. Before the GPS trust verdict was wired, no position the app fed ever
+/// reached `gpsSuspect`, so the hedged turn had never been seen on a device.
+/// A doubtful position should settle toward withholding the turn, not toward
+/// a line nobody has looked at; and here the cost is small: narration is on
+/// her press and can be pressed again, the turn read does not depend on the
+/// position, and an onset fault lasts a fix or two. While it withholds, she
+/// is still shown the true position label (「GPS 不確か」) and told the caution
+/// rung. The verdict itself is never downgraded to `failed` to get the same
+/// silence: that would show 「GPS 途絶（推測航法）」 while a fix is arriving
+/// and no dead reckoning runs.
+///
+/// Read by the drive brain's gate ([ManeuverNarrator.withholdSuspect] in
+/// `DriveHudController`); the narrator on its own still hedges, so the hedged
+/// line stays buildable and testable.
+const bool kSuspectWithholdsTurn = true;
+
 /// THE CORE: the position-confidence gate over maneuver narration.
 ///
 /// Pure + injectable. Given a maneuver and the CURRENT honest position [mode],
 /// [decide] returns a [ManeuverNarration] whose [NarrationConfidence] is fixed
 /// solely by the mode (see [_confidenceFor]).
 class ManeuverNarrator {
-  const ManeuverNarrator({this.text = const DriveHudLocalizer()});
+  const ManeuverNarrator({
+    this.text = const DriveHudLocalizer(),
+    this.withholdSuspect = false,
+  });
 
   /// The driver-facing string localizer (JA by default). Reused for the maneuver
   /// phrasing AND the icy-turn coupling.
   final DriveHudLocalizer text;
+
+  /// When true, `gpsSuspect` is [NarrationConfidence.suppressed] instead of
+  /// [NarrationConfidence.hedge]. The decision still carries the true mode.
+  /// The drive brain passes [kSuspectWithholdsTurn].
+  final bool withholdSuspect;
 
   /// Decide whether/how to narrate [maneuver] at the current honest [mode].
   ///
@@ -217,7 +251,10 @@ class ManeuverNarrator {
     String localeTag = 'ja',
   }) {
     final navigationManeuver = toNavigationManeuver(maneuver);
-    final confidence = _confidenceFor(mode);
+    final confidence =
+        withholdSuspect && mode == LocalizationMode.gpsSuspect
+            ? NarrationConfidence.suppressed
+            : _confidenceFor(mode);
 
     switch (confidence) {
       case NarrationConfidence.suppressed:

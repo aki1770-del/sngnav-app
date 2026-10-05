@@ -16,6 +16,7 @@ import 'package:sngnav_app/her_map_follow.dart';
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/services/drive_hud_controller.dart';
 
+import 'support/assessed_fix.dart';
 import 'support/fake_alert_actuators.dart';
 
 final _t0 = DateTime.utc(2026, 1, 14, 21, 0);
@@ -37,6 +38,7 @@ void main() {
     test('a trusted fix: the camera goes to it', () {
       final h = _hud();
       final f = _fix(15);
+      h.wouldTrust(justBefore(f));
       h.onPositionFix(f, now: _t0);
       expect(followTargetAfter(fix: f, estimate: h.estimate, isMock: false),
           _her);
@@ -44,6 +46,7 @@ void main() {
 
     test('dead reckoning: holds', () {
       final h = _hud();
+      h.wouldTrust(justBefore(_fix(15)));
       h.onPositionFix(_fix(15), now: _t0);
       const u = PositionUnavailable('GPS stream error');
       h.onPositionFix(u, now: _t0.add(const Duration(seconds: 30)));
@@ -57,6 +60,7 @@ void main() {
 
     test('lost: holds', () {
       final h = _hud();
+      h.wouldTrust(justBefore(_fix(15)));
       h.onPositionFix(_fix(15), now: _t0);
       const u = PositionUnavailable('GPS stream error');
       h.onPositionFix(u, now: _t0.add(const Duration(minutes: 5)));
@@ -65,7 +69,9 @@ void main() {
           isNull);
     });
 
-    test('a trusted fix too imprecise to be confident (lost on arrival): holds',
+    // Since 2026-10-05 a fix over 150 m is `suspect`, not trusted; it still
+    // arrives lost, and the camera still holds.
+    test('a fix too imprecise to be confident (lost on arrival): holds',
         () {
       final h = _hud();
       final f = _fix(900);
@@ -77,6 +83,7 @@ void main() {
 
     test('a fix no newer than the anchor (the old anchor stays): holds', () {
       final h = _hud();
+      h.wouldTrust(justBefore(_fix(15)));
       h.onPositionFix(_fix(15), now: _t0);
       final stale = _fix(15, at: const LatLng(39.70, 140.20), t: _t0);
       h.onPositionFix(stale, now: _t0);
@@ -96,7 +103,7 @@ void main() {
     test('the dev mock: holds, even though the controller trusts it', () {
       final h = _hud();
       final mock = _fix(35);
-      h.onPositionFix(mock, now: _t0);
+      h.onTestPosition(mock);
       expect(h.estimate!.mode, LocalizationMode.gpsTrusted, reason: 'control');
       expect(followTargetAfter(fix: mock, estimate: h.estimate, isMock: true),
           isNull);

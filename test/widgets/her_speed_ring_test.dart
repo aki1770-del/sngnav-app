@@ -49,7 +49,8 @@ const double _acc = 10;
 
 /// The app's clock, advanced together with the test's fake time. The blackout
 /// watchdog reads it, so under a fixed clock no poll could ever happen.
-var _clockNow = DateTime.utc(2026, 1, 14, 21);
+final _bootAt = DateTime.utc(2026, 1, 14, 21);
+var _clockNow = _bootAt;
 
 Future<void> _advance(WidgetTester tester, Duration d) async {
   _clockNow = _clockNow.add(d);
@@ -68,9 +69,10 @@ Position _fix(
   bool hasSpeed = false,
   double speedAccuracy = 0,
   bool hasSpeedAccuracy = false,
+  double northM = 0,
 }) =>
     Position(
-      latitude: 39.7186,
+      latitude: 39.7186 + northM / 111194.93,
       longitude: 140.1024,
       timestamp: t,
       accuracy: _acc,
@@ -91,7 +93,7 @@ Future<(FakeAlertActuators, StreamController<Position>)> _bootAndShare(
     WidgetTester tester) async {
   final a = FakeAlertActuators();
   final positions = StreamController<Position>();
-  _clockNow = DateTime.utc(2026, 1, 14, 21);
+  _clockNow = _bootAt;
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
   await tester.pumpWidget(SngnavApp(
@@ -138,6 +140,10 @@ Future<({List<_Told> told, String spoken, String haptics})> _blackout(
   List<int> readAt = const [30],
 }) async {
   final (a, positions) = await _bootAndShare(tester);
+  // A share's first fix is held (decided 2026-10-05): the same fix one second
+  // earlier comes first, so the fix below is judged against it and trusted.
+  positions.add(fixAt(_clockNow.subtract(const Duration(seconds: 1))));
+  await _settle(tester);
   positions.add(fixAt(_clockNow));
   await _settle(tester);
   final atFix = _mapIsTold(tester);
@@ -296,15 +302,25 @@ void main() {
       );
     }
 
+    // Re-timed 2026-10-05: every fix sat at the same coordinates while the
+    // platform reported 25 m/s, which no car does, and a check that a position
+    // keeps up with its own measured speed would rightly flag it. Both drives
+    // now move 25 m up the road each second; only the reported speed differs.
+    double along(DateTime t) =>
+        25.0 * t.difference(_bootAt).inMicroseconds / 1e6;
     testWidgets(
         'trusted fixes at a measured 25 m/s with no visibility reading: '
         'nothing spoken or felt beyond a speed-unknown drive, and no '
         '"Fast for the conditions"', (tester) async {
-      final unknown = await drive(tester, (t) => _fix(t));
+      final unknown = await drive(tester, (t) => _fix(t, northM: along(t)));
       final fast = await drive(
         tester,
         (t) => _fix(t,
-            speed: 25, hasSpeed: true, speedAccuracy: 0.5, hasSpeedAccuracy: true),
+            speed: 25,
+            hasSpeed: true,
+            speedAccuracy: 0.5,
+            hasSpeedAccuracy: true,
+            northM: along(t)),
       );
       expect(fast.spoken, unknown.spoken);
       expect(fast.haptics, unknown.haptics);

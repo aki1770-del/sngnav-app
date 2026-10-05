@@ -29,6 +29,7 @@ import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import 'support/assessed_fix.dart';
 import 'support/fake_alert_actuators.dart';
 
 // Clear, warm: the JMA feed stays silent so nothing else moves the surface.
@@ -101,6 +102,15 @@ void main() {
       final now = DateTime.utc(2026, 1, 15, 6, 30);
       final positions = await pumpSharing(tester, () => now);
 
+      // A share's first fix is held (decided 2026-10-05): the same place
+      // one second earlier comes first, and the fix below is judged.
+      positions.add(justBefore(PositionAvailable(
+        latitude: 39.7167,
+        longitude: 140.0983,
+        accuracyMeters: 20,
+        timestamp: now,
+      )));
+      await tester.pump();
       positions.add(PositionAvailable(
         latitude: 39.7167,
         longitude: 140.0983,
@@ -140,6 +150,15 @@ void main() {
       await tester.pump();
       expect(find.textContaining(_honestUnavailable), findsOneWidget);
 
+      // A share's first fix is held (decided 2026-10-05): the same place
+      // one second earlier comes first, and the fix below is judged.
+      positions.add(justBefore(PositionAvailable(
+        latitude: 39.7167,
+        longitude: 140.0983,
+        accuracyMeters: 20,
+        timestamp: now,
+      )));
+      await tester.pump();
       positions.add(PositionAvailable(
         latitude: 39.7167,
         longitude: 140.0983,

@@ -27,6 +27,7 @@ import 'package:compound_failure_advisor/compound_failure_advisor.dart';
 import 'package:localization_fallback/localization_fallback.dart';
 
 import '../her_position.dart';
+import 'gps_trust.dart';
 import 'measured_hazard_floor.dart';
 
 /// Map `localization_fallback`'s honest [LocalizationMode] to the compound
@@ -55,11 +56,64 @@ PositionTrust positionTrustFromMode(LocalizationMode mode) => switch (mode) {
 /// — never a frozen, stale, confidently-wrong dot left sitting where GPS last
 /// worked.
 class DriveLocalizer {
-  DriveLocalizer({LocalizationController? controller})
-      : controller = controller ?? LocalizationController();
+  /// [assessor] is injectable only so a test can make it fail. Every drive
+  /// brain judges its fixes: a default-constructed one assesses, and there is
+  /// no way to construct one that does not (decided 2026-10-05). A verdict
+  /// each caller had to remember to supply would be the same believe-by-default
+  /// hole one layer up: forgotten once, and every fix is trusted again.
+  DriveLocalizer({
+    LocalizationController? controller,
+    GpsTrustAssessor? assessor,
+  })  : controller = controller ?? LocalizationController(),
+        _assessor = assessor ?? GpsTrustAssessor();
 
   /// The wrapped honest-position state machine.
   final LocalizationController controller;
+
+  final GpsTrustAssessor _assessor;
+
+  /// The verdict for the fix last asked about with [wouldTrust] and not yet
+  /// fed: feeding that same fix uses it, so asking and then feeding advances
+  /// the assessor once and gives the same answer both times (decided
+  /// 2026-10-05). position_integrity has no way to ask without advancing.
+  /// Asking DOES advance it, on purpose: a fix the app holds back before a
+  /// share has anchored is still the base the next fix is judged against, or
+  /// the share could never anchor.
+  ({PositionAvailable fix, GpsTrustVerdict verdict})? _asked;
+
+  /// The verdict on the last fix fed, or `null` before any. Kept for the
+  /// record: [GpsTrustVerdict.shadow] is what the gates kept in shadow said,
+  /// which nothing acts on.
+  GpsTrustVerdict? get lastVerdict => _lastVerdict;
+  GpsTrustVerdict? _lastVerdict;
+
+  /// How many times the assessor could not be built or threw.
+  int get assessorFaults => _assessor.faultCount;
+
+  /// Forget the fixes judged so far: the next fix is a first fix again, held
+  /// rather than trusted. Called where a share begins (decided 2026-10-05): a
+  /// new share's first fix judged against the last fix of an earlier share,
+  /// any length of time before, would be a check that could not fail.
+  void resetAssessment() {
+    _assessor.reset();
+    _asked = null;
+  }
+
+  GpsTrustVerdict _verdictFor(PositionAvailable fix, double accuracy) {
+    final asked = _asked;
+    if (asked != null && _sameFix(asked.fix, fix)) return asked.verdict;
+    final verdict = _assessor.assess(fix, accuracy);
+    _asked = (fix: fix, verdict: verdict);
+    return verdict;
+  }
+
+  static bool _sameFix(PositionAvailable a, PositionAvailable b) =>
+      identical(a, b) ||
+      (a.latitude == b.latitude &&
+          a.longitude == b.longitude &&
+          a.accuracyMeters == b.accuracyMeters &&
+          a.timestamp == b.timestamp &&
+          a.speedLowerBoundMps == b.speedLowerBoundMps);
 
   /// The most recently emitted estimate, or `null` before any input.
   LocalizationEstimate? get current => controller.current;
@@ -74,17 +128,19 @@ class DriveLocalizer {
   /// localizer.
   DateTime? _lastTrustedFixAt;
 
-  /// Whether [fix] would be taken as a trusted fix if it were fed now, without
-  /// feeding it: a position with finite geometry and a non-negative accuracy
+  /// Whether [fix] would be taken as a trusted fix if it were fed now: a
+  /// position with finite geometry and a non-negative accuracy
   /// ([RawFix.hasFiniteGeometry], the controller's own guard), newer than the
-  /// last fix the controller trusted. A fix no newer than that is refused as
-  /// replayed (`localization_controller.dart:108-110`), and an unavailability
-  /// is never a fix.
+  /// last fix the controller trusted, that the GPS trust verdict trusts. A fix
+  /// no newer than that is refused as replayed
+  /// (`localization_controller.dart:108-110`), and an unavailability is never
+  /// a fix.
   ///
   /// Asked BEFORE feeding, so the app can decline to give the drive brain an
   /// event that would not anchor it (decided 2026-09-14). The same answer as
   /// feeding it and reading the basis back, pinned against the real controller
-  /// in `test/services/drive_localizer_would_trust_test.dart`.
+  /// in `test/services/drive_localizer_would_trust_test.dart`. Asking twice
+  /// gives the same answer; see [_asked] for what asking advances.
   bool wouldTrust(PositionFix fix) => switch (fix) {
         PositionAvailable(
           :final latitude,
@@ -99,19 +155,44 @@ class DriveLocalizer {
                 timestamp: timestamp,
               ).hasFiniteGeometry &&
               (_lastTrustedFixAt == null ||
-                  timestamp.isAfter(_lastTrustedFixAt!)),
+                  timestamp.isAfter(_lastTrustedFixAt!)) &&
+              _verdictFor(fix, accuracy).acting == TrustSignal.trusted,
         // A sample with no measured accuracy is not a fix (decided 2026-09-14).
+        PositionAvailable() => false,
+        PositionUnavailable() => false,
+      };
+
+  /// Whether [fix] is a share's first fix that nothing found wrong, held only
+  /// because there is nothing yet to judge it against
+  /// ([GpsTrustVerdict.awaitingComparison]). Asked like [wouldTrust], with the
+  /// same cache: asking feeds nothing to the controller.
+  bool awaitsComparison(PositionFix fix) => switch (fix) {
+        PositionAvailable(
+          :final latitude,
+          :final longitude,
+          accuracyMeters: final double accuracy,
+          :final timestamp,
+        ) =>
+          RawFix(
+                latitude: latitude,
+                longitude: longitude,
+                accuracyMeters: accuracy,
+                timestamp: timestamp,
+              ).hasFiniteGeometry &&
+              (_lastTrustedFixAt == null ||
+                  timestamp.isAfter(_lastTrustedFixAt!)) &&
+              _verdictFor(fix, accuracy).awaitingComparison,
         PositionAvailable() => false,
         PositionUnavailable() => false,
       };
 
   /// Feed one [PositionFix].
   ///
-  /// - [PositionAvailable]: a trusted raw fix — `her_position.dart` already ran
-  ///   the finite-coordinate chokepoint, so its geometry is real. Fed as
-  ///   [TrustSignal.trusted] (the controller re-guards non-finite geometry
-  ///   anyway). [speedMps], if known, floors the radius-growth rate while the
-  ///   dot is frozen at last-known.
+  /// - [PositionAvailable] with a measured accuracy: judged by the GPS trust
+  ///   verdict ([GpsTrustAssessor]) and fed with that verdict (decided
+  ///   2026-10-05). Until then every such fix was fed as
+  ///   [TrustSignal.trusted], the package's default. [speedMps], if known,
+  ///   floors the radius-growth rate while the dot is frozen at last-known.
   /// - [PositionUnavailable]: NOT a position (denied / revoked / error /
   ///   non-finite). We [poll] at [now] so the estimate degrades honestly toward
   ///   `lost` rather than presenting a stale confident dot.
@@ -127,17 +208,31 @@ class DriveLocalizer {
           accuracyMeters: final double accuracy,
           :final timestamp,
         ):
-        final estimate = controller.onFix(
-          RawFix(
-            latitude: latitude,
-            longitude: longitude,
-            accuracyMeters: accuracy,
-            timestamp: timestamp,
-            speedMps: speedMps,
-          ),
+        final raw = RawFix(
+          latitude: latitude,
+          longitude: longitude,
+          accuracyMeters: accuracy,
+          timestamp: timestamp,
+          speedMps: speedMps,
         );
+        // Geometry the controller refuses (a negative accuracy) is no fix to
+        // judge, and never reaches the assessor.
+        final verdict = raw.hasFiniteGeometry
+            ? _verdictFor(fix, accuracy)
+            : const GpsTrustVerdict(
+                acting: TrustSignal.failed,
+                shadow: TrustSignal.suspect,
+                assessed: false,
+                reasons: ['not a usable fix'],
+                shadowReasons: ['not evaluated: not a usable fix'],
+              );
+        // Fed: the same fix fed again is judged again, as a replay.
+        _asked = null;
+        _lastVerdict = verdict;
+        final estimate = controller.onFix(raw, trust: verdict.acting);
         if (estimate.basis == EstimateBasis.trustedGpsFix) {
           _lastTrustedFixAt = timestamp;
+          _assessor.anchorOn(fix, accuracy);
         }
         return estimate;
       // No measured accuracy: not a fix (decided 2026-09-14). Treated as an event
@@ -149,6 +244,33 @@ class DriveLocalizer {
       case PositionUnavailable _:
         return controller.poll(now);
     }
+  }
+
+  /// Feed the development page's test position: a fix nobody measured, which
+  /// the app labels テスト位置 wherever it shows it. It is NOT a GPS fix, so the
+  /// GPS trust verdict does not judge it and it is fed as the controller's
+  /// trusted fix, as before 2026-10-05. Reached only from the development
+  /// page's mock control (a release build never draws that page); every fix
+  /// from her position stream goes through [onPositionFix].
+  LocalizationEstimate onTestPosition(PositionAvailable fix) {
+    final accuracy = fix.accuracyMeters;
+    _lastVerdict = const GpsTrustVerdict(
+      acting: TrustSignal.trusted,
+      shadow: TrustSignal.suspect,
+      assessed: false,
+      reasons: ['a test position from the development page: not GPS'],
+      shadowReasons: ['not evaluated: a test position'],
+    );
+    final estimate = controller.onFix(RawFix(
+      latitude: fix.latitude,
+      longitude: fix.longitude,
+      accuracyMeters: accuracy ?? double.nan,
+      timestamp: fix.timestamp,
+    ));
+    if (estimate.basis == EstimateBasis.trustedGpsFix) {
+      _lastTrustedFixAt = fix.timestamp;
+    }
+    return estimate;
   }
 
   /// Advance during a blackout (no fix arrived this tick) so the radius keeps

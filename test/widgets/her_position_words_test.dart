@@ -37,6 +37,7 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 
 /// A 1x1 transparent PNG, so the basemap never reaches for the network.
@@ -302,6 +303,15 @@ void main() {
       await tester.ensureVisible(find.text('現在地を共有'));
       await tester.pump();
       await tester.tap(find.text('現在地を共有'));
+      await tester.pump();
+      // A share's first fix is held (decided 2026-10-05): the same place
+      // one second earlier comes first, and the fix below is judged.
+      positions.add(justBefore(PositionAvailable(
+        latitude: 39.7195,
+        longitude: 140.1180,
+        accuracyMeters: 15,
+        timestamp: start,
+      )));
       await tester.pump();
       positions.add(PositionAvailable(
         latitude: 39.7195,

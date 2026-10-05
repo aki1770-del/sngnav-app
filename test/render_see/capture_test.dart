@@ -32,6 +32,7 @@ import 'package:sngnav_app/services/advisory_service.dart';
 import 'package:sngnav_app/services/provider_coverage.dart';
 import 'package:sngnav_app/widgets/advisory_cards.dart';
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 import '../support/developer_page.dart';
 
@@ -203,6 +204,10 @@ void main() {
 
     // She shares her position and the GPS gives a fix.
     await shareHerPosition(tester);
+    // A share's first fix is held (decided 2026-10-05): the same place one
+    // second earlier comes first, and the fix after it is judged and trusted.
+    positions.add(justBefore(fixAtAkita(at)));
+    await tester.pump();
     positions.add(fixAtAkita(at));
     await tester.pump();
     await tester.pump();
@@ -268,6 +273,10 @@ void main() {
 
     // She shares her position and the GPS gives one fix.
     await shareHerPosition(tester);
+    // A share's first fix is held (decided 2026-10-05): the same place one
+    // second earlier comes first, and the fix after it is judged and trusted.
+    positions.add(justBefore(fixAtAkita(t0)));
+    await tester.pump();
     positions.add(fixAtAkita(t0));
     await tester.pump();
     await tester.pump();

@@ -19,6 +19,7 @@ import 'package:localization_fallback/localization_fallback.dart'
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/services/drive_hud_controller.dart';
 
+import '../support/assessed_fix.dart';
 import '../support/fake_alert_actuators.dart';
 
 void main() {
@@ -42,6 +43,7 @@ void main() {
   test('positionUnlocatable is false while GPS is trusted — a confident dot is '
       'honest here', () {
     final c = controller();
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     expect(c.estimate!.mode, LocalizationMode.gpsTrusted);
     expect(c.positionUnlocatable, isFalse);
@@ -53,6 +55,7 @@ void main() {
     final c = controller();
 
     // Trusted baseline (this is the point `_herFix` would freeze on).
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     expect(c.positionUnlocatable, isFalse);
 
@@ -69,6 +72,7 @@ void main() {
   test('a revoked fix mid-drive also degrades to unlocatable (dead-reckoning '
       'or lost — both must degrade the surface)', () {
     final c = controller();
+    c.wouldTrust(justBefore(fix(t0)));
     c.onPositionFix(fix(t0), now: t0);
     c.onPositionFix(const PositionUnavailable('revoked'),
         now: t0.add(const Duration(seconds: 5)));

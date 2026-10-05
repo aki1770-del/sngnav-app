@@ -17,6 +17,7 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart'
     show SngnavApp, positionWatchdogPollTime;
 
+import 'support/assessed_fix.dart';
 import 'support/fake_alert_actuators.dart';
 
 // A clear, warm observation: no invisible-ice window, no turmoil — the JMA
@@ -148,6 +149,15 @@ void main() {
       await tester.ensureVisible(find.text('現在地を共有'));
       await tester.pump();
       await tester.tap(find.text('現在地を共有'));
+      await tester.pump();
+      // A share's first fix is held (decided 2026-10-05): the same place
+      // one second earlier comes first, and the fix below is judged.
+      positions.add(justBefore(PositionAvailable(
+        latitude: 39.7167,
+        longitude: 140.0983,
+        accuracyMeters: 20,
+        timestamp: clock(),
+      )));
       await tester.pump();
       positions.add(PositionAvailable(
         latitude: 39.7167,

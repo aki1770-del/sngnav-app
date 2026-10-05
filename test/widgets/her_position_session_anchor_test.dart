@@ -27,6 +27,7 @@ import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import '../support/assessed_fix.dart';
 import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
@@ -95,6 +96,13 @@ void main() {
     await tester.pump();
   }
 
+  /// A share's first fix is held (decided 2026-10-05): the same fix one second
+  /// earlier, then [fix], which is judged against it and trusted.
+  Future<void> sendTrusted(WidgetTester tester, PositionAvailable fix) async {
+    await send(tester, justBefore(fix));
+    await send(tester, fix);
+  }
+
   AkitaMap map(WidgetTester tester) =>
       tester.widget<AkitaMap>(find.byType(AkitaMap));
 
@@ -119,7 +127,7 @@ void main() {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
       // A fix stamped 20 hours ago: the previous drive.
-      await send(
+      await sendTrusted(
         tester,
         _fixAt(_a, DateTime.now().subtract(const Duration(hours: 20))),
       );
@@ -154,7 +162,7 @@ void main() {
     (tester) async {
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await send(tester, _fixAt(_a, DateTime.now()));
+      await sendTrusted(tester, _fixAt(_a, DateTime.now()));
       await tapText(tester, '停止');
 
       await tapText(tester, '現在地を共有');
@@ -211,7 +219,7 @@ void main() {
       final t = DateTime.now();
       await pumpApp(tester);
       await tapText(tester, '現在地を共有');
-      await send(tester, _fixAt(_a, t));
+      await sendTrusted(tester, _fixAt(_a, t));
       await tapText(tester, '停止');
 
       await tapText(tester, '現在地を共有');
@@ -254,17 +262,22 @@ void main() {
   });
 
   group('controls: what a real anchor in this session still draws', () {
+    // Re-timed 2026-10-05: _a to _b is about 1.9 km, which 30 s does not
+    // cover; two minutes does (about 16 m/s). Since the same day the GPS trust
+    // verdict starts again at each share, so the new share's first fix is not
+    // judged against _a at all, and is held until the fix after it.
     testWidgets(
       're-share and a fresh fix elsewhere: the dot at the new place',
       (tester) async {
         final t = DateTime.now();
         await pumpApp(tester);
         await tapText(tester, '現在地を共有');
-        await send(tester, _fixAt(_a, t));
+        await sendTrusted(tester, _fixAt(_a, t));
         await tapText(tester, '停止');
 
         await tapText(tester, '現在地を共有');
-        await send(tester, _fixAt(_b, t.add(const Duration(seconds: 30))));
+        await sendTrusted(
+            tester, _fixAt(_b, t.add(const Duration(minutes: 2))));
 
         expect(map(tester).herPosition, _b);
         expect(find.byKey(_realDotKey), findsOneWidget);
@@ -279,7 +292,7 @@ void main() {
       (tester) async {
         await pumpApp(tester);
         await tapText(tester, '現在地を共有');
-        await send(tester, _fixAt(_a, DateTime.now()));
+        await sendTrusted(tester, _fixAt(_a, DateTime.now()));
         positions.addError(StateError('platform GPS stream failed'));
         await tester.pump();
         await tester.pump();

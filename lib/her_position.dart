@@ -62,6 +62,20 @@ class PositionAvailable extends PositionFix {
   /// fix only; whether a stop is still current is not decided here.
   final GroundMotion motion;
 
+  /// The speed, in m/s, she is SURELY moving at by this fix: the reported
+  /// speed less its reported speed accuracy, read by
+  /// [groundSpeedLowerBoundMps]. `null` when either was not measured, or when
+  /// the difference is not above zero.
+  ///
+  /// The lower side, on purpose, and the opposite of [speedFloorMps], which is
+  /// the upper side built to grow her ring. Read by the GPS trust verdict's
+  /// frozen-position rule (`services/gps_trust.dart`, decided 2026-10-05),
+  /// which may flag a position that stops moving only while the platform says
+  /// she is surely moving. A stop, a crawl whose accuracy is as large as its speed, or a
+  /// speed with no accuracy gives no lower bound, so that rule cannot fire on
+  /// them.
+  final double? speedLowerBoundMps;
+
   const PositionAvailable({
     required this.latitude,
     required this.longitude,
@@ -69,6 +83,7 @@ class PositionAvailable extends PositionFix {
     required this.timestamp,
     this.speedFloorMps,
     this.motion = GroundMotion.unknown,
+    this.speedLowerBoundMps,
   });
 }
 
@@ -131,6 +146,21 @@ double? groundSpeedFloorMps(Position p) {
       (_reported(_measured(p, p.hasSpeedAccuracy, p.speedAccuracy),
               p.speedAccuracy) ??
           0);
+}
+
+/// The speed she is surely moving at by [p]: the reported speed less the
+/// reported speed accuracy, both measured ([_measured]) and usable
+/// ([_reported]); `null` when either is missing, or when the difference is not
+/// above zero. With no speed accuracy there is no lower bound at all: a speed
+/// alone says nothing about how slow she might really be.
+double? groundSpeedLowerBoundMps(Position p) {
+  final speed = _reported(_measured(p, p.hasSpeed, p.speed), p.speed);
+  if (speed == null) return null;
+  final accuracy = _reported(
+      _measured(p, p.hasSpeedAccuracy, p.speedAccuracy), p.speedAccuracy);
+  if (accuracy == null) return null;
+  final lower = speed - accuracy;
+  return lower > 0 ? lower : null;
 }
 
 /// What [p] measured about motion: see [GroundMotion]. Fail-closed by
@@ -259,6 +289,7 @@ PositionFix fixFromSample({
   required DateTime timestamp,
   double? speedFloorMps,
   GroundMotion motion = GroundMotion.unknown,
+  double? speedLowerBoundMps,
 }) {
   if (!(latitude.isFinite &&
       longitude.isFinite &&
@@ -276,6 +307,7 @@ PositionFix fixFromSample({
     timestamp: timestamp,
     speedFloorMps: speedFloorMps,
     motion: motion,
+    speedLowerBoundMps: speedLowerBoundMps,
   );
 }
 
@@ -552,6 +584,7 @@ Stream<PositionFix> herPositionStream({
           timestamp: p.timestamp,
           speedFloorMps: groundSpeedFloorMps(p),
           motion: groundMotionOf(p),
+          speedLowerBoundMps: groundSpeedLowerBoundMps(p),
         )),
         // By the error's type, never its text. geolocator_android 4.6.2 checks
         // the permission again when the stream is listened to and, when it is

@@ -97,6 +97,13 @@ Future<(int, int, int)> _minute(WidgetTester tester,
   for (var i = 0; i < 5; i++) {
     await tester.pump();
   }
+  // A share's first fix is held (decided 2026-10-05): one measured sample one
+  // second before the minute, so the minute starts with a fix that can be
+  // judged, as it started before.
+  platform.add(_sample(_now.subtract(const Duration(seconds: 1)), measured: true));
+  for (var k = 0; k < 5; k++) {
+    await tester.pump();
+  }
   bool? last;
   var changes = 0;
   for (var i = 0; i < 60; i++) {

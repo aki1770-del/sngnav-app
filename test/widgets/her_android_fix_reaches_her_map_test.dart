@@ -241,6 +241,15 @@ void main() {
             reason: 'control: the app listened on geolocator_android\'s own '
                 'channel');
 
+        // A share's first fix is held (decided 2026-10-05): the same fix one
+        // second earlier comes first, and the fix below is judged against it.
+        platform!.success(_androidLocation(
+          latitude: latitude,
+          longitude: longitude,
+          at: _clockNow.subtract(const Duration(seconds: 1)),
+          accuracy: 30,
+        ));
+        await _settle(tester);
         platform!.success(_androidLocation(
           latitude: latitude,
           longitude: longitude,
