@@ -439,6 +439,50 @@ class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        // ------------------------------------------------------------------
+        // KEEP 停止 CLEAR OF ANOTHER APP'S FLOATING WINDOW (2026-10-04).
+        //
+        // Google Maps' picture-in-picture window sat over 停止 on an Android
+        // 14 emulator and took her tap; the drive kept running. API 33 added
+        // View.setPreferKeepClearRects: the app names rects it would like kept
+        // clear of floating windows above its window, and the phone
+        // picture-in-picture code moves its window off them where it can
+        // (lib/services/keep_clear.dart says where it cannot).
+        //
+        // The rects arrive from Dart in physical pixels, in the Flutter view's
+        // own coordinates, which is the space this call takes. Answers true
+        // only when they were handed to Android; false below API 33, with no
+        // Flutter view, or on arguments of any other shape. A malformed call
+        // must never throw on the main thread of the app she drives with.
+        // ------------------------------------------------------------------
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "sngnav/keep_clear",
+        ).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "setPreferKeepClearRects" -> result.success(setKeepClearRects(call.arguments))
+                else -> result.notImplemented()
+            }
+        }
+    }
+
+    private fun setKeepClearRects(arguments: Any?): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+        val view: android.view.View =
+            findViewById(FlutterActivity.FLUTTER_VIEW_ID) ?: return false
+        val rects = mutableListOf<android.graphics.Rect>()
+        for (item in arguments as? List<*> ?: return false) {
+            val edges = item as? List<*> ?: return false
+            if (edges.size != 4) return false
+            val l = (edges[0] as? Number)?.toInt() ?: return false
+            val t = (edges[1] as? Number)?.toInt() ?: return false
+            val r = (edges[2] as? Number)?.toInt() ?: return false
+            val b = (edges[3] as? Number)?.toInt() ?: return false
+            rects.add(android.graphics.Rect(l, t, r, b))
+        }
+        view.setPreferKeepClearRects(rects)
+        return true
     }
 
     override fun onRequestPermissionsResult(
