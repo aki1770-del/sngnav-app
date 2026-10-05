@@ -1,0 +1,34 @@
+This directory holds material from the Android Open Source Project, used
+only by this repository's tests. Nothing in it is built into the app.
+
+What is here, and where it came from:
+
+  perm_group_location.dart
+    The two android:pathData strings of perm_group_location.xml, Android's
+    location indicator, unmodified. Source: platform/frameworks/base,
+    core/res/res/drawable/perm_group_location.xml, read on the
+    android14-release and main branches on 2026-10-04. The same strings are
+    in the Android 34 SDK's android.jar and in an API 34 emulator image's
+    framework-res.apk. Copyright (C) 2015 The Android Open Source Project.
+    The test test/drive_notification_icon_not_location_test.dart draws them
+    to check that this app's notification icon is not shaped like them.
+
+  LICENSE
+    The Apache License, Version 2.0, under which that file is published, as
+    distributed at https://www.apache.org/licenses/LICENSE-2.0.txt.
+
+The notice below is reproduced, unmodified, from the NOTICE file of
+platform/frameworks/base (android14-release), as section 4(d) of that
+licence asks.
+
+   =========================================================================
+   ==  NOTICE file corresponding to the section 4 d of                    ==
+   ==  the Apache License, Version 2.0,                                   ==
+   ==  in this case for the Android-specific code.                        ==
+   =========================================================================
+
+Android Code
+Copyright 2005-2008 The Android Open Source Project
+
+This product includes software developed as part of
+The Android Open Source Project (http://source.android.com).
