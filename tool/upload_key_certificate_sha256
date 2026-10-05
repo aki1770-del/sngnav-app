@@ -1,0 +1,29 @@
+# The SHA-256 digest of the SNGNav upload key's certificate: the key that signs
+# every build meant for a phone. A phone that holds an SNGNav release accepts an
+# update only from this certificate.
+#
+# Read by:
+#   android/app/build.gradle.kts  assertReleaseSigner: a release build signed by
+#                                 any other key, the debug key included, is
+#                                 refused before packaging, unless
+#                                 SNGNAV_DEV_RELEASE=1 says it is a development
+#                                 build (and then it is another app,
+#                                 dev.aki1770del.sngnav_app.dev, and says so).
+#                                 The mint ledger: a row is written only when
+#                                 the built bytes' one signer is this key.
+#   tool/preflight_play_upload.sh gate 1: the bundle's only signer must be this
+#                                 key.
+#   test/architectural/release_signer_test.dart pins this VALUE as well.
+#
+# Keep exactly ONE digest line (64 hex digits; colons and upper case are
+# accepted). It is changed only when the maintainer changes the upload key.
+#
+# Read 2026-10-04 from the public certificates inside upload-signed APKs, with
+# `apksigner verify --print-certs`, never from the keystore. Each reads
+#   CN=SNGNav Upload, OU=SNGNav, O=SNGNav, L=Nagoya, ST=Aichi, C=JP
+# and the digest below:
+#   0.0.2+9  (04ca782)  APK sha256 1e7a3fad26d5c7e1e9d457ed0f48453c012b85e4719737db47b229d8ae1582d7
+#   0.0.2+11 (a6b907d)  APK sha256 fd2cdf4b615b275bdfbe1902ee8249473e603f83b8325def2552020f85038937
+# and code 12, the build on the maintainer's phone (tool/version_code_floor),
+# read the same way when it was built on 2026-10-02.
+6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14

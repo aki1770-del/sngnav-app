@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher label of the .dev build types only (android/app/build.gradle.kts,
+     manifestPlaceholders["appLabel"]). Her app is labelled "SNGNav". The first word
+     differs, so a truncated label still differs. -->
+<resources>
+    <string name="dev_app_label" translatable="true">DEV SNGNav</string>
+</resources>

@@ -108,8 +108,12 @@
          geolocator_android 4.6.2's own manifest declares only the Service, never
          this permission — so nothing upstream will ever supply it for us. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- android:label comes from android/app/build.gradle.kts: "SNGNav" for her
+         app, and @string/dev_app_label for the .dev build types (a development
+         release, and every profile build), which install beside hers. Two
+         "SNGNav" icons on one phone would be one glance from the wrong app. -->
     <application
-        android:label="SNGNav"
+        android:label="${appLabel}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

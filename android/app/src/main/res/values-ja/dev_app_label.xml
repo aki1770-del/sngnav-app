@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- See values/dev_app_label.xml. 開発用 = "for development". -->
+<resources>
+    <string name="dev_app_label">開発用 SNGNav</string>
+</resources>
