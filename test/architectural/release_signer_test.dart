@@ -165,11 +165,11 @@ void main() {
     // key, and the injected upload key is refused for release and profile.
     expect(gradle,
         contains('signingConfig = if (hasReleaseKeystore && !devReleaseAllowed) {'));
-    // ONE rule for every build that is not her app. Until 2026-10-04 it was
+    // ONE rule for every build that is not her release. Until 2026-10-04 it was
     // written twice, and the development-release copy allowed a signer or a
     // pin it could not read (BIS round 3, F1).
     final rule = RegExp(
-        r'fun notHerAppSignerRefusal\([\s\S]*?\): String\? \{\s*'
+        r'fun notHerReleaseSignerRefusal\([\s\S]*?\): String\? \{\s*'
         r'val c = cert\.getOrNull\(\)\s*'
         r'val p = pin\.getOrNull\(\)\s*'
         r'return when \{\s*'
@@ -184,14 +184,23 @@ void main() {
             'construction');
     // Every task that reads a signer calls it (release, profile and, since
     // 2026-10-05, debug), and each call throws.
-    final call = RegExp(r'notHerAppSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
+    final call = RegExp(r'notHerReleaseSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
         r'throw GradleException\(');
     expect(call.allMatches(gradle).length, 3);
+    // Renamed 2026-10-05 (BIS ruling D-3, F-D2): a debug build IS her app, so
+    // "not her app" was untrue of a caller. Outside comments, the old name is
+    // gone.
+    expect(
+        gradle
+            .split('\n')
+            .where((l) => !l.trimLeft().startsWith('//'))
+            .where((l) => l.contains('notHerAppSignerRefusal')),
+        isEmpty);
     // Under SNGNAV_DEV_RELEASE=1 the call comes first, before anything is
     // logged or allowed.
     expect(
       RegExp(r'if \(allowed\) \{(?:\s*//[^\n]*)*\s*'
-              r'notHerAppSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
+              r'notHerReleaseSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
               r'throw GradleException\(')
           .hasMatch(gradle),
       isTrue,
@@ -460,12 +469,12 @@ void main() {
       isTrue,
     );
     // The one rule, thrown, before anything is said or allowed.
-    final call = RegExp(r'notHerAppSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
+    final call = RegExp(r'notHerReleaseSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
         r'throw GradleException\(\s*"DEBUG SIGNER: refused before packaging\.');
     expect(call.hasMatch(task), isTrue,
         reason: 'a debug build the upload key would sign must be refused by '
             'a thrown exception');
-    expect(task.indexOf('notHerAppSignerRefusal('),
+    expect(task.indexOf('notHerReleaseSignerRefusal('),
         lessThan(task.indexOf('logger.')),
         reason: 'the rule must run before the build is allowed');
   });
