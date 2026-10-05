@@ -504,6 +504,59 @@ void main() {
     );
   });
 
+  test('when the debug key itself is read as the pin, every refusal names '
+      'the two real cures, never "leave injected signing unset"', () {
+    // D-3 run G5: with this machine's debug key pinned and nothing injected,
+    // the debug refusal advised leaving android.injected.signing.* unset, a
+    // cure already in effect; the profile and development-release refusals
+    // gave the same advice (BIS ruling D-3, F-D1).
+    final at = gradle.indexOf('fun debugKeyReadAsPinCure(');
+    expect(at, greaterThan(0), reason: 'the cure for this case is gone');
+    final fn = gradle.substring(at, gradle.indexOf('\n}\n', at));
+    // Only that case: the debug key by construction, read, and equal to the pin.
+    expect(
+        RegExp(r'if \(!source\.debugKeyByConstruction \|\| c == null \|\| '
+                r'p == null \|\| c\.sha256 != p\) return null')
+            .hasMatch(fn),
+        isTrue,
+        reason: 'the cure must apply to that case alone');
+    // The text, with Kotlin's concatenation removed.
+    final text = RegExp(r'"((?:[^"\\]|\\.)*)"')
+        .allMatches(fn.substring(fn.indexOf('return "')))
+        .map((m) => m[1])
+        .join();
+    expect(text,
+        startsWith('Nothing was injected: this build is signed with the debug keystore'));
+    expect(
+        text,
+        contains("If the pin names this machine's debug key, correct "
+            "tool/upload_key_certificate_sha256 to the upload key's certificate SHA-256."));
+    expect(text, contains('If this debug keystore holds the upload key, move it aside'));
+    expect(text, isNot(contains('injected.signing.* unset')));
+    // All three refusals give it before their own advice, and no advice to
+    // leave injected signing unset is printed outside it.
+    final guarded = RegExp(r'\(debugKeyReadAsPinCure\(source, cert, pin\)\s*'
+        r'\?: \(?"[^"]*leave android\.injected\.signing\.\* unset');
+    for (final name in [
+      'assertReleaseSigner',
+      'reportProfileSigner',
+      'assertDebugSigner'
+    ]) {
+      final s = gradle.indexOf('tasks.register("$name")');
+      expect(s, greaterThan(0), reason: name);
+      final e = gradle.indexOf('\n}\n', s);
+      expect(guarded.hasMatch(gradle.substring(s, e)), isTrue,
+          reason: '$name must give the debug-key cure first');
+    }
+    final advice = gradle
+        .split('\n')
+        .where((l) => !l.trimLeft().startsWith('//'))
+        .where((l) => l.contains('leave android.injected.signing.* unset'))
+        .length;
+    expect(advice, 3,
+        reason: 'advice to leave injected signing unset outside the guard');
+  });
+
   test('the fallback is no longer described as unable to ship', () {
     // The comment this gate replaces said a debug-signed release "cannot
     // silently ship" because Play rejects it. It shipped by sideload.

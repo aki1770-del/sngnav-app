@@ -950,6 +950,32 @@ fun notHerReleaseSignerRefusal(
     }
 }
 
+// THE CURE WHEN THE DEBUG KEY IS READ AS THE PIN. notHerReleaseSignerRefusal
+// refuses a signer read as the upload key whatever its source, the debug
+// keystore included (D-3, run G5). Then nothing was injected and the build is
+// already signed with the debug key, so the cure each caller otherwise prints,
+// to leave injected signing unset, is one already in effect: a halt that names
+// no cure the developer can apply costs more than it should (V20). One of two
+// things is wrong on that machine, and this names both: the pin names its debug
+// key, or its debug keystore holds the upload key. Null in every other case,
+// where the caller's own cure stands (BIS ruling, board 36.17 D-3, F-D1).
+fun debugKeyReadAsPinCure(
+    source: SignerSource,
+    cert: Result<SignerCert>,
+    pin: Result<String>,
+): String? {
+    val c = cert.getOrNull()
+    val p = pin.getOrNull()
+    if (!source.debugKeyByConstruction || c == null || p == null || c.sha256 != p) return null
+    val where = source.store?.path ?: "no keystore path"
+    return "Nothing was injected: this build is signed with the debug keystore, $where, whose " +
+        "certificate SHA-256 is the digest in tool/upload_key_certificate_sha256, so there is no " +
+        "injected signing to remove. One of two things is wrong on this machine. If the pin names " +
+        "this machine's debug key, correct tool/upload_key_certificate_sha256 to the upload key's " +
+        "certificate SHA-256. If this debug keystore holds the upload key, move it aside; at AGP's " +
+        "default location the next build creates a new debug key."
+}
+
 // What the log of an allowed development release may say about its signer.
 // "NOT THE UPLOAD KEY" only when the certificate AND the pin were read and
 // differ; otherwise it says what was not read.
@@ -1003,8 +1029,9 @@ val assertReleaseSigner = tasks.register("assertReleaseSigner") {
                         "The upload key signs only her app, $herId. Play fixes an app's package " +
                         "at the first accepted upload, and an upload-key bundle of another app passes every " +
                         "check that reads only the signer.\n" +
-                        "For a development build, leave android.injected.signing.* unset: it is then signed " +
-                        "with the debug key. To build her release, unset SNGNAV_DEV_RELEASE."
+                        (debugKeyReadAsPinCure(source, cert, pin)
+                            ?: ("For a development build, leave android.injected.signing.* unset: it is then " +
+                                "signed with the debug key. To build her release, unset SNGNAV_DEV_RELEASE."))
                 )
             }
             logger.quiet(
@@ -1071,8 +1098,9 @@ val reportProfileSigner = tasks.register("reportProfileSigner") {
                 "RELEASE SIGNER: refused before packaging. A profile build is $devId, another app, " +
                     "and $why: ${describeSigner(source, cert)}.\n" +
                     "The upload key signs only her app, $herId. Play fixes an app's package " +
-                    "at the first accepted upload. Build profile with the debug key: leave " +
-                    "android.injected.signing.* unset."
+                    "at the first accepted upload. " +
+                    (debugKeyReadAsPinCure(source, cert, pin)
+                        ?: "Build profile with the debug key: leave android.injected.signing.* unset.")
             )
         }
         logger.quiet(
@@ -1151,8 +1179,9 @@ val assertDebugSigner = tasks.register("assertDebugSigner") {
                     "The upload key signs only her release. Her installed app accepts an update signed " +
                     "by it, so a debug build signed by it could replace her app, at a versionCode no " +
                     "check reads and no ledger records.\n" +
-                    "For a debug build, leave android.injected.signing.* unset: it is then signed with " +
-                    "the debug key. To sign her release, build the release variant."
+                    (debugKeyReadAsPinCure(source, cert, pin)
+                        ?: ("For a debug build, leave android.injected.signing.* unset: it is then signed " +
+                            "with the debug key. To sign her release, build the release variant."))
             )
         }
         val said = "DEBUG SIGNER: ${debugSignerStatement(source, cert, pin)}. Allowed. A debug " +
