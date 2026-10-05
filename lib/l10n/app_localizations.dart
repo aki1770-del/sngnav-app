@@ -547,9 +547,57 @@ class AppL10n {
   /// Beside a line that also says the turn may be icy.
   String get maneuverIcyMark => _ja ? '❄ 凍結のおそれ' : '❄ May be icy';
 
+  /// The phrases (文節) of one of the next-turn panel's own Japanese lines,
+  /// for DRAWING only (2026-10-04): the panel lets a line break between two
+  /// phrases and never inside one (`lib/widgets/keep_together.dart`). Null in
+  /// English, where a line breaks at its spaces, and for any other text. Keyed
+  /// by the exact line, so a reworded line finds no list and is drawn plain;
+  /// `test/l10n/maneuver_phrases_spell_the_line_test.dart` fails until its
+  /// list is written.
+  List<String>? maneuverPanelPhrases(String line) =>
+      _ja ? _jaManeuverPanelPhrases[line] : null;
+
+  static const Map<String, List<String>> _jaManeuverPanelPhrases = {
+    'そのまま読み上げます': ['そのまま', '読み上げます'],
+    '確認をお願いして読み上げます': ['確認を', 'お願いして', '読み上げます'],
+    '読み上げません': ['読み上げません'],
+    'この曲がり角の案内は保留しています（現在地が信頼できません）。': [
+      'この曲がり角の', '案内は', '保留しています', '（現在地が', '信頼できません）。', //
+    ],
+    '❄ 凍結のおそれ': ['❄ ', '凍結のおそれ'],
+    '凍結の表示はテスト値です（路面は測定していません）': [
+      '凍結の', '表示は', 'テスト値です', '（路面は', '測定していません）', //
+    ],
+    '凍結の表示は気象庁の気温・湿度からの推定です（路面は測定していません）': [
+      '凍結の', '表示は', '気象庁の', '気温・湿度からの', '推定です', '（路面は', //
+      '測定していません）',
+    ],
+    // Under the banner (2026-10-04): the control's words, and what her press
+    // did. Until then they shared a row that gave them too little width, or
+    // none; given the panel's width and drawn plain, at text size 2.0 the
+    // warning broke as 確認できていま｜せん, and at 1.5 as 確認できていませ｜ん.
+    '次の案内を読み上げる': ['次の', '案内を', '読み上げる'],
+    '読み上げは保留中です': ['読み上げは', '保留中です'],
+    '音声と振動に送りました。': ['音声と', '振動に', '送りました。'],
+    '何も読み上げていません。': ['何も', '読み上げていません。'],
+    '音声も振動も、届いたか確認できていません。': [
+      '音声も', '振動も、', '届いたか', '確認できていません。', //
+    ],
+    '振動が届いたか確認できていません。': ['振動が', '届いたか', '確認できていません。'],
+    '音声が届いたか確認できていません。': ['音声が', '届いたか', '確認できていません。'],
+  };
+
   /// The control that reads the next maneuver aloud, through the same gate.
   String get maneuverNarrateButton =>
       _ja ? '次の案内を読み上げる' : 'Read the next maneuver aloud';
+
+  /// The same control while the turn is not read aloud, when it is not
+  /// offered (2026-10-04). Until then it kept [maneuverNarrateButton]'s words
+  /// under 「読み上げません」. It says where reading stands in the word her line
+  /// uses for the same state ([maneuverGuidancePaused]: 保留), and it differs
+  /// from the offer from its first word, not only in a negation at its end.
+  String get maneuverNarrateButtonOnHold =>
+      _ja ? '読み上げは保留中です' : 'Reading aloud is on hold';
 
   /// After her press, when the announcement was DISPATCHED on both channels.
   ///

@@ -31,6 +31,7 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
 import '../support/fake_alert_actuators.dart';
+import '../support/plain_words.dart';
 
 // Two of the banner's three states, the button, and what her press did. The
 // third state, a position that is only suspect, is reached by no position the
@@ -39,10 +40,12 @@ import '../support/fake_alert_actuators.dart';
 const _tierSpeak = {'ja': 'そのまま読み上げます', 'en': 'Read aloud as given'};
 const _tierSuppressed = {'ja': '読み上げません', 'en': 'Not read aloud'};
 const _button = {'ja': '次の案内を読み上げる', 'en': 'Read the next maneuver aloud'};
+// The same control while the turn is not read aloud, when it is not offered
+// (2026-10-04; until then it kept the words above under 読み上げません).
+const _buttonOnHold = {'ja': '読み上げは保留中です', 'en': 'Reading aloud is on hold'};
 // The card says SENT, not told: `shouldAnnounce` is a pre-dispatch gate
 // verdict and the announce is fire-and-forget (F-1, 2026-09-23).
 const _announced = {'ja': '音声と振動に送りました。', 'en': 'Sent to audio + haptic.'};
-const _notSpoken = {'ja': '何も読み上げていません。', 'en': 'Nothing was read aloud.'};
 const _sectionTitle = {'ja': '次の案内', 'en': 'Next maneuver'};
 
 /// Words that belong to the code and to the people who built it, never to her
@@ -171,15 +174,13 @@ List<String> _cardTexts(WidgetTester tester) => [
       for (final e in find
           .descendant(of: _card(), matching: find.byType(Text))
           .evaluate())
-        (e.widget as Text).data ??
-            (e.widget as Text).textSpan?.toPlainText() ??
-            '',
+        wordsOf(e.widget as Text),
     ];
 
 String _textOfKey(WidgetTester tester, String key) {
   final f = find.byKey(Key(key));
   expect(f, findsOneWidget, reason: '$key is drawn');
-  return tester.widget<Text>(f).data ?? '';
+  return wordsOf(tester.widget<Text>(f));
 }
 
 void _expectNoDiagnostics(WidgetTester tester, String when) {
@@ -204,27 +205,34 @@ void main() {
   for (final lang in const ['ja', 'en']) {
     testWidgets(
         '$lang: before any position of this share the banner says the turn is '
-        'not read aloud, her press is told nothing was, and no diagnostic is '
-        'drawn', (tester) async {
+        'not read aloud, the button is not offered and says reading is on '
+        'hold, and no diagnostic is drawn', (tester) async {
       final a = await _boot(tester, lang);
       await _routeWithOneTurn(tester);
 
       expect(find.text(_sectionTitle[lang]!), findsOneWidget);
       expect(_textOfKey(tester, 'maneuver-narration-tier'),
           _tierSuppressed[lang]);
+      final button = find.byKey(const Key('maneuver-narrate-button'));
       expect(
-          find.descendant(
-              of: find.byKey(const Key('maneuver-narrate-button')),
-              matching: find.text(_button[lang]!)),
+          find.descendant(of: button, matching: findWords(_buttonOnHold[lang]!)),
           findsOneWidget);
+      // Nothing on the card offers to read a turn the banner says it will not.
+      expect(findWords(_button[lang]!), findsNothing);
+      expect(tester.widget<ButtonStyleButton>(button).onPressed, isNull,
+          reason: 'not offered while the turn is not read aloud');
       _expectNoDiagnostics(tester, '$lang before');
 
       final spokenBefore = a.spoken.length;
-      await _pressNarrate(tester);
-      expect(_textOfKey(tester, 'maneuver-narration-result'), _notSpoken[lang]);
+      await tester.ensureVisible(button);
+      await tester.pump();
+      await tester.tap(button, warnIfMissed: false);
+      await _settle(tester);
+      expect(find.byKey(const Key('maneuver-narration-result')), findsNothing,
+          reason: 'a control that is not offered did nothing');
       expect(a.spoken.length, spokenBefore,
           reason: 'control: a suppressed turn speaks nothing');
-      _expectNoDiagnostics(tester, '$lang after the press');
+      _expectNoDiagnostics(tester, '$lang after the tap');
     });
 
     testWidgets(
@@ -247,6 +255,11 @@ void main() {
       await _settle(tester);
 
       expect(_textOfKey(tester, 'maneuver-narration-tier'), _tierSpeak[lang]);
+      expect(
+          find.descendant(
+              of: find.byKey(const Key('maneuver-narrate-button')),
+              matching: findWords(_button[lang]!)),
+          findsOneWidget);
       _expectNoDiagnostics(tester, '$lang trusted');
 
       final spokenBefore = a.spoken.length;

@@ -40,6 +40,8 @@ import 'package:sngnav_app/services/drive_hud_localizer.dart';
 import 'package:sngnav_app/services/maneuver_narration.dart';
 import 'package:sngnav_app/widgets/maneuver_narration_panel.dart';
 
+import '../support/plain_words.dart';
+
 const _text = DriveHudLocalizer();
 const _narrator = ManeuverNarrator(text: _text);
 const _ja = AppL10n(Locale('ja'));
@@ -181,7 +183,7 @@ Future<void> _expectBannerInkOnFill(WidgetTester tester) async {
 }
 
 String? _tier(WidgetTester tester) =>
-    tester.widget<Text>(find.byKey(_tierKey)).data;
+    wordsOf(tester.widget<Text>(find.byKey(_tierKey)));
 
 void main() {
   testWidgets('speak: the state and her turn line, legible', (tester) async {
@@ -190,7 +192,7 @@ void main() {
     await _pump(tester, preview: preview, mode: LocalizationMode.gpsTrusted);
 
     expect(_tier(tester), _ja.maneuverTierSpeak);
-    expect(find.text(preview.text), findsOneWidget);
+    expect(findWords(preview.text), findsOneWidget);
     expect(find.text('Right onto Main St'), findsNothing);
     await _expectBannerInkOnFill(tester);
   });
@@ -203,7 +205,7 @@ void main() {
     await _pump(tester, preview: preview, mode: LocalizationMode.gpsSuspect);
 
     expect(_tier(tester), _ja.maneuverTierHedge);
-    expect(find.text(preview.text), findsOneWidget);
+    expect(findWords(preview.text), findsOneWidget);
     expect(find.text('Right onto Main St'), findsNothing);
     await _expectBannerInkOnFill(tester);
   });
@@ -221,10 +223,10 @@ void main() {
     );
 
     expect(_tier(tester), _ja.maneuverTierSuppressed);
-    expect(find.text(_ja.maneuverGuidancePaused), findsOneWidget);
+    expect(findWords(_ja.maneuverGuidancePaused), findsOneWidget);
     expect(find.text('Right onto Main St'), findsNothing);
     // No icy mark on a turn that is not spoken.
-    expect(find.text(_ja.maneuverIcyMark), findsNothing);
+    expect(findWords(_ja.maneuverIcyMark), findsNothing);
     expect(find.byKey(const Key('maneuver-measured-road-ice')), findsNothing);
     await _expectBannerInkOnFill(tester);
   });
@@ -289,7 +291,7 @@ void main() {
       mode: LocalizationMode.gpsTrusted,
       icySource: IcyTurnSource.measured,
     );
-    expect(find.text(_ja.maneuverIcyMark), findsOneWidget);
+    expect(findWords(_ja.maneuverIcyMark), findsOneWidget);
     expect(find.byKey(const Key('maneuver-measured-road-ice')), findsOneWidget);
     expect(find.byKey(const Key('maneuver-test-road-condition')), findsNothing);
     await _expectBannerInkOnFill(tester);
@@ -335,7 +337,7 @@ void main() {
     );
     final button = find.byKey(const Key('maneuver-narrate-button'));
     expect(button, findsOneWidget);
-    expect(find.text(_ja.maneuverNarrateButton), findsOneWidget);
+    expect(findWords(_ja.maneuverNarrateButton), findsOneWidget);
     await tester.tap(button);
     expect(narrated, 1);
     expect(find.byKey(const Key('maneuver-narration-result')), findsNothing);
@@ -353,7 +355,7 @@ void main() {
       mode: LocalizationMode.gpsTrusted,
       lastNarration: spoken,
     );
-    expect(find.text(_ja.maneuverNarrationSent), findsOneWidget);
+    expect(findWords(_ja.maneuverNarrationSent), findsOneWidget);
     expect(
       find.byKey(const Key('maneuver-narration-delivery-unverified')),
       findsNothing,
@@ -367,7 +369,7 @@ void main() {
       speechUnverified: true,
     );
     expect(
-      find.text(
+      findWords(
         _ja.maneuverNarrationDeliveryUnverified(speech: true, haptic: false),
       ),
       findsOneWidget,
@@ -382,7 +384,7 @@ void main() {
       lastNarration: silent,
       speechUnverified: true,
     );
-    expect(find.text(_ja.maneuverNarrationNotSpoken), findsOneWidget);
+    expect(findWords(_ja.maneuverNarrationNotSpoken), findsOneWidget);
     // Nothing was sent, so there is no delivery to call unverified.
     expect(
       find.byKey(const Key('maneuver-narration-delivery-unverified')),

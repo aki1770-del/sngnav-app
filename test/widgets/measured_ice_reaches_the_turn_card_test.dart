@@ -34,6 +34,7 @@ import 'package:sngnav_app/main.dart' show SngnavApp;
 import 'package:sngnav_app/services/drive_hud_localizer.dart';
 
 import '../support/fake_alert_actuators.dart';
+import '../support/plain_words.dart';
 
 final _start = DateTime.utc(2026, 1, 14, 21);
 const _hud = DriveHudLocalizer();
@@ -184,7 +185,7 @@ Finder _card() => find
 /// The icy mark, found INSIDE the next-turn card so another card's words can
 /// never satisfy it.
 Finder _icyMark(String words) =>
-    find.descendant(of: _card(), matching: find.text(words));
+    find.descendant(of: _card(), matching: findWords(words));
 
 const _icyJa = '❄ 凍結のおそれ';
 const _icyEn = '❄ May be icy';
@@ -216,9 +217,8 @@ void main() {
         reason: 'a measured watch must NOT be labelled a test value');
 
     // The provenance line still tells her the road itself was not measured.
-    final line = tester
-        .widget<Text>(find.byKey(const Key('maneuver-measured-road-ice')))
-        .data!;
+    final line = wordsOf(tester
+        .widget<Text>(find.byKey(const Key('maneuver-measured-road-ice'))));
     expect(line, contains('気温'));
     expect(line, contains('路面は測定していません'),
         reason: 'the watch is an inference from air temperature and humidity; '
@@ -314,9 +314,8 @@ void main() {
         lang: 'en');
 
     expect(_icyMark(_icyEn), findsOneWidget);
-    final line = tester
-        .widget<Text>(find.byKey(const Key('maneuver-measured-road-ice')))
-        .data!;
+    final line = wordsOf(tester
+        .widget<Text>(find.byKey(const Key('maneuver-measured-road-ice'))));
     expect(line.toLowerCase(), contains('inferred'));
     expect(line.toLowerCase(), contains('not measured'));
 

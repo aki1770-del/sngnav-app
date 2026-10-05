@@ -81,6 +81,7 @@ import 'package:sngnav_app/services/maneuver_narration.dart';
 import 'package:sngnav_app/widgets/maneuver_narration_panel.dart';
 
 import '../support/fake_alert_actuators.dart';
+import '../support/plain_words.dart';
 
 /// The driver-facing localizer the narrator words its line with (JA by default).
 const _text = DriveHudLocalizer();
@@ -149,6 +150,7 @@ void main() {
     required String tier,
     required String herLine,
     required String positionLabel,
+    required String button,
     required String out,
   }) async {
     tester.view.devicePixelRatio = 2.0;
@@ -188,14 +190,15 @@ void main() {
     // The words this golden shows, checked as words, so a harness that drew
     // another language or another state goes red on CI too.
     expect(
-        tester
-            .widget<Text>(find.byKey(const Key('maneuver-narration-tier')))
-            .data,
+        wordsOf(tester
+            .widget<Text>(find.byKey(const Key('maneuver-narration-tier')))),
         tier);
-    expect(find.text(herLine), findsOneWidget);
+    expect(findWords(herLine), findsOneWidget);
     expect(find.text('${_ja.driveHudPositionTrustLabel}:'), findsOneWidget);
     expect(find.text(positionLabel), findsOneWidget);
-    expect(find.text(_ja.maneuverNarrateButton), findsOneWidget);
+    // The button's words follow the state (2026-10-04): it is not offered,
+    // and says reading is on hold, while the turn is not read aloud.
+    expect(findWords(button), findsOneWidget);
     // No debug ribbon over the top-end corner of the stored render: a
     // release build never draws it, so the golden must not either.
     expect(find.byType(CheckedModeBanner), findsNothing);
@@ -221,6 +224,7 @@ void main() {
       tier: _ja.maneuverTierSpeak,
       herLine: preview.text,
       positionLabel: _text.modeLabel(c.estimate!.mode, 'ja'),
+      button: _ja.maneuverNarrateButton,
       out: '../../render_out/07_maneuver_speak_trusted.png',
     );
   });
@@ -253,6 +257,7 @@ void main() {
       tier: _ja.maneuverTierSuppressed,
       herLine: _ja.maneuverGuidancePaused,
       positionLabel: _text.modeLabel(mode, 'ja'),
+      button: _ja.maneuverNarrateButtonOnHold,
       out: '../../render_out/08_maneuver_suppress_lost.png',
     );
   });
@@ -286,6 +291,7 @@ void main() {
       tier: _ja.maneuverTierHedge,
       herLine: preview.text,
       positionLabel: _text.modeLabel(LocalizationMode.gpsSuspect, 'ja'),
+      button: _ja.maneuverNarrateButton,
       out: '../../render_out/09_maneuver_hedge_suspect.png',
     );
   });

@@ -6,6 +6,7 @@ import '../l10n/app_localizations.dart';
 import '../services/drive_hud_localizer.dart';
 import '../services/maneuver_narration.dart';
 import 'advisory_cards.dart' show kCautionTextOnAmber;
+import 'keep_together.dart';
 import 'kv_row.dart';
 
 /// Where the icy-turn mark's truth comes from.
@@ -84,11 +85,27 @@ class ManeuverNarrationPanel extends StatelessWidget {
     // the gate's internal name and an English reason in every language; the
     // reason is carried by the position row above and by her line.
     final l = AppL10n.of(context);
-    final (Color bg, Color fg, String tier) = switch (preview.confidence) {
+    // Each state carries a mark at the head of its line, and the state in
+    // which she is not told the turn carries a form of its own (2026-10-04).
+    // Until then the three were one rounded block told apart by fill alone,
+    // 1.08 to 1.23:1 apart in luminance, so with colour lost (a colour-vision
+    // deficiency, glare, a dim panel) only the words told them apart, and
+    // words are read, not glanced. The marks: a speaker for read aloud, a
+    // question mark for read aloud with a request to check, a crossed speaker
+    // for not read aloud; not the warning sign or the snowflake, which on this
+    // page already mean a raised caution and a frozen road. A speaker and a
+    // crossed speaker are nearly one shape on their own (their silhouettes
+    // overlap at 0.739), so not read aloud is also drawn as an empty frame on
+    // the card's own colour. test/widgets/maneuver_banner_states_test.dart
+    // holds all of this with the words masked and colour taken away.
+    final (Color bg, Color fg, String tier, IconData mark, bool outlined) =
+        switch (preview.confidence) {
       NarrationConfidence.speak => (
           Colors.green.shade100,
           Colors.green.shade900,
           l.maneuverTierSpeak,
+          Icons.volume_up,
+          false,
         ),
       // amber.shade900 here was 2.38:1 (2026-09-15). No position the app
       // gives the drive brain reaches this state today, so no rendered test
@@ -97,13 +114,19 @@ class ManeuverNarrationPanel extends StatelessWidget {
           Colors.amber.shade100,
           kCautionTextOnAmber,
           l.maneuverTierHedge,
+          Icons.help_outline,
+          false,
         ),
       NarrationConfidence.suppressed => (
-          Colors.blueGrey.shade100,
+          Theme.of(context).colorScheme.surfaceContainerLow,
           Colors.blueGrey.shade900,
           l.maneuverTierSuppressed,
+          Icons.volume_off,
+          true,
         ),
     };
+    // The mark grows with her text size, as the words beside it do.
+    final markSize = MediaQuery.textScalerOf(context).scale(18);
 
     // When suppressed there is NO maneuver phrase to show (the decision carries
     // empty text by construction) — show the honest "guidance paused" line, not
@@ -113,6 +136,57 @@ class ManeuverNarrationPanel extends StatelessWidget {
     final herLine = preview.confidence == NarrationConfidence.suppressed
         ? l.maneuverGuidancePaused
         : preview.text;
+    // Each Japanese line is DRAWN so that it breaks only between two phrases
+    // (2026-10-04, keep_together.dart): at her width it broke inside 可能｜性,
+    // ご判｜断 and （現｜在地, and where it broke moved with her text size. What
+    // she hears and what a screen reader reads are the plain lines.
+    final herPhrases = preview.confidence == NarrationConfidence.suppressed
+        ? l.maneuverPanelPhrases(herLine)
+        : _driveHudText.maneuverLinePhrases(
+            preview.routeManeuver.type,
+            l.locale.languageCode,
+            hedged: preview.confidence == NarrationConfidence.hedge,
+            icy: preview.icyCoupled,
+          );
+    Text drawn(String line, List<String>? phrases,
+        {Key? key, TextStyle? style}) {
+      final span = keepPhrasesTogether(line, phrases);
+      return span == null
+          ? Text(key: key, line, style: style)
+          : Text.rich(key: key, span, semanticsLabel: line, style: style);
+    }
+
+    // The control is offered only when the gate would read the turn aloud,
+    // from the same decision the banner draws.
+    final canNarrate = preview.confidence != NarrationConfidence.suppressed;
+    final buttonLabel =
+        canNarrate ? l.maneuverNarrateButton : l.maneuverNarrateButtonOnHold;
+    // What her last press did is drawn only while it agrees with the banner
+    // about whether the turn is read aloud (2026-10-04). A press made while
+    // the turn was read aloud left 「音声と振動に送りました」 on the card, and
+    // after 停止, or when her position stopped being trusted, that line stayed
+    // under 「読み上げません」. Until the button was withdrawn in that state a
+    // press there replaced it; now nothing can, so the line is not drawn
+    // while the two disagree. The cost: a delivery warning from that earlier
+    // press is not drawn either while the turn is not read aloud; the
+    // drive-HUD chips above carry the same two channel facts.
+    final last = lastNarration != null &&
+            lastNarration!.shouldAnnounce == preview.shouldAnnounce
+        ? lastNarration
+        : null;
+    final resultLine = last == null
+        ? null
+        : last.shouldAnnounce
+            ? l.maneuverNarrationSent
+            : l.maneuverNarrationNotSpoken;
+    final deliveryLine = last != null &&
+            last.shouldAnnounce &&
+            (speechUnverified || hapticUnverified)
+        ? l.maneuverNarrationDeliveryUnverified(
+            speech: speechUnverified,
+            haptic: hapticUnverified,
+          )
+        : null;
 
     // Not drawn since 2026-09-15, because they are for the people who build
     // the app and not for her: a paragraph naming the routing class, its
@@ -144,30 +218,51 @@ class ManeuverNarrationPanel extends StatelessWidget {
         Container(
           key: const Key('maneuver-narration-banner'),
           width: double.infinity,
-          padding: const EdgeInsets.all(12),
+          // The outlined banner gives its 2 dp border back from its padding,
+          // so the mark and the words sit in the same place in every state.
+          padding: EdgeInsets.all(outlined ? 10 : 12),
           decoration: BoxDecoration(
             color: bg,
+            border: outlined ? Border.all(color: fg, width: 2) : null,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                key: const Key('maneuver-narration-tier'),
-                tier,
-                style: TextStyle(
-                  color: fg,
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Icon(
+                    key: const Key('maneuver-narration-state-mark'),
+                    mark,
+                    color: fg,
+                    size: markSize,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: drawn(
+                      tier,
+                      l.maneuverPanelPhrases(tier),
+                      key: const Key('maneuver-narration-tier'),
+                      style: TextStyle(
+                        color: fg,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
-              Text(herLine, style: TextStyle(color: fg, fontSize: 15)),
+              drawn(herLine, herPhrases,
+                  style: TextStyle(color: fg, fontSize: 15)),
               if (preview.icyCoupled &&
                   preview.confidence != NarrationConfidence.suppressed) ...[
                 const SizedBox(height: 4),
-                Text(
+                drawn(
                   l.maneuverIcyMark,
+                  l.maneuverPanelPhrases(l.maneuverIcyMark),
                   style: TextStyle(
                     color: fg,
                     fontSize: 12,
@@ -183,15 +278,17 @@ class ManeuverNarrationPanel extends StatelessWidget {
                 // renders, and which one is the answer to "why am I being told
                 // this turn is icy?".
                 if (icySource == IcyTurnSource.measured)
-                  Text(
-                    key: const Key('maneuver-measured-road-ice'),
+                  drawn(
                     l.maneuverMeasuredRoadIceInForce,
+                    l.maneuverPanelPhrases(l.maneuverMeasuredRoadIceInForce),
+                    key: const Key('maneuver-measured-road-ice'),
                     style: TextStyle(color: fg, fontSize: 12),
                   )
                 else
-                  Text(
-                    key: const Key('maneuver-test-road-condition'),
+                  drawn(
                     l.maneuverTestRoadConditionInForce,
+                    l.maneuverPanelPhrases(l.maneuverTestRoadConditionInForce),
+                    key: const Key('maneuver-test-road-condition'),
                     style: TextStyle(color: fg, fontSize: 12),
                   ),
               ],
@@ -199,58 +296,70 @@ class ManeuverNarrationPanel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            ElevatedButton.icon(
-              key: const Key('maneuver-narrate-button'),
-              onPressed: onNarrate,
-              icon: const Icon(Icons.record_voice_over),
-              label: Text(l.maneuverNarrateButton),
-            ),
-            const SizedBox(width: 8),
-            if (lastNarration != null)
-              Expanded(
-                // `shouldAnnounce` is a PRE-DISPATCH gate verdict, not a
-                // delivery report: the announce is fire-and-forget and this
-                // widget is built before either channel has answered. So the
-                // first line says SENT, and the second says what the channels
-                // did or did not report. The drive-HUD chips hold the same two
-                // facts two Cards above; a driver reading this card is not
-                // reading those.
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      key: const Key('maneuver-narration-result'),
-                      lastNarration!.shouldAnnounce
-                          ? l.maneuverNarrationSent
-                          : l.maneuverNarrationNotSpoken,
-                      style:
-                          TextStyle(fontSize: 11, color: Colors.grey.shade700),
-                    ),
-                    if (lastNarration!.shouldAnnounce &&
-                        (speechUnverified || hapticUnverified)) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        key: const Key(
-                            'maneuver-narration-delivery-unverified'),
-                        l.maneuverNarrationDeliveryUnverified(
-                          speech: speechUnverified,
-                          haptic: hapticUnverified,
-                        ),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: kCautionTextOnAmber,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-          ],
+        // The control, then what her press did, each given the panel's whole
+        // width (2026-10-04). Until then the three shared one Row, and a Row
+        // lays out the button first, at its own unbounded width, and gives the
+        // lines what is left. Measured in the app at her geometry (the banner
+        // 328.7 dp): in Japanese the lines got 113.7 dp at text size 1.0,
+        // 55.7 dp at 1.5 and nothing at 2.0; in English 55.9 dp at 1.0, 4.5 dp
+        // at 1.3 and nothing at 1.5 and 2.0. A Text 0 dp wide is not clipped
+        // (its painter's width is clamped to the same 0, so no overflow is
+        // seen): each line was drawn one character per line beside the button,
+        // in English at 2.0 wholly past the edge of her screen. The row grew to
+        // as much as 2,360 dp around them, and the button she had just pressed
+        // moved as much as 1,156 dp down. In English at 2.0 the button itself
+        // ran 108 dp past the banner and 76 dp past her screen's edge.
+        // test/widgets/maneuver_press_result_test.dart holds all of it.
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: ElevatedButton.icon(
+            key: const Key('maneuver-narrate-button'),
+            // Not offered while the turn is not read aloud (2026-10-04). It
+            // was enabled under 「読み上げません」 and said 「次の案内を読み上げる」,
+            // offering on the same card what the banner had just said would
+            // not happen. The press was safe (the gate spoke nothing, and the
+            // line under it said so), but a label that contradicts its own
+            // banner leaves her to work out which of the two is true. It now
+            // says where reading stands, in the word her line uses (保留), and
+            // carries a crossed mark, so the state is in its words, its mark
+            // and whether it can be pressed.
+            onPressed: canNarrate ? onNarrate : null,
+            icon: Icon(
+                canNarrate ? Icons.record_voice_over : Icons.voice_over_off),
+            label: drawn(buttonLabel, l.maneuverPanelPhrases(buttonLabel)),
+          ),
         ),
+        if (resultLine != null) ...[
+          const SizedBox(height: 4),
+          // `shouldAnnounce` is a PRE-DISPATCH gate verdict, not a delivery
+          // report: the announce is fire-and-forget and this widget is built
+          // before either channel has answered. So the first line says SENT,
+          // and the second says what the channels did or did not report. The
+          // drive-HUD chips hold the same two facts two Cards above; a driver
+          // reading this card is not reading those. Both are drawn so that a
+          // Japanese line breaks only between phrases: given the panel's width
+          // and drawn plain, at text size 2.0 the warning broke as
+          // 確認できていま｜せん, a first line that ends on the affirmative.
+          drawn(
+            resultLine,
+            l.maneuverPanelPhrases(resultLine),
+            key: const Key('maneuver-narration-result'),
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+          ),
+          if (deliveryLine != null) ...[
+            const SizedBox(height: 4),
+            drawn(
+              deliveryLine,
+              l.maneuverPanelPhrases(deliveryLine),
+              key: const Key('maneuver-narration-delivery-unverified'),
+              style: const TextStyle(
+                fontSize: 11,
+                color: kCautionTextOnAmber,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
       ],
     );
   }
