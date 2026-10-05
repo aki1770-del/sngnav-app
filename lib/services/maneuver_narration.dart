@@ -199,7 +199,8 @@ RouteManeuver? nextActionableManeuver(List<RouteManeuver> maneuvers) {
 ///     2.0;
 ///  2. the hedged state is seen on an emulator, by a hand that did not build
 ///     it;
-///  3. the hedged line's phrases no longer break mid-word at her width.
+///  3. the turn never ends a line, so a hedged line cannot be read as the
+///     plain one (criterion R4-7 of the hedged-line fix, at c9fee64).
 ///
 /// Why. Before the GPS trust verdict was wired, no position the app fed ever
 /// reached `gpsSuspect`, so the hedged turn had never been seen on a device.

@@ -248,6 +248,33 @@ void _reachability() {
     expect(problems, isEmpty, reason: problems.join('\n'));
   });
 
+  // Added 2026-10-05, on the safety review's audit of the GPS trust verdict.
+  // The development page's test position is the one fix the GPS trust verdict
+  // does not judge (DriveHudController.onTestPosition, called only from
+  // _useMockPosition). Judged-free, it is the same hole the verdict closed,
+  // unless a release build can never reach it. "A release build never draws
+  // the development page" was a statement nothing checked; this checks it with
+  // the same walk the voices above use.
+  test('the test position, which the GPS trust verdict does not judge, is '
+      'not reachable in a release build', () {
+    for (final name in const ['_useMockPosition', 'onTestPosition']) {
+      final walk = _Walk(lib);
+      expect(walk.reach(name), _Reach.doesNot,
+          reason: 'a release build reaches the judged-free test position by '
+              '${walk.pathFrom(name)}');
+    }
+    // Control: the calls this walk is about are the ones there are. main.dart
+    // calls it once, in _useMockPosition, and DriveHudController forwards it
+    // to DriveLocalizer (both held by test/services/gps_trust_wiring_test.dart).
+    final holders = [
+      for (final f in lib.files.entries)
+        if (RegExp(r'\.onTestPosition\(').hasMatch(f.value.code)) f.key,
+    ];
+    expect(holders,
+        ['lib/main.dart', 'lib/services/drive_hud_controller.dart'],
+        reason: 'a new caller of the judged-free test position');
+  });
+
   test('every announce() call site is on the side of the release gate it is '
       'registered on', () {
     final measured = <String, _Reach>{};

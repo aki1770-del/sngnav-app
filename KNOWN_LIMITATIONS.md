@@ -278,6 +278,11 @@ What it does not catch, or costs, stated so nobody reads more into it:
   she is given the road's own rung meanwhile, and if no second fix comes by the
   end of the 30 s drought, the rung of a start that failed. A bias present in both of
   the first two fixes passes; the hold catches only a one-off first outlier.
+- **Under a rejected fix the label is false on both words.** A fix that fails
+  a speed or replay check reads 「GPS 途絶（推測航法）」 / "GPS lost — dead
+  reckoning". A fix did arrive, so 途絶 ("lost") is not what happened; and no
+  dead reckoning is wired, since the app holds her last trusted position, so
+  推測航法 is not either. The wording is under review and not changed here.
 - **A jump costs two fixes, not one.** After a rejected jump, the fix that
   comes back is judged against the jump and is not trusted either
   (position_integrity's own KNOWN_LIMITATIONS §7); the fix after it is.
