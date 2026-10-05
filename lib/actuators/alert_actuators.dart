@@ -53,6 +53,13 @@ abstract class AlertActuators {
   /// wind channel. [HapticCuePattern.none] produces no sensation.
   Future<void> haptic(HapticCuePattern pattern);
 
+  /// Fire the cue that says a share has ended (decided 2026-10-05): one long
+  /// pulse, [kEndedWaveformMs], which no warning uses. It is not a
+  /// [HapticCuePattern]: that grammar is the catalog's, and every member of it
+  /// is a warning's strength. A confirmation felt as a warning would teach her
+  /// to ignore warnings.
+  Future<void> hapticEnded();
+
   /// Hold ([enabled] true) or release the screen wakelock so a driver
   /// glancing at a live hazard surface never finds a dark screen.
   /// Foreground-only by contract — callers release it when the surface leaves.
@@ -72,6 +79,9 @@ class NoOpAlertActuators implements AlertActuators {
 
   @override
   Future<void> haptic(HapticCuePattern pattern) async {}
+
+  @override
+  Future<void> hapticEnded() async {}
 
   @override
   Future<void> keepAwake(bool enabled) async {}

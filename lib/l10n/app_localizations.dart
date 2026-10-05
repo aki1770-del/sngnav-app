@@ -2247,6 +2247,25 @@ class AppL10n {
   /// tongue, so a cue heard from the next room is never mistaken for a real
   /// hazard — and it names both channels, so she knows what to listen and
   /// feel for.
+  /// Spoken once a share she started has ended at 停止, with the ended cue
+  /// (decided 2026-10-05). On her Android 10 phone a floating window can put a
+  /// tap meant for something else onto 停止; this is how she learns, eyes off,
+  /// that the warnings for where she is have stopped.
+  ///
+  /// The words are the HMI seat's, and two of them are load-bearing:
+  ///  - 共有 / "Sharing" first: no line the app speaks opens with its sound,
+  ///    so its first half-second cannot be heard as a warning; and it is the
+  ///    name of her own act and of the card's 「位置情報は共有されていません。」.
+  ///  - 現在地の警告 / "warnings for your location", not "the warnings": some
+  ///    warnings are about the Akita station, not about her, and continue after
+  ///    停止 (a whiteout is told at the next refresh). A flat 「警告は止まりました」
+  ///    would be contradicted ten minutes later in the same voice.
+  /// The ja value is the bundled clip's lookup key (`kOfflineSafetyVoiceJa`,
+  /// `share_ended`) byte for byte.
+  String get shareEndedSpokenLine => _ja
+      ? '共有を終了しました。現在地の警告も止まりました。'
+      : 'Sharing has ended, and warnings for your location have stopped.';
+
   String get channelCheckSpokenLine => _ja
       ? 'これはテストです。警報の音と振動を確認しています。'
       : 'This is a test. Checking the warning sound and vibration.';

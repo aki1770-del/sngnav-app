@@ -41,6 +41,12 @@ const _hud = DriveHudLocalizer();
 const _words = AppL10n(Locale('ja'));
 final _stopLine = _hud.spokenGuidance(DriveAction.considerStopping, 'ja');
 final _slowLine = _hud.spokenGuidance(DriveAction.heightenedCaution, 'ja');
+
+/// The stop confirmation, verbatim (added 2026-10-05). Named here so that W2b,
+/// narrowed to the whiteout, still fails if the line at 停止 is reworded to a
+/// flat 「警告は止まりました」: that would be contradicted ten minutes later by
+/// the whiteout W2b tells at the next refresh.
+const _endedLine = '共有を終了しました。現在地の警告も止まりました。';
 final _lowVisibility = _hud.reasonLabel(CautionReason.lowVisibility, 'ja');
 
 const _top = 'considerStopping';
@@ -138,8 +144,9 @@ String _rung(WidgetTester tester) {
   return rungs.length == 1 ? rungs.single : 'UNREADABLE $texts';
 }
 
-String _name(String line) =>
-    line == _stopLine ? 'stop' : (line == _slowLine ? 'slow' : line);
+String _name(String line) => line == _stopLine
+    ? 'stop'
+    : (line == _slowLine ? 'slow' : (line == _endedLine ? 'ended' : line));
 
 List<String> _spoken(FakeAlertActuators a, int from) =>
     [for (final s in a.spoken.skip(from)) _name(s.text)];
@@ -275,9 +282,17 @@ void main() {
     await _advance(tester, const Duration(seconds: 10));
   });
 
+  // NARROWED 2026-10-05, with the stop confirmation (routed to this vector's
+  // author, the safety review, for audit). Until then this asserted that
+  // NOTHING was spoken or felt after 停止. Its purpose was that no whiteout is
+  // told at her tap, and that stands: what is told at 停止 is the stop
+  // confirmation alone, with its ended cue, never the whiteout's line and
+  // never the critical cue. The whiteout is still told once, at the next
+  // refresh.
   testWidgets(
       'W2b a whiteout that opens while the dialog is up, then 停止 on the '
-      'dialog: nothing at 停止, told once by the next refresh', (tester) async {
+      'dialog: no whiteout at 停止, only that the share ended; the whiteout '
+      'told once by the next refresh', (tester) async {
     platform(2);
     final a = await _boot(tester, visibilities: const [1500, 80]);
     await _advance(tester, const Duration(minutes: 9, seconds: 40));
@@ -289,12 +304,18 @@ void main() {
     expect(_spoken(a, 0), isEmpty, reason: 'on the dialog, at 10 min 15 s');
     await _tapStop(tester);
     await _advance(tester, const Duration(seconds: 5));
-    expect(_spoken(a, 0), isEmpty, reason: 'after 停止, at 10 min 20 s');
-    expect(_felt(a, 0), isEmpty, reason: 'after 停止, at 10 min 20 s');
+    expect(_spoken(a, 0), ['ended'],
+        reason: 'after 停止, at 10 min 20 s: the stop confirmation alone, '
+            'never the whiteout at her tap');
+    expect(a.felt, ['ended'],
+        reason: 'after 停止, at 10 min 20 s: the ended cue alone, never the '
+            'critical one');
     await _advance(tester, const Duration(minutes: 10));
     expect(_fetches, greaterThanOrEqualTo(3),
         reason: 'control: the 20-minute refresh ran');
-    expect(_spoken(a, 0), ['stop'], reason: 'at 20 min 20 s: told once');
+    expect(_spoken(a, 0), ['ended', 'stop'],
+        reason: 'at 20 min 20 s: the whiteout told once');
     expect(_felt(a, 0), ['critical'], reason: 'at 20 min 20 s: felt once');
+    expect(a.felt, ['ended', 'critical']);
   });
 }

@@ -26,6 +26,13 @@ class FakeAlertActuators implements AlertActuators {
   final List<HapticCuePattern> haptics = <HapticCuePattern>[];
   final List<bool> keepAwakeCalls = <bool>[];
 
+  /// Every tactile cue in the order it was fired, by name: `warning`,
+  /// `critical`, or `ended` (the cue that says a share has ended, which is no
+  /// [HapticCuePattern] and so never appears in [haptics]). Added 2026-10-05:
+  /// a test that reads only [haptics] cannot see the ended cue, so "nothing
+  /// was felt" is asserted on this list.
+  final List<String> felt = <String>[];
+
   @override
   Future<void> speak(String text, {required String localeTag}) async {
     spoken.add(SpokenLine(text, localeTag));
@@ -34,6 +41,13 @@ class FakeAlertActuators implements AlertActuators {
   @override
   Future<void> haptic(HapticCuePattern pattern) async {
     haptics.add(pattern);
+    if (pattern != HapticCuePattern.none) felt.add(pattern.name);
+  }
+
+  /// The ended cue ([AlertActuators.hapticEnded]).
+  @override
+  Future<void> hapticEnded() async {
+    felt.add('ended');
   }
 
   @override

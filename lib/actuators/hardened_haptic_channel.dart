@@ -122,6 +122,10 @@ extension HapticDeliveryReporting on HapticDelivery {
 abstract class HapticChannel {
   /// Fire the cue for [pattern] and report what became of it. Never throws.
   Future<HapticDelivery> fire(HapticCuePattern pattern);
+
+  /// Fire the ended cue ([kEndedWaveformMs]) and report what became of it.
+  /// Never throws.
+  Future<HapticDelivery> fireEnded();
 }
 
 /// Fires tactile cues and says, every time, whether the cue landed.
@@ -165,7 +169,17 @@ class HardenedHapticChannel implements HapticChannel {
   @override
   Future<HapticDelivery> fire(HapticCuePattern pattern) async {
     if (!pattern.isTactile) return HapticDelivery.notOwed;
+    return _fireWave(waveformFor(pattern), pattern.name);
+  }
 
+  @override
+  Future<HapticDelivery> fireEnded() =>
+      _fireWave(kEndedWaveformMs, kEndedCueName);
+
+  /// Fires [wave] and reports it under [name]: the one path every cue takes,
+  /// so the ended cue is attempted, timed out and reported exactly as a
+  /// warning is.
+  Future<HapticDelivery> _fireWave(List<int> wave, String name) async {
     HapticDelivery outcome;
     try {
       final present = await _driver.hasVibrator().timeout(callTimeout);
@@ -193,13 +207,13 @@ class HardenedHapticChannel implements HapticChannel {
         // this path is unverified, and a failed attempt must not downgrade
         // that to the less informative `faulted`.
         try {
-          await _driver.vibrate(waveformFor(pattern)).timeout(callTimeout);
+          await _driver.vibrate(wave).timeout(callTimeout);
         } catch (_) {
           // Best-effort: the outcome below already says "unverified".
         }
         outcome = HapticDelivery.noVibrator;
       } else {
-        await _driver.vibrate(waveformFor(pattern)).timeout(callTimeout);
+        await _driver.vibrate(wave).timeout(callTimeout);
         outcome = HapticDelivery.delivered;
       }
     } on TimeoutException {
@@ -208,11 +222,11 @@ class HardenedHapticChannel implements HapticChannel {
       outcome = HapticDelivery.faulted;
     }
 
-    _report(pattern, outcome);
+    _report(name, outcome);
     return outcome;
   }
 
-  void _report(HapticCuePattern pattern, HapticDelivery outcome) {
+  void _report(String cueName, HapticDelivery outcome) {
     // Never let reporting become the second fault. Everything below is
     // best-effort; LocalErrorLog.record already never throws, and the
     // callbacks are the page's own setState-guarded notifiers.
@@ -225,7 +239,7 @@ class HardenedHapticChannel implements HapticChannel {
       // stays free of anything context-like on principle — same discipline as
       // HardenedTtsEngine logging the length and never the spoken words.
       errorLog?.record(
-        'haptic unverified: ${outcome.name} (cue ${pattern.name})',
+        'haptic unverified: ${outcome.name} (cue $cueName)',
         null,
         source: 'HardenedHapticChannel',
       );
@@ -247,6 +261,16 @@ class HardenedHapticChannel implements HapticChannel {
 ///
 /// Public (was private to `mobile_alert_actuators.dart`) so the grammar that
 /// carries the deaf driver's ONLY severity distinction is directly testable.
+/// The ended cue's name in the delivery report and the error log.
+const String kEndedCueName = 'ended';
+
+/// The cue that says a share has ended (decided 2026-10-05): ONE long pulse.
+/// A deaf driver tells it from both warnings by count (1, against 2 and 3) and
+/// by length (600 ms, against 200 and 350). It is felt once, after the drive
+/// has ended, and never with a warning's strength: a confirmation felt as a
+/// warning teaches her that warnings can be ignored.
+const List<int> kEndedWaveformMs = <int>[0, 600];
+
 List<int> waveformFor(HapticCuePattern pattern) {
   final onMs = pattern == HapticCuePattern.critical ? 350 : 200;
   const gapMs = 150;

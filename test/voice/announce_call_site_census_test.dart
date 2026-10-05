@@ -63,6 +63,10 @@ const Map<String, (int, String)> _registered = {
     1,
     'step (8), the share that ended because the app left the screen',
   ),
+  'lib/main.dart::_tellShareEnded': (
+    1,
+    'step (9), the stop confirmation',
+  ),
   'lib/services/drive_hud_controller.dart::_maybeAnnounce': (
     1,
     'step (2), the caution-rung line, and (5b), its test-value prefix',
@@ -228,6 +232,7 @@ const Map<String, bool> _reachesRelease = {
   'lib/main.dart::_fireChannelCheck': true,
   // Reached from the app's lifecycle listener in every build (2026-10-06).
   'lib/main.dart::_endShareWithoutServiceAway': true,
+  'lib/main.dart::_tellShareEnded': true,
   'lib/services/drive_hud_controller.dart::_maybeAnnounce': true,
   'lib/services/drive_hud_controller.dart::tellWithNoShare': true,
   'lib/services/drive_hud_controller.dart::narrateNextManeuver': true,

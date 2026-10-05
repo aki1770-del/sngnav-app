@@ -38,6 +38,8 @@ class _PrefixThrows implements AlertActuators {
   @override
   Future<void> haptic(HapticCuePattern pattern) async => haptics.add(pattern);
   @override
+  Future<void> hapticEnded() async {}
+  @override
   Future<void> keepAwake(bool enabled) async {}
 }
 

@@ -34,6 +34,17 @@
 /// - Removal from the recent-apps list, an OS or MIUI kill, and a crash end
 ///   the engine with no Dart code running. No test at this layer reaches
 ///   them; they are the residual of the same class.
+///
+/// EXTENDED 2026-10-05 to every drive end she can press (the safety review's
+/// condition 6 on the stop confirmation). On her Android 10 phone a floating
+/// window can put a tap meant for something else onto 停止, and nothing but
+/// her eyes would catch that her warnings had stopped. So every end she can
+/// press is pinned here: 停止 tells her, once the drive has actually ended,
+/// with a line and the ended cue; 閉じる after a refusal and the development
+/// page's クリア end no drive and tell her nothing; Back does not end the
+/// drive and tells her nothing; and a tap beside 停止 that never reached it
+/// ends nothing and tells her nothing. The words are the HMI seat's
+/// (outputs/hie/r136_…/PART1_STOP_CONFIRMATION_WORDS.md).
 library;
 
 import 'dart:async';
@@ -46,9 +57,14 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 
+import '../support/developer_page.dart';
 import '../support/fake_alert_actuators.dart';
 
 const _ja = AppL10n(Locale('ja'));
+
+/// The stop confirmation, verbatim: the words decided for it, not read from
+/// the app, so a rewording in the app fails here.
+const _endedJa = '共有を終了しました。現在地の警告も止まりました。';
 
 final _now = DateTime.utc(2026, 1, 14, 21, 40);
 
@@ -178,5 +194,156 @@ void main() {
               'continues when she switches apps and that 停止 ends it. '
               'Log after Back: $after');
     }
+    expect(log.where((e) => e == 'speak:$_endedJa'), isEmpty,
+        reason: 'Back did not end the drive, so nothing says it ended');
+  });
+
+  group('every drive end she can press', () {
+    /// Boots the app with a remembered yes and starts a share on an injected
+    /// position stream, with the development page offered when asked.
+    Future<(StreamController<PositionFix>, FakeAlertActuators)> share(
+        WidgetTester tester,
+        {bool developerPage = false}) async {
+      final ctrl = StreamController<PositionFix>.broadcast();
+      addTearDown(ctrl.close);
+      final a = FakeAlertActuators();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await tester.pumpWidget(SngnavApp(
+        locationConsent: true,
+        actuators: a,
+        locale: const Locale('ja'),
+        clock: () => _now,
+        jmaFetch: _jma,
+        positionSource: () => ctrl.stream,
+        developerPageEntry: developerPage,
+      ));
+      await tester.pump();
+      await tester.pump();
+      final b = find.byKey(const Key('share-location-button'));
+      await tester.ensureVisible(b);
+      await tester.pump();
+      await tester.tap(b);
+      for (var i = 0; i < 5; i++) {
+        await tester.pump();
+      }
+      expect(ctrl.hasListener, isTrue, reason: 'control: the share runs');
+      return (ctrl, a);
+    }
+
+    Future<void> press(WidgetTester tester, String words) async {
+      final f = find.widgetWithText(TextButton, words);
+      expect(f, findsOneWidget, reason: 'control: $words is offered');
+      await tester.ensureVisible(f);
+      await tester.pump();
+      await tester.tap(f);
+      for (var i = 0; i < 5; i++) {
+        await tester.pump();
+      }
+      // One turn of the real event loop. A broadcast subscription's cancel() that
+      // has nothing to wait for returns the SDK's completed future, which lives in
+      // the root zone: code awaiting it resumes in a root-zone microtask, which
+      // the test's fake async never runs (measured 2026-10-05: the line was told
+      // only at teardown, to an unmounted page). On a phone the event loop runs it
+      // at once.
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      for (var i = 0; i < 5; i++) {
+        await tester.pump();
+      }
+    }
+
+    testWidgets(
+        '停止 in a drive with a fix: once the drive has ended, the line and '
+        'the ended cue, once', (tester) async {
+      final (ctrl, a) = await share(tester);
+      ctrl.add(PositionAvailable(
+          latitude: 39.7186,
+          longitude: 140.1024,
+          accuracyMeters: 8,
+          timestamp: _now));
+      await tester.pump();
+      await tester.pump();
+      final spokenBefore = a.spoken.length;
+      final feltBefore = a.felt.length;
+      await press(tester, _ja.stop);
+      expect(ctrl.hasListener, isFalse, reason: 'control: the drive ended');
+      expect([for (final l in a.spoken.skip(spokenBefore)) l.text], [_endedJa]);
+      expect(a.spoken.last.localeTag, 'ja-JP');
+      expect(a.felt.skip(feltBefore), ['ended']);
+    });
+
+    testWidgets(
+        '停止 in a drive whose first fix never came: the drive ran, so the '
+        'line and the ended cue', (tester) async {
+      final (ctrl, a) = await share(tester);
+      await press(tester, _ja.stop);
+      expect(ctrl.hasListener, isFalse, reason: 'control: the drive ended');
+      expect([for (final l in a.spoken) l.text], [_endedJa]);
+      expect(a.felt, ['ended']);
+    });
+
+    testWidgets(
+        '閉じる after a refusal: no drive ran, so nothing is told',
+        (tester) async {
+      final (ctrl, a) = await share(tester);
+      ctrl.add(const PositionUnavailable('Location permission denied',
+          cause: PositionUnavailableCause.permissionDenied));
+      await tester.pump();
+      await tester.pump();
+      await press(tester, _ja.close);
+      expect(ctrl.hasListener, isFalse,
+          reason: 'control: 閉じる dropped the subscription the refusal kept');
+      expect(a.spoken, isEmpty, reason: 'nothing ran, so nothing ended');
+      expect(a.felt, isEmpty);
+    });
+
+    testWidgets('the development page\'s クリア: no drive ran, nothing is told',
+        (tester) async {
+      final a = FakeAlertActuators();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await tester.pumpWidget(SngnavApp(
+        locationConsent: true,
+        actuators: a,
+        locale: const Locale('ja'),
+        clock: () => _now,
+        jmaFetch: _jma,
+        positionSource: () => const Stream<PositionFix>.empty(),
+        developerPageEntry: true,
+      ));
+      await tester.pump();
+      await tester.pump();
+      await tapOnDeveloperPage(tester, const Key('use-mock-button'));
+      final spokenBefore = a.spoken.length;
+      final feltBefore = a.felt.length;
+      await press(tester, _ja.clear);
+      expect(a.spoken.skip(spokenBefore), isEmpty);
+      expect(a.felt.skip(feltBefore), isEmpty);
+    });
+
+    testWidgets(
+        'control: a tap beside 停止 that never reached it ends nothing and '
+        'tells nothing', (tester) async {
+      final (ctrl, a) = await share(tester);
+      ctrl.add(PositionAvailable(
+          latitude: 39.7186,
+          longitude: 140.1024,
+          accuracyMeters: 8,
+          timestamp: _now));
+      await tester.pump();
+      await tester.pump();
+      final spokenBefore = a.spoken.length;
+      final feltBefore = a.felt.length;
+      final line = find.byKey(const Key('her-status-line'));
+      await tester.ensureVisible(line);
+      await tester.pump();
+      await tester.tap(line);
+      for (var i = 0; i < 5; i++) {
+        await tester.pump();
+      }
+      expect(ctrl.hasListener, isTrue, reason: 'the drive still runs');
+      expect(a.spoken.skip(spokenBefore), isEmpty);
+      expect(a.felt.skip(feltBefore), isEmpty);
+    });
   });
 }

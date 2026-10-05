@@ -42,6 +42,9 @@ class _HoldingActuators implements AlertActuators {
   Future<void> haptic(HapticCuePattern pattern) async {}
 
   @override
+  Future<void> hapticEnded() async {}
+
+  @override
   Future<void> keepAwake(bool enabled) async {}
 }
 
@@ -59,6 +62,9 @@ class _SpeakThrowsActuators implements AlertActuators {
   Future<void> haptic(HapticCuePattern pattern) async {
     haptics.add(pattern);
   }
+
+  @override
+  Future<void> hapticEnded() async {}
 
   @override
   Future<void> keepAwake(bool enabled) async {}
