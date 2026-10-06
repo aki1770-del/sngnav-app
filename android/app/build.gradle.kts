@@ -96,7 +96,7 @@ if (hasReleaseKeystore) {
 // is signed with the debug key, never with android/key.properties, and
 // assertReleaseSigner and reportProfileSigner refuse a .dev build that the
 // upload key would sign (it can only arrive as injected signing), or whose
-// injected signer or pin they cannot read: one rule, notHerAppSignerRefusal.
+// injected signer or pin they cannot read: one rule, notHerReleaseSignerRefusal.
 // A row in the mint ledger also needs her package in the built bytes
 // (appendMints).
 //
@@ -118,7 +118,9 @@ if (hasReleaseKeystore) {
 // command it prints.
 //
 // NOT CLOSED HERE, said so plainly: debug builds keep her ID, because changing
-// it would change the app every emulator instrument drives by name. With her
+// it would change the app every emulator instrument drives by name. So the
+// upload key never signs one: assertDebugSigner (below) refuses a debug build
+// it would sign (BIS round 3, O1; board 36.17 D-3). With her
 // phone attached, a debug `flutter run` takes the same uninstall-retry. And
 // `flutter install` runs no Gradle at all: it uninstalls the installed app
 // first, whatever the signer, then installs whatever
@@ -770,8 +772,9 @@ tasks.configureEach {
 // app that installs beside hers (see the top of this file), and says so at the
 // level `flutter build` prints. That key is the debug key, never
 // android/key.properties; injected signing may name another, but never the
-// upload key, which signs only her app (refused below). Debug builds are
-// untouched. A profile build is signed with the debug key by the Flutter
+// upload key, which signs only her app (refused below). A debug build keeps
+// her ID and is never signed by the upload key (assertDebugSigner, below). A
+// profile build is signed with the debug key by the Flutter
 // plugin (initWith debug); it is not refused, it is always the .dev app, and it
 // says so on every run, unless injected signing would sign it with the upload
 // key, or with a key that cannot be confirmed not to be it.
@@ -911,20 +914,25 @@ fun describeSigner(source: SignerSource, cert: Result<SignerCert>): String =
     )
 
 // THE UPLOAD KEY SIGNS ONLY HER APP (top of this file): the one rule for a
-// build that is NOT her app, a development release (SNGNAV_DEV_RELEASE=1) or
-// any profile build. Null when the build may go on; otherwise why it must not.
-// Their build types are signed with the debug key, so another key can arrive
-// only as injected signing, and then it must be KNOWN not to be the upload
-// key: its certificate read, the pin read, and the two different. A signer
-// read as the pin is refused whatever its source.
+// build that is NOT her release: a development release (SNGNAV_DEV_RELEASE=1)
+// and any profile build, which are another app, and any debug build, which
+// keeps her ID and so is the one an upload-key signature would let replace
+// hers. Named for what all three share: none is her release. (It was
+// notHerAppSignerRefusal until a debug caller made that name untrue; BIS
+// ruling, board 36.17 D-3, F-D2.) Null when the build may go on; otherwise
+// why it must not. Their build types are signed with the debug key,
+// so another key can arrive only as injected signing, and then it must be
+// KNOWN not to be the upload key: its certificate read, the pin read, and the
+// two different. A signer read as the pin is refused whatever its source.
 //
 // WHY ONE FUNCTION. Until 2026-10-04 this rule was written twice.
 // reportProfileSigner refused a signer or a pin it could not read;
 // assertReleaseSigner under SNGNAV_DEV_RELEASE=1 allowed both and logged "NOT
 // THE UPLOAD KEY" about a signer it had not read. With a two-line pin file, a
 // development release signed by the injected upload key was built (BIS ruling,
-// board 36.17 row 7, round 3, F1). Both tasks now call this.
-fun notHerAppSignerRefusal(
+// board 36.17 row 7, round 3, F1). Both tasks now call this, and since
+// 2026-10-05 assertDebugSigner does too (board 36.17 D-3).
+fun notHerReleaseSignerRefusal(
     source: SignerSource,
     cert: Result<SignerCert>,
     pin: Result<String>,
@@ -940,6 +948,32 @@ fun notHerAppSignerRefusal(
             "so its signer cannot be confirmed not to be it"
         else -> null
     }
+}
+
+// THE CURE WHEN THE DEBUG KEY IS READ AS THE PIN. notHerReleaseSignerRefusal
+// refuses a signer read as the upload key whatever its source, the debug
+// keystore included (D-3, run G5). Then nothing was injected and the build is
+// already signed with the debug key, so the cure each caller otherwise prints,
+// to leave injected signing unset, is one already in effect: a halt that names
+// no cure the developer can apply costs more than it should (V20). One of two
+// things is wrong on that machine, and this names both: the pin names its debug
+// key, or its debug keystore holds the upload key. Null in every other case,
+// where the caller's own cure stands (BIS ruling, board 36.17 D-3, F-D1).
+fun debugKeyReadAsPinCure(
+    source: SignerSource,
+    cert: Result<SignerCert>,
+    pin: Result<String>,
+): String? {
+    val c = cert.getOrNull()
+    val p = pin.getOrNull()
+    if (!source.debugKeyByConstruction || c == null || p == null || c.sha256 != p) return null
+    val where = source.store?.path ?: "no keystore path"
+    return "Nothing was injected: this build is signed with the debug keystore, $where, whose " +
+        "certificate SHA-256 is the digest in tool/upload_key_certificate_sha256, so there is no " +
+        "injected signing to remove. One of two things is wrong on this machine. If the pin names " +
+        "this machine's debug key, correct tool/upload_key_certificate_sha256 to the upload key's " +
+        "certificate SHA-256. If this debug keystore holds the upload key, move it aside; at AGP's " +
+        "default location the next build creates a new debug key."
 }
 
 // What the log of an allowed development release may say about its signer.
@@ -985,18 +1019,19 @@ val assertReleaseSigner = tasks.register("assertReleaseSigner") {
         val cert = runCatching { readSignerCert(source) }
         val c = cert.getOrNull()
         if (allowed) {
-            // A development release is another app, so it takes the rule
-            // every build that is not her app takes (notHerAppSignerRefusal,
+            // A development release is not her release, so it takes the rule
+            // every build that is not her release takes (notHerReleaseSignerRefusal,
             // the same call reportProfileSigner makes).
-            notHerAppSignerRefusal(source, cert, pin)?.let { why ->
+            notHerReleaseSignerRefusal(source, cert, pin)?.let { why ->
                 throw GradleException(
                     "RELEASE SIGNER: refused before packaging. SNGNAV_DEV_RELEASE=1 builds this release " +
                         "as $devId, another app, and $why: ${describeSigner(source, cert)}.\n" +
                         "The upload key signs only her app, $herId. Play fixes an app's package " +
                         "at the first accepted upload, and an upload-key bundle of another app passes every " +
                         "check that reads only the signer.\n" +
-                        "For a development build, leave android.injected.signing.* unset: it is then signed " +
-                        "with the debug key. To build her release, unset SNGNAV_DEV_RELEASE."
+                        (debugKeyReadAsPinCure(source, cert, pin)
+                            ?: ("For a development build, leave android.injected.signing.* unset: it is then " +
+                                "signed with the debug key. To build her release, unset SNGNAV_DEV_RELEASE."))
                 )
             }
             logger.quiet(
@@ -1055,16 +1090,17 @@ val reportProfileSigner = tasks.register("reportProfileSigner") {
         }
         val cert = runCatching { readSignerCert(source) }
         val pin = runCatching { readUploadKeyPin(pinFile) }
-        // A profile build is another app, so it takes the rule every build
-        // that is not her app takes (notHerAppSignerRefusal, the same call
+        // A profile build is not her release, so it takes the rule every
+        // build that is not her release takes (notHerReleaseSignerRefusal, the same call
         // assertReleaseSigner makes under SNGNAV_DEV_RELEASE=1).
-        notHerAppSignerRefusal(source, cert, pin)?.let { why ->
+        notHerReleaseSignerRefusal(source, cert, pin)?.let { why ->
             throw GradleException(
                 "RELEASE SIGNER: refused before packaging. A profile build is $devId, another app, " +
                     "and $why: ${describeSigner(source, cert)}.\n" +
                     "The upload key signs only her app, $herId. Play fixes an app's package " +
-                    "at the first accepted upload. Build profile with the debug key: leave " +
-                    "android.injected.signing.* unset."
+                    "at the first accepted upload. " +
+                    (debugKeyReadAsPinCure(source, cert, pin)
+                        ?: "Build profile with the debug key: leave android.injected.signing.* unset.")
             )
         }
         logger.quiet(
@@ -1074,12 +1110,99 @@ val reportProfileSigner = tasks.register("reportProfileSigner") {
         )
     }
 }
+
+// ⚑ DEBUG SIGNER: the upload key never signs a debug build.
+//
+// WHY. A debug build keeps her application ID (NOT CLOSED HERE, top of this
+// file). AGP 9.1.0 applies injected signing (android.injected.signing.*, what
+// Android Studio's "Generate Signed Bundle / APK" passes) to a debug variant as
+// it does to release. Measured 2026-10-05 on 989ec9d with a throwaway key
+// pinned: `flutter build apk --debug` with all four properties naming that key
+// built her ID, signed by that key alone, at the versionCode in pubspec.yaml,
+// and no check read its signer. The floor and the ledger run only for
+// release. With the upload key, her installed app's signature check accepts
+// that debug build, so it installs over her app whenever its versionCode is
+// not lower than hers; either way it is one more set of bytes at a
+// versionCode under her key, which no record holds (BIS ruling, board 36.17
+// row 7, round 3, O1; board 36.17 D-3).
+//
+// WHAT. On preDebugBuild, the rule every build that is not her release takes
+// (notHerReleaseSignerRefusal): a signer read as the upload key is refused,
+// whatever its source; a signer that is not the debug key by construction
+// must have its certificate read, and the pin read, or it is refused, and the
+// refusal says which was not read. An ordinary debug build is signed with the
+// debug key by construction. It is not refused, and when both were read it
+// logs at info, which `flutter run` does not show. When either was not read,
+// or another key signs it, it says so at the level `flutter run` shows.
+fun debugSignerStatement(
+    source: SignerSource,
+    cert: Result<SignerCert>,
+    pin: Result<String>,
+): String {
+    val c = cert.getOrNull()
+    val p = pin.getOrNull()
+    return when {
+        c != null && p != null ->
+            "ANOTHER KEY. This debug build would be signed by ${describeSigner(source, cert)}, read " +
+                "and compared with the upload key's certificate SHA-256 in " +
+                "tool/upload_key_certificate_sha256 ($p)"
+        c == null ->
+            "SIGNER NOT READ. This debug build would be signed by ${describeSigner(source, cert)}; " +
+                "it was not compared with the upload key"
+        else ->
+            "NOT COMPARED WITH THE UPLOAD KEY. This debug build would be signed by " +
+                "${describeSigner(source, cert)}; the upload key's digest cannot be read " +
+                "(${pin.exceptionOrNull()?.message})"
+    }
+}
+
+val assertDebugSigner = tasks.register("assertDebugSigner") {
+    group = "verification"
+    description = "Refuses a debug build the upload key would sign, or whose signer it " +
+        "cannot read when that signer is not the debug key by construction."
+    val source = signerSourceFor("debug")
+    val pinFile = uploadKeyPinFile
+    val herId = herApplicationId
+    doLast {
+        source.problem?.let {
+            throw GradleException("DEBUG SIGNER: refused before packaging. $it.")
+        }
+        val cert = runCatching { readSignerCert(source) }
+        val pin = runCatching { readUploadKeyPin(pinFile) }
+        // A debug build is not her release, so it takes the rule every build
+        // that is not her release takes (notHerReleaseSignerRefusal, the call
+        // assertReleaseSigner and reportProfileSigner make).
+        notHerReleaseSignerRefusal(source, cert, pin)?.let { why ->
+            throw GradleException(
+                "DEBUG SIGNER: refused before packaging. A debug build is her app, $herId, and " +
+                    "$why: ${describeSigner(source, cert)}.\n" +
+                    "The upload key signs only her release. Her installed app accepts an update signed " +
+                    "by it, so a debug build signed by it could replace her app, at a versionCode no " +
+                    "check reads and no ledger records.\n" +
+                    (debugKeyReadAsPinCure(source, cert, pin)
+                        ?: ("For a debug build, leave android.injected.signing.* unset: it is then signed " +
+                            "with the debug key. To sign her release, build the release variant."))
+            )
+        }
+        val said = "DEBUG SIGNER: ${debugSignerStatement(source, cert, pin)}. Allowed. A debug " +
+            "build is never a build for her phone."
+        if (source.debugKeyByConstruction && cert.isSuccess && pin.isSuccess) {
+            logger.info(said)
+        } else {
+            logger.quiet(said)
+        }
+    }
+}
+
 tasks.configureEach {
     if (name == "preReleaseBuild") {
         dependsOn(assertReleaseSigner)
     }
     if (name == "preProfileBuild") {
         dependsOn(reportProfileSigner)
+    }
+    if (name == "preDebugBuild") {
+        dependsOn(assertDebugSigner)
     }
 }
 

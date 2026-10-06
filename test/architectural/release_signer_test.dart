@@ -7,7 +7,8 @@
 // none can replace hers. Gradle cannot run in a test, so this pins the pieces
 // in the source: if the digest file goes, is malformed or changes value, or
 // the wiring, the refusal or the suffix is removed, it fails here as well as
-// in a release build.
+// in a release build. A debug build keeps her ID, so the upload key never
+// signs one either (assertDebugSigner).
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -164,11 +165,11 @@ void main() {
     // key, and the injected upload key is refused for release and profile.
     expect(gradle,
         contains('signingConfig = if (hasReleaseKeystore && !devReleaseAllowed) {'));
-    // ONE rule for every build that is not her app. Until 2026-10-04 it was
+    // ONE rule for every build that is not her release. Until 2026-10-04 it was
     // written twice, and the development-release copy allowed a signer or a
     // pin it could not read (BIS round 3, F1).
     final rule = RegExp(
-        r'fun notHerAppSignerRefusal\([\s\S]*?\): String\? \{\s*'
+        r'fun notHerReleaseSignerRefusal\([\s\S]*?\): String\? \{\s*'
         r'val c = cert\.getOrNull\(\)\s*'
         r'val p = pin\.getOrNull\(\)\s*'
         r'return when \{\s*'
@@ -181,15 +182,25 @@ void main() {
         reason: 'the rule must refuse the upload key from any source, and an '
             'unreadable signer or pin unless the source is the debug key by '
             'construction');
-    // Both tasks call it, and each call throws.
-    final call = RegExp(r'notHerAppSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
+    // Every task that reads a signer calls it (release, profile and, since
+    // 2026-10-05, debug), and each call throws.
+    final call = RegExp(r'notHerReleaseSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
         r'throw GradleException\(');
-    expect(call.allMatches(gradle).length, 2);
+    expect(call.allMatches(gradle).length, 3);
+    // Renamed 2026-10-05 (BIS ruling D-3, F-D2): a debug build IS her app, so
+    // "not her app" was untrue of a caller. Outside comments, the old name is
+    // gone.
+    expect(
+        gradle
+            .split('\n')
+            .where((l) => !l.trimLeft().startsWith('//'))
+            .where((l) => l.contains('notHerAppSignerRefusal')),
+        isEmpty);
     // Under SNGNAV_DEV_RELEASE=1 the call comes first, before anything is
     // logged or allowed.
     expect(
       RegExp(r'if \(allowed\) \{(?:\s*//[^\n]*)*\s*'
-              r'notHerAppSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
+              r'notHerReleaseSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
               r'throw GradleException\(')
           .hasMatch(gradle),
       isTrue,
@@ -276,8 +287,8 @@ void main() {
       isTrue,
       reason: 'an injected property must be refused when present and empty',
     );
-    // Both tasks that read a signer refuse it: release and profile.
-    expect('source.problem?.let {'.allMatches(gradle).length, 2);
+    // Every task that reads a signer refuses it: release, profile and debug.
+    expect('source.problem?.let {'.allMatches(gradle).length, 3);
   });
 
   test('the Play preflight reads the same pin, every signer, and refuses a '
@@ -429,6 +440,121 @@ void main() {
     // No line of the refusal suggests the run alone.
     expect(gradle, isNot(contains('"    SNGNAV_DEV_RELEASE=1 flutter run --release"')));
     expect(gradle, isNot(contains('"    SNGNAV_DEV_RELEASE=1 flutter run --release\\n"')));
+  });
+
+  test('the upload key never signs a debug build, which keeps her ID', () {
+    // AGP 9.1.0 applies injected signing to the debug variant too. On 989ec9d
+    // a debug build with the four properties naming the pinned key built her
+    // ID, signed by that key, at pubspec's versionCode, with no check and no
+    // ledger row (BIS round 3, O1; board 36.17 D-3; AAE run R1). Gradle cannot
+    // run here, so this pins the wiring, the source, the rule and the throw.
+    expect(
+      RegExp(r'if \(name == "preDebugBuild"\) \{\s*'
+              r'dependsOn\(assertDebugSigner\)')
+          .hasMatch(gradle),
+      isTrue,
+      reason: 'preDebugBuild (flutter run, build apk --debug, assembleDebug, '
+          'installDebug, a signed debug build from the IDE) must run it',
+    );
+    final at = gradle.indexOf('val assertDebugSigner = tasks.register("assertDebugSigner") {');
+    expect(at, greaterThan(0), reason: 'the task is gone');
+    final task = gradle.substring(at, gradle.indexOf('\ntasks.configureEach {', at));
+    // The debug build type's signer, read in AGP's order (injected first).
+    expect(task, contains('val source = signerSourceFor("debug")'));
+    // An empty injected value names no key: refused, as for release and profile.
+    expect(
+      RegExp(r'doLast \{\s*source\.problem\?\.let \{\s*'
+              r'throw GradleException\("DEBUG SIGNER: refused before packaging\. \$it\."\)')
+          .hasMatch(task),
+      isTrue,
+    );
+    // The one rule, thrown, before anything is said or allowed.
+    final call = RegExp(r'notHerReleaseSignerRefusal\(source, cert, pin\)\?\.let \{ why ->\s*'
+        r'throw GradleException\(\s*"DEBUG SIGNER: refused before packaging\.');
+    expect(call.hasMatch(task), isTrue,
+        reason: 'a debug build the upload key would sign must be refused by '
+            'a thrown exception');
+    expect(task.indexOf('notHerReleaseSignerRefusal('),
+        lessThan(task.indexOf('logger.')),
+        reason: 'the rule must run before the build is allowed');
+  });
+
+  test('a debug build says what it did not read, and logs quietly only what '
+      'it read', () {
+    // "ANOTHER KEY" only where the certificate and the pin were both read
+    // (the V14 shape of BIS round 3 F1, not repeated here).
+    expect(
+      RegExp(r'fun debugSignerStatement\([\s\S]*?return when \{\s*'
+              r'c != null && p != null ->\s*"ANOTHER KEY\.')
+          .hasMatch(gradle),
+      isTrue,
+    );
+    final words = gradle
+        .split('\n')
+        .where((l) => !l.trimLeft().startsWith('//') && l.contains('ANOTHER KEY'))
+        .toList();
+    expect(words, hasLength(1), reason: words.join('\n'));
+    // Out of sight (info) only when the debug key by construction was read
+    // and compared; otherwise at the level `flutter run` shows.
+    expect(
+      RegExp(r'if \(source\.debugKeyByConstruction && cert\.isSuccess && pin\.isSuccess\) \{\s*'
+              r'logger\.info\(said\)\s*\} else \{\s*logger\.quiet\(said\)\s*\}')
+          .hasMatch(gradle),
+      isTrue,
+    );
+  });
+
+  test('when the debug key itself is read as the pin, every refusal names '
+      'the two real cures, never "leave injected signing unset"', () {
+    // D-3 run G5: with this machine's debug key pinned and nothing injected,
+    // the debug refusal advised leaving android.injected.signing.* unset, a
+    // cure already in effect; the profile and development-release refusals
+    // gave the same advice (BIS ruling D-3, F-D1).
+    final at = gradle.indexOf('fun debugKeyReadAsPinCure(');
+    expect(at, greaterThan(0), reason: 'the cure for this case is gone');
+    final fn = gradle.substring(at, gradle.indexOf('\n}\n', at));
+    // Only that case: the debug key by construction, read, and equal to the pin.
+    expect(
+        RegExp(r'if \(!source\.debugKeyByConstruction \|\| c == null \|\| '
+                r'p == null \|\| c\.sha256 != p\) return null')
+            .hasMatch(fn),
+        isTrue,
+        reason: 'the cure must apply to that case alone');
+    // The text, with Kotlin's concatenation removed.
+    final text = RegExp(r'"((?:[^"\\]|\\.)*)"')
+        .allMatches(fn.substring(fn.indexOf('return "')))
+        .map((m) => m[1])
+        .join();
+    expect(text,
+        startsWith('Nothing was injected: this build is signed with the debug keystore'));
+    expect(
+        text,
+        contains("If the pin names this machine's debug key, correct "
+            "tool/upload_key_certificate_sha256 to the upload key's certificate SHA-256."));
+    expect(text, contains('If this debug keystore holds the upload key, move it aside'));
+    expect(text, isNot(contains('injected.signing.* unset')));
+    // All three refusals give it before their own advice, and no advice to
+    // leave injected signing unset is printed outside it.
+    final guarded = RegExp(r'\(debugKeyReadAsPinCure\(source, cert, pin\)\s*'
+        r'\?: \(?"[^"]*leave android\.injected\.signing\.\* unset');
+    for (final name in [
+      'assertReleaseSigner',
+      'reportProfileSigner',
+      'assertDebugSigner'
+    ]) {
+      final s = gradle.indexOf('tasks.register("$name")');
+      expect(s, greaterThan(0), reason: name);
+      final e = gradle.indexOf('\n}\n', s);
+      expect(guarded.hasMatch(gradle.substring(s, e)), isTrue,
+          reason: '$name must give the debug-key cure first');
+    }
+    final advice = gradle
+        .split('\n')
+        .where((l) => !l.trimLeft().startsWith('//'))
+        .where((l) => l.contains('leave android.injected.signing.* unset'))
+        .length;
+    expect(advice, 3,
+        reason: 'advice to leave injected signing unset outside the guard');
   });
 
   test('the fallback is no longer described as unable to ship', () {
