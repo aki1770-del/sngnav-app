@@ -1970,21 +1970,23 @@ class AppL10n {
       ? 'この端末では測位間隔の記録を開けません。'
       : 'The fix-interval record cannot be opened on this device.';
 
-  /// Status: no line yet.
+  /// Status row when the record holds no FIX line (none written, only
+  /// markers, or deleted). True in every such state, a deletion included.
   String get fixTimingEmpty => _ja
-      ? '測位間隔の記録はまだありません。'
-      : 'There is no fix-interval record yet.';
+      ? '測位間隔の記録はありません。'
+      : 'There is no fix-interval record.';
 
-  /// Status while lines exist (W2): never "empty", never "error records".
+  /// Status row when the record holds one or more fix lines (W2): never
+  /// "empty", never "error records"; names the action that sends it.
   String get fixTimingPresent => _ja
-      ? '測位間隔の記録があります。共有ボタンで送れます。'
-      : 'A fix-interval record is present. Use the share button to send it.';
+      ? '測位間隔の記録があります。「記録を共有」で送れます。'
+      : 'A fix-interval record is present. Use Share record to send it.';
 
-  /// Added to the status while he has stopped the record.
+  /// The status's first line while he has stopped the record.
   String get fixTimingStoppedNote =>
       _ja ? '記録は止めています。' : 'Recording is stopped.';
 
-  /// Added to the status once the record reaches its cap.
+  /// The status's first line once the record reaches its cap.
   String get fixTimingFullNote => _ja
       ? '上限（約96 KB）に達したため、記録を止めています。'
       : 'The record reached its cap (about 96 KB), so recording has stopped.';

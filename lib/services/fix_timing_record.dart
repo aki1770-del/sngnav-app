@@ -160,8 +160,18 @@ class FixTimingRecord {
     }
   }
 
-  /// Whether any line is held.
+  /// Whether any line is held, a marker included. Never the card's status:
+  /// a `launch` or `pause` marker is not a record of fixes ([hasFixLines]).
   bool get hasLines => lengthBytes > 0;
+
+  /// Whether any FIX line (`k=fine` or `k=coarse`) is held: what the card and
+  /// the share text call a fix-interval record. Set by one scan when the
+  /// record opens, then kept by the writes and the delete this object makes;
+  /// never re-read per frame (96 KB on every build would be waste).
+  bool get hasFixLines => _hasFixLines;
+  late bool _hasFixLines = _scanForFixLines();
+
+  bool _scanForFixLines() => fixTimingTextHasFixLines(readAll());
 
   /// Whether the record has reached its cap and so stopped recording.
   bool get full => lengthBytes + kFixTimingMaxLineBytes > maxBytes;
@@ -201,7 +211,7 @@ class FixTimingRecord {
     int? lateMs,
     required bool appInFront,
   }) {
-    return _append(formatFixTimingLine(
+    final wrote = _append(formatFixTimingLine(
       share: share,
       msSinceStreamStart: msSinceStreamStart,
       kind: kind,
@@ -210,6 +220,10 @@ class FixTimingRecord {
       lateMs: lateMs,
       appInFront: appInFront,
     ));
+    if (wrote && (kind == FixEventKind.fine || kind == FixEventKind.coarse)) {
+      _hasFixLines = true;
+    }
+    return wrote;
   }
 
   /// The whole record, or '' when absent or unreadable.
@@ -248,6 +262,7 @@ class FixTimingRecord {
     try {
       if (file.existsSync()) file.deleteSync();
     } catch (_) {}
+    _hasFixLines = _scanForFixLines();
   }
 }
 
@@ -296,8 +311,13 @@ String formatFixTimingLine({
       'late=${lateMs ?? '-'} fg=${appInFront ? 1 : 0}';
 }
 
+/// Whether [text] holds a fix line (`k=fine` or `k=coarse`).
+bool fixTimingTextHasFixLines(String text) =>
+    RegExp(r'(^|\n)s=\d+ t=\d+ k=(fine|coarse) ').hasMatch(text);
+
 /// The record's share payload: an identity header, then every line. Never cut:
-/// the record's cap keeps it under [kLogShareMaxChars].
+/// the record's cap keeps it under [kLogShareMaxChars]. When the record holds
+/// no fix line, it says so before any markers it does hold.
 String composeFixTimingSharePayload({
   required String recordText,
   String? operatingSystem,
@@ -310,9 +330,8 @@ String composeFixTimingSharePayload({
     ..writeln('os: $os')
     ..writeln('exported: $ts')
     ..writeln('---');
-  if (recordText.isEmpty) {
+  if (!fixTimingTextHasFixLines(recordText)) {
     buf.writeln('測位間隔の記録はありません (no fix-interval lines)');
-    return buf.toString();
   }
   buf.write(recordText);
   return buf.toString();
@@ -327,6 +346,8 @@ Future<FixTimingRecord?> openFixTimingRecord({Directory? directory}) async {
     final record =
         FixTimingRecord(file: File('${dir.path}/$kFixTimingRecordFileName'));
     record.recordLaunch();
+    // The one scan for fix lines, here where the record opens.
+    record.hasFixLines;
     return record;
   } catch (_) {
     return null;

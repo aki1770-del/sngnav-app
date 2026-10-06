@@ -91,7 +91,8 @@ class _App {
   List<String> get lines =>
       record.readAll().split('\n').where((l) => l.isNotEmpty).toList();
 
-  Future<void> boot(WidgetTester tester) async {
+  Future<void> boot(WidgetTester tester,
+      {Locale locale = const Locale('ja')}) async {
     _clockNow = DateTime.utc(2026, 1, 14, 21);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
@@ -99,7 +100,7 @@ class _App {
       SngnavApp(
         locationConsent: true,
         actuators: FakeAlertActuators(),
-        locale: const Locale('ja'),
+        locale: locale,
         clock: () => _clockNow,
         jmaFetch: () async => JmaSuccess(_clear()),
         errorLog: errorLog,
@@ -334,15 +335,15 @@ void main() {
       (tester) async {
     final app = _App(dir);
     await app.boot(tester);
-    expect(_textOf(tester, 'fix-timing-status'), '測位間隔の記録はまだありません。');
+    expect(_textOf(tester, 'fix-timing-status'), '測位間隔の記録はありません。');
     await app.share(tester);
     await app.drive(tester, 3, const Duration(seconds: 1));
     expect(_textOf(tester, 'fix-timing-status'),
-        '測位間隔の記録があります。共有ボタンで送れます。');
+        '測位間隔の記録があります。「記録を共有」で送れます。');
 
     await app.tap(tester, 'fix-timing-stop-button');
     expect(_textOf(tester, 'fix-timing-status'),
-        '測位間隔の記録があります。共有ボタンで送れます。 記録は止めています。');
+        '記録は止めています。\n測位間隔の記録があります。「記録を共有」で送れます。');
     expect(app.lines.last, kFixTimingPauseLine,
         reason: 'the stop did not mark itself');
     final held = app.lines.length;
@@ -365,7 +366,7 @@ void main() {
 
     await app.tap(tester, 'fix-timing-delete-button');
     expect(app.record.hasLines, isFalse);
-    expect(_textOf(tester, 'fix-timing-status'), '測位間隔の記録はまだありません。');
+    expect(_textOf(tester, 'fix-timing-status'), '測位間隔の記録はありません。');
     await app.positions.close();
   });
 
@@ -382,10 +383,65 @@ void main() {
     expect(held.first, matches(RegExp(r'^s=\d+ t=0 k=start ')),
         reason: 'the first line was dropped to make room');
     expect(_textOf(tester, 'fix-timing-status'),
-        '測位間隔の記録があります。共有ボタンで送れます。 '
-        '上限（約96 KB）に達したため、記録を止めています。');
+        '上限（約96 KB）に達したため、記録を止めています。\n測位間隔の記録があります。「記録を共有」で送れます。');
+    expect(find.byKey(const Key('fix-timing-stop-button'), skipOffstage: false),
+        findsNothing, reason: 'a stop offered on a full record');
+    expect(find.byKey(const Key('fix-timing-share-button'), skipOffstage: false),
+        findsOneWidget);
+    expect(find.byKey(const Key('fix-timing-delete-button'), skipOffstage: false),
+        findsOneWidget);
     await app.tap(tester, 'fix-timing-share-button');
     expect(app.shared.single.endsWith(app.record.readAll()), isTrue);
+    await app.positions.close();
+  });
+
+  testWidgets('the status follows FIX lines, not bytes: a launch marker, a '
+      'share start and a sample with no accuracy are not a record; the first '
+      'fix is', (tester) async {
+    final app = _App(dir);
+    // As at first launch: the record holds its launch marker only.
+    expect(app.record.recordLaunch(), isTrue);
+    await app.boot(tester);
+    expect(_textOf(tester, 'fix-timing-status'), '測位間隔の記録はありません。',
+        reason: 'a marker read as a record');
+    await app.share(tester);
+    await _advance(tester, const Duration(seconds: 1));
+    app.positions.add(_sample(0, measuredAccuracy: false));
+    await _settle(tester);
+    expect(app.record.hasLines, isTrue, reason: 'control: markers are held');
+    expect(_textOf(tester, 'fix-timing-status'), '測位間隔の記録はありません。');
+    await app.drive(tester, 1, const Duration(seconds: 1));
+    expect(_textOf(tester, 'fix-timing-status'), '測位間隔の記録があります。「記録を共有」で送れます。');
+    await app.positions.close();
+  });
+
+  testWidgets('deleted, then stopped: the note on its own line, then "none"',
+      (tester) async {
+    final app = _App(dir);
+    await app.boot(tester);
+    await app.share(tester);
+    await app.drive(tester, 2, const Duration(seconds: 1));
+    await app.tap(tester, 'fix-timing-delete-button');
+    await app.tap(tester, 'fix-timing-stop-button');
+    expect(app.record.hasLines, isTrue, reason: 'control: the pause marker');
+    expect(_textOf(tester, 'fix-timing-status'), '記録は止めています。\n測位間隔の記録はありません。');
+    await app.positions.close();
+  });
+
+  testWidgets('the same states in English', (tester) async {
+    final app = _App(dir);
+    expect(app.record.recordLaunch(), isTrue);
+    await app.boot(tester, locale: const Locale('en'));
+    expect(_textOf(tester, 'fix-timing-status'),
+        'There is no fix-interval record.');
+    await app.share(tester);
+    await app.drive(tester, 1, const Duration(seconds: 1));
+    expect(_textOf(tester, 'fix-timing-status'),
+        'A fix-interval record is present. Use Share record to send it.');
+    await app.tap(tester, 'fix-timing-stop-button');
+    expect(_textOf(tester, 'fix-timing-status'),
+        'Recording is stopped.\n'
+        'A fix-interval record is present. Use Share record to send it.');
     await app.positions.close();
   });
 

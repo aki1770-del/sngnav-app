@@ -5089,8 +5089,10 @@ class _HomePageState extends State<HomePage> {
           : null,
       appInFront: _appInFront(),
     );
-    // The card's status line follows what is held.
-    if (wrote && !_fixTimingCardShowsLines) setState(() {});
+    // The card's status follows whether a FIX line is held.
+    if (wrote && record.hasFixLines != _fixTimingCardShowsLines) {
+      setState(() {});
+    }
   }
 
   /// Code 13 only: the `end` line of her real share, at 停止 or 閉じる (never
@@ -5107,7 +5109,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// Whether the record's card last drew "a record is present".
+  /// Whether the record's card last drew "a fix-interval record is present".
   bool _fixTimingCardShowsLines = false;
 
   /// Code 13 only: the fix-timing record's own card. Same shape as the
@@ -5121,15 +5123,21 @@ class _HomePageState extends State<HomePage> {
       status = l.fixTimingUnavailable;
       _fixTimingCardShowsLines = false;
     } else {
-      final has = record.hasLines;
+      // Present or none follows FIX lines only: a launch or pause marker is
+      // not a record of fixes. The state note, when there is one, comes first
+      // on its own line, so the words that confirm his tap are never split.
+      final has = record.hasFixLines;
       _fixTimingCardShowsLines = has;
       status = [
-        has ? l.fixTimingPresent : l.fixTimingEmpty,
         if (record.full) l.fixTimingFullNote
         else if (record.stopped) l.fixTimingStoppedNote,
-      ].join(' ');
+        has ? l.fixTimingPresent : l.fixTimingEmpty,
+      ].join('\n');
     }
     final stopped = record?.stopped ?? false;
+    // While full, stopping or restarting does nothing he could see, and a stop
+    // set then would outlive a delete: the control is not offered.
+    final full = record?.full ?? false;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -5153,14 +5161,15 @@ class _HomePageState extends State<HomePage> {
                 onPressed: record == null ? null : _shareFixTiming,
                 child: Text(l.fixTimingShare),
               ),
-              TextButton(
-                key: const Key('fix-timing-stop-button'),
-                onPressed: record == null
-                    ? null
-                    : () => setState(
-                        () => stopped ? record.resume() : record.stop()),
-                child: Text(stopped ? l.fixTimingResume : l.fixTimingStop),
-              ),
+              if (!full)
+                TextButton(
+                  key: const Key('fix-timing-stop-button'),
+                  onPressed: record == null
+                      ? null
+                      : () => setState(
+                          () => stopped ? record.resume() : record.stop()),
+                  child: Text(stopped ? l.fixTimingResume : l.fixTimingStop),
+                ),
               TextButton(
                 key: const Key('fix-timing-delete-button'),
                 onPressed: record == null

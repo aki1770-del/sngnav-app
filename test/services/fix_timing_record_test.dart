@@ -281,6 +281,74 @@ void main() {
     });
   });
 
+  group('a fix-interval record means fix lines, not bytes (V14)', () {
+    test('markers alone are not a record; a fine or coarse line is; a delete '
+        'leaves none', () {
+      final r = open();
+      r.recordLaunch();
+      r.record(share: 1, msSinceStreamStart: 0, kind: FixEventKind.start,
+          appInFront: true);
+      r.record(share: 1, msSinceStreamStart: 900, kind: FixEventKind.noAccuracy,
+          appInFront: true);
+      r.record(share: 1, msSinceStreamStart: 950, kind: FixEventKind.unavailable,
+          appInFront: true);
+      r.recordEnd(share: 1, msSinceStreamStart: 1000);
+      r.stop();
+      r.resume();
+      expect(r.hasLines, isTrue, reason: 'control: markers are held');
+      expect(r.hasFixLines, isFalse);
+      r.record(share: 2, msSinceStreamStart: 5000, kind: FixEventKind.coarse,
+          accuracyMeters: 300, appInFront: true);
+      expect(r.hasFixLines, isTrue, reason: 'a coarse fix is a fix line');
+      r.delete();
+      expect(r.hasFixLines, isFalse);
+      expect(fine(r, 1), isTrue);
+      expect(r.hasFixLines, isTrue);
+    });
+
+    test('one scan when the record opens, never a re-read per call', () {
+      final r = open();
+      r.recordLaunch();
+      expect(r.hasFixLines, isFalse, reason: 'the one scan');
+      // Written behind its back: an object that re-reads per call would see it.
+      final line = formatFixTimingLine(share: 1, msSinceStreamStart: 1,
+          kind: FixEventKind.fine, accuracyMeters: 10, appInFront: true);
+      r.file.writeAsStringSync('$line\n', mode: FileMode.append);
+      expect(r.hasFixLines, isFalse, reason: 're-read on a call');
+      expect(open().hasFixLines, isTrue, reason: 'a fresh open scans');
+    });
+
+    test('a coarse line alone is a record, at open and in the share text', () {
+      final line = formatFixTimingLine(share: 1, msSinceStreamStart: 1,
+          kind: FixEventKind.coarse, accuracyMeters: 300, appInFront: true);
+      File('${dir.path}/$kFixTimingRecordFileName')
+          .writeAsStringSync('$kFixTimingLaunchLine\n$line\n');
+      expect(open().hasFixLines, isTrue, reason: 'the scan missed a coarse fix');
+      expect(
+          composeFixTimingSharePayload(
+              recordText: '$line\n', operatingSystem: 'android'),
+          isNot(contains('測位間隔の記録はありません')));
+    });
+
+    test('the share text says there is no record when it holds no fix line, '
+        'markers included, and not when it does', () {
+      String payload(String text) => composeFixTimingSharePayload(
+          recordText: text, operatingSystem: 'android',
+          exportedAt: DateTime.utc(2026, 10, 6, 10));
+      const none = '測位間隔の記録はありません';
+      const markers = '$kFixTimingLaunchLine\n$kFixTimingPauseLine\n';
+      expect(payload(''), contains(none));
+      expect(payload(markers), contains(none));
+      expect(payload(markers).endsWith(markers), isTrue,
+          reason: 'the markers must still be sent');
+      final line = formatFixTimingLine(share: 1, msSinceStreamStart: 1,
+          kind: FixEventKind.fine, accuracyMeters: 10, appInFront: true);
+      final withFix = '$markers$line\n';
+      expect(payload(withFix), isNot(contains(none)));
+      expect(payload(withFix).endsWith(withFix), isTrue);
+    });
+  });
+
   group('it yields to him', () {
     test('stop holds: nothing is written while stopped, and the stop survives '
         'reopening; resume writes again', () {
