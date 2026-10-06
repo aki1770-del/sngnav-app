@@ -20,7 +20,12 @@
 /// The rules these tests hold (the safety ruling of 2026-10-06, its audit,
 /// and the lifecycle ruling of the same day):
 /// - The trigger is the app leaving the screen: `hidden` or `paused`, never
-///   `inactive`, and never before the position stream has subscribed.
+///   `inactive`, and never before the position stream has subscribed. A
+///   return from `paused` also reports `hidden` on its way back; that is not
+///   a leave.
+/// - If the stream subscribes while the app reads `hidden` or `paused`, a
+///   return may still be in flight: N1 waits a settle window, cancelled by
+///   `inactive` or `resumed`, and fires once at its end if she is still away.
 /// - Not a GPS loss: after that trigger, a share with no foreground service is
 ///   never read as a GPS loss. No drought line is told, and on her return the
 ///   position row gives no drought verdict (「GPS 途絶（推測航法）」 or
@@ -74,6 +79,20 @@ const double _v = 15;
 /// her return cannot have run out inside it, while the window still spans the
 /// app's drought check (every 15 s on main, every second on the faster branch).
 final int _returnWindowSeconds = kPositionDrought.inSeconds - 1;
+
+/// The start guard's settle window: when the share subscribes while the app
+/// reads hidden or paused, a return may still be in flight, so N1 waits this
+/// long, on its own timer, and fires only if she is still away. Provisional
+/// (2 s, a chosen margin); a device read of the gap between a permission
+/// answer and the return replaces it, and it never reaches the drought bound
+/// less one second. When the app carries its own constant, read that instead.
+const Duration _settleWindow = Duration(seconds: 2);
+
+/// One step of a quarter second, for timing the settle window.
+Future<void> _step(WidgetTester tester) async {
+  await _advance(tester, const Duration(milliseconds: 250));
+  await _settle(tester);
+}
 
 /// The placeholder for the notice she sees on return; the words come later.
 const Key _awayNotice = Key('share-away-notice');
@@ -279,7 +298,12 @@ Future<void> _toFront(WidgetTester tester) async {
     AppLifecycleState.resumed,
   ];
   final now = tester.binding.lifecycleState;
-  if (now == null || now == AppLifecycleState.resumed) return;
+  if (now == AppLifecycleState.resumed) return;
+  if (now == null) {
+    // A test binding starts with no state; a launched app is resumed.
+    await _setLifecycle(tester, const [AppLifecycleState.resumed]);
+    return;
+  }
   final from = order.indexOf(now);
   if (from < 0) return;
   await _setLifecycle(tester, order.sublist(from + 1));
@@ -604,6 +628,111 @@ void main() {
       await _drive(tester, geo);
       final (spoken, _) = await _silence(tester, a, 75);
       expect(spoken.any(_isDroughtLine), isTrue, reason: '$spoken');
+      await _end(tester, geo);
+    },
+  );
+
+  testWidgets(
+    'CONTROL (answer before return): the share subscribes while the app '
+    'reads paused, and her return arrives 0.5 s later: nothing is told, and '
+    'the share runs',
+    (tester) async {
+      final (a, geo) = await _bootAndTapShare(
+        tester,
+        canPost: false,
+        permission: LocationPermission.denied,
+      );
+      expect(geo.asking, isTrue, reason: 'the location screen is up');
+      await _leaveFront(tester);
+      geo.answer(LocationPermission.whileInUse);
+      await _settle(tester);
+      expect(
+        geo.streamsStarted,
+        1,
+        reason: 'the share subscribed while the app read paused',
+      );
+      expect(tester.binding.lifecycleState, AppLifecycleState.paused);
+      expect(_withService(geo), isFalse);
+      await _step(tester);
+      await _step(tester);
+      // Back to the front by valid steps: hidden, inactive, resumed.
+      await _toFront(tester);
+      for (var i = 0; i < 4 * _settleWindow.inSeconds + 8; i++) {
+        await _step(tester);
+      }
+      expect(
+        _told(a),
+        isEmpty,
+        reason:
+            'she came back to her own share; nothing stopped running, and '
+            'the hidden reported on her way back is not a leave',
+      );
+      expect(geo.positions.hasListener, isTrue, reason: 'the share runs');
+      expect(_awayNoticeShown(tester), isFalse);
+      await _drive(tester, geo);
+      final (spoken, _) = await _silence(tester, a, 75);
+      expect(spoken.any(_isDroughtLine), isTrue, reason: '$spoken');
+      await _end(tester, geo);
+    },
+  );
+
+  testWidgets(
+    'FAULT (truly away at subscribe): the share subscribes while the app '
+    'reads paused and she stays away: she is told once, at the settle window '
+    'and not before, and nothing more while she is away',
+    (tester) async {
+      final (a, geo) = await _bootAndTapShare(
+        tester,
+        canPost: false,
+        permission: LocationPermission.denied,
+      );
+      expect(geo.asking, isTrue, reason: 'the location screen is up');
+      await _leaveFront(tester);
+      final beforeSubscribe = _mark(a);
+      geo.answer(LocationPermission.whileInUse);
+      await _settle(tester);
+      expect(
+        geo.streamsStarted,
+        1,
+        reason: 'the share subscribed while the app read paused',
+      );
+      expect(_withService(geo), isFalse);
+      final steps = _settleWindow.inMilliseconds ~/ 250;
+      for (var i = 0; i < steps - 1; i++) {
+        await _step(tester);
+      }
+      final (beforeS, hapticsBeforeS) = _since(a, beforeSubscribe);
+      expect(
+        beforeS,
+        isEmpty,
+        reason:
+            'nothing is told before the settle window ends: her return may '
+            'still be in flight: $beforeS',
+      );
+      expect(hapticsBeforeS, 0);
+      for (var i = 0; i < 3; i++) {
+        await _step(tester);
+      }
+      final (atS, hapticsAtS) = _since(a, beforeSubscribe);
+      expect(
+        atS,
+        hasLength(1),
+        reason:
+            'a share running unseen from its first second is named not '
+            'running when the settle window ends: $atS',
+      );
+      expect(_isDroughtLine(atS.single), isFalse, reason: '$atS');
+      expect(hapticsAtS, greaterThan(0), reason: 'voice AND haptic');
+      final (later, hapticsLater) = await _silence(tester, a, 75);
+      expect(
+        later,
+        isEmpty,
+        reason: 'told once; no drought line while she is away: $later',
+      );
+      expect(hapticsLater, 0);
+      await _returnToFront(tester);
+      await _settle(tester);
+      expect(_awayNoticeShown(tester), isTrue);
       await _end(tester, geo);
     },
   );
