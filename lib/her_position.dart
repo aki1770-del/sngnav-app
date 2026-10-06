@@ -76,6 +76,12 @@ class PositionAvailable extends PositionFix {
   /// them.
   final double? speedLowerBoundMps;
 
+  /// The speed the platform reported, in m/s, measured ([_measured]) and
+  /// usable ([_reported]), or `null`. Code 13's fix-timing record only
+  /// (services/fix_timing_record.dart): the record must carry what the phone
+  /// reported, never the floor built from it, which is higher.
+  final double? reportedSpeedMps;
+
   const PositionAvailable({
     required this.latitude,
     required this.longitude,
@@ -84,6 +90,7 @@ class PositionAvailable extends PositionFix {
     this.speedFloorMps,
     this.motion = GroundMotion.unknown,
     this.speedLowerBoundMps,
+    this.reportedSpeedMps,
   });
 }
 
@@ -147,6 +154,11 @@ double? groundSpeedFloorMps(Position p) {
               p.speedAccuracy) ??
           0);
 }
+
+/// The speed the platform reported with [p], measured ([_measured]) and usable
+/// ([_reported]), or `null`. A 0.0 without the flag is none, never a stop.
+double? groundSpeedReportedMps(Position p) =>
+    _reported(_measured(p, p.hasSpeed, p.speed), p.speed);
 
 /// The speed she is surely moving at by [p]: the reported speed less the
 /// reported speed accuracy, both measured ([_measured]) and usable
@@ -290,6 +302,7 @@ PositionFix fixFromSample({
   double? speedFloorMps,
   GroundMotion motion = GroundMotion.unknown,
   double? speedLowerBoundMps,
+  double? reportedSpeedMps,
 }) {
   if (!(latitude.isFinite &&
       longitude.isFinite &&
@@ -308,6 +321,7 @@ PositionFix fixFromSample({
     speedFloorMps: speedFloorMps,
     motion: motion,
     speedLowerBoundMps: speedLowerBoundMps,
+    reportedSpeedMps: reportedSpeedMps,
   );
 }
 
@@ -585,6 +599,7 @@ Stream<PositionFix> herPositionStream({
           speedFloorMps: groundSpeedFloorMps(p),
           motion: groundMotionOf(p),
           speedLowerBoundMps: groundSpeedLowerBoundMps(p),
+          reportedSpeedMps: groundSpeedReportedMps(p),
         )),
         // By the error's type, never its text. geolocator_android 4.6.2 checks
         // the permission again when the stream is listened to and, when it is

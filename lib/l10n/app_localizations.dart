@@ -1955,6 +1955,73 @@ class AppL10n {
           'error records; it holds no location history. You choose the '
           "destination in your device's share sheet.";
 
+  // ===== The fix-timing record: code 13 only (2026-10-06) =====
+  //
+  // Its own card, share action and disclosure (services/fix_timing_record.dart),
+  // so the ログを共有 card's words above stay true. Adapted from the dignity
+  // read's W1 and W2; every clause is what the record does.
+
+  /// Section title of the fix-timing record's card.
+  String get fixTimingSectionTitle =>
+      _ja ? '測位間隔の記録（テスト版）' : 'Fix-interval record (test build)';
+
+  /// Status: the record could not be opened on this device.
+  String get fixTimingUnavailable => _ja
+      ? 'この端末では測位間隔の記録を開けません。'
+      : 'The fix-interval record cannot be opened on this device.';
+
+  /// Status: no line yet.
+  String get fixTimingEmpty => _ja
+      ? '測位間隔の記録はまだありません。'
+      : 'There is no fix-interval record yet.';
+
+  /// Status while lines exist (W2): never "empty", never "error records".
+  String get fixTimingPresent => _ja
+      ? '測位間隔の記録があります。共有ボタンで送れます。'
+      : 'A fix-interval record is present. Use the share button to send it.';
+
+  /// Added to the status while he has stopped the record.
+  String get fixTimingStoppedNote =>
+      _ja ? '記録は止めています。' : 'Recording is stopped.';
+
+  /// Added to the status once the record reaches its cap.
+  String get fixTimingFullNote => _ja
+      ? '上限（約96 KB）に達したため、記録を止めています。'
+      : 'The record reached its cap (about 96 KB), so recording has stopped.';
+
+  /// Share action.
+  String get fixTimingShare => _ja ? '記録を共有' : 'Share record';
+
+  /// Stop action.
+  String get fixTimingStop => _ja ? '記録を止める' : 'Stop recording';
+
+  /// Start-again action.
+  String get fixTimingResume => _ja ? '記録を再開' : 'Record again';
+
+  /// Delete action.
+  String get fixTimingDelete => _ja ? '記録を消す' : 'Delete record';
+
+  /// Disclosure under the actions: what is recorded, where it stays, how it
+  /// ends. States the export time the share carries (no place, but a time).
+  String get fixTimingDisclosure => _ja
+      ? '共有は「記録を共有」を押したときだけ行われます。自動送信・テレメトリはなく、'
+          'アカウントも不要です。このテスト版は、現在地を共有している間だけ、GPS の測位が'
+          '届いた間隔を記録します（間隔・測位の精度・速度・アプリが前面にあったか）。'
+          '緯度経度や地名は記録しません。共有する内容には書き出した時刻が入ります。'
+          '記録はこの端末に残り、押すまで送られません。「記録を止める」で止まり、'
+          '「記録を消す」で消えます。上限は約96 KB（約3時間分）で、達すると記録を止めます。'
+          '次の版を入れると消えます。送信先は端末の共有画面で自分で選べます。'
+      : 'Sharing happens only when you tap Share record — no automatic upload, '
+          'no telemetry, and no account. This test build records, only while '
+          'you share your location, how far apart GPS fixes arrive (the '
+          "interval, the fix's accuracy, your speed, and whether the app was in "
+          'front). It records no coordinates and no place names. The shared text '
+          'includes the time it was exported. The record stays on this phone '
+          'and is sent only when you tap. Stop recording stops it; Delete '
+          'record deletes it. Its cap is about 96 KB (about 3 hours); when '
+          'reached, recording stops. It is deleted when the next build is '
+          "installed. You choose the destination in your device's share sheet.";
+
   // ===== Ring-2 運転日記 — post-drive diary surface (three-month plan §2) =====
   //
   // Honesty-traced to real code: entries persist ONLY to a local file

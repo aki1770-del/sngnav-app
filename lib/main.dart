@@ -103,6 +103,8 @@ import 'services/visibility_for_caution.dart';
 import 'services/error_log.dart';
 import 'services/log_share.dart';
 import 'services/drive_diary.dart';
+import 'services/fix_timing_record.dart';
+import 'services/gps_trust.dart' show kGpsCoarseAccuracyMeters;
 import 'services/drive_hud_localizer.dart';
 import 'widgets/update_notice.dart';
 import 'widgets/keep_together.dart';
@@ -166,7 +168,14 @@ Future<void> main() async {
   // user-initiated 日記を共有 action. Best-effort open (errorLog idiom); a
   // null diary renders the card's actions honestly disabled.
   final diary = await openDriveDiary();
-  runApp(SngnavApp(errorLog: errorLog, diary: diary));
+  // Code 13 only: the fix-timing record (services/fix_timing_record.dart).
+  // Local file only; leaves the device only via its own 記録を共有 action.
+  final fixTimingRecord = await openFixTimingRecord();
+  runApp(SngnavApp(
+    errorLog: errorLog,
+    diary: diary,
+    fixTimingRecord: fixTimingRecord,
+  ));
 }
 
 /// WS5 — app-level severity for a mocked road-surface condition, used to gate
@@ -687,6 +696,8 @@ class SngnavApp extends StatelessWidget {
     this.logShareSink,
     this.diary,
     this.diaryShareSink,
+    this.fixTimingRecord,
+    this.fixTimingShareSink,
     this.voiceLaneReader,
     this.speechUnverified,
     this.hapticUnverified,
@@ -717,6 +728,13 @@ class SngnavApp extends StatelessWidget {
 
   /// Injectable diary share exit door (null -> [shareDiaryViaShareSheet]).
   final DiaryShareSink? diaryShareSink;
+
+  /// Code 13 only: the fix-timing record (null -> its card says it cannot be
+  /// opened and offers nothing).
+  final FixTimingRecord? fixTimingRecord;
+
+  /// Injectable record share exit door (null -> [shareFixTimingViaShareSheet]).
+  final FixTimingShareSink? fixTimingShareSink;
   final Future<VoiceLaneVerdict> Function()? voiceLaneReader;
   final ValueNotifier<bool>? speechUnverified;
   final ValueNotifier<bool>? hapticUnverified;
@@ -803,6 +821,8 @@ class SngnavApp extends StatelessWidget {
         logShareSink: logShareSink,
         diary: diary,
         diaryShareSink: diaryShareSink,
+        fixTimingRecord: fixTimingRecord,
+        fixTimingShareSink: fixTimingShareSink,
         voiceLaneReader: voiceLaneReader,
         speechUnverified: speechUnverified,
         hapticUnverified: hapticUnverified,
@@ -831,6 +851,8 @@ class HomePage extends StatefulWidget {
     this.logShareSink,
     this.diary,
     this.diaryShareSink,
+    this.fixTimingRecord,
+    this.fixTimingShareSink,
     this.voiceLaneReader,
     this.speechUnverified,
     this.hapticUnverified,
@@ -872,6 +894,13 @@ class HomePage extends StatefulWidget {
 
   /// Injectable diary share exit door (null -> [shareDiaryViaShareSheet]).
   final DiaryShareSink? diaryShareSink;
+
+  /// Code 13 only: the fix-timing record (null -> its card says it cannot be
+  /// opened and offers nothing).
+  final FixTimingRecord? fixTimingRecord;
+
+  /// Injectable record share exit door (null -> [shareFixTimingViaShareSheet]).
+  final FixTimingShareSink? fixTimingShareSink;
 
   /// Injectable voice-channel readiness read (null ->
   /// [readVoiceLaneReadiness]).
@@ -2063,6 +2092,7 @@ class _HomePageState extends State<HomePage> {
                     onPlatformStreamSubscribed: () {
                       if (mounted && session == _herShareSession) {
                         _herPositionStreamSubscribedAt = _now();
+                        _recordFixTiming(FixEventKind.start);
                       }
                     },
                   ),
@@ -2100,7 +2130,10 @@ class _HomePageState extends State<HomePage> {
     // An injected source is the position stream itself: it is subscribed now.
     // The real stream reports its own subscription, after the permission
     // answer, through the callback above.
-    if (injected != null) _herPositionStreamSubscribedAt = _now();
+    if (injected != null) {
+      _herPositionStreamSubscribedAt = _now();
+      _recordFixTiming(FixEventKind.start);
+    }
     // Start the blackout watchdog for the real position feed.
     _positionWatchdog ??=
         Timer.periodic(_watchdogTickEvery, (_) => _watchdogTick());
@@ -2116,6 +2149,16 @@ class _HomePageState extends State<HomePage> {
   /// path, so all three keep the watchdog fed and reach the same surfaces.
   void _onPositionEvent(PositionFix fix) {
     if (!mounted) return;
+    // Code 13 only: when this event arrived, before anything decides what it
+    // means. Every event of her share, given to the brain or held.
+    _recordFixTiming(switch (fix) {
+      PositionAvailable(accuracyMeters: null) => FixEventKind.noAccuracy,
+      PositionAvailable(:final double accuracyMeters)
+          when accuracyMeters > kGpsCoarseAccuracyMeters =>
+        FixEventKind.coarse,
+      PositionAvailable() => FixEventKind.fine,
+      PositionUnavailable() => FixEventKind.unavailable,
+    }, fix: fix);
     // Ruled 2026-09-15: an event came.
     _herNoEventYet = false;
     // Location is off for this app (permission denied, now or for good): her
@@ -4519,6 +4562,11 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             _section(
+              title: AppL10n.of(context).fixTimingSectionTitle,
+              child: _fixTimingPanel(),
+            ),
+            const SizedBox(height: 16),
+            _section(
               title: AppL10n.of(context).channelCheckSectionTitle,
               child: _channelCheckPanel(),
             ),
@@ -5012,6 +5060,119 @@ class _HomePageState extends State<HomePage> {
       // A share-sheet failure must never take the app down — the log
       // itself still holds the evidence for a later retry (parity with
       // LocalErrorLog's never-throws discipline).
+    }
+  }
+
+  /// Code 13 only: one line of the fix-timing record, while her real share
+  /// runs (never the development page's test position, never before a share's
+  /// stream subscribes, never after 停止). An unavailable event is its kind
+  /// alone: no exception text is passed, and the record takes none.
+  void _recordFixTiming(FixEventKind kind, {PositionFix? fix}) {
+    final record = widget.fixTimingRecord;
+    final since = _herPositionStreamSubscribedAt;
+    if (record == null || since == null || _herSub == null || _isMockPosition) {
+      return;
+    }
+    final now = _now();
+    final wrote = record.record(
+      share: _herShareSession,
+      msSinceStreamStart: now.difference(since).inMilliseconds,
+      kind: kind,
+      accuracyMeters: fix is PositionAvailable ? fix.accuracyMeters : null,
+      reportedSpeedMps: fix is PositionAvailable ? fix.reportedSpeedMps : null,
+      lateMs: fix is PositionAvailable
+          ? now.difference(fix.timestamp).inMilliseconds
+          : null,
+      appInFront: _appInFront(),
+    );
+    // The card's status line follows what is held.
+    if (wrote && !_fixTimingCardShowsLines) setState(() {});
+  }
+
+  /// Whether the record's card last drew "a record is present".
+  bool _fixTimingCardShowsLines = false;
+
+  /// Code 13 only: the fix-timing record's own card. Same shape as the
+  /// log-share card (liveRegion status, Wrap-ped actions, disclosure last),
+  /// and separate from it, so the ログを共有 card's words stay true.
+  Widget _fixTimingPanel() {
+    final l = AppL10n.of(context);
+    final record = widget.fixTimingRecord;
+    final String status;
+    if (record == null) {
+      status = l.fixTimingUnavailable;
+      _fixTimingCardShowsLines = false;
+    } else {
+      final has = record.hasLines;
+      _fixTimingCardShowsLines = has;
+      status = [
+        has ? l.fixTimingPresent : l.fixTimingEmpty,
+        if (record.full) l.fixTimingFullNote
+        else if (record.stopped) l.fixTimingStoppedNote,
+      ].join(' ');
+    }
+    final stopped = record?.stopped ?? false;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Semantics(
+          container: true,
+          liveRegion: true,
+          child: Text(
+            key: const Key('fix-timing-status'),
+            status,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+          ),
+        ),
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TextButton(
+                key: const Key('fix-timing-share-button'),
+                onPressed: record == null ? null : _shareFixTiming,
+                child: Text(l.fixTimingShare),
+              ),
+              TextButton(
+                key: const Key('fix-timing-stop-button'),
+                onPressed: record == null
+                    ? null
+                    : () => setState(
+                        () => stopped ? record.resume() : record.stop()),
+                child: Text(stopped ? l.fixTimingResume : l.fixTimingStop),
+              ),
+              TextButton(
+                key: const Key('fix-timing-delete-button'),
+                onPressed: record == null
+                    ? null
+                    : () => setState(record.delete),
+                child: Text(l.fixTimingDelete),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          key: const Key('fix-timing-disclosure'),
+          l.fixTimingDisclosure,
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+        ),
+      ],
+    );
+  }
+
+  /// Hands the whole record, under its header, to the injected sink
+  /// (production: the platform share sheet).
+  Future<void> _shareFixTiming() async {
+    final record = widget.fixTimingRecord;
+    if (record == null) return;
+    final payload = composeFixTimingSharePayload(recordText: record.readAll());
+    try {
+      await (widget.fixTimingShareSink ?? shareFixTimingViaShareSheet)(payload);
+    } catch (_) {
+      // The record still holds every line for a later try.
     }
   }
 
