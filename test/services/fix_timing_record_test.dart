@@ -161,6 +161,60 @@ void main() {
     }
   });
 
+  group('how a share ended, said by the record (V15)', () {
+    test('an end line and the launch line have one shape each', () {
+      expect(formatFixTimingEnd(share: 3, msSinceStreamStart: 15040),
+          's=3 t=15040 k=end');
+      expect(kFixTimingLaunchLine, 's=0 t=0 k=launch');
+      expect(kFixTimingLinePattern.hasMatch('s=3 t=15040 k=end'), isTrue);
+      expect(kFixTimingLinePattern.hasMatch(kFixTimingLaunchLine), isTrue);
+    });
+
+    test('the whitelist refuses anything else', () {
+      for (final bad in [
+        's=1 t=0 k=launch', // a launch belongs to no share
+        's=0 t=5 k=launch',
+        's=2 t=5 k=end a=- v=- late=- fg=1', // an end carries nothing else
+        's=2 t=5 k=end fg=1',
+        's=2 t=5 k=stop',
+        's=2 t=5 k=killed',
+        's=2 t=5 k=end lat=39.7186',
+        's=2 t=5 k=fine a=10.0 v=15.0 late=300 fg=1 39.7186,140.1024',
+        's=2 t=5 k=unavail a=- v=- late=- fg=1 GPS stream error: x',
+        '2026-10-06T08:00:00Z s=2 t=5 k=end',
+        '',
+      ]) {
+        expect(kFixTimingLinePattern.hasMatch(bad), isFalse, reason: bad);
+      }
+    });
+
+    test('end and launch obey his stop and the cap', () {
+      final r = open();
+      r.stop();
+      expect(r.recordEnd(share: 1, msSinceStreamStart: 5), isFalse);
+      expect(r.recordLaunch(), isFalse);
+      expect(r.hasLines, isFalse);
+      final small = open(maxBytes: 256);
+      small.resume();
+      while (fine(small, 1)) {}
+      expect(small.full, isTrue);
+      expect(small.recordEnd(share: 1, msSinceStreamStart: 5), isFalse);
+      expect(small.recordLaunch(), isFalse);
+    });
+
+    test('each time the app opens the record, as at each process start, it '
+        'writes the launch line first', () async {
+      final first = await openFixTimingRecord(directory: dir);
+      expect(first, isNotNull);
+      fine(first!, 1);
+      final again = await openFixTimingRecord(directory: dir);
+      final lines = again!.readAll().split('\n').where((l) => l.isNotEmpty).toList();
+      expect(lines.first, kFixTimingLaunchLine);
+      expect(lines.last, kFixTimingLaunchLine, reason: 'a relaunch wrote none');
+      expect(lines.where((l) => l == kFixTimingLaunchLine).length, 2);
+    });
+  });
+
   group('it yields to him', () {
     test('stop holds: nothing is written while stopped, and the stop survives '
         'reopening; resume writes again', () {

@@ -3243,6 +3243,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _clearPosition() {
+    // Code 13 only: his ending of the share, written and flushed before the
+    // share's stream or number moves, so the record tells his tap from a
+    // process that died.
+    _recordFixTimingEnd();
     // Ruled 2026-09-15: what this share told
     // stays told. Nothing is told at her tap: a whiteout this share did not
     // tell is told at the next refresh.
@@ -5087,6 +5091,20 @@ class _HomePageState extends State<HomePage> {
     );
     // The card's status line follows what is held.
     if (wrote && !_fixTimingCardShowsLines) setState(() {});
+  }
+
+  /// Code 13 only: the `end` line of her real share, at 停止 or 閉じる (never
+  /// the development page's mock, which has no share).
+  void _recordFixTimingEnd() {
+    final record = widget.fixTimingRecord;
+    final since = _herPositionStreamSubscribedAt;
+    if (record == null || since == null || _herSub == null || _isMockPosition) {
+      return;
+    }
+    record.recordEnd(
+      share: _herShareSession,
+      msSinceStreamStart: _now().difference(since).inMilliseconds,
+    );
   }
 
   /// Whether the record's card last drew "a record is present".

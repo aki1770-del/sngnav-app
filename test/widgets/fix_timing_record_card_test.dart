@@ -271,6 +271,45 @@ void main() {
     await app.positions.close();
   });
 
+  testWidgets('停止 writes the share\'s end line, with its own number and the '
+      'time since its stream started, and nothing after it', (tester) async {
+    final app = _App(dir);
+    await app.boot(tester);
+    await app.share(tester);
+    await app.drive(tester, 3, const Duration(seconds: 1));
+    await _advance(tester, const Duration(seconds: 2));
+    await app.stopSharing(tester);
+    final lines = app.lines;
+    final share = RegExp(r'^s=(\d+)').firstMatch(lines.first)!.group(1);
+    expect(lines.last, 's=$share t=5000 k=end', reason: lines.join('\n'));
+    expect(lines.where((l) => l.contains(' k=end')).length, 1);
+    // Not awaited: after 停止 the stream has no listener, and awaiting its
+    // close would never complete.
+    unawaited(app.positions.close());
+  });
+
+  testWidgets('a share whose app goes away without 停止 leaves no end line; the '
+      'next process start writes launch, so the record shows the share died',
+      (tester) async {
+    final app = _App(dir);
+    await app.boot(tester);
+    await app.share(tester);
+    await app.drive(tester, 3, const Duration(seconds: 1));
+    // The app goes away with the share running (here, unmounted: no 停止).
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(app.record.readAll(), isNot(contains('k=end')),
+        reason: 'an end line was written without 停止');
+    // The next process opens the record.
+    final next = await openFixTimingRecord(directory: dir);
+    final lines = next!.readAll().split('\n').where((l) => l.isNotEmpty).toList();
+    expect(lines.last, kFixTimingLaunchLine);
+    expect(lines[lines.length - 2], contains(' k=fine '),
+        reason: 'the died share\'s last line should sit just before launch');
+    // Not awaited: the unmounted app cancelled the only listener.
+    unawaited(app.positions.close());
+  });
+
   testWidgets('nothing is recorded before a share starts or after 停止',
       (tester) async {
     final app = _App(dir);
@@ -282,11 +321,12 @@ void main() {
     final during = app.lines.length;
     expect(during, 4, reason: 'control: start and three fixes');
     await app.stopSharing(tester);
+    expect(app.lines.last, contains(' k=end'), reason: 'control: 停止 ended it');
     expect(find.byKey(const Key('share-location-button')), findsOneWidget,
         reason: 'control: the share ended');
     app.positions.add(_sample(100));
     await _advance(tester, const Duration(seconds: 30));
-    expect(app.lines.length, during, reason: 'recorded after 停止');
+    expect(app.lines.length, during + 1, reason: 'recorded after 停止');
   });
 
   testWidgets('the card: W2 status while lines exist, a stop that holds while '
@@ -389,6 +429,7 @@ void main() {
       '書き出した時刻が入ります',
       'この端末に残り、押すまで送られません',
       '「記録を止める」で止まり',
+      '共有を止めたときと、アプリが起動したときも記録します（時刻は書きません）',
       '「記録を消す」で消えます',
       '上限は約96 KB',
       '次の版を入れると消えます',

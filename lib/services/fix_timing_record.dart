@@ -11,7 +11,11 @@
 ///
 /// What it is, stated so no surface can claim more:
 /// - One line per position event while 現在地を共有 is on, plus one line when
-///   a share's stream starts. Each line: the share's number; milliseconds since
+///   a share's stream starts, one when he ends the share (停止 or 閉じる:
+///   `k=end`), and one when the app's process starts (`k=launch`). A share
+///   with no `end` line followed by a `launch` line ended because the process
+///   died (killed, crashed or swiped away), not by his tap: the record says so
+///   itself, rather than leaving it to be inferred from share numbers. Each line: the share's number; milliseconds since
 ///   that share's stream subscribed; the kind (start, fine fix, coarse fix over
 ///   150 m, a sample with no measured accuracy, or unavailable); the reported
 ///   accuracy in tenths of a metre and the speed the phone reported in tenths
@@ -67,11 +71,22 @@ const int kFixTimingHeaderBudget = 512;
 /// check keeps one of these in hand, so the file never passes the cap.
 const int kFixTimingMaxLineBytes = 96;
 
-/// Every line in the record matches this, and nothing else is written.
+/// Every line in the record matches this, and nothing else is written: a
+/// position-event line, an `end` line, or the one `launch` shape.
 final RegExp kFixTimingLinePattern = RegExp(
-  r'^s=\d+ t=\d+ k=(start|fine|coarse|noacc|unavail) a=(\d+\.\d|-) v=(0|\d+\.\d|-) '
-  r'late=(-?\d+|-) fg=[01]$',
+  r'^(s=\d+ t=\d+ k=(start|fine|coarse|noacc|unavail) a=(\d+\.\d|-) '
+  r'v=(0|\d+\.\d|-) late=(-?\d+|-) fg=[01]'
+  r'|s=\d+ t=\d+ k=end'
+  r'|s=0 t=0 k=launch)$',
 );
+
+/// The `launch` line: written once per process start, when the record opens.
+const String kFixTimingLaunchLine = 's=0 t=0 k=launch';
+
+/// The `end` line for [share], [msSinceStreamStart] after its stream started.
+String formatFixTimingEnd({required int share, required int msSinceStreamStart}) =>
+    's=${share < 0 ? 0 : share} '
+    't=${msSinceStreamStart < 0 ? 0 : msSinceStreamStart} k=end';
 
 /// What kind of position event a line records.
 enum FixEventKind {
@@ -140,6 +155,29 @@ class FixTimingRecord {
   /// Whether the record has reached its cap and so stopped recording.
   bool get full => lengthBytes + kFixTimingMaxLineBytes > maxBytes;
 
+  /// Appends [line] and flushes it, unless he has stopped the record or it is
+  /// full. Returns whether it was written.
+  bool _append(String line) {
+    try {
+      if (stopped || full) return false;
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync('$line\n', mode: FileMode.append, flush: true);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// His ending of [share] (停止 or 閉じる), flushed before anything else of
+  /// the share moves. Returns whether it was written.
+  bool recordEnd({required int share, required int msSinceStreamStart}) =>
+      _append(formatFixTimingEnd(
+          share: share, msSinceStreamStart: msSinceStreamStart));
+
+  /// The process started. Written by [openFixTimingRecord], the only way the
+  /// app opens the record, so no launch can open it without one.
+  bool recordLaunch() => _append(kFixTimingLaunchLine);
+
   /// Appends one line, unless he has stopped the record or it is full. Returns
   /// whether a line was written. Takes no free text: an unavailable event is
   /// its kind alone.
@@ -152,23 +190,15 @@ class FixTimingRecord {
     int? lateMs,
     required bool appInFront,
   }) {
-    try {
-      if (stopped || full) return false;
-      final line = formatFixTimingLine(
-        share: share,
-        msSinceStreamStart: msSinceStreamStart,
-        kind: kind,
-        accuracyMeters: accuracyMeters,
-        reportedSpeedMps: reportedSpeedMps,
-        lateMs: lateMs,
-        appInFront: appInFront,
-      );
-      file.parent.createSync(recursive: true);
-      file.writeAsStringSync('$line\n', mode: FileMode.append, flush: true);
-      return true;
-    } catch (_) {
-      return false;
-    }
+    return _append(formatFixTimingLine(
+      share: share,
+      msSinceStreamStart: msSinceStreamStart,
+      kind: kind,
+      accuracyMeters: accuracyMeters,
+      reportedSpeedMps: reportedSpeedMps,
+      lateMs: lateMs,
+      appInFront: appInFront,
+    ));
   }
 
   /// The whole record, or '' when absent or unreadable.
@@ -270,12 +300,16 @@ String composeFixTimingSharePayload({
   return buf.toString();
 }
 
-/// Opens the record in the app-support directory, or null when it cannot be
-/// opened (the card then says so and offers nothing).
+/// Opens the record in the app-support directory at process start, and writes
+/// its `launch` line; or null when it cannot be opened (the card then says so
+/// and offers nothing). The app opens the record only here, once per process.
 Future<FixTimingRecord?> openFixTimingRecord({Directory? directory}) async {
   try {
     final dir = directory ?? await getApplicationSupportDirectory();
-    return FixTimingRecord(file: File('${dir.path}/$kFixTimingRecordFileName'));
+    final record =
+        FixTimingRecord(file: File('${dir.path}/$kFixTimingRecordFileName'));
+    record.recordLaunch();
+    return record;
   } catch (_) {
     return null;
   }
