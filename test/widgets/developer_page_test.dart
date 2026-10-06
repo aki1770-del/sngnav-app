@@ -37,6 +37,14 @@ List<String> _herTitles(AppL10n l) => [
       l.prefectureObservationsSectionTitle,
       l.advisoriesSectionTitle,
       l.logShareSectionTitle,
+      // 2026-10-06, CODE 13 ONLY (a test build on a branch that is never
+      // merged): the fix-timing record's own card. DECLARED here, as this guard
+      // asks. Why it is on his page and not the development page: the record
+      // is shared by the man driving it, from a release build, and the
+      // development page is hard-gated on `!kReleaseMode`. Why its own card:
+      // so the ログを共有 card's words above stay true. Her page goes from 10
+      // cards to 11 in this build only.
+      l.fixTimingSectionTitle,
       // 2026-09-19 — the warning-channel check. DECLARED here, never
       // worked around: this guard exists so that adding a card to the driver's page is
       // a deliberate act, and it caught this one. Why it belongs on her page
