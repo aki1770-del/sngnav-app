@@ -103,6 +103,7 @@ import 'services/visibility_for_caution.dart';
 import 'services/error_log.dart';
 import 'services/log_share.dart';
 import 'services/drive_diary.dart';
+import 'services/code13_record_cleanup.dart';
 import 'services/drive_hud_localizer.dart';
 import 'widgets/update_notice.dart';
 import 'widgets/keep_together.dart';
@@ -166,6 +167,10 @@ Future<void> main() async {
   // user-initiated 日記を共有 action. Best-effort open (errorLog idiom); a
   // null diary renders the card's actions honestly disabled.
   final diary = await openDriveDiary();
+  // Code 13, a test build, kept a fix-timing record and told him the next
+  // build deletes it. This is that build's promise kept: its two files, by
+  // name, if present (services/code13_record_cleanup.dart).
+  await deleteCode13FixTimingRecord();
   runApp(SngnavApp(errorLog: errorLog, diary: diary));
 }
 
