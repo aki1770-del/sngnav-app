@@ -184,7 +184,7 @@ void main() {
         reason: lines.join('\n'));
     expect(_gaps(lines, 'fine', share), everyElement(1000));
     expect(lines.where((l) => l.contains(' k=fine ')),
-        everyElement(contains('a=10 v=15.0 late=300 fg=1')));
+        everyElement(contains('a=10.0 v=15.0 late=300 fg=1')));
     for (final l in lines) {
       expect(kFixTimingLinePattern.hasMatch(l), isTrue, reason: l);
     }
@@ -259,7 +259,7 @@ void main() {
     app.positions.addError(StateError('fix lost at 39.71860, 140.10240 Akita'));
     await _settle(tester);
     final text = app.record.readAll();
-    expect(text, contains(' k=coarse a=300 '));
+    expect(text, contains(' k=coarse a=300.0 '));
     expect(text, contains(' k=noacc a=- '));
     expect(text, contains(' k=unavail a=- v=- late=- '));
     expect(text, isNot(contains('39.7')), reason: 'a coordinate reached it');
@@ -383,6 +383,8 @@ void main() {
     final d = _textOf(tester, 'fix-timing-disclosure');
     for (final clause in [
       '現在地を共有している間だけ',
+      '届いた時刻の間隔と遅れ',
+      '測位の種類と精度',
       '緯度経度や地名は記録しません',
       '書き出した時刻が入ります',
       'この端末に残り、押すまで送られません',

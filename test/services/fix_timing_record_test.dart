@@ -50,7 +50,7 @@ void main() {
           lateMs: 850,
           appInFront: false,
         ),
-        's=3 t=15040 k=coarse a=300 v=16.5 late=850 fg=0',
+        's=3 t=15040 k=coarse a=304.9 v=16.5 late=850 fg=0',
       );
     });
 
@@ -117,7 +117,9 @@ void main() {
       expect(v(2.999), '2.9');
       expect(v(3.0), '3.0');
       expect(v(3.04), '3.0');
-      expect(v(0.0), '0.0');
+      expect(v(0.0), '0', reason: 'an exact reported zero is written apart');
+      expect(v(0.03), '0.0', reason: 'a creep must never read as a stop');
+      expect(v(0.1), '0.1');
       expect(v(16.5), '16.5');
     });
 
@@ -131,8 +133,32 @@ void main() {
         if (recorded >= 3.0) {
           expect(reported, greaterThan(2.5), reason: '$reported');
         }
+        expect(v(reported) == '0', reported == 0,
+            reason: '$reported: "0" must mean an exact reported zero');
       }
     });
+  });
+
+  test('accuracy is truncated to 0.1 m, never above what was reported, so the '
+      'exit-accuracy criterion can be read fail-closed', () {
+    String a(double reported) => RegExp(r' a=(\S+) ')
+        .firstMatch(formatFixTimingLine(
+          share: 1,
+          msSinceStreamStart: 0,
+          kind: FixEventKind.fine,
+          accuracyMeters: reported,
+          appInFront: true,
+        ))!
+        .group(1)!;
+    expect(a(14.0), '14.0');
+    expect(a(24.99), '24.9');
+    expect(a(304.9), '304.9');
+    for (var i = 0; i <= 50000; i += 7) {
+      final reported = i / 100.0;
+      final recorded = double.parse(a(reported));
+      expect(recorded, lessThanOrEqualTo(reported), reason: '$reported');
+      expect(reported - recorded, lessThan(0.1 + 1e-9), reason: '$reported');
+    }
   });
 
   group('it yields to him', () {

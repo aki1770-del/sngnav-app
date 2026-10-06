@@ -14,9 +14,10 @@
 ///   a share's stream starts. Each line: the share's number; milliseconds since
 ///   that share's stream subscribed; the kind (start, fine fix, coarse fix over
 ///   150 m, a sample with no measured accuracy, or unavailable); the reported
-///   accuracy rounded to 10 m; the speed the phone reported, in tenths of a
-///   m/s, TRUNCATED toward zero (see [formatFixTimingLine]); how late the fix
-///   arrived after its own timestamp, in ms; and whether the app was in front.
+///   accuracy in tenths of a metre and the speed the phone reported in tenths
+///   of a m/s, both TRUNCATED toward zero, with an exact zero speed written
+///   apart (see [formatFixTimingLine]); how late the fix arrived after its own
+///   timestamp, in ms; and whether the app was in front.
 ///   The milliseconds are the time the app RECEIVED the event, so two fixes a
 ///   phone delivers together read the same time, and their lateness differs.
 /// - NO coordinates, no place, no wall-clock time. An unavailable event is
@@ -68,7 +69,7 @@ const int kFixTimingMaxLineBytes = 96;
 
 /// Every line in the record matches this, and nothing else is written.
 final RegExp kFixTimingLinePattern = RegExp(
-  r'^s=\d+ t=\d+ k=(start|fine|coarse|noacc|unavail) a=(\d+|-) v=(\d+\.\d|-) '
+  r'^s=\d+ t=\d+ k=(start|fine|coarse|noacc|unavail) a=(\d+\.\d|-) v=(0|\d+\.\d|-) '
   r'late=(-?\d+|-) fg=[01]$',
 );
 
@@ -204,15 +205,27 @@ class FixTimingRecord {
 
 /// One line of the record. Pure, so its shape is pinned without a file.
 ///
-/// SPEED ROUNDING, stated so the reading's 3 m/s moving line is well defined
-/// (decided 2026-10-06, V16): the reported speed is TRUNCATED toward zero to
-/// 0.1 m/s, so a recorded value is never more than the phone reported. A
-/// recorded 3.0 or more therefore means a reported speed of at least 3.0 m/s,
-/// strictly over 2.5. Round-half-up would let a recorded 3 stand for exactly
-/// 2.5. Floating point can make the truncation read one tenth LOW, never high:
-/// an ambiguity routes toward "not moving", which counts against release.
-/// Accuracy is rounded to the nearest 10 m (it only sorts fine from coarse
-/// against 150 m, which no rounding moves).
+/// WHAT EACH NUMBER MEANS, stated so the reading's bars are exact (decided
+/// 2026-10-06 against the binding bars, V16 and V99):
+/// - SPEED (`v`): the reported speed TRUNCATED toward zero to 0.1 m/s, so a
+///   recorded value is never more than the phone reported; a recorded 3.0 or
+///   more means a reported speed of at least 3.0 m/s (MOVING is exact, and
+///   never stands for 2.5). An EXACT reported zero is written `v=0`; any speed
+///   above zero keeps its decimal, so a reported 0.03 is `v=0.0`, never `0`
+///   (STOPPED, "reports 0", is exact too, and a creep is never read as a stop).
+/// - ACCURACY (`a`): the reported accuracy TRUNCATED toward zero to 0.1 m. The
+///   true value lies in [recorded, recorded + 0.1). The exit-accuracy criterion
+///   ("at least twice the median of the 10 fixes before, and at least 15 m
+///   worse") is read fail-closed: the fix after the gap at its recorded value,
+///   each fix before it at its recorded value + 0.1. (Fine against coarse, over
+///   150 m, is decided in the app from the exact value, never from `a`.)
+/// - TIME (`t`): when the app RECEIVED the event, in ms since the share's
+///   stream started, by the phone's own clock.
+/// - LATENESS (`late`): receipt minus the fix's own timestamp, in ms. It
+///   includes any offset between the phone's clock and the platform's fix
+///   clock, so a constant offset over 2 s makes the no-batching criterion fail
+///   for every gap: the fail-closed side.
+/// Floating point can make a truncation read one tenth LOW, never high.
 String formatFixTimingLine({
   required int share,
   required int msSinceStreamStart,
@@ -223,12 +236,13 @@ String formatFixTimingLine({
   required bool appInFront,
 }) {
   bool usable(double? v) => v != null && v.isFinite && v >= 0;
-  final a = usable(accuracyMeters)
-      ? '${(accuracyMeters! / 10).round() * 10}'
-      : '-';
-  final v = usable(reportedSpeedMps)
-      ? ((reportedSpeedMps! * 10).floor() / 10).toStringAsFixed(1)
-      : '-';
+  String tenths(double x) => ((x * 10).floor() / 10).toStringAsFixed(1);
+  final a = usable(accuracyMeters) ? tenths(accuracyMeters!) : '-';
+  final v = !usable(reportedSpeedMps)
+      ? '-'
+      : reportedSpeedMps == 0
+          ? '0'
+          : tenths(reportedSpeedMps!);
   final t = msSinceStreamStart < 0 ? 0 : msSinceStreamStart;
   return 's=${share < 0 ? 0 : share} t=$t k=${kind.token} a=$a v=$v '
       'late=${lateMs ?? '-'} fg=${appInFront ? 1 : 0}';

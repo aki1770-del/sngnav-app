@@ -2006,7 +2006,8 @@ class AppL10n {
   String get fixTimingDisclosure => _ja
       ? '共有は「記録を共有」を押したときだけ行われます。自動送信・テレメトリはなく、'
           'アカウントも不要です。このテスト版は、現在地を共有している間だけ、GPS の測位が'
-          '届いた間隔を記録します（間隔・測位の精度・速度・アプリが前面にあったか）。'
+          '届いた間隔を記録します（届いた時刻の間隔と遅れ・測位の種類と精度・速度・'
+          'アプリが前面にあったか）。'
           '緯度経度や地名は記録しません。共有する内容には書き出した時刻が入ります。'
           '記録はこの端末に残り、押すまで送られません。「記録を止める」で止まり、'
           '「記録を消す」で消えます。上限は約96 KB（約3時間分）で、達すると記録を止めます。'
@@ -2014,8 +2015,9 @@ class AppL10n {
       : 'Sharing happens only when you tap Share record — no automatic upload, '
           'no telemetry, and no account. This test build records, only while '
           'you share your location, how far apart GPS fixes arrive (the '
-          "interval, the fix's accuracy, your speed, and whether the app was in "
-          'front). It records no coordinates and no place names. The shared text '
+          'interval and delay of each, its kind and accuracy, your speed, and '
+          'whether the app was in front). It records no coordinates and no '
+          'place names. The shared text '
           'includes the time it was exported. The record stays on this phone '
           'and is sent only when you tap. Stop recording stops it; Delete '
           'record deletes it. Its cap is about 96 KB (about 3 hours); when '
