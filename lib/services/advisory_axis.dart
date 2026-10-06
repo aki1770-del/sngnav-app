@@ -174,19 +174,50 @@ AdvisoryLevel? _topLevelOf(AdvisoryAggregateResult result) {
   final staleSources = <AdvisorySource>{
     for (final s in result.staleSources) s.source,
   };
-  var sawLive = false;
-  var top = AdvisorySeverity.unknown;
+  // The most severe LIVE advisory sets the rung, judged on the level each one
+  // MAPS to — never on `AdvisorySeverity.index`. `unknown` is declared first
+  // in condition_aggregator (index 0, below `minor`), so an index comparison
+  // let a minor notice beat a warning whose level could not be read, and the
+  // warning was gone from the rung. condition_aggregator_jma puts its own
+  // minor notices (a read it could not complete, a tier it could not open, a
+  // point it does not cover, a retired feed) in the same list as the
+  // warnings, so the two do meet. Mapping first puts `unknown` above `minor`,
+  // level with `moderate`, below `severe` and `extreme` — the order
+  // driving_weather's worst-advisory reduce already uses.
+  //
+  // The effect, intended: an unread warning beside a minor notice now raises
+  // the rung to heightened caution, and that rise speaks
+  // 「速度を落とし、車間を広げて、前方に注意してください。」 with the warning
+  // haptic, exactly as the warning alone does.
+  //
+  // The maximum starts from NO advisory, so a lone minor notice still reads
+  // minor and every-source-stale still reads null.
+  AdvisoryLevel? top;
   for (final a in result.advisories) {
     if (staleSources.contains(a.source)) continue;
-    sawLive = true;
-    if (a.severity.index > top.index) top = a.severity;
+    final level = _levelOf(a.severity);
+    if (top == null || _rank(level) > _rank(top)) top = level;
   }
-  if (!sawLive) return null;
-  return switch (top) {
-    AdvisorySeverity.unknown => AdvisoryLevel.moderate,
-    AdvisorySeverity.minor => AdvisoryLevel.minor,
-    AdvisorySeverity.moderate => AdvisoryLevel.moderate,
-    AdvisorySeverity.severe => AdvisoryLevel.severe,
-    AdvisorySeverity.extreme => AdvisoryLevel.extreme,
-  };
+  return top;
 }
+
+/// The mapping documented on [_topLevelOf]: `unknown` is a warning in force
+/// whose level could not be read, so it maps to moderate, never to null.
+AdvisoryLevel _levelOf(AdvisorySeverity severity) => switch (severity) {
+  AdvisorySeverity.unknown => AdvisoryLevel.moderate,
+  AdvisorySeverity.minor => AdvisoryLevel.minor,
+  AdvisorySeverity.moderate => AdvisoryLevel.moderate,
+  AdvisorySeverity.severe => AdvisoryLevel.severe,
+  AdvisorySeverity.extreme => AdvisoryLevel.extreme,
+};
+
+/// Severity order for the most-severe pick, written out rather than read from
+/// `AdvisoryLevel.index`: a declaration order is exactly what hid the defect
+/// above, and a member added upstream must fail to compile here rather than
+/// slot in silently.
+int _rank(AdvisoryLevel level) => switch (level) {
+  AdvisoryLevel.minor => 0,
+  AdvisoryLevel.moderate => 1,
+  AdvisoryLevel.severe => 2,
+  AdvisoryLevel.extreme => 3,
+};
