@@ -253,6 +253,40 @@ class AppL10n {
 
   String get locatingYou => _ja ? '現在地を取得しています…' : 'Locating you…';
 
+  /// In place of [driveDisclosure], under the running row, while a share runs
+  /// WITHOUT its foreground service (lib/services/share_without_service.dart).
+  /// The drive-continues words are false on that branch. The HMI review's
+  /// draft E, for the design in which leaving the screen ENDS the share
+  /// (2026-10-06). It promises no told line: whether that line is heard on a
+  /// device is not yet shown.
+  String get shareWithoutServiceDisclosure => _ja
+      ? '通知を出せないため、この運転はアプリが画面に出ているあいだだけ続きます。'
+          '画面を消したり、ほかのアプリに切り替えたり、戻る操作（ボタンやスワイプ）'
+          'をしたりすると、運転は終わり、現在地の警告も止まります。'
+          '続けるには、もう一度「現在地を共有」を押してください。'
+      : 'This app cannot show notifications, so this drive runs only while the '
+          'app is on the screen. If you turn the screen off, switch to another '
+          'app, or go back (button or swipe), the drive ends and warnings for '
+          'your location stop. To continue, tap Share my location again.';
+
+  /// On her return, after a share without its foreground service ended
+  /// because the app left the screen (lib/services/share_without_service.dart).
+  /// The screen she returns to is the backstop for the told line, which may
+  /// not have been heard as the app went to the background. Until the HMI
+  /// review writes the notice's own words, it carries the told line's words,
+  /// which are true here.
+  String get shareAwayNotice => _ja
+      ? 'アプリが画面から離れたため、現在地の警告は止まりました。'
+      : 'Because the app left the screen, warnings for your location have '
+          'stopped.';
+
+  /// Words in [shareWithoutServiceDisclosure] that must not break across lines
+  /// (lib/widgets/keep_together.dart), from the HMI review's list, keeping
+  /// only those that occur in draft E.
+  List<String> get shareWithoutServiceDisclosureKeepTogether => _ja
+      ? const ['「現在地を共有」', '現在地の警告', '止まります', '画面に出ている', '通知']
+      : const ['Share my location', 'warnings for your location'];
+
   /// Amber DEV mock-position line (kept visually distinct from real GPS).
   String mockPositionStatus(String accuracyMeters) => _ja
       ? 'モック位置 · 秋田地点 ±$accuracyMeters m（開発用 — 実際のGPSではありません）'

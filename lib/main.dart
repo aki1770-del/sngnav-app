@@ -126,6 +126,7 @@ import 'services/jma_advisory_provider_factory.dart';
 import 'services/audio_readiness.dart';
 import 'services/haptic_readiness.dart';
 import 'services/app_task.dart';
+import 'services/share_without_service.dart';
 import 'services/voice_lane_readiness.dart';
 import 'package:snow_rendering/snow_rendering.dart'
     show invisibleBlackIceAnnouncement;
@@ -1322,6 +1323,28 @@ class _HomePageState extends State<HomePage> {
   /// an earlier session's, and no surface shows it as this one's.
   bool _herFedThisShare = false;
 
+  /// The branch THIS share took: true when it runs WITHOUT its foreground
+  /// service (ruled 2026-10-06, lib/services/share_without_service.dart).
+  /// Recorded when the share's stream is built, from the notification it was
+  /// built with, never re-read from the current notification state: a setting
+  /// changed mid-share does not flip it. Also true when the service was asked
+  /// for but did not show itself: an error before the share's first fix counts
+  /// as "no service" (fail-closed: the service is a positive reading, not the
+  /// app's intent).
+  bool _shareWithoutService = false;
+
+  /// Whether THIS share has had a position fix (for the rule above).
+  bool _shareHadFix = false;
+
+  /// The settle window started at the subscription of a share without its
+  /// service when the app then read hidden or paused ([kShareAwaySettle]).
+  Timer? _shareAwaySettle;
+
+  /// Set when a share without its service ended because the app left the
+  /// screen; cleared when she starts a share. While set, the page she returns
+  /// to says so ([AppL10n.shareAwayNotice]).
+  bool _shareEndedAway = false;
+
   // Ruled 2026-09-15: the driver with no
   // position in a measured whiteout.
 
@@ -1482,7 +1505,11 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _appLifecycle = AppLifecycleListener(onResume: _onAppResumed);
+    _appLifecycle = AppLifecycleListener(
+      onResume: _onAppResumed,
+      onStateChange: _onLifecycleStateForShare,
+      onHide: _onAppLeftScreenForShare,
+    );
     _seedLocationConsent();
     _loadPersistedLocationConsent();
     // WS5 — construct the actuator layer + announcer. Hold the screen awake
@@ -1901,6 +1928,7 @@ class _HomePageState extends State<HomePage> {
     unawaited(_actuators.keepAwake(false));
     _jmaTicker?.cancel();
     _positionWatchdog?.cancel();
+    _shareAwaySettle?.cancel();
     _audioReadinessTicker?.cancel();
     _advisoryExpiryTicker?.cancel();
     // Close the offline MBTiles archive (sqlite3) + its network provider.
@@ -1954,6 +1982,68 @@ class _HomePageState extends State<HomePage> {
   /// The 停止 under the map while a drive runs. Only that one control carries
   /// this key.
   final GlobalKey _driveStopKey = GlobalKey(debugLabel: 'drive-stop');
+
+  /// She is on screen (`inactive` or `resumed`): a settle window started at a
+  /// subscription ends untold (ruled 2026-10-06; lib/services/
+  /// share_without_service.dart). `inactive` ends nothing: the app is still on
+  /// screen there, and the GPS-loss reading runs as in front.
+  void _onLifecycleStateForShare(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.resumed) {
+      _shareAwaySettle?.cancel();
+      _shareAwaySettle = null;
+    }
+  }
+
+  /// A LEAVE is the transition into `hidden` FROM `inactive`, which is what
+  /// [AppLifecycleListener.onHide] reports. A return from `paused` also passes
+  /// through `hidden` (paused, hidden, inactive, resumed), and that is not a
+  /// leave: it reaches `hidden` from `paused` and never calls this. A share
+  /// without its foreground service is not a running share once the app has
+  /// left the screen; a leave in the middle of a share fires on the change
+  /// itself. While a settle window from the subscription runs, it decides.
+  void _onAppLeftScreenForShare() {
+    if (_shareAwaySettle != null) return;
+    _endShareWithoutServiceAway();
+  }
+
+  /// At the subscription of a share without its service (or when a failure
+  /// before its first fix shows it has none): if the app reads hidden or
+  /// paused, wait [kShareAwaySettle] on its own timer before believing it.
+  void _startShareAwaySettleIfAway() {
+    if (!mounted || _herSub == null || !_shareWithoutService) return;
+    final s = WidgetsBinding.instance.lifecycleState;
+    if (s != AppLifecycleState.hidden && s != AppLifecycleState.paused) return;
+    _shareAwaySettle?.cancel();
+    _shareAwaySettle = Timer(kShareAwaySettle, () {
+      _shareAwaySettle = null;
+      _endShareWithoutServiceAway();
+    });
+  }
+
+  /// Ends a share that runs without its service, and tells her ONCE, by voice
+  /// and vibration, that it stopped. The share ends rather than being held,
+  /// so there is no resume state for a silence to be misread in: on her
+  /// return the page shows the share as not running. Does nothing for a share
+  /// with its service, for no share, before its platform stream has
+  /// subscribed (a permission screen at its own start is not leaving), or
+  /// while the app is visible.
+  void _endShareWithoutServiceAway() {
+    if (!mounted || _herSub == null || !_shareWithoutService) return;
+    if (_herPositionStreamSubscribedAt == null) return;
+    final s = WidgetsBinding.instance.lifecycleState;
+    if (s != AppLifecycleState.hidden && s != AppLifecycleState.paused) return;
+    unawaited(_announcer.announce(
+      severity: AlertSeverity.warning,
+      text: _spokenJa
+          ? kShareStoppedAppLeftJaSpokenText
+          : kShareStoppedAppLeftEnSpokenText,
+      localeTag: _spokenJa ? 'ja-JP' : 'en-US',
+    ));
+    _clearPosition();
+    // The page she returns to says why the share is not running.
+    setState(() => _shareEndedAway = true);
+  }
 
   void _onAppResumed() {
     if (!mounted || !_driveActive) return;
@@ -2019,6 +2109,10 @@ class _HomePageState extends State<HomePage> {
     // Ruled 2026-09-15: a share she starts
     // herself begins with nothing told and no rung held.
     _herNoEventYet = false;
+    // Its branch is not known until its stream is built (2026-10-06).
+    _shareWithoutService = false;
+    _shareHadFix = false;
+    _shareEndedAway = false;
     _driveHud.startShare();
     final session = ++_herShareSession;
     // B32 — drive start: re-probe BOTH eyes-off channels NOW (the initState
@@ -2055,22 +2149,35 @@ class _HomePageState extends State<HomePage> {
                     appInFront: _appInFront,
                   ),
                   // Built AFTER the wait, so her answer governs THIS drive.
-                  () => herPositionStream(
+                  () {
                     // null when she cannot see it: no foreground service
                     // rather than one behind an invisible notification.
-                    driveNotification: _mayPostDriveNotification
+                    final driveNotification = _mayPostDriveNotification
                         ? DriveNotificationText(
                             title: l.driveNotificationTitle,
                             body: l.driveNotificationBody,
                             channelName: l.driveNotificationChannel,
                           )
-                        : null,
-                    onPlatformStreamSubscribed: () {
-                      if (mounted && session == _herShareSession) {
-                        _herPositionStreamSubscribedAt = _now();
-                      }
-                    },
-                  ),
+                        : null;
+                    // The branch THIS share took, recorded once (2026-10-06).
+                    if (session == _herShareSession) {
+                      _shareWithoutService = driveNotification == null;
+                    }
+                    return herPositionStream(
+                      driveNotification: driveNotification,
+                      onPlatformStreamSubscribed: () {
+                        if (mounted && session == _herShareSession) {
+                          _herPositionStreamSubscribedAt = _now();
+                          // She may have left while the share waited on her
+                          // answers, or her return may not be reported yet:
+                          // hidden or paused here starts the settle window.
+                          if (driveNotification == null) {
+                            _startShareAwaySettleIfAway();
+                          }
+                        }
+                      },
+                    );
+                  },
                 ))()
         .listen(
       _onPositionEvent,
@@ -2106,6 +2213,9 @@ class _HomePageState extends State<HomePage> {
     // The real stream reports its own subscription, after the permission
     // answer, through the callback above.
     if (injected != null) _herPositionStreamSubscribedAt = _now();
+    // An injected source has no service of its own: it stands for the drive
+    // the app would start now, with or without its service.
+    if (injected != null) _shareWithoutService = !_mayPostDriveNotification;
     // Start the blackout watchdog for the real position feed.
     _positionWatchdog ??=
         Timer.periodic(_watchdogTickEvery, (_) => _watchdogTick());
@@ -2123,6 +2233,24 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     // Ruled 2026-09-15: an event came.
     _herNoEventYet = false;
+    // 2026-10-06: the service is a positive reading, not the app's intent. A
+    // service-mode share whose stream reports a failure before its first fix
+    // may have no service at all (Android 12+ can refuse a foreground-service
+    // start, and the plugin then reports one error and carries on as a plain
+    // background app). Read it as "no service", so the rules for that branch
+    // apply. A refusal of location is her setting, not this, and is left out.
+    if (_herSub != null) {
+      if (fix is PositionAvailable) {
+        _shareHadFix = true;
+      } else if (!_shareHadFix &&
+          !_shareWithoutService &&
+          !isLocationRefusal(fix)) {
+        _shareWithoutService = true;
+        // It can arrive at the subscription instant, when a report of the
+        // app being away may be stale: the same settle window applies.
+        scheduleMicrotask(_startShareAwaySettleIfAway);
+      }
+    }
     // Location is off for this app (permission denied, now or for good): her
     // setting, not a GPS failure. It is NOT fed to the drive brain, which,
     // with no fix ever, rates "no position at all" its top concern and speaks
@@ -3213,6 +3341,10 @@ class _HomePageState extends State<HomePage> {
     _herNoEventYet = false;
     _herSub?.cancel();
     _herSub = null;
+    _shareWithoutService = false;
+    _shareHadFix = false;
+    _shareAwaySettle?.cancel();
+    _shareAwaySettle = null;
     // She deliberately ENDED the feed: the blackout watchdog must stop
     // with it (same treatment as _useMockPosition, a fortiori — there is no
     // live position claim left to degrade). Leaving it running would keep
@@ -6023,6 +6155,21 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ],
+          // 2026-10-06: a share without its foreground service ended because
+          // the app left the screen. The line telling her may not have been
+          // heard as the app went to the background, so the page she returns
+          // to says it too. Under the control, so the control keeps its place
+          // on her first screen (share_control_first_screen_test.dart).
+          if (_shareEndedAway)
+            Semantics(
+              container: true,
+              liveRegion: true,
+              child: Text(
+                key: const Key('share-away-notice'),
+                l.shareAwayNotice,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+              ),
+            ),
           // 2026-09-25: WHAT HAPPENS AFTER A YES. A screen review measured
           // these sentences as the tenth of one 11 sp paragraph, starting 3 dp
           // below her fold, and ruled: give them a place and keep them
@@ -6206,7 +6353,7 @@ class _HomePageState extends State<HomePage> {
         Colors.grey.shade700,
       ),
     };
-    return Row(
+    final row = Row(
       children: [
         Expanded(
           child: Text(
@@ -6227,6 +6374,28 @@ class _HomePageState extends State<HomePage> {
             // After a denial nothing was started, so the same action is
             // offered as 閉じる / "Close", not 停止 / "Stop".
             child: Text(isLocationRefusal(fix) ? l.close : l.stop),
+          ),
+        ),
+      ],
+    );
+    // A share WITHOUT its foreground service runs only while the app is on
+    // screen (ruled 2026-10-06). The words she agreed to say a drive keeps
+    // going until 停止; on this branch they are false, so the row says what is
+    // true, as the share starts. Keyed on the branch THIS share took, never on
+    // a separate read of the notification state.
+    if (!_shareWithoutService) return row;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        row,
+        Semantics(
+          container: true,
+          child: KeepTogetherText(
+            l.shareWithoutServiceDisclosure,
+            key: const Key('share-runs-only-on-screen'),
+            words: l.shareWithoutServiceDisclosureKeepTogether,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
           ),
         ),
       ],

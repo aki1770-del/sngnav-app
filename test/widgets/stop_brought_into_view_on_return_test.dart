@@ -32,6 +32,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
+import 'package:sngnav_app/services/notification_permission.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 import 'package:sngnav_app/services/audio_readiness.dart';
 import 'package:sngnav_app/services/haptic_readiness.dart';
@@ -179,8 +180,26 @@ Future<void> _settle(WidgetTester tester) async {
 
 void main() {
   late Directory tmp;
+  // 2026-10-06: these drives run WITH their foreground service. What this file
+  // holds is the drive notification's promise (a tap leads to 停止), and only a
+  // drive with its service has that notification. A drive without its service
+  // now ENDS when the app is no longer visible and tells her so
+  // (lib/services/share_without_service.dart; her_share_without_service_test,
+  // share_without_service_ends_told_once_test), so on that branch there is no
+  // running drive to return to. Left unmocked, the app reads "cannot post".
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('sngnav_stop_on_return');
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      NotificationPermission.channel,
+      (call) async => call.method == 'read'
+          ? <String, dynamic>{
+              'granted': true,
+              'enabled': true,
+              'needsRuntimeRequest': false,
+            }
+          : true,
+    );
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
       const MethodChannel('plugins.flutter.io/path_provider'),
@@ -191,6 +210,8 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
             const MethodChannel('plugins.flutter.io/path_provider'), null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(NotificationPermission.channel, null);
     if (tmp.existsSync()) tmp.deleteSync(recursive: true);
   });
 

@@ -206,6 +206,14 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   // exactly; test/voice/runtime_emissions.dart step (7) reads it from there.
   'channel_check_test':
       'これはテストです。警報の音と振動を確認しています。',
+  // A share without its foreground service ended because the app left the
+  // screen (2026-10-06, lib/services/share_without_service.dart): told once,
+  // as the app goes to the background. It must come from this mouth: the
+  // phone's own voice is the one most likely to be absent or unverified. The
+  // value is kShareStoppedAppLeftJaSpokenText exactly; test/voice/
+  // runtime_emissions.dart step (8) reads it from there.
+  'share_stopped_app_left':
+      'アプリが画面から離れたため、現在地の警告は止まりました。',
 };
 
 /// RENDER overrides — id -> the text the WAV is actually synthesised FROM,
