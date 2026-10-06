@@ -15,7 +15,12 @@
 ///   `k=end`), and one when the app's process starts (`k=launch`). A share
 ///   with no `end` line followed by a `launch` line ended because the process
 ///   died (killed, crashed or swiped away), not by his tap: the record says so
-///   itself, rather than leaving it to be inferred from share numbers. Each line: the share's number; milliseconds since
+///   itself, rather than leaving it to be inferred from share numbers.
+/// - One line when he stops the record (`k=pause`, written before the stop
+///   takes effect) and one when he records again (`k=resume`, after). An
+///   interval that spans them is his pause, never a phone that went quiet; an
+///   ending inside them is unknown by construction, never hidden. While it is
+///   stopped nothing else is written, a `launch` included. Each line: the share's number; milliseconds since
 ///   that share's stream subscribed; the kind (start, fine fix, coarse fix over
 ///   150 m, a sample with no measured accuracy, or unavailable); the reported
 ///   accuracy in tenths of a metre and the speed the phone reported in tenths
@@ -77,8 +82,14 @@ final RegExp kFixTimingLinePattern = RegExp(
   r'^(s=\d+ t=\d+ k=(start|fine|coarse|noacc|unavail) a=(\d+\.\d|-) '
   r'v=(0|\d+\.\d|-) late=(-?\d+|-) fg=[01]'
   r'|s=\d+ t=\d+ k=end'
-  r'|s=0 t=0 k=launch)$',
+  r'|s=0 t=0 k=(launch|pause|resume))$',
 );
+
+/// The `pause` line: written at his 記録を止める, before the stop takes effect.
+const String kFixTimingPauseLine = 's=0 t=0 k=pause';
+
+/// The `resume` line: written at his 記録を再開, after recording resumes.
+const String kFixTimingResumeLine = 's=0 t=0 k=resume';
 
 /// The `launch` line: written once per process start, when the record opens.
 const String kFixTimingLaunchLine = 's=0 t=0 k=launch';
@@ -157,9 +168,9 @@ class FixTimingRecord {
 
   /// Appends [line] and flushes it, unless he has stopped the record or it is
   /// full. Returns whether it was written.
-  bool _append(String line) {
+  bool _append(String line, {bool evenIfStopped = false}) {
     try {
-      if (stopped || full) return false;
+      if ((!evenIfStopped && stopped) || full) return false;
       file.parent.createSync(recursive: true);
       file.writeAsStringSync('$line\n', mode: FileMode.append, flush: true);
       return true;
@@ -210,19 +221,26 @@ class FixTimingRecord {
     }
   }
 
-  /// Stops recording; the lines held are kept.
+  /// Stops recording; the lines held are kept. Writes the `pause` line first,
+  /// past the stop guard but never past the cap. Nothing if already stopped.
   void stop() {
+    if (stopped) return;
+    _append(kFixTimingPauseLine, evenIfStopped: true);
     try {
       stoppedFile.parent.createSync(recursive: true);
       stoppedFile.writeAsStringSync('stopped\n', flush: true);
     } catch (_) {}
   }
 
-  /// Records again.
+  /// Records again, then writes the `resume` line through the ordinary guard,
+  /// so the line is written only if recording did resume (never past the cap).
+  /// Nothing if it was not stopped.
   void resume() {
+    if (!stopped) return;
     try {
       if (stoppedFile.existsSync()) stoppedFile.deleteSync();
     } catch (_) {}
+    _append(kFixTimingResumeLine);
   }
 
   /// Deletes every line held. Whether it records afterwards is unchanged.

@@ -193,7 +193,8 @@ void main() {
       r.stop();
       expect(r.recordEnd(share: 1, msSinceStreamStart: 5), isFalse);
       expect(r.recordLaunch(), isFalse);
-      expect(r.hasLines, isFalse);
+      expect(r.readAll(), '$kFixTimingPauseLine\n',
+          reason: 'only the pause line may be written by a stop');
       final small = open(maxBytes: 256);
       small.resume();
       while (fine(small, 1)) {}
@@ -215,6 +216,71 @@ void main() {
     });
   });
 
+  group('a pause he makes says itself (V15)', () {
+    test('stop writes pause before it takes effect, and nothing after it; '
+        'resume writes resume after recording resumes', () {
+      final r = open();
+      fine(r, 1);
+      r.stop();
+      expect(r.stopped, isTrue);
+      expect(fine(r, 2), isFalse);
+      r.resume();
+      expect(fine(r, 3), isTrue);
+      final lines = r.readAll().split('\n').where((l) => l.isNotEmpty).toList();
+      expect(lines, [
+        startsWith('s=1 t=1000 k=fine'),
+        kFixTimingPauseLine,
+        kFixTimingResumeLine,
+        startsWith('s=1 t=3000 k=fine'),
+      ]);
+    });
+
+    test('a second stop or a resume while recording writes nothing', () {
+      final r = open();
+      r.resume();
+      expect(r.hasLines, isFalse, reason: 'a resume with no pause');
+      r.stop();
+      r.stop();
+      expect(r.readAll(), '$kFixTimingPauseLine\n',
+          reason: 'two pause lines for one pause');
+    });
+
+    test('neither passes the cap: a full record stops with no pause line, and '
+        'resuming a full record writes no resume line', () {
+      final r = open(maxBytes: 300);
+      while (fine(r, 1)) {}
+      expect(r.full, isTrue);
+      final held = r.readAll();
+      r.stop();
+      expect(r.stopped, isTrue, reason: 'the stop must still take effect');
+      expect(r.readAll(), held, reason: 'the pause passed the cap');
+      r.resume();
+      expect(r.readAll(), held, reason: 'the resume passed the cap');
+    });
+
+    test('a launch while he has stopped the record stays unwritten', () async {
+      final first = await openFixTimingRecord(directory: dir);
+      first!.stop();
+      final before = first.readAll();
+      final again = await openFixTimingRecord(directory: dir);
+      expect(again!.readAll(), before, reason: 'a launch was written while stopped');
+    });
+
+    test('the whitelist admits the two shapes and no variant of them', () {
+      expect(kFixTimingLinePattern.hasMatch(kFixTimingPauseLine), isTrue);
+      expect(kFixTimingLinePattern.hasMatch(kFixTimingResumeLine), isTrue);
+      for (final bad in [
+        's=1 t=0 k=pause',
+        's=0 t=5 k=resume',
+        's=0 t=0 k=pause fg=1',
+        's=0 t=0 k=paused',
+        's=0 t=0 k=resume 2026-10-06T09:44:00Z',
+      ]) {
+        expect(kFixTimingLinePattern.hasMatch(bad), isFalse, reason: bad);
+      }
+    });
+  });
+
   group('it yields to him', () {
     test('stop holds: nothing is written while stopped, and the stop survives '
         'reopening; resume writes again', () {
@@ -227,7 +293,10 @@ void main() {
       expect(fine(again, 3), isFalse);
       again.resume();
       expect(fine(again, 4), isTrue);
-      expect(again.readAll().split('\n').where((l) => l.isNotEmpty).length, 2);
+      final lines = again.readAll().split('\n').where((l) => l.isNotEmpty).toList();
+      expect(lines.length, 4);
+      expect(lines[1], kFixTimingPauseLine);
+      expect(lines[2], kFixTimingResumeLine);
     });
 
     test('delete removes every line and changes nothing else', () {

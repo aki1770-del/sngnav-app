@@ -343,6 +343,8 @@ void main() {
     await app.tap(tester, 'fix-timing-stop-button');
     expect(_textOf(tester, 'fix-timing-status'),
         '測位間隔の記録があります。共有ボタンで送れます。 記録は止めています。');
+    expect(app.lines.last, kFixTimingPauseLine,
+        reason: 'the stop did not mark itself');
     final held = app.lines.length;
     await app.drive(tester, 3, const Duration(seconds: 1));
     expect(app.lines.length, held, reason: 'recorded while stopped');
@@ -350,8 +352,10 @@ void main() {
         reason: 'stopping the record ended her share');
 
     await app.tap(tester, 'fix-timing-stop-button');
+    expect(app.lines.last, kFixTimingResumeLine,
+        reason: 'the resume did not mark itself');
     await app.drive(tester, 2, const Duration(seconds: 1));
-    expect(app.lines.length, held + 2, reason: 'resume did not record');
+    expect(app.lines.length, held + 3, reason: 'resume did not record');
 
     await app.tap(tester, 'fix-timing-share-button');
     expect(app.shared, hasLength(1));
@@ -430,12 +434,15 @@ void main() {
       'この端末に残り、押すまで送られません',
       '「記録を止める」で止まり',
       '共有を止めたときと、アプリが起動したときも記録します（時刻は書きません）',
+      '記録を止めたときと再開したときも、その印だけを残します',
       '「記録を消す」で消えます',
-      '上限は約96 KB',
+      '上限は約96 KB（5秒ごとに届けば約3時間分）',
       '次の版を入れると消えます',
     ]) {
       expect(d, contains(clause));
     }
+    expect(d, isNot(contains('（約3時間分）')),
+        reason: 'a duration the record keeps only if fixes come every 5 s');
     expect(d, isNot(contains('位置情報の履歴は含まれません')),
         reason: 'the record is location-adjacent: that clause would not be so');
   });
