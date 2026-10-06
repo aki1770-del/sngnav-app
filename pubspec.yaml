@@ -54,7 +54,7 @@ description: >-
 # A lock overrides a range and pub has no push channel, so nothing moved until
 # this upgrade. 15 dependencies move in total - see the commit for which are
 # covered by PDS's arrival verdict and which are not.
-version: 0.0.2+10
+version: 0.0.2+13
 publish_to: 'none'
 
 environment:
