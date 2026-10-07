@@ -2917,8 +2917,10 @@ class _HomePageState extends State<HomePage> {
     final measuredUnconfirmed = appUnknowns.any((u) =>
         u == AppUnknown.measuredWatchFeedLost ||
         u == AppUnknown.measuredWatchNotYetRead);
-    // The sub-zero frozen-surface chip (decided 2026-07-23) renders directly
-    // above this banner and deliberately does NOT raise the rung. A chip
+    // The sub-zero frozen-surface chip (decided 2026-07-23) renders beside
+    // this banner — directly under it since the banner became first in the
+    // card (2026-10-07), above it before — and deliberately does NOT raise
+    // the rung. A chip
     // reading 路面凍結のおそれ beside an unscoped 「特段の注意なし」 is a
     // glance-level contradiction; the chip is correct, so the headline yields.
     final calmNoteInForce =
@@ -2980,6 +2982,41 @@ class _HomePageState extends State<HomePage> {
       _ => (Colors.grey.shade200, Colors.grey.shade800, 0.0),
     };
 
+    // The sub-zero frozen-surface chip, defined once and drawn beside the
+    // rung it scopes: directly under the banner when the card draws one,
+    // and in its old place, above the description, when it draws none.
+    Widget subzeroFrozenChip() =>
+      Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Container(
+          key: const Key('subzero-frozen-chip'),
+          padding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: Colors.lightBlue.shade50,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.ac_unit,
+                  size: 14, color: Colors.blue.shade900),
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  _spokenJa ? '路面凍結のおそれ' : 'Road may be frozen',
+                  style: TextStyle(
+                    color: Colors.blue.shade900,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -3012,6 +3049,29 @@ class _HomePageState extends State<HomePage> {
         // Measured after the move, whiteout with no share: the rung is at
         // 688-714 dp, FULLY on her 721 dp first screen, with nothing on the page
         // moved. AAA's arithmetic said 692-718; the render says 688-714.
+        // A test value is what the card shows (2026-09-16): drawn only where
+        // the rung on the card was computed from it — a demo
+        // visibility read by the brain holding this share or by the no-share
+        // whiteout card, or the Akita mock position with the brain. With no
+        // rung on the card, nothing on it came from a test value.
+        // Directly above the rung banner (2026-09-16): below the
+        // position rows the step and the fact that a test value set it were
+        // ~90 px apart, and a glance at the banner did not reach the line.
+        // It moved with the banner when the banner became first in this card
+        // (2026-10-07); left behind, it sat at the card's foot.
+        // test/widgets/test_value_line_beside_rung_test.dart holds it.
+        if (rungFromTestValue)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              key: const Key('drive-hud-test-value'),
+              l.driveHudTestValueInForce,
+              style: const TextStyle(
+                  fontSize: 12,
+                  color: kCautionTextOnAmber,
+                  fontWeight: FontWeight.w600),
+            ),
+          ),
         if (advice != null) ...[
           // The caution headline banner: coloured by rung, AND ruled by rung.
           // The rule is inside the clip so it takes the card's own radius on
@@ -3090,6 +3150,12 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           const SizedBox(height: 8),
+          // The frozen-road chip scopes the headline above it (see
+          // calmNoteInForce), so it is read in the same glance.
+          if (_invisibleIceResult == InvisibleIceWatchResult.subZeroFrozen) ...[
+            subzeroFrozenChip(),
+            const SizedBox(height: 8),
+          ],
           // Why (reasons) + first-class unknowns, localized for the driver.
           if (advice.reasons.isNotEmpty)
             _kv(
@@ -3237,37 +3303,11 @@ class _HomePageState extends State<HomePage> {
         // morning). Read-only mirror of the sub-zero verdict; `Icons.ac_unit`
         // is a Material glyph, so it never tofus like the ⚠ emoji. Blue.900 on
         // lightBlue.50 measures ~7.7:1, clearing the 4.5:1 accessibility floor.
-        if (_invisibleIceResult == InvisibleIceWatchResult.subZeroFrozen) ...[
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Container(
-              key: const Key('subzero-frozen-chip'),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.lightBlue.shade50,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.ac_unit,
-                      size: 14, color: Colors.blue.shade900),
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Text(
-                      _spokenJa ? '路面凍結のおそれ' : 'Road may be frozen',
-                      style: TextStyle(
-                        color: Colors.blue.shade900,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
+        // With no rung on the card, the frozen-road chip keeps its old place.
+        // With one, it is drawn directly under the banner (see the banner).
+        if (advice == null &&
+            _invisibleIceResult == InvisibleIceWatchResult.subZeroFrozen) ...[
+          subzeroFrozenChip(),
           const SizedBox(height: 8),
         ],
         Text(
@@ -3320,26 +3360,6 @@ class _HomePageState extends State<HomePage> {
                   estimate.confidenceRadiusMeters, l.locale.languageCode,
                   isMock: _isMockPosition)),
         ],
-        // A test value is what the card shows (2026-09-16): drawn only where
-        // the rung on the card was computed from it — a demo
-        // visibility read by the brain holding this share or by the no-share
-        // whiteout card, or the Akita mock position with the brain. With no
-        // rung on the card, nothing on it came from a test value.
-        // Directly above the rung banner (2026-09-16): below the
-        // position rows the step and the fact that a test value set it were
-        // ~90 px apart, and a glance at the banner did not reach the line.
-        if (rungFromTestValue)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Text(
-              key: const Key('drive-hud-test-value'),
-              l.driveHudTestValueInForce,
-              style: const TextStyle(
-                  fontSize: 12,
-                  color: kCautionTextOnAmber,
-                  fontWeight: FontWeight.w600),
-            ),
-          ),
         const SizedBox(height: 6),
         // Where each thing on the card comes from, in the app's language.
         Text(
