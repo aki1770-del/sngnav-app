@@ -182,6 +182,36 @@ class MainActivity : FlutterActivity() {
         // she heard something. The Dart side keeps its own timeout as the
         // recovery cap; the Handler cap below is the native backstop that
         // frees a wedged player and answers the channel.
+        // ------------------------------------------------------------------
+        // FOCUS FOR THE PHONE'S OWN VOICE, AS NAVIGATION GUIDANCE (2026-10-06).
+        //
+        // flutter_tts asks for focus with no audio attributes, which the system
+        // reads as MEDIA (read on an Android 14 emulator: AA=USAGE_MEDIA),
+        // while the engine plays the words as navigation guidance. Ducking and
+        // denial are decided from the request's attributes, so during a call a
+        // driver whose language is not the bundled one had a voice that
+        // behaved as music. The app now asks here instead, with the same
+        // attributes and gain as the bundled voice below, and the plugin is
+        // called with focus: false (lib/actuators/voice_focus.dart). The answer
+        // does not gate speech, as below. The request lives in the companion,
+        // so it is given back even if the activity changed in between.
+        // ------------------------------------------------------------------
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "sngnav/voice_focus",
+        ).setMethodCallHandler { call, result ->
+            val audioManager: AudioManager =
+                applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            when (call.method) {
+                "request" -> result.success(requestVoiceFocus(audioManager))
+                "abandon" -> {
+                    abandonVoiceFocus(audioManager)
+                    result.success(true)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "sngnav/bundled_audio",
@@ -467,6 +497,49 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun requestVoiceFocus(audioManager: AudioManager): Int {
+        abandonVoiceFocus(audioManager)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val request = android.media.AudioFocusRequest.Builder(
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+            )
+                .setAudioAttributes(
+                    android.media.AudioAttributes.Builder()
+                        .setUsage(
+                            android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE,
+                        )
+                        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build(),
+                )
+                .setOnAudioFocusChangeListener(
+                    voiceFocusListener,
+                    android.os.Handler(android.os.Looper.getMainLooper()),
+                )
+                .build()
+            voiceFocusRequest = request
+            audioManager.requestAudioFocus(request)
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.requestAudioFocus(
+                voiceFocusListener,
+                AudioManager.STREAM_MUSIC,
+                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+            )
+        }
+    }
+
+    private fun abandonVoiceFocus(audioManager: AudioManager) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            (voiceFocusRequest as? android.media.AudioFocusRequest)?.let {
+                audioManager.abandonAudioFocusRequest(it)
+            }
+            voiceFocusRequest = null
+        } else {
+            @Suppress("DEPRECATION")
+            audioManager.abandonAudioFocus(voiceFocusListener)
+        }
+    }
+
     private fun setKeepClearRects(arguments: Any?): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
         val view: android.view.View =
@@ -530,6 +603,15 @@ class MainActivity : FlutterActivity() {
     }
 
     companion object {
+        /// The voice lane's focus request (an AudioFocusRequest on API 26+;
+        /// typed Any so the class never loads on 24-25). Process-wide, so the
+        /// request a speak asked for is the one given back.
+        private var voiceFocusRequest: Any? = null
+
+        /// A started safety line runs to completion: focus changes are noted
+        /// and not acted on, as for the bundled voice.
+        private val voiceFocusListener = AudioManager.OnAudioFocusChangeListener { }
+
         private const val POST_NOTIFICATIONS_REQUEST = 4331
         private const val GIT_SHA_KEY = "dev.aki1770del.sngnav_app.gitSha"
         private const val GIT_SHA_PREFIX = "git:"

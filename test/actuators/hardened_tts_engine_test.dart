@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/actuators/hardened_tts_engine.dart';
+import 'package:sngnav_app/actuators/voice_focus.dart';
 import 'package:sngnav_app/services/error_log.dart';
 
 /// Scripted adapter: each speak() consumes the next scripted behavior.
@@ -120,7 +121,8 @@ void main() {
         speakTimeoutCeiling: const Duration(milliseconds: 100),
       );
 
-  test('success path: one speak, focus:true, no retry, no log, '
+  test('success path: one speak, the plugin not asked for focus, no retry, '
+      'no log, '
       'verified callback fires', () async {
     final adapter = FakeTtsAdapter([1]);
     final log = makeLog();
@@ -134,8 +136,10 @@ void main() {
     await engine.speak('ブラックアイスバーンのおそれ');
 
     expect(adapter.spokenTexts, hasLength(1), reason: 'no retry on success');
-    expect(adapter.spokenFocus, [true],
-        reason: 'audio-focus duck (focus:true) on every utterance');
+    expect(adapter.spokenFocus, [false],
+        reason: 'THE DEFECT: the plugin asks for focus with no attributes, '
+            'which the system reads as media; the app asks instead, as '
+            'navigation guidance (voice_focus.dart, 2026-10-06)');
     expect(verified, 1);
     expect(unverified, 0);
     expect(log.readAll(), isEmpty, reason: 'no log line on success');
@@ -266,4 +270,55 @@ void main() {
 
     expect(await engine.isAvailable(), isTrue);
   });
+
+  // 2026-10-06: focus for the phone's own voice is asked by the app as
+  // navigation guidance, for every utterance, and given back whichever way it
+  // ends. The plugin's own request reads as media.
+  group('the app asks for focus around each utterance', () {
+    HardenedTtsEngine withFocus(FakeTtsAdapter adapter, _FakeVoiceFocus focus) =>
+        HardenedTtsEngine(
+          adapter: adapter,
+          voiceFocus: focus,
+          retryDelay: const Duration(milliseconds: 1),
+          speakTimeoutFloor: const Duration(milliseconds: 50),
+          speakTimeoutPerChar: Duration.zero,
+          speakTimeoutCeiling: const Duration(milliseconds: 100),
+        );
+
+    test('completed: asked before the words, given back after', () async {
+      final adapter = FakeTtsAdapter([1]);
+      final focus = _FakeVoiceFocus(adapter);
+      await withFocus(adapter, focus).speak('ブラックアイスバーンのおそれ');
+      expect(focus.events, ['request@0', 'abandon@1']);
+      expect(adapter.spokenFocus, [false]);
+    });
+
+    test('failed then retried: each attempt asks and gives back', () async {
+      final adapter = FakeTtsAdapter([0, 1]);
+      final focus = _FakeVoiceFocus(adapter);
+      await withFocus(adapter, focus).speak('ブラックアイスバーンのおそれ');
+      expect(focus.events,
+          ['request@0', 'abandon@1', 'request@1', 'abandon@2']);
+    });
+
+    test('timed out: given back too', () async {
+      final adapter = FakeTtsAdapter(['hang']);
+      final focus = _FakeVoiceFocus(adapter);
+      await withFocus(adapter, focus).speak('ブラックアイスバーンのおそれ');
+      expect(focus.events, ['request@0', 'abandon@1'],
+          reason: 'a duck never given back over a long drive is the failure');
+    });
+  });
+}
+
+/// Records each call with how many utterances the adapter had been handed by
+/// then, so the order against the words is visible.
+class _FakeVoiceFocus implements VoiceFocus {
+  _FakeVoiceFocus(this.adapter);
+  final FakeTtsAdapter adapter;
+  final events = <String>[];
+  @override
+  void request() => events.add('request@${adapter.spokenTexts.length}');
+  @override
+  void abandon() => events.add('abandon@${adapter.spokenTexts.length}');
 }
