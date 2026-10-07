@@ -4143,13 +4143,16 @@ class _HomePageState extends State<HomePage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (askedAgain || askedAgainForVariant) ...[
-                Text(
+                KeepTogetherText(
                   // Its own reason when the revision has not changed and her
                   // yes did not cover the variant now shown (2026-10-06).
+                  // Its words are kept whole where a break would split them
+                  // (2026-10-07, a screen review).
                   askedAgainForVariant
                       ? l.locationConsentAskedAgainForVariant
                       : l.locationConsentAskedAgain,
                   key: const Key('location-consent-asked-again'),
+                  words: const ['説明', '運転', 'もう一度'],
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 12),
@@ -6254,10 +6257,27 @@ class _HomePageState extends State<HomePage> {
             Semantics(
               container: true,
               liveRegion: true,
-              child: Text(
-                key: const Key('share-away-notice'),
-                l.shareAwayNotice,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+              // Set apart from the paragraph under it by weight and a start
+              // rule, not by ink alone (2026-10-07, a screen review): the
+              // sentence that says her warnings stopped must be found at a
+              // glance, and the rule survives a blur that the ink does not.
+              child: Container(
+                padding: const EdgeInsetsDirectional.only(start: 8),
+                decoration: BoxDecoration(
+                  border: BorderDirectional(
+                    start: BorderSide(color: Colors.grey.shade800, width: 3),
+                  ),
+                ),
+                child: KeepTogetherText(
+                  l.shareAwayNotice,
+                  key: const Key('share-away-notice'),
+                  words: l.shareAwayNoticeKeepTogether,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
               ),
             ),
           // 2026-09-25: WHAT HAPPENS AFTER A YES. A screen review measured
@@ -6485,9 +6505,9 @@ class _HomePageState extends State<HomePage> {
         Semantics(
           container: true,
           child: KeepTogetherText(
-            l.shareWithoutServiceDisclosure,
+            l.shareRunningWithoutServiceRow,
             key: const Key('share-runs-only-on-screen'),
-            words: l.shareWithoutServiceDisclosureKeepTogether,
+            words: l.shareRunningWithoutServiceRowKeepTogether,
             style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
           ),
         ),

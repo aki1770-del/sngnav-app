@@ -38,6 +38,7 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 import 'package:sngnav_app/services/location_consent.dart' show DrivePromise;
+import 'package:sngnav_app/widgets/keep_together.dart';
 
 import '../support/fake_alert_actuators.dart';
 
@@ -82,6 +83,7 @@ Future<void> _boot(
   Stream<PositionFix> Function()? positionSource,
   FakeAlertActuators? actuators,
   Map<String, Object>? storedConsent,
+  Locale locale = const Locale('ja'),
 }) async {
   final tmp = Directory.systemTemp.createTempSync('sngnav_drive_promise');
   if (storedConsent != null) {
@@ -111,7 +113,7 @@ Future<void> _boot(
   });
   tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
   await tester.pumpWidget(SngnavApp(
-    locale: const Locale('ja'),
+    locale: locale,
     locationConsent: locationConsent,
     actuators: actuators ?? FakeAlertActuators(),
     clock: () => _start,
@@ -288,7 +290,12 @@ void main() {
 
     String? askedAgainLine(WidgetTester tester) {
       final f = find.byKey(const Key('location-consent-asked-again'));
-      return f.evaluate().isEmpty ? null : tester.widget<Text>(f).data;
+      if (f.evaluate().isEmpty) return null;
+      // The reason line is drawn through KeepTogetherText since 2026-10-07 (a
+      // screen review); its .data is the words without the joiners. A plain
+      // Text is read too, so this pin file also reads an older build.
+      final w = tester.widget(f);
+      return w is KeepTogetherText ? w.data : (w as Text).data;
     }
 
     testWidgets(
@@ -385,6 +392,31 @@ void main() {
       });
     }
 
+    // Round 3 (2026-10-07, a dignity review's condition C-1, WDA 96e39f95):
+    // asked again, the first view must carry what is new to her, so the
+    // reason line's second sentence names it. The words are the review's.
+    for (final (lang, sentence) in [
+      ('ja', 'いまは、画面を消しても運転が続くことがあるため、もう一度お選びください。'),
+      ('en',
+          'A drive may now keep going with the screen off, so please choose again.'),
+    ]) {
+      testWidgets(
+          'to the cannot-post words, asked again: the reason line names what '
+          'may now be different ($lang)', (tester) async {
+        await _boot(tester, _canPost,
+            storedConsent: yesTo(DrivePromise.onScreenOnly),
+            locale: Locale(lang));
+        await _tapShare(tester);
+        expect(asked(tester), isTrue,
+            reason: 'control: a cannot-post yes is asked again where the app '
+                'can post');
+        expect(askedAgainLine(tester), endsWith(sentence),
+            reason: 'THE DEFECT: "a drive may now run differently" names '
+                'nothing, and at large text the new outcome is out of view');
+        await _end(tester);
+      });
+    }
+
     testWidgets('control: to the cannot-post words, where the app still cannot '
         'post: not asked again', (tester) async {
       await _boot(tester, _cannotPost,
@@ -443,4 +475,26 @@ void main() {
       await _end(tester);
     },
   );
+
+  // Round 3 (2026-10-07, a screen review on a dignity review's ruling, WDA
+  // 96e39f95): on a phone that does not know yet, the outcome that holds if
+  // she declines comes first, a blank line, then the allowed outcome, which in
+  // Japanese opens with its verb so that it is in view at large text, as in
+  // English. The words are the reviews'.
+  testWidgets(
+      'not known yet (ja): the outcome that holds if she declines comes first; '
+      'the allowed outcome follows a blank line and opens with its verb',
+      (tester) async {
+    await _boot(tester, _beforeTheAsk);
+    final w = _wordsAt(tester, const Key('drive-disclosure'))!;
+    final declined = w.indexOf('許可しなければ、運転はアプリが画面に出ているあいだだけ続きます。');
+    final allowed = w.indexOf('通知を許可すれば、画面を消しても運転は継続します。');
+    expect(declined, greaterThanOrEqualTo(0), reason: 'the declined outcome');
+    expect(allowed, greaterThan(declined),
+        reason: 'THE DEFECT: the allowed outcome led, and its verb 「継続します」 '
+            'fell below the first view at 1.3 in Japanese only');
+    expect(w.substring(declined, allowed), contains('\n\n'),
+        reason: 'a blank line between the outcomes');
+    await _end(tester);
+  });
 }
