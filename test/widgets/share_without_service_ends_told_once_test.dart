@@ -91,6 +91,7 @@ JmaObservation _clearObs() => JmaObservation(
 Future<(FakeAlertActuators, StreamController<Position>)> _bootAndShare(
   WidgetTester tester, {
   required bool canPost,
+  bool broadcast = false,
 }) async {
   if (canPost) {
     tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
@@ -111,7 +112,10 @@ Future<(FakeAlertActuators, StreamController<Position>)> _bootAndShare(
     );
   }
   final a = FakeAlertActuators();
-  final positions = StreamController<Position>();
+  // Broadcast when a test starts a second share on the same source.
+  final positions = broadcast
+      ? StreamController<Position>.broadcast()
+      : StreamController<Position>();
   _clockNow = DateTime.utc(2026, 1, 14, 21);
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
@@ -355,4 +359,47 @@ void main() {
     unawaited(p2.close());
     await _settle(tester);
   });
+
+  testWidgets(
+    'after the app ended a share while she was away, a new share she starts '
+    'and stops herself leaves no notice saying the app left the screen',
+    (tester) async {
+      // A reproduction's mutant showed nothing held this (2026-10-06): a new
+      // share that did not clear the previous share's notice survived the
+      // whole suite, and under it her own 停止 was followed by 「アプリが画面
+      // から離れたため、現在地の警告は止まりました。」, which is false: she
+      // stopped it.
+      final (a, positions) =
+          await _bootAndShare(tester, canPost: false, broadcast: true);
+      await _drive(tester, positions);
+      await _to(tester, _leave);
+      await _silence(tester, 5);
+      await _to(tester, _back);
+      expect(find.byKey(const Key('share-away-notice')), findsOneWidget,
+          reason: 'control: the app ended the share and says so');
+
+      final share = find.byKey(const Key('share-location-button'));
+      await tester.ensureVisible(share);
+      await tester.pump();
+      await tester.tap(share);
+      await _settle(tester);
+      expect(_running(tester), isTrue, reason: 'control: a new share runs');
+      await _drive(tester, positions);
+
+      final stop = find.widgetWithText(TextButton, '停止');
+      await tester.ensureVisible(stop);
+      await tester.pump();
+      await tester.tap(stop);
+      await _settle(tester);
+      expect(_running(tester), isFalse, reason: 'control: she stopped it');
+      expect(
+        find.byKey(const Key('share-away-notice'), skipOffstage: false),
+        findsNothing,
+        reason: 'she stopped this share herself: her screen must not say the '
+            'app left the screen',
+      );
+      unawaited(positions.close());
+      await _settle(tester);
+    },
+  );
 }
