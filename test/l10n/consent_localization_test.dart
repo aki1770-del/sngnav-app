@@ -421,6 +421,26 @@ void main() {
           .instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
               const MethodChannel('plugins.flutter.io/path_provider'), null));
+      // 2026-10-06: this phone CAN post her a notification. The drive-continues
+      // words are promised only then (drive_promise_follows_can_post_test.dart);
+      // what this file holds is the order, the record and the layout of those
+      // words, so it runs where they are the true promise. Unmocked, the read
+      // never answers and the app shows the conditional words instead.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('sngnav/notification_permission'),
+        (call) async => call.method == 'read'
+            ? <String, Object>{
+                'granted': true,
+                'enabled': true,
+                'needsRuntimeRequest': false,
+              }
+            : true,
+      );
+      addTearDown(() => TestDefaultBinaryMessengerBinding
+          .instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+              const MethodChannel('sngnav/notification_permission'), null));
       await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
       await tester.pump();
       final drive = find.byKey(const Key('drive-disclosure'));

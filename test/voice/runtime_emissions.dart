@@ -57,6 +57,7 @@ import 'package:sngnav_app/services/invisible_ice_watch.dart'
     show subZeroFrozenSpokenText;
 import 'package:sngnav_app/services/maneuver_narration.dart';
 import 'package:sngnav_app/services/forecast_validity.dart';
+import 'package:sngnav_app/services/share_without_service.dart';
 import 'package:sngnav_app/services/staleness_policy.dart';
 import 'package:sngnav_app/services/trip_hazard_memory.dart';
 import 'package:sngnav_app/services/turmoil_watch.dart';
@@ -167,6 +168,11 @@ Set<String> emittableSafetyStaticJa() {
   // see that the line had no clip; announce_call_site_census_test.dart now
   // fails when a new announce() call site is not registered here.
   out.add(const AppL10n(Locale('ja')).channelCheckSpokenLine);
+
+  // (8) main.dart _endShareWithoutServiceAway -- a share without its
+  // foreground service ended because the app left the screen (2026-10-06).
+  // Told once, through the same announcer as every warning.
+  out.add(kShareStoppedAppLeftJaSpokenText);
 
   return out;
 }

@@ -116,6 +116,22 @@ void main() {
   late Directory tmp;
   setUp(() {
     tmp = Directory.systemTemp.createTempSync('sngnav_reading_order');
+    // 2026-10-06: this phone CAN post her a notification. The drive-continues
+    // words are promised only then (drive_promise_follows_can_post_test.dart);
+    // what this file holds is the order, the record and the layout of those
+    // words, so it runs where they are the true promise. Unmocked, the read
+    // never answers and the app shows the conditional words instead.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('sngnav/notification_permission'),
+      (call) async => call.method == 'read'
+          ? <String, Object>{
+              'granted': true,
+              'enabled': true,
+              'needsRuntimeRequest': false,
+            }
+          : true,
+    );
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('plugins.flutter.io/path_provider'),
@@ -123,6 +139,9 @@ void main() {
         );
   });
   tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            const MethodChannel('sngnav/notification_permission'), null);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('plugins.flutter.io/path_provider'),

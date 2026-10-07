@@ -126,6 +126,7 @@ import 'services/jma_advisory_provider_factory.dart';
 import 'services/audio_readiness.dart';
 import 'services/haptic_readiness.dart';
 import 'services/app_task.dart';
+import 'services/share_without_service.dart';
 import 'services/voice_lane_readiness.dart';
 import 'package:snow_rendering/snow_rendering.dart'
     show invisibleBlackIceAnnouncement;
@@ -1322,6 +1323,28 @@ class _HomePageState extends State<HomePage> {
   /// an earlier session's, and no surface shows it as this one's.
   bool _herFedThisShare = false;
 
+  /// The branch THIS share took: true when it runs WITHOUT its foreground
+  /// service (ruled 2026-10-06, lib/services/share_without_service.dart).
+  /// Recorded when the share's stream is built, from the notification it was
+  /// built with, never re-read from the current notification state: a setting
+  /// changed mid-share does not flip it. Also true when the service was asked
+  /// for but did not show itself: an error before the share's first fix counts
+  /// as "no service" (fail-closed: the service is a positive reading, not the
+  /// app's intent).
+  bool _shareWithoutService = false;
+
+  /// Whether THIS share has had a position fix (for the rule above).
+  bool _shareHadFix = false;
+
+  /// The settle window started at the subscription of a share without its
+  /// service when the app then read hidden or paused ([kShareAwaySettle]).
+  Timer? _shareAwaySettle;
+
+  /// Set when a share without its service ended because the app left the
+  /// screen; cleared when she starts a share. While set, the page she returns
+  /// to says so ([AppL10n.shareAwayNotice]).
+  bool _shareEndedAway = false;
+
   // Ruled 2026-09-15: the driver with no
   // position in a measured whiteout.
 
@@ -1482,7 +1505,11 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _appLifecycle = AppLifecycleListener(onResume: _onAppResumed);
+    _appLifecycle = AppLifecycleListener(
+      onResume: _onAppResumed,
+      onStateChange: _onLifecycleStateForShare,
+      onHide: _onAppLeftScreenForShare,
+    );
     _seedLocationConsent();
     _loadPersistedLocationConsent();
     // WS5 — construct the actuator layer + announcer. Hold the screen awake
@@ -1772,6 +1799,12 @@ class _HomePageState extends State<HomePage> {
   /// see lib/services/notification_permission.dart).
   bool _mayPostDriveNotification = false;
 
+  /// The last full reading behind [_mayPostDriveNotification], or null until
+  /// the first read answers (2026-10-06). The words promised BEFORE a share
+  /// (the pre-share block and the consent dialog) are keyed on it
+  /// ([_drivePromise]): a running share keys on the branch it took instead.
+  NotificationPermissionState? _driveNotificationState;
+
   /// True once she has been asked, so a decline is not re-asked every drive.
   bool _driveNotificationAsked = false;
 
@@ -1779,10 +1812,55 @@ class _HomePageState extends State<HomePage> {
   Future<void> _refreshDriveNotificationPermission() async {
     final state = await NotificationPermission.read();
     if (!mounted) return;
-    if (state.canPostToHer != _mayPostDriveNotification) {
-      setState(() => _mayPostDriveNotification = state.canPostToHer);
+    final before = _driveNotificationState;
+    if (before == null ||
+        before.granted != state.granted ||
+        before.enabled != state.enabled ||
+        before.needsRuntimeRequest != state.needsRuntimeRequest ||
+        state.canPostToHer != _mayPostDriveNotification) {
+      setState(() {
+        _driveNotificationState = state;
+        _mayPostDriveNotification = state.canPostToHer;
+      });
     }
   }
+
+  /// What may be promised about a drive BEFORE it starts, from what the app
+  /// knows now about posting her a notification (ruled 2026-10-06). Only a
+  /// drive with its foreground service keeps going when she leaves the app,
+  /// and that needs a notification she can see; without one, a share ends
+  /// when the app leaves the screen (lib/services/share_without_service.dart).
+  ///   - can post: the drive-continues words;
+  ///   - not known yet (no reading, or Android 13+ before she is asked): the
+  ///     conditional words. Ambiguity routes to the weaker promise;
+  ///   - cannot post: the words for a drive that runs only on screen.
+  /// The unconditional promise is never shown while the last reading says
+  /// the app cannot post.
+  DrivePromise get _drivePromise {
+    final s = _driveNotificationState;
+    if (s == null) return DrivePromise.ifNotificationsAllowed;
+    if (s.canPostToHer) return DrivePromise.keepsGoing;
+    if (s.needsRuntimeRequest && !s.granted && !_driveNotificationAsked) {
+      return DrivePromise.ifNotificationsAllowed;
+    }
+    return DrivePromise.onScreenOnly;
+  }
+
+  String _drivePromiseText(AppL10n l) => l.drivePromiseText(_drivePromise);
+
+  List<String> _drivePromiseKeepTogether(AppL10n l) =>
+      l.drivePromiseKeepTogether(_drivePromise);
+
+  /// The drive-block variant her yes answered (stored, or given in this
+  /// process); null when there is none (2026-10-06). A yes covers only the
+  /// variants its own words cover ([DrivePromise.covers]): a yes to the
+  /// cannot-post words does not cover a dialog that may promise a drive that
+  /// keeps going with the screen off.
+  DrivePromise? _consentedVariant;
+
+  /// Set when she is asked again because her yes does not cover the variant
+  /// about to be shown; the dialog then says why, in its own words.
+  bool _locationConsentAskAgainForVariant = false;
 
   /// Ask her, at most once. Completes when she has answered and the answer
   /// has been read back, or at once when there is nothing to ask.
@@ -1901,6 +1979,7 @@ class _HomePageState extends State<HomePage> {
     unawaited(_actuators.keepAwake(false));
     _jmaTicker?.cancel();
     _positionWatchdog?.cancel();
+    _shareAwaySettle?.cancel();
     _audioReadinessTicker?.cancel();
     _advisoryExpiryTicker?.cancel();
     // Close the offline MBTiles archive (sqlite3) + its network provider.
@@ -1954,6 +2033,68 @@ class _HomePageState extends State<HomePage> {
   /// The 停止 under the map while a drive runs. Only that one control carries
   /// this key.
   final GlobalKey _driveStopKey = GlobalKey(debugLabel: 'drive-stop');
+
+  /// She is on screen (`inactive` or `resumed`): a settle window started at a
+  /// subscription ends untold (ruled 2026-10-06; lib/services/
+  /// share_without_service.dart). `inactive` ends nothing: the app is still on
+  /// screen there, and the GPS-loss reading runs as in front.
+  void _onLifecycleStateForShare(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.resumed) {
+      _shareAwaySettle?.cancel();
+      _shareAwaySettle = null;
+    }
+  }
+
+  /// A LEAVE is the transition into `hidden` FROM `inactive`, which is what
+  /// [AppLifecycleListener.onHide] reports. A return from `paused` also passes
+  /// through `hidden` (paused, hidden, inactive, resumed), and that is not a
+  /// leave: it reaches `hidden` from `paused` and never calls this. A share
+  /// without its foreground service is not a running share once the app has
+  /// left the screen; a leave in the middle of a share fires on the change
+  /// itself. While a settle window from the subscription runs, it decides.
+  void _onAppLeftScreenForShare() {
+    if (_shareAwaySettle != null) return;
+    _endShareWithoutServiceAway();
+  }
+
+  /// At the subscription of a share without its service (or when a failure
+  /// before its first fix shows it has none): if the app reads hidden or
+  /// paused, wait [kShareAwaySettle] on its own timer before believing it.
+  void _startShareAwaySettleIfAway() {
+    if (!mounted || _herSub == null || !_shareWithoutService) return;
+    final s = WidgetsBinding.instance.lifecycleState;
+    if (s != AppLifecycleState.hidden && s != AppLifecycleState.paused) return;
+    _shareAwaySettle?.cancel();
+    _shareAwaySettle = Timer(kShareAwaySettle, () {
+      _shareAwaySettle = null;
+      _endShareWithoutServiceAway();
+    });
+  }
+
+  /// Ends a share that runs without its service, and tells her ONCE, by voice
+  /// and vibration, that it stopped. The share ends rather than being held,
+  /// so there is no resume state for a silence to be misread in: on her
+  /// return the page shows the share as not running. Does nothing for a share
+  /// with its service, for no share, before its platform stream has
+  /// subscribed (a permission screen at its own start is not leaving), or
+  /// while the app is visible.
+  void _endShareWithoutServiceAway() {
+    if (!mounted || _herSub == null || !_shareWithoutService) return;
+    if (_herPositionStreamSubscribedAt == null) return;
+    final s = WidgetsBinding.instance.lifecycleState;
+    if (s != AppLifecycleState.hidden && s != AppLifecycleState.paused) return;
+    unawaited(_announcer.announce(
+      severity: AlertSeverity.warning,
+      text: _spokenJa
+          ? kShareStoppedAppLeftJaSpokenText
+          : kShareStoppedAppLeftEnSpokenText,
+      localeTag: _spokenJa ? 'ja-JP' : 'en-US',
+    ));
+    _clearPosition();
+    // The page she returns to says why the share is not running.
+    setState(() => _shareEndedAway = true);
+  }
 
   void _onAppResumed() {
     if (!mounted || !_driveActive) return;
@@ -2019,6 +2160,10 @@ class _HomePageState extends State<HomePage> {
     // Ruled 2026-09-15: a share she starts
     // herself begins with nothing told and no rung held.
     _herNoEventYet = false;
+    // Its branch is not known until its stream is built (2026-10-06).
+    _shareWithoutService = false;
+    _shareHadFix = false;
+    _shareEndedAway = false;
     _driveHud.startShare();
     final session = ++_herShareSession;
     // B32 — drive start: re-probe BOTH eyes-off channels NOW (the initState
@@ -2055,22 +2200,35 @@ class _HomePageState extends State<HomePage> {
                     appInFront: _appInFront,
                   ),
                   // Built AFTER the wait, so her answer governs THIS drive.
-                  () => herPositionStream(
+                  () {
                     // null when she cannot see it: no foreground service
                     // rather than one behind an invisible notification.
-                    driveNotification: _mayPostDriveNotification
+                    final driveNotification = _mayPostDriveNotification
                         ? DriveNotificationText(
                             title: l.driveNotificationTitle,
                             body: l.driveNotificationBody,
                             channelName: l.driveNotificationChannel,
                           )
-                        : null,
-                    onPlatformStreamSubscribed: () {
-                      if (mounted && session == _herShareSession) {
-                        _herPositionStreamSubscribedAt = _now();
-                      }
-                    },
-                  ),
+                        : null;
+                    // The branch THIS share took, recorded once (2026-10-06).
+                    if (session == _herShareSession) {
+                      _shareWithoutService = driveNotification == null;
+                    }
+                    return herPositionStream(
+                      driveNotification: driveNotification,
+                      onPlatformStreamSubscribed: () {
+                        if (mounted && session == _herShareSession) {
+                          _herPositionStreamSubscribedAt = _now();
+                          // She may have left while the share waited on her
+                          // answers, or her return may not be reported yet:
+                          // hidden or paused here starts the settle window.
+                          if (driveNotification == null) {
+                            _startShareAwaySettleIfAway();
+                          }
+                        }
+                      },
+                    );
+                  },
                 ))()
         .listen(
       _onPositionEvent,
@@ -2106,6 +2264,9 @@ class _HomePageState extends State<HomePage> {
     // The real stream reports its own subscription, after the permission
     // answer, through the callback above.
     if (injected != null) _herPositionStreamSubscribedAt = _now();
+    // An injected source has no service of its own: it stands for the drive
+    // the app would start now, with or without its service.
+    if (injected != null) _shareWithoutService = !_mayPostDriveNotification;
     // Start the blackout watchdog for the real position feed.
     _positionWatchdog ??=
         Timer.periodic(_watchdogTickEvery, (_) => _watchdogTick());
@@ -2123,6 +2284,24 @@ class _HomePageState extends State<HomePage> {
     if (!mounted) return;
     // Ruled 2026-09-15: an event came.
     _herNoEventYet = false;
+    // 2026-10-06: the service is a positive reading, not the app's intent. A
+    // service-mode share whose stream reports a failure before its first fix
+    // may have no service at all (Android 12+ can refuse a foreground-service
+    // start, and the plugin then reports one error and carries on as a plain
+    // background app). Read it as "no service", so the rules for that branch
+    // apply. A refusal of location is her setting, not this, and is left out.
+    if (_herSub != null) {
+      if (fix is PositionAvailable) {
+        _shareHadFix = true;
+      } else if (!_shareHadFix &&
+          !_shareWithoutService &&
+          !isLocationRefusal(fix)) {
+        _shareWithoutService = true;
+        // It can arrive at the subscription instant, when a report of the
+        // app being away may be stale: the same settle window applies.
+        scheduleMicrotask(_startShareAwaySettleIfAway);
+      }
+    }
     // Location is off for this app (permission denied, now or for good): her
     // setting, not a GPS failure. It is NOT fed to the drive brain, which,
     // with no fix ever, rates "no position at all" its top concern and speaks
@@ -3213,6 +3392,10 @@ class _HomePageState extends State<HomePage> {
     _herNoEventYet = false;
     _herSub?.cancel();
     _herSub = null;
+    _shareWithoutService = false;
+    _shareHadFix = false;
+    _shareAwaySettle?.cancel();
+    _shareAwaySettle = null;
     // She deliberately ENDED the feed: the blackout watchdog must stop
     // with it (same treatment as _useMockPosition, a fortiori — there is no
     // live position claim left to degrade). Leaving it running would keep
@@ -3706,9 +3889,13 @@ class _HomePageState extends State<HomePage> {
   /// meant not to cause.
   void _applyPersistedLocationConsent(LocationConsentRecord? record) {
     if (record == null) return;
-    if (record.answers(kLocationConsentRevision)) {
+    // A readable yes to this revision is held, whatever variant it answered
+    // (the withdrawal control is offered from it); whether it covers the
+    // dialog about to be shown is decided at her next tap (2026-10-06).
+    if (record.holdsYes(kLocationConsentRevision)) {
       _locationConsent = true;
       _locationConsentAskAgain = false;
+      _consentedVariant = record.answeredVariant;
       return;
     }
     _locationConsentAskAgain =
@@ -3785,6 +3972,8 @@ class _HomePageState extends State<HomePage> {
       _locationConsentLoaded = true;
       _locationConsentWithdrawn = true;
       _locationConsentAskAgain = false;
+      _locationConsentAskAgainForVariant = false;
+      _consentedVariant = null;
     });
     // Fire-and-forget, the same idiom as the grant: her answer takes effect
     // NOW, in RAM. A lost write means she is asked again, never a hung screen.
@@ -3805,6 +3994,11 @@ class _HomePageState extends State<HomePage> {
     if (seeded == null) return;
     _locationConsent = seeded;
     _locationConsentLoaded = true;
+    // "Assume she already agreed" (2026-10-06): to whatever the dialog would
+    // show. This seam is never the production path; the coverage of a real yes
+    // by the variant it answered is held on the real path, through stored
+    // records (test/widgets/drive_promise_follows_can_post_test.dart).
+    if (seeded == true) _consentedVariant = DrivePromise.ifNotificationsAllowed;
   }
 
   /// [hangBound] arms a timeout — and a timeout ARMS A TIMER. Pass null from
@@ -3852,15 +4046,35 @@ class _HomePageState extends State<HomePage> {
       _applyPersistedLocationConsent(persisted);
       _locationConsentLoaded = true;
     }
+    // A yes covers only the variants its own words cover (2026-10-06): a yes
+    // to the cannot-post words does not cover a share that may keep going
+    // with the screen off. She is asked again, and told why in its own words.
+    final shown = _drivePromise;
+    final answered = _consentedVariant ?? DrivePromise.keepsGoing;
+    if (_locationConsent == true && !answered.covers(shown)) {
+      _locationConsent = null;
+      _locationConsentAskAgain = false;
+      // The line says her last yes was to the words for when the app cannot
+      // show notifications, so it is said only to such a yes (2026-10-07).
+      // Since the coverage was completed the same day (a can-post yes covers
+      // all three), only a yes to the cannot-post words can reach here, so
+      // this holds by construction; it stays as the guard that keeps the line
+      // true if the table ever changes again.
+      _locationConsentAskAgainForVariant =
+          answered == DrivePromise.onScreenOnly;
+    }
     final existing = _locationConsent;
     if (existing != null) return existing;
     if (!mounted) return false;
     // The words are taken ONCE, here: the dialog is drawn from them and a yes
     // records them, so the record cannot name words she was not shown.
     final l = AppL10n.of(context);
-    final words = l.locationConsentDialog;
+    // The drive block is the promise the app can keep on this phone now
+    // (2026-10-06, [_drivePromise]); the record stores what she was shown.
+    final words = l.locationConsentDialogFor(shown);
     final granted = await _promptLocationConsent(words,
-        askedAgain: _locationConsentAskAgain);
+        askedAgain: _locationConsentAskAgain,
+        askedAgainForVariant: _locationConsentAskAgainForVariant);
     if (granted == null) return false; // dismissed - not a decision.
     // ONLY A YES IS REMEMBERED, and this is where it differs from the OSRM
     // pair on purpose. A remembered NO would trap her: the route question has
@@ -3871,6 +4085,8 @@ class _HomePageState extends State<HomePage> {
     if (!granted) return false;
     _locationConsent = true;
     _locationConsentAskAgain = false;
+    _consentedVariant = shown;
+    _locationConsentAskAgainForVariant = false;
     unawaited(_locationConsentStore(hangBound: null).then((s) => s?.saveYes(
           revision: kLocationConsentRevision,
           locale: l.wordsLanguage,
@@ -3881,6 +4097,7 @@ class _HomePageState extends State<HomePage> {
             words.decline,
             words.accept,
           ],
+          variant: shown,
         )));
     return true;
   }
@@ -3903,6 +4120,7 @@ class _HomePageState extends State<HomePage> {
     ({String title, String drive, String body, String decline, String accept})
         words, {
     required bool askedAgain,
+    bool askedAgainForVariant = false,
   }) {
     final l = AppL10n.of(context);
     return showDialog<bool>(
@@ -3924,10 +4142,17 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (askedAgain) ...[
-                Text(
-                  l.locationConsentAskedAgain,
+              if (askedAgain || askedAgainForVariant) ...[
+                KeepTogetherText(
+                  // Its own reason when the revision has not changed and her
+                  // yes did not cover the variant now shown (2026-10-06).
+                  // Its words are kept whole where a break would split them
+                  // (2026-10-07, a screen review).
+                  askedAgainForVariant
+                      ? l.locationConsentAskedAgainForVariant
+                      : l.locationConsentAskedAgain,
                   key: const Key('location-consent-asked-again'),
+                  words: const ['説明', '運転', 'もう一度'],
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 12),
@@ -3935,7 +4160,7 @@ class _HomePageState extends State<HomePage> {
               KeepTogetherText(
                 words.drive,
                 key: const Key('location-consent-drive'),
-                words: l.driveDisclosureKeepTogether,
+                words: _drivePromiseKeepTogether(l),
               ),
               const SizedBox(height: 12),
               Text(
@@ -6023,6 +6248,38 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ],
+          // 2026-10-06: a share without its foreground service ended because
+          // the app left the screen. The line telling her may not have been
+          // heard as the app went to the background, so the page she returns
+          // to says it too. Under the control, so the control keeps its place
+          // on her first screen (share_control_first_screen_test.dart).
+          if (_shareEndedAway)
+            Semantics(
+              container: true,
+              liveRegion: true,
+              // Set apart from the paragraph under it by weight and a start
+              // rule, not by ink alone (2026-10-07, a screen review): the
+              // sentence that says her warnings stopped must be found at a
+              // glance, and the rule survives a blur that the ink does not.
+              child: Container(
+                padding: const EdgeInsetsDirectional.only(start: 8),
+                decoration: BoxDecoration(
+                  border: BorderDirectional(
+                    start: BorderSide(color: Colors.grey.shade800, width: 3),
+                  ),
+                ),
+                child: KeepTogetherText(
+                  l.shareAwayNotice,
+                  key: const Key('share-away-notice'),
+                  words: l.shareAwayNoticeKeepTogether,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade800,
+                  ),
+                ),
+              ),
+            ),
           // 2026-09-25: WHAT HAPPENS AFTER A YES. A screen review measured
           // these sentences as the tenth of one 11 sp paragraph, starting 3 dp
           // below her fold, and ruled: give them a place and keep them
@@ -6037,9 +6294,12 @@ class _HomePageState extends State<HomePage> {
           Semantics(
             container: true,
             child: KeepTogetherText(
-              l.driveDisclosure,
+              // Keyed on what the app knows now about posting her a
+              // notification (2026-10-06, [_drivePromise]): never the
+              // drive-continues words while it cannot post.
+              _drivePromiseText(l),
               key: const Key('drive-disclosure'),
-              words: l.driveDisclosureKeepTogether,
+              words: _drivePromiseKeepTogether(l),
               style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
             ),
           ),
@@ -6206,7 +6466,7 @@ class _HomePageState extends State<HomePage> {
         Colors.grey.shade700,
       ),
     };
-    return Row(
+    final row = Row(
       children: [
         Expanded(
           child: Text(
@@ -6227,6 +6487,28 @@ class _HomePageState extends State<HomePage> {
             // After a denial nothing was started, so the same action is
             // offered as 閉じる / "Close", not 停止 / "Stop".
             child: Text(isLocationRefusal(fix) ? l.close : l.stop),
+          ),
+        ),
+      ],
+    );
+    // A share WITHOUT its foreground service runs only while the app is on
+    // screen (ruled 2026-10-06). The words she agreed to say a drive keeps
+    // going until 停止; on this branch they are false, so the row says what is
+    // true, as the share starts. Keyed on the branch THIS share took, never on
+    // a separate read of the notification state.
+    if (!_shareWithoutService) return row;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        row,
+        Semantics(
+          container: true,
+          child: KeepTogetherText(
+            l.shareRunningWithoutServiceRow,
+            key: const Key('share-runs-only-on-screen'),
+            words: l.shareRunningWithoutServiceRowKeepTogether,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
           ),
         ),
       ],

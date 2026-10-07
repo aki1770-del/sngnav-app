@@ -28,6 +28,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:voice_guidance/voice_guidance.dart' show TtsEngine;
 
 import '../services/error_log.dart';
+import 'voice_focus.dart';
 
 /// Injectable seam over the flutter_tts plugin surface this engine consumes.
 ///
@@ -138,9 +139,15 @@ class HardenedTtsEngine implements TtsEngine {
     this.speakTimeoutFloor = const Duration(seconds: 10),
     this.speakTimeoutPerChar = const Duration(milliseconds: 300),
     this.speakTimeoutCeiling = const Duration(seconds: 90),
-  }) : _adapter = adapter ?? FlutterTtsAdapter();
+    VoiceFocus? voiceFocus,
+  })  : _adapter = adapter ?? FlutterTtsAdapter(),
+        _focus = voiceFocus ?? const PlatformVoiceFocus();
 
   final TtsAdapter _adapter;
+
+  /// Audio focus for each utterance, asked as navigation guidance by the app
+  /// (voice_focus.dart), not by the plugin, which would ask as media.
+  final VoiceFocus _focus;
 
   /// The app's local, no-network error log (services/error_log.dart). One
   /// line per unverified delivery; never throws (LocalErrorLog contract).
@@ -258,14 +265,15 @@ class HardenedTtsEngine implements TtsEngine {
 
   Future<_SpeakOutcome> _attempt(String text) async {
     final timeout = _timeoutFor(text);
+    // Transient, duckable focus for the utterance, so her music or radio ducks
+    // under the warning instead of drowning it. Asked by the app as navigation
+    // guidance (voice_focus.dart), so it is the plugin's focus: false below:
+    // the plugin's own request (FlutterTtsPlugin.kt:795-806) carries no
+    // attributes and reads as media (2026-10-06).
+    _focus.request();
     try {
-      // focus: true — Android requests transient-may-duck audio focus for
-      // the utterance (FlutterTtsPlugin.kt:668-670 → requestAudioFocus,
-      // kt:795-806 AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK; released in onDone,
-      // kt:128), so the driver's music/radio ducks under the warning instead of
-      // drowning it. Non-Android ignores the flag (flutter_tts.dart:355-362).
       final dynamic result = await _adapter
-          .speak(text, focus: true)
+          .speak(text, focus: false)
           .timeout(timeout);
       // Verified success/failure semantics (Android, FlutterTtsPlugin.kt):
       //   1 = utterance completed (kt:120-121 onDone → speakCompletion(1))
@@ -290,6 +298,10 @@ class HardenedTtsEngine implements TtsEngine {
       return _SpeakOutcome.failed;
     } catch (_) {
       return _SpeakOutcome.failed;
+    } finally {
+      // Given back whichever way the utterance ended: completed, failed or
+      // timed out. A duck never released over a long drive is the failure.
+      _focus.abandon();
     }
   }
 
