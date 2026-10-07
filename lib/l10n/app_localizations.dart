@@ -260,8 +260,11 @@ class AppL10n {
   /// block and in the consent dialog (lib/services/share_without_service.dart).
   /// The drive-continues words are false there. The HMI review's draft E for
   /// the design in which leaving the screen ENDS the share, with 「運転は」 /
-  /// "a drive" (2026-10-06), one string for all three places. It promises no
-  /// told line: whether that line is heard on a device is not yet shown.
+  /// "a drive" (2026-10-06), one string for all three places. Since a dignity
+  /// review the same day it also says that a call screen covering the app ends
+  /// the drive, and that the app says so once, by voice and vibration, even
+  /// during a call: the line is handed to the player once, at the leave.
+  /// Whether it is heard on a device is not yet shown.
   String get shareWithoutServiceDisclosure => _ja
       ? '通知を出せないため、運転はアプリが画面に出ているあいだだけ続きます。'
           '画面を消したり、ほかのアプリに切り替えたり、戻る操作（ボタンやスワイプ）'
@@ -1402,17 +1405,6 @@ class AppL10n {
   /// locale, which reads the English words.
   String get wordsLanguage => _ja ? 'ja' : 'en';
 
-  /// Said first in the dialog when she agreed before, to another revision of
-  /// the words. Asking again without saying why would read as the app having
-  /// lost her answer. Never said for a damaged record of a yes to the current
-  /// words: nothing changed, so it would be false
-  /// (LocationConsentRecord.isYesToOtherRevision).
-  ///
-  /// ⚑ CHANGED 2026-09-25, on a dignity review: the second sentence said
-  /// 「もう一度お読みください」 / "Please read it again", which asks her to
-  /// re-read a text that is not the one she read and never says what is being
-  /// asked. 「もう一度お選びください」 names a new choice with both answers
-  /// open. It does not ask for 同意.
   /// Said first in the dialog when her stored yes was to the words for when the
   /// app cannot post her a notification, and the dialog about to be shown may
   /// promise more (2026-10-06, a dignity review's exact words). Not
@@ -1425,6 +1417,17 @@ class AppL10n {
           'notifications. A drive may now run differently, so please choose '
           'again.';
 
+  /// Said first in the dialog when she agreed before, to another revision of
+  /// the words. Asking again without saying why would read as the app having
+  /// lost her answer. Never said for a damaged record of a yes to the current
+  /// words: nothing changed, so it would be false
+  /// (LocationConsentRecord.isYesToOtherRevision).
+  ///
+  /// ⚑ CHANGED 2026-09-25, on a dignity review: the second sentence said
+  /// 「もう一度お読みください」 / "Please read it again", which asks her to
+  /// re-read a text that is not the one she read and never says what is being
+  /// asked. 「もう一度お選びください」 names a new choice with both answers
+  /// open. It does not ask for 同意.
   String get locationConsentAskedAgain => _ja
       ? '前回同意したあとで、この説明が変わりました。もう一度お選びください。'
       : 'This description has changed since you last agreed. '
