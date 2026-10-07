@@ -3020,35 +3020,27 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ⛑⛑ ELEVEN dp. ANYTHING ADDED TO THIS CARD IS SPENDING HER CONSENT
-        // DISCLOSURE'S LAST MARGIN, AND THIS IS WHERE YOU MEET THAT FACT.
+        // ⚑ THE RUNG IS FIRST INSIDE THIS CARD (2026-09-23), AND THE REASON IS
+        // A MEASUREMENT, NOT A PREFERENCE. A safety review rendered a measured
+        // whiteout and found the rung 125 dp below the 721 dp her phone gives
+        // the page — not because the card was low, but because the rung was the
+        // fourth element inside it, behind the description, the share hint and
+        // the no-position line. The rung, its reasons and its unknowns travel
+        // together, above the prose that explains them.
         //
-        // Measured 2026-09-23, on a real render with a Japanese face, in a
-        // measured whiteout with no share started: the words telling her where
-        // her coordinates go sit 710 dp below the control that sends them,
-        // against a bound of 721 dp — one screenful of her page. **11 dp of
-        // margin.** One more wrapped line of rung prose on this card carries it
-        // over, because this card grows above the disclosure.
+        // Measured 2026-10-07 at her phone's geometry (1080x2340 px, DPR 2.75,
+        // its system insets, scroll 0) with a Japanese and an English face, in
+        // a measured 80 m whiteout. In a drive that can post her a
+        // notification the banner is at 603-697 dp, wholly on her 721 dp first
+        // screen at text size 1.0 in both languages, and across the fold at
+        // 1.3 (652-765 dp in Japanese, its headline still above it; 678-791 dp
+        // in English, its headline cut). In a drive that cannot post, the
+        // running row above this card leaves it at 688-782 dp in Japanese (the
+        // fold cuts the headline, 21 of its 26 dp above) and 722-816 dp in
+        // English at 1.0, and below the fold at 1.3. Before any share, and on
+        // the page she returns to, it is further down (1427 dp and below at
+        // 1.0): the map card's pre-share block stands above it.
         //
-        // It is not a style note. `test/widgets/consent_composition_declared_test.dart`
-        // renders this exact state and FAILS when the gap passes 721 dp, and
-        // `kMaxDisclosureGapDp` in `test/support/consent_composition.dart` is
-        // the bound. Do not raise it to make a card fit: it is a driver-facing
-        // limit, and raising it once already looked tempting for a reason that
-        // turned out to be a font bug in the guard, not a real breach.
-        //
-        // ⚑ THE RUNG IS FIRST INSIDE THIS CARD SINCE 2026-09-23, AND THE
-        // REASON IS A MEASUREMENT, NOT A PREFERENCE. Rendered by AAA under a
-        // measured whiteout and re-rendered here: the rung sat 125 dp BELOW the
-        // 721 dp her phone gives the page — not because the card was low, but
-        // because the rung was the FOURTH element inside it, behind the
-        // description, the share hint and the no-position line. The page order
-        // was not the defect; this internal order was. The rung, its reasons and
-        // its unknowns travel together, above the prose that explains them.
-        //
-        // Measured after the move, whiteout with no share: the rung is at
-        // 688-714 dp, FULLY on her 721 dp first screen, with nothing on the page
-        // moved. AAA's arithmetic said 692-718; the render says 688-714.
         // A test value is what the card shows (2026-09-16): drawn only where
         // the rung on the card was computed from it — a demo
         // visibility read by the brain holding this share or by the no-share
@@ -4803,14 +4795,6 @@ class _HomePageState extends State<HomePage> {
               title: AppL10n.of(context).driveHudTitle,
               child: _driveHudPanel(),
             ),
-            // The first-launch data-handling disclosures, moved here from
-            // inside the map card 2026-09-23 so the caution card is not 1008 dp
-            // down her page. `_locationDisclosureBlock()` carries the reason
-            // and the consent cost; it returns null once she has shared.
-            if (_locationDisclosureBlock() case final d?) ...[
-              const SizedBox(height: 16),
-              d,
-            ],
             const SizedBox(height: 16),
             _section(
               title: AppL10n.of(context).routeSectionTitle,
@@ -6256,87 +6240,12 @@ class _HomePageState extends State<HomePage> {
   bool get _herFixNotGivenToDriveBrain =>
       _herHeldEvent != null && identical(_herFix, _herHeldEvent);
 
-  /// The first-launch state: she has started no share and no mock is running.
-  ///
-  /// One definition, read by BOTH the status line and the disclosure block
-  /// below it, so the two cannot drift apart into a page that offers the
-  /// button without the words or the words without the button.
-  bool get _beforeAnyShare => _herSub == null && !_isMockPosition;
-
-  /// The two data-handling disclosures, MOVED OUT of the map card 2026-09-23
-  /// (HIE R119) on the Chair-lane ruling that her page must reach a road-state
-  /// card sooner.
-  ///
-  /// WHY, and the measurement that decided it. At her phone's width the page is
-  /// 3203 dp — 4.44 of her own 721 dp screens — and the caution card began at
-  /// 1008 dp. These two blocks are 208 dp and 144 dp; with the alpha banner they
-  /// put 714 characters of OUR prose above her first road-state word, which is
-  /// five characters long. Nothing stating a road condition was above her fold.
-  ///
-  /// ⚑ WHAT THIS COSTS, STATED HERE RATHER THAN DISCOVERED LATER. The comment
-  /// this replaces read: "the localized disclosure sits here so she can read
-  /// WHERE her coordinates go BEFORE she grants". When this block first moved
-  /// (2026-09-23) the share control started the share directly, so the next
-  /// thing after her tap was the OS permission prompt and the page was the
-  /// only place she could read where her coordinates go. Since then
-  /// 現在地を共有 opens a consent dialog that carries [AppL10n.locationDisclosure]
-  /// word for word and needs her tap before any OS prompt
-  /// (`_promptLocationConsent`), so where her coordinates go is read at the
-  /// act, not inferred from being nearby. What this block alone still carries
-  /// is [AppL10n.egressDisclosure], the app's other connections, which the
-  /// dialog does not show; it is now one card further from the control. That
-  /// cost is smaller than it was and it is not zero, and it is named here
-  /// rather than absorbed.
-  /// ⚑ AND IT IS A TITLED CARD BECAUSE HER PAGE'S OWN GUARD SAID SO. Moved out
-  /// as a bare untitled `Card`, `home_card_titles_words_test.dart` read the
-  /// 359-character paragraph as the card's title and failed. It was right: every
-  /// other card on this page says what it is in her language. The guard was not
-  /// weakened to fit the move; the card got a title.
-  Widget? _locationDisclosureBlock() {
-    if (!_beforeAnyShare) return null;
-    final l = AppL10n.of(context);
-    return _section(
-      title: l.outboundDataSectionTitle,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Each paragraph is its own semantics node (2026-09-25): a Card
-          // merges every child that is not, and a screen reader would hear
-          // these as part of the card's title.
-          Semantics(
-            container: true,
-            child: Text(
-              key: const Key('location-disclosure'),
-              l.locationDisclosure,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-            ),
-          ),
-          const SizedBox(height: 4),
-          // B27+B30 — the REST of the real wire: the OSRM route egress
-          // (consent-gated pre-send), the online tile fallback
-          // (tile.openstreetmap.org sees viewport tiles + IP), and the
-          // network-TTS possibility. The coordinates-story she decides with
-          // must not omit an egress that exists.
-          Semantics(
-            container: true,
-            child: Text(
-              key: const Key('egress-disclosure'),
-              l.egressDisclosure,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _herStatusLine() {
     final l = AppL10n.of(context);
     // Initial state: no mode active. Deny-by-default — nothing touches GPS
-    // until the driver's deliberate tap. The disclosure that used to sit here
-    // is now `_locationDisclosureBlock()`, below the caution card; the reason
-    // and its cost are recorded there.
-    if (_beforeAnyShare) {
+    // until the driver's deliberate tap. The localized disclosure sits here so she can
+    // read WHERE her coordinates go BEFORE she grants (task 3).
+    if (_herSub == null && !_isMockPosition) {
       // Ladder fix (a) — ladder_out/api30/02b_location_consent.png showed
       // the status line ("Location not yet shared.") crammed into a
       // one-syllable-wide column beside the two consent buttons. The most
@@ -6503,11 +6412,29 @@ class _HomePageState extends State<HomePage> {
               child: Text(l.locationOpenOsSettings),
             ),
           ),
-          // Where her coordinates go, and the app's other connections, stood
-          // here until 2026-09-23. They are now `_locationDisclosureBlock()`,
-          // below the caution card, each still its own semantics node. Since
-          // 2026-09-23 the share control opens a consent dialog that carries
-          // where her coordinates go verbatim, before any OS prompt.
+          const SizedBox(height: 4),
+          Semantics(
+            container: true,
+            child: Text(
+              key: const Key('location-disclosure'),
+              l.locationDisclosure,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+            ),
+          ),
+          const SizedBox(height: 4),
+          // B27+B30 — the REST of the real wire, on the same card: the OSRM
+          // route egress (consent-gated pre-send), the online tile fallback
+          // (tile.openstreetmap.org sees viewport tiles + IP), and the
+          // network-TTS possibility. The coordinates-story she decides with
+          // must not omit an egress that exists.
+          Semantics(
+            container: true,
+            child: Text(
+              key: const Key('egress-disclosure'),
+              l.egressDisclosure,
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+            ),
+          ),
         ],
       );
     }

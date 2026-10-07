@@ -1,18 +1,16 @@
-/// The consent composition is now held by an assertion, in both directions.
+/// The consent composition is held by an assertion, in both directions.
 ///
-/// ⚑ WHY, written before the act (OPS-070(B)). Forty-two test sites name the
-/// disclosure or the share control and none of them asserts any relationship
-/// between the two; the composition was carried by two golden captures and a
-/// comment, and on 2026-09-23 both pictures went red at once. A picture that
-/// has to be looked at is not a guard, and a comment has no exit code.
+/// ⚑ WHY, written before the act. Forty-two test sites named the disclosure or
+/// the share control and none of them asserted any relationship between the
+/// two; the composition was carried by two golden captures and a comment, and
+/// on 2026-09-23 both pictures went red at once. A picture that has to be
+/// looked at is not a guard, and a comment has no exit code.
 ///
 /// ⚑ THIS TEST DECIDES NOTHING ABOUT THE DESIGN. Whether the control and the
-/// disclosure SHOULD stand together is AAA's ruling. This asserts only that the
-/// page matches its own DECLARATION, and it fails as loudly when they come back
-/// together as when they drift further apart — so whichever way AAA rules, the
-/// ruling moves one constant in `consent_composition.dart` and the teeth here
-/// are unchanged. Written now, before that ruling, on the coordinator's
-/// question of whether an assertion could be framed to survive either outcome.
+/// disclosure SHOULD stand together is the safety review's ruling. This asserts
+/// that the page matches its own DECLARATION, failing as loudly when they part
+/// as when they come back together, and that the words stay within one scroll
+/// of the control whichever way the page is declared.
 library;
 
 import 'package:flutter/material.dart';
@@ -24,35 +22,20 @@ import '../render_see/render_see_env.dart';
 import '../support/consent_composition.dart';
 import '../support/fake_alert_actuators.dart';
 
-/// ⚑ TWO STATES, BECAUSE ONE OF THEM IS THE ONE THIS GUARD NEARLY MISSED.
+/// ⚑ TWO STATES, BECAUSE ONE OF THEM IS THE ONE THIS GUARD FIRST MISSED.
 ///
-/// Until 2026-09-23 this file pinned `visibilityMeters: null` only — the clear
-/// launch state — where the gap is 420 dp against a 721 dp bound, 301 dp of
-/// margin. AAA rendered the state the whole change was justified by, a MEASURED
-/// WHITEOUT with no share started, and measured the gap there at 706 dp:
-/// **15 dp inside my own bound, in the state the guard could not see.** One more
-/// line of rung prose carries it over and nobody would have known.
-/// V9 — the operator must not be the last line of defence, the machine must
-/// catch it — and the machine had been built and then pointed away from the
-/// case. The whiteout now runs here.
-/// ⚑⚑ THIS GUARD REFUSES WITHOUT A JAPANESE FACE, AND IT DID NOT UNTIL
-/// 2026-09-23 — MY OWN RULE, NOT APPLIED TO MY NEWEST INSTRUMENT.
+/// Until 2026-09-23 this file rendered the clear launch only. A safety review
+/// rendered a MEASURED WHITEOUT with no share started, where the caution card
+/// grows, and found the gap 15 dp inside the bound in the state the guard could
+/// not see. The whiteout now runs here too.
 ///
-/// Four probes of mine already carry it verbatim: *a probe that renders kanji
-/// with no CJK face measures character count, not meaning* (HIE-18(b)). This
-/// file, written last, had no `setUpAll`, imported no render environment and
-/// loaded no face — and then pumped a Japanese locale and measured the HEIGHT
-/// of 352 dp of Japanese paragraphs drawn without Japanese glyphs.
-///
-/// What it cost, measured: without a face the whiteout gap reads **726 dp** and
-/// this guard is RED by 5; with the face it reads **710 dp** and passes by 11.
-/// Exactly 16 dp in both states, one variable. I reported 726 as a finding
-/// against my own build and it was an artefact of my own instrument.
-///
-/// ⚑ AND THE TEMPTING READING IS WRONG: a no-font figure is NOT "conservative".
-/// A missing-glyph layout can err small just as easily, and then this guard
-/// passes green while the words are genuinely out of her reach. Unmeasured is
-/// not a safe direction; it is no direction.
+/// ⚑ THIS GUARD REFUSES WITHOUT A JAPANESE FACE. A probe that renders kanji with
+/// no Japanese face measures character count, not meaning: without a face the
+/// whiteout gap read 726 dp, red by 5, and with one it read 710 dp — exactly
+/// 16 dp in both states, one variable. A no-font figure is NOT conservative: a
+/// missing-glyph layout can err small just as easily, and then this guard
+/// passes green while the words are out of her reach. Unmeasured is not a safe
+/// direction; it is no direction.
 DateTime _now = DateTime.utc(2026, 1, 14, 21);
 
 String _jstKey(DateTime utc) {
@@ -125,8 +108,9 @@ void main() {
             'disclosure were deliberately put back together, or deliberately '
             'separated, say so by moving kDeclaredConsentComposition in '
             'test/support/consent_composition.dart WITH ITS REASON AND DATE — '
-            'and route the change to AAA, which holds the ruling on what the '
-            'relationship should be. Do not delete this expectation.',
+            'and route the change to the safety review, which holds the ruling '
+            'on what the relationship should be. Do not delete this '
+            'expectation.',
       );
     });
   }
@@ -142,14 +126,12 @@ void main() {
     testWidgets('$stateName: the words stay within one scroll of the control',
         (tester) async {
       await _pumpHerPage(tester, 'ja', visibilityMeters: vis);
-      if (kDeclaredConsentComposition != ConsentComposition.separated) {
-        // N/A is not a pass, and it is PRINTED rather than skipped silently.
-        // ignore: avoid_print
-        print('CONSENT-GAP[$stateName]: N/A — the declaration is '
-            '${kDeclaredConsentComposition.name}, so there is no gap to bound. '
-            'N/A is not a pass.');
-        return;
-      }
+      // The bound holds whichever way the page is declared (2026-10-07). Until
+      // that date this case returned early when the declaration was not
+      // `separated`, printing "N/A is not a pass" — and then counted as a pass.
+      // ignore: avoid_print
+      print('CONSENT-GAP[$stateName]: declared '
+          '${kDeclaredConsentComposition.name}');
       // Control: the state really is the one this case names, so a fixture that
       // silently stopped raising the rung cannot pass as the whiteout.
       final rung = find.byKey(const Key('drive-hud-rung'));
@@ -175,7 +157,7 @@ void main() {
           reason: 'in the state "$stateName" the disclosure is '
               '${gap.toStringAsFixed(0)}dp below the control, past the '
               '${kMaxDisclosureGapDp.toStringAsFixed(0)}dp her phone gives the '
-              'page. Separated may mean one scroll on from the control; it may '
+              'page. The words may be one scroll on from the control; they may '
               'not come to mean three. Whatever took this space, take it from '
               'somewhere else.');
     });

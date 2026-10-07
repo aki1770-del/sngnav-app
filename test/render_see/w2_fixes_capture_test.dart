@@ -4,30 +4,8 @@
 ///
 ///   ladder_out/api30/02b_location_consent.png  → w2a_consent_card_en.png
 ///   (+ the same card on the ja surface         → w2a_consent_card_ja.png)
-///
 ///   ladder_out/api30/05b_airplane_top.png      → w2c_threshold_preview.png
 ///
-/// ⚑⚑ WHAT THE TWO w2a FRAMES HOLD CHANGED ON 2026-09-23 AND THE PIXELS ARE
-/// RED UNTIL SOMEONE SAYS SO. They were cut when the consent card was ONE
-/// object — the status line, the share control, and both disclosure paragraphs
-/// together, which is exactly the 02b ladder defect they exist to show fixed.
-/// HIE R119 moved the paragraphs into a card of their own below the caution
-/// card, so each frame now holds THREE cards: the control card (status line +
-/// 現在地を共有, and nothing else), the caution card, and 端末の外へ出る情報.
-/// The reflow is the whole of the pixel diff — 20.47% (ja) and 14.72% (en),
-/// each bounding box running from the change point to the frame's bottom edge.
-///
-/// ⚑ NOT RECUT HERE, DELIBERATELY. A `--update-goldens` sweep would turn these
-/// green under a name and a header that had become false, which is worse than
-/// the red. Before they are recut, either this description and the test names
-/// must say what the frames hold, or the captures must be re-targeted so they
-/// hold the control and the words at once. This paragraph is the first of those
-/// two, done now; the second is a design question that belongs to AAA's ruling
-/// on whether the control and the disclosure should stand together at all. The
-/// relationship itself is no longer carried by these pictures: it is asserted
-/// in `test/support/consent_composition.dart` and
-/// `test/widgets/consent_composition_declared_test.dart`, which fail in BOTH
-/// directions.
 /// Run with:
 ///   flutter test --update-goldens test/render_see/w2_fixes_capture_test.dart
 ///
@@ -110,11 +88,8 @@ void main() {
     await expectLater(find.byType(MaterialApp), matchesGoldenFile(out));
   }
 
-  // Name states what the frame holds since 2026-09-23: the control card, the
-  // caution card, and the disclosure card, in that order. It is NOT "the
-  // consent card" any more.
-  testWidgets('w2a — the control card, the caution card and the disclosure '
-      'card, in that order (en, ladder locale)', (tester) async {
+  testWidgets('w2a — consent card reflowed (en, ladder locale)',
+      (tester) async {
     await tester.pumpWidget(const SngnavApp(locale: Locale('en')));
     await tester.pump();
     // Guard before capturing: the status line renders as ONE sentence line
@@ -131,8 +106,7 @@ void main() {
     );
   });
 
-  testWidgets('w2a — the control card, the caution card and the disclosure '
-      'card, in that order (ja surface)', (tester) async {
+  testWidgets('w2a — consent card reflowed (ja surface)', (tester) async {
     await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
     await tester.pump();
     await captureApp(

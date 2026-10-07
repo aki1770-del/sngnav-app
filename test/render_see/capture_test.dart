@@ -173,35 +173,22 @@ void main() {
         timestamp: at,
       );
 
-  // ⚑⚑ WHAT THIS FRAME HOLDS CHANGED ON 2026-09-23, AND THE FINDER DID NOT
-  // NOTICE. Until that date the nearest `Column` ancestor of
-  // `location-disclosure` WAS the consent gate: the status line, the share
-  // control, and both disclosure paragraphs in one object. HIE R119 moved the
-  // paragraphs into a card of their own below the caution card, so that
-  // ancestor is now `_section`'s inner Column and holds the paragraphs ALONE.
-  //
-  // `.first` REBOUND TO THE SMALLER CONTAINER AND KEPT CAPTURING. Nothing threw
-  // and nothing failed for the reason this capture exists — only the golden
-  // pixels went red, and a `--update-goldens` sweep would have turned that green
-  // over a comment that had become false. **A capture that cannot fail for the
-  // reason it exists is not a capture**, and this is the same family as the two
-  // copies of `_driveHudPanel`'s switch that had already drifted from the file
-  // they claim to reproduce.
-  //
-  // Fixed on its own terms, and NOT by deciding the design: the subject is now
-  // ASSERTED against the page's own declaration
-  // (`test/support/consent_composition.dart`). The name and the comment state
-  // what the frame holds TODAY. Whether the control and the words should stand
-  // together is AAA's ruling; when it lands, the declaration moves and this
-  // capture's name moves with it.
-  testWidgets('01 — JA consent DISCLOSURE, alone in its own card '
-      '(deny-by-default; the control is NOT in this frame)', (tester) async {
+  // The subject of this frame is ASSERTED, not taken by position. Its finder
+  // takes the nearest Column above the disclosure. When the disclosure was
+  // moved to a card of its own (2026-09-23, withdrawn 2026-10-07) that Column
+  // held the paragraphs alone, and the finder rebound to it and kept capturing:
+  // nothing failed for the reason this capture exists, and a golden sweep would
+  // have recut it under a name that had become false. The page's declaration
+  // (test/support/consent_composition.dart) now decides what this frame must
+  // hold, and the test fails instead of photographing a different picture.
+  testWidgets('01 — JA consent gate (deny-by-default)', (tester) async {
     await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
     await tester.pump();
-    // The subject is asserted, never taken by position. Today the declaration
-    // is `separated`, so the Column that holds the disclosure must NOT hold the
-    // control; if it does, this frame silently became a different picture and
-    // the test says so instead of photographing it.
+    // The consent gate = the Column that holds the disclosure paragraph
+    // (buttons row + disclosure). Nothing tapped: deny-by-default.
+    // It holds the control exactly when the page is declared `together`; if
+    // the two disagree, this frame became a different picture and the test
+    // says so instead of photographing it.
     final gate = find
         .ancestor(
           of: find.byKey(const Key('location-disclosure')),

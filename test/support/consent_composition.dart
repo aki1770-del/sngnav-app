@@ -1,24 +1,18 @@
 /// The relationship between the share CONTROL and the DISCLOSURE, held by an
 /// assertion instead of by two pictures and a comment.
 ///
-/// ⚑ WHY THIS EXISTS, written before the act (OPS-070(B)). Enumerated from both
-/// sides on 2026-09-23: nine test sites name the disclosure, thirty-three name
-/// the share control, and **zero of the forty-two assert any spatial, ordering
-/// or same-screen relationship between them.** The one near-miss,
-/// `location_consent_semantics_test.dart:90`, uses the disclosure only as a
-/// WIDTH reference — and since the disclosure moved to a card of its own that
-/// comparison spans a card boundary, so it holds by coincidence rather than by
-/// design. The composition was carried by two golden captures and a comment,
-/// and on 2026-09-23 both pictures went red at once. The gap was not created by
-/// that change; the change walked through it.
+/// ⚑ WHY THIS EXISTS, written before the act. Enumerated from both sides on
+/// 2026-09-23: nine test sites named the disclosure, thirty-three named the
+/// share control, and **none of the forty-two asserted any spatial, ordering or
+/// same-screen relationship between them.** The composition was carried by two
+/// golden captures and a comment, and on 2026-09-23 both pictures went red at
+/// once when the disclosure was moved.
 ///
-/// ⚑ WHAT THIS FILE DOES NOT DECIDE, and must never be read as deciding.
-/// Whether the control and the disclosure SHOULD stand together is a ruling for
-/// AAA, and this seat does not hold it. [kDeclaredConsentComposition] records
-/// what the page DOES, never that it is right. When AAA rules, the ruling moves
-/// this one constant and its reason — the guard beside it does not change, and
-/// it fails in BOTH directions, so a move back together is caught exactly as
-/// loudly as a move further apart.
+/// ⚑ WHAT THIS FILE DOES NOT DECIDE. Whether the control and the disclosure
+/// SHOULD stand together is a ruling for the safety review, not for this file.
+/// [kDeclaredConsentComposition] records what the page DOES, never that it is
+/// right. The guard beside it fails in BOTH directions, so a move apart is
+/// caught exactly as loudly as a move back together.
 library;
 
 import 'package:flutter/material.dart';
@@ -33,59 +27,47 @@ enum ConsentComposition {
   separated,
 }
 
-/// ⚑ DECLARED, DATED, AND PENDING AAA'S RULING — this is a record of the state,
-/// NOT a finding that the state is acceptable.
+/// ⚑ DECLARED AND DATED — a record of the state, NOT a finding that the state
+/// is acceptable.
 ///
-/// 2026-09-23, HIE R119. Until this date the control and both disclosure
-/// paragraphs shared the map card. They were separated so that her page reaches
-/// a road-state card sooner: 352 dp of this prose, with the alpha banner, put
-/// 714 characters above her first road-state word, which is five characters
-/// long, and the caution card began at 1008 dp of a 3203 dp page. After the
-/// move the caution card's title is at 648 dp, above the 721 dp her phone gives
-/// the page.
+/// 2026-09-23: the two disclosure paragraphs were moved out of the map card to
+/// below the caution card, so that her page reached a road-state card sooner,
+/// and this was declared [ConsentComposition.separated]. A safety review ruled
+/// that day that `separated` stood, "not because separation is right, but
+/// because adjacency was never what made her consent informed": the share
+/// control then had no consent act of its own, so no arrangement of this prose
+/// constituted consent. It said the constant would move only when such an act
+/// existed, "and then it stops mattering".
 ///
-/// The cost that rides with it: `_shareLocation` carries NO in-app consent
-/// dialog, so the next thing after her tap is the OS permission prompt, and the
-/// app's own account of where her coordinates go is now a card further on.
-/// ⚑ AAA RULED ON THIS CONSTANT, 2026-09-23, AND DECLINED TO MOVE IT. Its
-/// sentence, recorded verbatim from its own record
-/// (`outputs/automotive-adas-analyst/r119_consent_reorder_safety_ruling_2026_09_23.md` §6)
-/// rather than paraphrased by the seat the ruling constrains:
+/// The act was built the same day: 現在地を共有 opens a consent dialog that
+/// carries where her coordinates go word for word and needs her tap before any
+/// OS prompt. The dialog does not carry the other connections
+/// ([AppL10n.egressDisclosure]); those are read on the page only.
 ///
-/// > Ruled by AAA 2026-09-23 under the D-VGC177-3 driver-dignity delegation.
-/// > `separated` STANDS — not because separation is right, but because adjacency
-/// > was never what made her consent informed. Measured: the control sits at
-/// > 552–600 dp and the words at 1020 dp (1306 dp under a measured whiteout),
-/// > against the 721 dp her phone gives the page; `_shareLocation` has no
-/// > affirmative in-app consent act, so no arrangement of this prose constitutes
-/// > consent. This constant is not the loom. It moves only when the affirmative
-/// > consent act exists, and then it stops mattering.
-///
-/// The affirmative consent act itself is AAE's, not this seat's.
+/// 2026-10-07: the move was WITHDRAWN and this returns to
+/// [ConsentComposition.together], the page as it stood before 2026-09-23. On the
+/// page as it then was, the move put the words 780 dp below the control at a
+/// clear launch and 1070 dp in a measured whiteout, past [kMaxDisclosureGapDp],
+/// and it brought the rung onto her first screen in none of the states
+/// measured. The rung reached her first screen by moving first inside its own
+/// card, which did not need the move.
 const ConsentComposition kDeclaredConsentComposition =
-    ConsentComposition.separated;
+    ConsentComposition.together;
 
-/// The furthest the disclosure may sit below the control while the declaration
-/// is [ConsentComposition.separated].
+/// The furthest the disclosure may sit below the control, whichever way the
+/// composition is declared.
 ///
-/// 721 dp is what her phone gives the page, measured on a device frame and
-/// carried in HIE bylaws HIE-14. The bound is stated as a PRINCIPLE rather than
-/// fitted to today's number: **separated may mean one scroll on from the
-/// control, and may not come to mean three.** Measured 2026-09-23, the real gap
-/// is well inside it; the band exists so that the next hand to take space from
-/// this page cannot push the words out of reach without this failing.
-/// ⛑ MEASURED MARGIN AT THIS BOUND, 2026-09-23: **11 dp**, not the 285 dp the
-/// clear state suggests. In a measured whiteout with no share the gap is
-/// **710 dp** of the 721 allowed. One more wrapped line on the caution card
-/// carries it over — the card grows above the disclosure. The same sentence is
-/// at the card itself in `lib/main.dart`, because that is where a hand adding
-/// to it will be standing.
+/// 721 dp is what her phone gives the page, measured on a device frame. The
+/// bound is stated as a PRINCIPLE rather than fitted to a number: **the words
+/// may be one scroll on from the control, and may not come to mean three.** It
+/// exists so that the next hand to take space from this page cannot push the
+/// words out of reach without this failing.
 ///
-/// ⚑ DO NOT RAISE THIS TO MAKE SOMETHING FIT. It was tempting to raise it once
-/// already, on a 726 dp reading that turned out to be this guard rendering
-/// Japanese paragraphs with no Japanese face — an instrument defect, not a real
-/// breach. Raising it would have permanently loosened a driver-facing limit to
-/// accommodate a font bug.
+/// ⚑ DO NOT RAISE THIS TO MAKE SOMETHING FIT. It was tempting twice: once on a
+/// 726 dp reading that turned out to be this guard rendering Japanese
+/// paragraphs with no Japanese face, and once (2026-10-07) when the disclosure
+/// move failed it by 59 dp and 349 dp. The first was an instrument defect; the
+/// second was the move, and the move was withdrawn instead.
 const double kMaxDisclosureGapDp = 721;
 
 const Key kShareControlKey = Key('share-location-button');
@@ -99,7 +81,7 @@ const Key kDisclosureKey = Key('location-disclosure');
 ConsentComposition renderedConsentComposition(WidgetTester tester) {
   final control = find.byKey(kShareControlKey);
   final disclosure = find.byKey(kDisclosureKey);
-  // C3 discipline: an empty match is UNMEASURED, never absence. A missing
+  // An empty match is UNMEASURED, never absence. A missing
   // element is a failure of this reader, not an answer about the page.
   if (control.evaluate().isEmpty) {
     throw TestFailure('consent composition UNMEASURED: no $kShareControlKey on '
@@ -136,12 +118,8 @@ double disclosureGapBelowControlDp(WidgetTester tester) {
       .pixels;
   final control = tester.getRect(find.byKey(kShareControlKey));
   final disclosure = tester.getRect(find.byKey(kDisclosureKey));
-  // Printed in parts, because a single figure I could not decompose would be a
-  // number I cannot explain, and this seat has had one of those before.
-  // ⚑ The first version of this print emitted its own source text -- literal
-  // ${...} -- because my shell heredoc mangled the escaping. An instrument that
-  // prints its own recipe instead of a measurement is the same family as one
-  // that prints a success-shaped value.
+  // Printed in parts, because a single figure that cannot be decomposed is a
+  // number nobody can explain.
   final controlBottom = control.bottom + scroll;
   final disclosureTop = disclosure.top + scroll;
   // ignore: avoid_print
