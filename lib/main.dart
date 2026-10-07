@@ -4050,11 +4050,18 @@ class _HomePageState extends State<HomePage> {
     // to the cannot-post words does not cover a share that may keep going
     // with the screen off. She is asked again, and told why in its own words.
     final shown = _drivePromise;
-    if (_locationConsent == true &&
-        !(_consentedVariant ?? DrivePromise.keepsGoing).covers(shown)) {
+    final answered = _consentedVariant ?? DrivePromise.keepsGoing;
+    if (_locationConsent == true && !answered.covers(shown)) {
       _locationConsent = null;
       _locationConsentAskAgain = false;
-      _locationConsentAskAgainForVariant = true;
+      // The line says her last yes was to the words for when the app cannot
+      // show notifications, so it is said only to such a yes (2026-10-07). A
+      // yes to the can-post words is also asked again where the app does not
+      // know yet (the coverage table does not cover it), and for it that line
+      // would be false: it is asked with no reason line until words are
+      // written for that case.
+      _locationConsentAskAgainForVariant =
+          answered == DrivePromise.onScreenOnly;
     }
     final existing = _locationConsent;
     if (existing != null) return existing;

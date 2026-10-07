@@ -358,6 +358,36 @@ void main() {
       });
     }
 
+    for (final (name, variant) in [
+      ('to the can-post words', DrivePromise.keepsGoing),
+      ('stored before variants existed', null),
+    ]) {
+      testWidgets(
+          'a yes $name, while it is not known yet: asked again, and never '
+          'told that it answered the cannot-post words', (tester) async {
+        // 2026-10-07. Reachable: consent is asked before the notification
+        // ask, so on Android 13+ a phone whose notification permission was
+        // revoked after a can-post yes reads "not known yet" at the next
+        // launch. The coverage table (can-post covers can-post and
+        // cannot-post) asks her again: that is the fail-closed reading, kept.
+        await _boot(tester, _beforeTheAsk, storedConsent: yesTo(variant));
+        await _tapShare(tester);
+        expect(asked(tester), isTrue,
+            reason: 'the can-post words do not cover the not-known-yet words '
+                'in the coverage table as ruled');
+        expect(askedAgainLine(tester),
+            isNot(_ja.locationConsentAskedAgainForVariant),
+            reason: 'THE DEFECT: that line says her last yes was to the words '
+                'for when the app cannot show notifications; this yes was to '
+                'the can-post words');
+        expect(askedAgainLine(tester), isNull,
+            reason: 'no reason line is true here until words are written for '
+                'this case; "the description changed" belongs to a new '
+                'revision');
+        await _end(tester);
+      });
+    }
+
     testWidgets('control: to the cannot-post words, where the app still cannot '
         'post: not asked again', (tester) async {
       await _boot(tester, _cannotPost,
