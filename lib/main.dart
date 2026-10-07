@@ -2945,7 +2945,7 @@ class _HomePageState extends State<HomePage> {
     );
 
     // ⚑ THE THIRD ELEMENT IS A NON-COLOUR CHANNEL, AND IT IS WHY IT IS HERE.
-    // Measured 2026-09-23 (HIE R119) from the SDK on disk and confirmed on the
+    // Measured 2026-09-23 from the SDK on disk and confirmed on the
     // rendered pixels: as fills alone these three rungs are
     //   停車の検討 vs 注意して走行   1.200:1   (20 grey levels of 255)
     //   注意して走行 vs 特段の注意なし 1.011:1   (ONE grey level of 255)
@@ -2959,8 +2959,8 @@ class _HomePageState extends State<HomePage> {
     // is geometry: it survives losing colour entirely. It is drawn in the
     // rung's own ink, so it is dark on a light fill in every rung that has one.
     // Chosen over an icon deliberately: a glyph that fails to load renders as
-    // nothing, and nothing looks like a clean design (HIE-2 #4, and HIE-15's
-    // negative control could not prove the bundled symbol face on a device).
+    // nothing, and nothing looks like a clean design (and no test has yet
+    // proved the bundled symbol face on a device).
     // A rectangle cannot fail that way.
     final (Color bannerColor, Color textColor, double rungRuleWidth) =
         switch (effective) {
