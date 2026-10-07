@@ -76,7 +76,9 @@ import 'dart:io';
 /// the variant it answered, and it answers only a variant its own words cover
 /// ([DrivePromise.covers]): the not-known-yet words state both outcomes and
 /// cover all three; the can-post words cover the cannot-post words, which
-/// describe less; the cannot-post words cover only themselves. So "a change
+/// describe less, and the not-known-yet words, each of whose two outcomes the
+/// can-post words already cover; the cannot-post words cover only themselves
+/// (2026-10-07, the same review, completing its own table). So "a change
 /// that describes less keeps the revision" holds only for a yes to the
 /// variant that describes more. A stored yes that does not cover the variant
 /// about to be shown is asked again, and told why in its own words, not with
@@ -106,8 +108,10 @@ enum DrivePromise {
   /// Whether a yes to this variant's words covers a dialog showing [shown].
   bool covers(DrivePromise shown) => switch (this) {
         DrivePromise.ifNotificationsAllowed => true,
-        DrivePromise.keepsGoing =>
-          shown == DrivePromise.keepsGoing || shown == DrivePromise.onScreenOnly,
+        // The can-post words cover all three (2026-10-07, a dignity review):
+        // the not-known-yet words are the can-post and cannot-post outcomes
+        // joined, and a can-post yes already covers each.
+        DrivePromise.keepsGoing => true,
         DrivePromise.onScreenOnly => shown == DrivePromise.onScreenOnly,
       };
 

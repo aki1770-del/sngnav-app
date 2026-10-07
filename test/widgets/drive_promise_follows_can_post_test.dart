@@ -264,9 +264,9 @@ void main() {
   );
 
   // A stored yes covers only the variants its own words cover (a dignity
-  // review, 2026-10-06): uncertain covers all three; can-post covers can-post
-  // and cannot-post; cannot-post covers only itself; a yes stored before
-  // variants existed reads as can-post.
+  // review, 2026-10-06, completed 2026-10-07): uncertain covers all three;
+  // can-post covers all three; cannot-post covers only itself; a yes stored
+  // before variants existed reads as can-post.
   group('a stored yes', () {
     Map<String, Object> yesTo(DrivePromise? variant) {
       final w = _ja.locationConsentDialogFor(variant ?? DrivePromise.keepsGoing);
@@ -363,27 +363,24 @@ void main() {
       ('stored before variants existed', null),
     ]) {
       testWidgets(
-          'a yes $name, while it is not known yet: asked again, and never '
-          'told that it answered the cannot-post words', (tester) async {
-        // 2026-10-07. Reachable: consent is asked before the notification
-        // ask, so on Android 13+ a phone whose notification permission was
-        // revoked after a can-post yes reads "not known yet" at the next
-        // launch. The coverage table (can-post covers can-post and
-        // cannot-post) asks her again: that is the fail-closed reading, kept.
+          'a yes $name, while it is not known yet: not asked again, and the '
+          'pre-share block shows the not-known-yet words', (tester) async {
+        // 2026-10-07, a dignity review (WDA 95a6dc74): the can-post words
+        // cover the not-known-yet words, each of whose two outcomes they
+        // already cover. Reachable: consent is asked before the notification
+        // ask, so on Android 13+ a launch with notifications not granted reads
+        // "not known yet", while the same yes on Android 12 reads "cannot
+        // post". Asking her again would ask her to answer for the app's
+        // uncertainty about its own platform, and only on Android 13+.
         await _boot(tester, _beforeTheAsk, storedConsent: yesTo(variant));
+        expect(_wordsAt(tester, const Key('drive-disclosure')),
+            _ja.driveDisclosureIfNotificationsAllowed,
+            reason: 'she is told before her tap: the pre-share block shows the '
+                'not-known-yet words, which carry the call sentences');
         await _tapShare(tester);
-        expect(asked(tester), isTrue,
-            reason: 'the can-post words do not cover the not-known-yet words '
-                'in the coverage table as ruled');
-        expect(askedAgainLine(tester),
-            isNot(_ja.locationConsentAskedAgainForVariant),
-            reason: 'THE DEFECT: that line says her last yes was to the words '
-                'for when the app cannot show notifications; this yes was to '
-                'the can-post words');
-        expect(askedAgainLine(tester), isNull,
-            reason: 'no reason line is true here until words are written for '
-                'this case; "the description changed" belongs to a new '
-                'revision');
+        expect(asked(tester), isFalse,
+            reason: 'THE DEFECT: a yes that covers both drives that can follow '
+                'was asked again, for nothing');
         await _end(tester);
       });
     }

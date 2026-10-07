@@ -4055,11 +4055,11 @@ class _HomePageState extends State<HomePage> {
       _locationConsent = null;
       _locationConsentAskAgain = false;
       // The line says her last yes was to the words for when the app cannot
-      // show notifications, so it is said only to such a yes (2026-10-07). A
-      // yes to the can-post words is also asked again where the app does not
-      // know yet (the coverage table does not cover it), and for it that line
-      // would be false: it is asked with no reason line until words are
-      // written for that case.
+      // show notifications, so it is said only to such a yes (2026-10-07).
+      // Since the coverage was completed the same day (a can-post yes covers
+      // all three), only a yes to the cannot-post words can reach here, so
+      // this holds by construction; it stays as the guard that keeps the line
+      // true if the table ever changes again.
       _locationConsentAskAgainForVariant =
           answered == DrivePromise.onScreenOnly;
     }

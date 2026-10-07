@@ -161,6 +161,7 @@ void main() {
         },
         DrivePromise.keepsGoing: {
           DrivePromise.keepsGoing,
+          DrivePromise.ifNotificationsAllowed,
           DrivePromise.onScreenOnly,
         },
         DrivePromise.onScreenOnly: {DrivePromise.onScreenOnly},
@@ -188,7 +189,8 @@ void main() {
       expect(r.answeredVariant, DrivePromise.keepsGoing);
       expect(r.answers(1, shown: DrivePromise.keepsGoing), isTrue);
       expect(r.answers(1, shown: DrivePromise.onScreenOnly), isTrue);
-      expect(r.answers(1, shown: DrivePromise.ifNotificationsAllowed), isFalse);
+      expect(r.answers(1, shown: DrivePromise.ifNotificationsAllowed), isTrue,
+          reason: 'each of its two outcomes is already covered');
     });
 
     test('a yes to the cannot-post words holds, and answers only its own', () {

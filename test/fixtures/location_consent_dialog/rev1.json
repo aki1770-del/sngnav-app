@@ -78,10 +78,12 @@
     ],
     "canPost": [
       "canPost",
+      "uncertain",
       "cannotPost"
     ],
     "cannotPost": [
       "cannotPost"
     ]
-  }
+  },
+  "variantsCoverageCompleted": "2026-10-07"
 }
