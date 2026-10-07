@@ -25,6 +25,7 @@ import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/widgets.dart';
 
 import '../services/invisible_ice_watch.dart' show InvisibleIceWatchResult;
+import '../services/location_consent.dart' show DrivePromise;
 import '../services/turmoil_watch.dart' show TurmoilWatchState, turmoilRowText;
 
 /// Minimal app-level localizations for sngnav-app's consent + status surface.
@@ -253,21 +254,28 @@ class AppL10n {
 
   String get locatingYou => _ja ? '現在地を取得しています…' : 'Locating you…';
 
-  /// In place of [driveDisclosure], under the running row, while a share runs
-  /// WITHOUT its foreground service (lib/services/share_without_service.dart).
-  /// The drive-continues words are false on that branch. The HMI review's
-  /// draft E, for the design in which leaving the screen ENDS the share
-  /// (2026-10-06). It promises no told line: whether that line is heard on a
-  /// device is not yet shown.
+  /// The drive words where this app CANNOT post her a notification
+  /// ([DrivePromise.onScreenOnly]): in place of [driveDisclosure] in the
+  /// running row of a share without its foreground service, in the pre-share
+  /// block and in the consent dialog (lib/services/share_without_service.dart).
+  /// The drive-continues words are false there. The HMI review's draft E for
+  /// the design in which leaving the screen ENDS the share, with 「運転は」 /
+  /// "a drive" (2026-10-06), one string for all three places. It promises no
+  /// told line: whether that line is heard on a device is not yet shown.
   String get shareWithoutServiceDisclosure => _ja
-      ? '通知を出せないため、この運転はアプリが画面に出ているあいだだけ続きます。'
+      ? '通知を出せないため、運転はアプリが画面に出ているあいだだけ続きます。'
           '画面を消したり、ほかのアプリに切り替えたり、戻る操作（ボタンやスワイプ）'
           'をしたりすると、運転は終わり、現在地の警告も止まります。'
+          '通話の画面がアプリを覆ったときも同じです。'
+          '終わったことは、一度だけ声と振動でお知らせします（通話中でも話します）。'
           '続けるには、もう一度「現在地を共有」を押してください。'
-      : 'This app cannot show notifications, so this drive runs only while the '
+      : 'This app cannot show notifications, so a drive runs only while the '
           'app is on the screen. If you turn the screen off, switch to another '
           'app, or go back (button or swipe), the drive ends and warnings for '
-          'your location stop. To continue, tap Share my location again.';
+          'your location stop. This includes a call screen that covers the '
+          'app. When a drive ends this way, the app says so once, by voice and '
+          'vibration, even during a call. To continue, tap Share my location '
+          'again.';
 
   /// On her return, after a share without its foreground service ended
   /// because the app left the screen (lib/services/share_without_service.dart).
@@ -280,12 +288,116 @@ class AppL10n {
       : 'Because the app left the screen, warnings for your location have '
           'stopped.';
 
+  /// The drive words where it is NOT KNOWN YET whether this app can post her
+  /// a notification ([DrivePromise.ifNotificationsAllowed]): no reading yet,
+  /// or Android 13 and later with the permission neither granted nor asked in
+  /// this process. The HMI review's words (2026-10-06): true whichever way her
+  /// answer goes, and they promise no ask (Android may no longer show the
+  /// dialog after repeated refusals). The allowed outcome is [driveDisclosure]
+  /// except its first clause. Each outcome starts its own line.
+  String get driveDisclosureIfNotificationsAllowed => _ja
+      ? '運転のしかたは、通知を許可するかどうかで変わります。\n'
+          '通知を許可すれば、運転は画面を消しても、ほかのアプリに切り替えても、'
+          '戻る操作（ボタンやスワイプ）をしても継続します。'
+          '運転中は通知を出しますが、ロック中の画面には表示されないことがあり、'
+          'Android 14 以降はスワイプで消せます。消しても位置情報の使用は止まりません。'
+          '終了するには、アプリを開いて（または通知をタップして）'
+          '「停止」を押してください。\n'
+          '許可しなければ、運転はアプリが画面に出ているあいだだけ続きます。'
+          '画面を消したり、ほかのアプリに切り替えたり、戻る操作をしたりすると、'
+          '運転は終わり、現在地の警告も止まります。'
+          '通話の画面がアプリを覆ったときも同じです。'
+          '終わったことは、一度だけ声と振動でお知らせします（通話中でも話します）。'
+      : 'How a drive runs depends on whether you allow notifications.\n'
+          'If you allow them, a drive keeps going with the screen off, while '
+          'you use another app, or when you go back (button or swipe). A '
+          'notification is posted for the drive, but it may not show on a '
+          'locked screen, and from Android 14 you can swipe it away — that '
+          'does not stop the drive or its use of your location. To end it, '
+          'open the app (or tap the notification), then Stop.\n'
+          'If you do not allow them, a drive runs only while the app is on the '
+          'screen. Turning the screen off, switching to another app or going '
+          'back ends the drive, and warnings for your location stop. This '
+          'includes a call screen that covers the app. When a drive ends this '
+          'way, the app says so once, by voice and vibration, even during a '
+          'call.';
+
+  /// Words in [driveDisclosureIfNotificationsAllowed] that must not break
+  /// across lines: [driveDisclosureKeepTogether] plus the HMI review's four
+  /// (a line ending on 「許可し」 would read as "if you allow").
+  List<String> get driveDisclosureIfNotificationsAllowedKeepTogether => [
+        ...driveDisclosureKeepTogether,
+        ...(_ja
+            ? const [
+                '現在地の警告',
+                '画面に出ている',
+                '許可すれば',
+                '許可しなければ',
+                '一度だけ',
+                '声と振動',
+                '通話中でも話します',
+                '通話の画面',
+              ]
+            : const [
+                'warnings for your location',
+                'If you allow them',
+                'If you do not allow them',
+                'by voice and vibration',
+                'even during a call',
+                'call screen',
+              ]),
+      ];
+
+  /// The drive words for [promise] (2026-10-06).
+  String drivePromiseText(DrivePromise promise) => switch (promise) {
+        DrivePromise.keepsGoing => driveDisclosure,
+        DrivePromise.ifNotificationsAllowed =>
+          driveDisclosureIfNotificationsAllowed,
+        DrivePromise.onScreenOnly => shareWithoutServiceDisclosure,
+      };
+
+  /// The keep-together words for [drivePromiseText].
+  List<String> drivePromiseKeepTogether(DrivePromise promise) =>
+      switch (promise) {
+        DrivePromise.keepsGoing => driveDisclosureKeepTogether,
+        DrivePromise.ifNotificationsAllowed =>
+          driveDisclosureIfNotificationsAllowedKeepTogether,
+        DrivePromise.onScreenOnly => shareWithoutServiceDisclosureKeepTogether,
+      };
+
+  /// The consent dialog's words, with the drive block for [promise]. A yes
+  /// stores exactly these.
+  ({String title, String drive, String body, String decline, String accept})
+      locationConsentDialogFor(DrivePromise promise) => (
+            title: locationConsentTitle,
+            drive: drivePromiseText(promise),
+            body: locationDisclosure,
+            decline: locationConsentDecline,
+            accept: locationConsentAccept,
+          );
+
   /// Words in [shareWithoutServiceDisclosure] that must not break across lines
   /// (lib/widgets/keep_together.dart), from the HMI review's list, keeping
   /// only those that occur in draft E.
   List<String> get shareWithoutServiceDisclosureKeepTogether => _ja
-      ? const ['「現在地を共有」', '現在地の警告', '止まります', '画面に出ている', '通知']
-      : const ['Share my location', 'warnings for your location'];
+      ? const [
+          '「現在地を共有」',
+          '現在地の警告',
+          '止まります',
+          '画面に出ている',
+          '通知',
+          '一度だけ',
+          '声と振動',
+          '通話中でも話します',
+          '通話の画面',
+        ]
+      : const [
+          'Share my location',
+          'warnings for your location',
+          'by voice and vibration',
+          'even during a call',
+          'call screen',
+        ];
 
   /// Amber DEV mock-position line (kept visually distinct from real GPS).
   String mockPositionStatus(String accuracyMeters) => _ja
@@ -1301,6 +1413,18 @@ class AppL10n {
   /// re-read a text that is not the one she read and never says what is being
   /// asked. 「もう一度お選びください」 names a new choice with both answers
   /// open. It does not ask for 同意.
+  /// Said first in the dialog when her stored yes was to the words for when the
+  /// app cannot post her a notification, and the dialog about to be shown may
+  /// promise more (2026-10-06, a dignity review's exact words). Not
+  /// [locationConsentAskedAgain]: that belongs to a new revision, and here the
+  /// revision has not changed.
+  String get locationConsentAskedAgainForVariant => _ja
+      ? '前回の同意は、通知を出せない場合の説明に対するものでした。'
+          'いまは運転のしかたが変わることがあるため、もう一度お選びください。'
+      : 'You last agreed to the words for when the app cannot show '
+          'notifications. A drive may now run differently, so please choose '
+          'again.';
+
   String get locationConsentAskedAgain => _ja
       ? '前回同意したあとで、この説明が変わりました。もう一度お選びください。'
       : 'This description has changed since you last agreed. '

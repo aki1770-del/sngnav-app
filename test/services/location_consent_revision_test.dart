@@ -74,4 +74,37 @@ void main() {
         reason: 'a registered revision the app does not ask for would never '
             'be asked');
   });
+
+  // 2026-10-06, a dignity review: a revision may hold keyed variants of the
+  // drive block. Each is registered with its own words and what sharing does,
+  // and the coverage a yes to each carries is registered beside them.
+  test('every drive-block variant shows the words registered for it', () {
+    final reg = _registered(kLocationConsentRevision);
+    final variants = reg['variants'] as Map<String, dynamic>;
+    expect(variants.keys.toSet(),
+        DrivePromise.values.map((v) => v.recordName).toSet(),
+        reason: 'every variant the app can show is registered, and no other');
+    for (final v in DrivePromise.values) {
+      final r = variants[v.recordName] as Map<String, dynamic>;
+      expect((r['whatSharingDoes'] as String).trim(), isNotEmpty,
+          reason: 'a variant names what sharing does; say it');
+      for (final lang in const ['ja', 'en']) {
+        final d = AppL10n(Locale(lang)).locationConsentDialogFor(v);
+        expect([d.title, d.drive, d.body, d.decline, d.accept], r[lang],
+            reason: 'THE ${v.recordName} VARIANT\'S WORDS CHANGED ($lang). '
+                'Decide what a stored yes to it means before this goes in.');
+      }
+    }
+    expect(variants['canPost']['ja'], reg['ja'],
+        reason: 'the can-post variant is the words revision 1 registered');
+    final coverage = reg['variantsCoverage'] as Map<String, dynamic>;
+    for (final a in DrivePromise.values) {
+      for (final s in DrivePromise.values) {
+        expect((coverage[a.recordName] as List).contains(s.recordName),
+            a.covers(s),
+            reason: 'the registered coverage and the code agree: a yes to '
+                '${a.recordName}, a dialog showing ${s.recordName}');
+      }
+    }
+  });
 }

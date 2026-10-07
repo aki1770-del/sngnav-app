@@ -1799,6 +1799,12 @@ class _HomePageState extends State<HomePage> {
   /// see lib/services/notification_permission.dart).
   bool _mayPostDriveNotification = false;
 
+  /// The last full reading behind [_mayPostDriveNotification], or null until
+  /// the first read answers (2026-10-06). The words promised BEFORE a share
+  /// (the pre-share block and the consent dialog) are keyed on it
+  /// ([_drivePromise]): a running share keys on the branch it took instead.
+  NotificationPermissionState? _driveNotificationState;
+
   /// True once she has been asked, so a decline is not re-asked every drive.
   bool _driveNotificationAsked = false;
 
@@ -1806,10 +1812,55 @@ class _HomePageState extends State<HomePage> {
   Future<void> _refreshDriveNotificationPermission() async {
     final state = await NotificationPermission.read();
     if (!mounted) return;
-    if (state.canPostToHer != _mayPostDriveNotification) {
-      setState(() => _mayPostDriveNotification = state.canPostToHer);
+    final before = _driveNotificationState;
+    if (before == null ||
+        before.granted != state.granted ||
+        before.enabled != state.enabled ||
+        before.needsRuntimeRequest != state.needsRuntimeRequest ||
+        state.canPostToHer != _mayPostDriveNotification) {
+      setState(() {
+        _driveNotificationState = state;
+        _mayPostDriveNotification = state.canPostToHer;
+      });
     }
   }
+
+  /// What may be promised about a drive BEFORE it starts, from what the app
+  /// knows now about posting her a notification (ruled 2026-10-06). Only a
+  /// drive with its foreground service keeps going when she leaves the app,
+  /// and that needs a notification she can see; without one, a share ends
+  /// when the app leaves the screen (lib/services/share_without_service.dart).
+  ///   - can post: the drive-continues words;
+  ///   - not known yet (no reading, or Android 13+ before she is asked): the
+  ///     conditional words. Ambiguity routes to the weaker promise;
+  ///   - cannot post: the words for a drive that runs only on screen.
+  /// The unconditional promise is never shown while the last reading says
+  /// the app cannot post.
+  DrivePromise get _drivePromise {
+    final s = _driveNotificationState;
+    if (s == null) return DrivePromise.ifNotificationsAllowed;
+    if (s.canPostToHer) return DrivePromise.keepsGoing;
+    if (s.needsRuntimeRequest && !s.granted && !_driveNotificationAsked) {
+      return DrivePromise.ifNotificationsAllowed;
+    }
+    return DrivePromise.onScreenOnly;
+  }
+
+  String _drivePromiseText(AppL10n l) => l.drivePromiseText(_drivePromise);
+
+  List<String> _drivePromiseKeepTogether(AppL10n l) =>
+      l.drivePromiseKeepTogether(_drivePromise);
+
+  /// The drive-block variant her yes answered (stored, or given in this
+  /// process); null when there is none (2026-10-06). A yes covers only the
+  /// variants its own words cover ([DrivePromise.covers]): a yes to the
+  /// cannot-post words does not cover a dialog that may promise a drive that
+  /// keeps going with the screen off.
+  DrivePromise? _consentedVariant;
+
+  /// Set when she is asked again because her yes does not cover the variant
+  /// about to be shown; the dialog then says why, in its own words.
+  bool _locationConsentAskAgainForVariant = false;
 
   /// Ask her, at most once. Completes when she has answered and the answer
   /// has been read back, or at once when there is nothing to ask.
@@ -3838,9 +3889,13 @@ class _HomePageState extends State<HomePage> {
   /// meant not to cause.
   void _applyPersistedLocationConsent(LocationConsentRecord? record) {
     if (record == null) return;
-    if (record.answers(kLocationConsentRevision)) {
+    // A readable yes to this revision is held, whatever variant it answered
+    // (the withdrawal control is offered from it); whether it covers the
+    // dialog about to be shown is decided at her next tap (2026-10-06).
+    if (record.holdsYes(kLocationConsentRevision)) {
       _locationConsent = true;
       _locationConsentAskAgain = false;
+      _consentedVariant = record.answeredVariant;
       return;
     }
     _locationConsentAskAgain =
@@ -3917,6 +3972,8 @@ class _HomePageState extends State<HomePage> {
       _locationConsentLoaded = true;
       _locationConsentWithdrawn = true;
       _locationConsentAskAgain = false;
+      _locationConsentAskAgainForVariant = false;
+      _consentedVariant = null;
     });
     // Fire-and-forget, the same idiom as the grant: her answer takes effect
     // NOW, in RAM. A lost write means she is asked again, never a hung screen.
@@ -3937,6 +3994,11 @@ class _HomePageState extends State<HomePage> {
     if (seeded == null) return;
     _locationConsent = seeded;
     _locationConsentLoaded = true;
+    // "Assume she already agreed" (2026-10-06): to whatever the dialog would
+    // show. This seam is never the production path; the coverage of a real yes
+    // by the variant it answered is held on the real path, through stored
+    // records (test/widgets/drive_promise_follows_can_post_test.dart).
+    if (seeded == true) _consentedVariant = DrivePromise.ifNotificationsAllowed;
   }
 
   /// [hangBound] arms a timeout — and a timeout ARMS A TIMER. Pass null from
@@ -3984,15 +4046,28 @@ class _HomePageState extends State<HomePage> {
       _applyPersistedLocationConsent(persisted);
       _locationConsentLoaded = true;
     }
+    // A yes covers only the variants its own words cover (2026-10-06): a yes
+    // to the cannot-post words does not cover a share that may keep going
+    // with the screen off. She is asked again, and told why in its own words.
+    final shown = _drivePromise;
+    if (_locationConsent == true &&
+        !(_consentedVariant ?? DrivePromise.keepsGoing).covers(shown)) {
+      _locationConsent = null;
+      _locationConsentAskAgain = false;
+      _locationConsentAskAgainForVariant = true;
+    }
     final existing = _locationConsent;
     if (existing != null) return existing;
     if (!mounted) return false;
     // The words are taken ONCE, here: the dialog is drawn from them and a yes
     // records them, so the record cannot name words she was not shown.
     final l = AppL10n.of(context);
-    final words = l.locationConsentDialog;
+    // The drive block is the promise the app can keep on this phone now
+    // (2026-10-06, [_drivePromise]); the record stores what she was shown.
+    final words = l.locationConsentDialogFor(shown);
     final granted = await _promptLocationConsent(words,
-        askedAgain: _locationConsentAskAgain);
+        askedAgain: _locationConsentAskAgain,
+        askedAgainForVariant: _locationConsentAskAgainForVariant);
     if (granted == null) return false; // dismissed - not a decision.
     // ONLY A YES IS REMEMBERED, and this is where it differs from the OSRM
     // pair on purpose. A remembered NO would trap her: the route question has
@@ -4003,6 +4078,8 @@ class _HomePageState extends State<HomePage> {
     if (!granted) return false;
     _locationConsent = true;
     _locationConsentAskAgain = false;
+    _consentedVariant = shown;
+    _locationConsentAskAgainForVariant = false;
     unawaited(_locationConsentStore(hangBound: null).then((s) => s?.saveYes(
           revision: kLocationConsentRevision,
           locale: l.wordsLanguage,
@@ -4013,6 +4090,7 @@ class _HomePageState extends State<HomePage> {
             words.decline,
             words.accept,
           ],
+          variant: shown,
         )));
     return true;
   }
@@ -4035,6 +4113,7 @@ class _HomePageState extends State<HomePage> {
     ({String title, String drive, String body, String decline, String accept})
         words, {
     required bool askedAgain,
+    bool askedAgainForVariant = false,
   }) {
     final l = AppL10n.of(context);
     return showDialog<bool>(
@@ -4056,9 +4135,13 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (askedAgain) ...[
+              if (askedAgain || askedAgainForVariant) ...[
                 Text(
-                  l.locationConsentAskedAgain,
+                  // Its own reason when the revision has not changed and her
+                  // yes did not cover the variant now shown (2026-10-06).
+                  askedAgainForVariant
+                      ? l.locationConsentAskedAgainForVariant
+                      : l.locationConsentAskedAgain,
                   key: const Key('location-consent-asked-again'),
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
@@ -4067,7 +4150,7 @@ class _HomePageState extends State<HomePage> {
               KeepTogetherText(
                 words.drive,
                 key: const Key('location-consent-drive'),
-                words: l.driveDisclosureKeepTogether,
+                words: _drivePromiseKeepTogether(l),
               ),
               const SizedBox(height: 12),
               Text(
@@ -6184,9 +6267,12 @@ class _HomePageState extends State<HomePage> {
           Semantics(
             container: true,
             child: KeepTogetherText(
-              l.driveDisclosure,
+              // Keyed on what the app knows now about posting her a
+              // notification (2026-10-06, [_drivePromise]): never the
+              // drive-continues words while it cannot post.
+              _drivePromiseText(l),
               key: const Key('drive-disclosure'),
-              words: l.driveDisclosureKeepTogether,
+              words: _drivePromiseKeepTogether(l),
               style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
             ),
           ),

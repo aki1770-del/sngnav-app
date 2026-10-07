@@ -33,6 +33,25 @@ void main() {
   const droid = '/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf';
 
   setUpAll(() async {
+    // 2026-10-06: this phone CAN post her a notification. The card's drive
+    // words now follow what the app knows about posting
+    // (test/widgets/drive_promise_follows_can_post_test.dart); these captures
+    // record the card under the can-post promise, the words they were taken
+    // with. Unmocked, the frame is taken before the notification read
+    // answers, so the app has no reading and draws the not-known-yet words
+    // (measured 2026-10-07; given real async time, an unmocked read answers
+    // "cannot post").
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('sngnav/notification_permission'),
+      (call) async => call.method == 'read'
+          ? <String, Object>{
+              'granted': true,
+              'enabled': true,
+              'needsRuntimeRequest': false,
+            }
+          : true,
+    );
     TestWidgetsFlutterBinding.ensureInitialized();
     final cjkLoaded = await loadCjkFamily('Roboto', [ipa, droid]);
     if (!cjkLoaded || !goldenPixelsComparableHere()) {
