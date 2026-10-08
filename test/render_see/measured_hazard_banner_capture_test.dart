@@ -1,9 +1,19 @@
 /// Render-and-look capture for the measured-hazard fusion into the compound
 /// caution banner (session-scope; NOT a CI assertion).
 ///
-/// Produces fresh ja-rendered PNGs of the `_driveHudPanel` caution banner
-/// (`Key('drive-hud-caution-banner')` in lib/main.dart) so a reviewer can LOOK at the
-/// thing the fix changes:
+/// ⚑ THESE FRAMES DRAW A COPY OF THE BANNER, NOT THE APP'S BANNER (2026-10-07).
+/// The copy below is the banner's Container as it stood before 2026-09-23.
+/// The app's banner has since gained a width rule on its leading edge (20 dp
+/// on 停車の検討, 8 dp on 注意して走行, none on the lowest rung), and the copy
+/// does not draw it. Because the copy lives in this file, these frames cannot
+/// go red when the app's banner changes: they are evidence about the rung the
+/// real controller reaches in each state, never about how her banner looks or
+/// exactly what it says. The app's own banner is held by
+/// test/widgets/rung_rule_width_test.dart (the rule, by rung) and drawn from
+/// the app in render_out/02_drive_hud_continue.png and 03_drive_hud_stop.png.
+///
+/// Produces ja-rendered PNGs of that copy so a reviewer can see which rung
+/// each state reaches:
 ///   10 — no measured hazard, trusted, clear   → grey  「特段の注意なし」
 ///   11 — MEASURED black-ice firing, trusted    → amber 「注意して走行」  ← the fix
 ///        (the advisor ALONE is the lowest, neutral rung; the watch RAISES it)
@@ -12,10 +22,10 @@
 /// HONESTY (so the reader can trust the render): every state is produced by the
 /// REAL `DriveHudController` driven through its public seam (`updateEnvironment`
 /// + `onPositionFix`/`poll`), and the effective rung comes from the REAL
-/// `controller.effectiveAction` — the SAME value main.dart's banner reads. Only
-/// the Container styling is reproduced (verbatim from `_driveHudPanel`'s switch
-/// + `actionHeadline` + `spokenGuidance`); the raised-rung decision is not
-/// re-implemented here. The caption states the advisor-alone rung beside the
+/// `controller.effectiveAction` — the SAME value main.dart's banner reads. The
+/// banner's styling, headline and guidance line are a COPY, not kept in step
+/// with `_driveHudPanel`; the raised-rung decision is not re-implemented
+/// here. The caption states the advisor-alone rung beside the
 /// effective rung, so the RAISE is legible in the pixels. On-device HEAR/FEEL +
 /// on-phone render remain the emulator ladder / device hour's job (on-device
 /// verification): NOBODY affirms these PNGs as phone evidence.
@@ -42,10 +52,10 @@ import '../support/fake_alert_actuators.dart';
 
 const _text = DriveHudLocalizer();
 
-/// Faithful reproduction of the `_driveHudPanel` caution banner (lib/main.dart):
+/// A COPY of the `_driveHudPanel` caution banner as it stood before 2026-09-23:
 /// the (bg, fg) switch on the EFFECTIVE rung, the headline, and the guidance
-/// line for a raised rung — all verbatim. The caption is capture-only, to make
-/// the fusion visible.
+/// line for a raised rung, without the width rule the app now draws. The
+/// caption is capture-only, to make the fusion visible.
 Widget _panel({
   required DriveAction effective,
   required DriveAction advisorBase,
@@ -53,8 +63,8 @@ Widget _panel({
 }) {
   final (Color bg, Color fg) = switch (effective) {
     DriveAction.considerStopping => (Colors.red.shade100, Colors.red.shade900),
-    // Verbatim with lib/main.dart's `_driveHudPanel`: the middle rung now uses
-    // kCautionTextOnAmber (~7.9:1 on the amber tint) in place of the ~2.4:1
+    // As lib/main.dart's `_driveHudPanel` stood before 2026-09-23: the middle
+    // rung uses kCautionTextOnAmber (~7.9:1 on the amber tint) in place of the ~2.4:1
     // amber.shade900, so 注意して走行 reads at one glance.
     DriveAction.heightenedCaution => (
         Colors.amber.shade100,
@@ -81,7 +91,7 @@ Widget _panel({
       ),
       const SizedBox(height: 8),
       Container(
-        key: const Key('drive-hud-caution-banner'),
+        key: const Key('copied-caution-banner'),
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(

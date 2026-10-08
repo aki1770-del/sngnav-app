@@ -1,17 +1,32 @@
 /// Render-and-look capture for the CHOICE-NEUTRAL lowest-rung caution banner
 /// (Design-Floor Refusal #1, decided 2026-07-19). Session-scope; NOT a CI claim.
 ///
-/// Produces a fresh ja-rendered PNG of the `drive-hud-caution-banner`
-/// (Key('drive-hud-caution-banner') in lib/main.dart) in the LOWEST rung state,
-/// so a reviewer can LOOK at the headline the fix changes:
+/// ⚑ THESE FRAMES DRAW A COPY OF THE BANNER, NOT THE APP'S BANNER (2026-10-07).
+/// The copy below is the banner's Container as it stood before 2026-09-23.
+/// The app's banner has since gained a width rule on its leading edge (20 dp
+/// on 停車の検討, 8 dp on 注意して走行, none on the lowest rung), and the copy
+/// does not draw it. Because the copy lives in this file, these frames cannot
+/// go red when the app's banner changes: they are evidence about the rung the
+/// real controller reaches in each state, never about how her banner looks or
+/// exactly what it says. The app's own banner is held by
+/// test/widgets/rung_rule_width_test.dart (the rule, by rung) and drawn from
+/// the app in render_out/02_drive_hud_continue.png and 03_drive_hud_stop.png.
+///
+/// The lowest rung carries no rule in the app either, so this frame does not
+/// show anything the app no longer draws; it is still a copy, and it cannot go
+/// red when the app's banner changes. Its middle-rung ink, `amber.shade900`,
+/// is older still: the app moved that rung to kCautionTextOnAmber.
+///
+/// Produces a ja-rendered PNG of that copy in the LOWEST rung state, so a
+/// reviewer can see the headline the fix changed:
 ///   13 — trusted position, MEASURED clear visibility, no watch → grey banner
 ///        reading 「特段の注意なし」 (was 「走行を継続」, which advocated GO).
 ///
 /// HONESTY: the state is produced by the REAL `DriveHudController` driven
 /// through its public seam (`updateEnvironment` + `onPositionFix`); the effective
 /// rung is the REAL `controller.effectiveAction` — the SAME value main.dart's
-/// banner reads. Only the Container styling is reproduced (verbatim from
-/// `_driveHudPanel`); the rung decision is not re-implemented. The lowest rung
+/// banner reads. The banner's styling is a COPY, not kept in step with
+/// `_driveHudPanel`; the rung decision is not re-implemented. The lowest rung
 /// shows ONLY the headline (no guidance line) — parity with the voice channel's
 /// silence. On-device / on-phone render is DEFERRED (no device); nobody affirms
 /// this PNG as phone evidence.
@@ -35,9 +50,9 @@ import '../support/fake_alert_actuators.dart';
 
 const _text = DriveHudLocalizer();
 
-/// Faithful reproduction of the `_driveHudPanel` lowest-rung banner: the grey
-/// (bg, fg) pair, the headline, and NO guidance line (parity with voice
-/// silence) — all verbatim with lib/main.dart.
+/// A COPY of the `_driveHudPanel` lowest-rung banner as it stood before
+/// 2026-09-23: the grey (bg, fg) pair, the headline, and NO guidance line
+/// (parity with voice silence).
 Widget _panel({required DriveAction effective}) {
   final (Color bg, Color fg) = switch (effective) {
     DriveAction.considerStopping => (Colors.red.shade100, Colors.red.shade900),
@@ -56,7 +71,7 @@ Widget _panel({required DriveAction effective}) {
       ),
       const SizedBox(height: 8),
       Container(
-        key: const Key('drive-hud-caution-banner'),
+        key: const Key('copied-caution-banner'),
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(

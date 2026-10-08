@@ -25,6 +25,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'render_see_env.dart';
 import 'package:sngnav_app/akita_map.dart' show akitaStation;
 import 'package:sngnav_app/her_position.dart';
+
+import '../support/consent_composition.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart';
@@ -171,17 +173,47 @@ void main() {
         timestamp: at,
       );
 
+  // The subject of this frame is ASSERTED, not taken by position. Its finder
+  // takes the nearest Column above the disclosure. When the disclosure was
+  // moved to a card of its own (2026-09-23, withdrawn 2026-10-07) that Column
+  // held the paragraphs alone, and the finder rebound to it and kept capturing:
+  // nothing failed for the reason this capture exists, and a golden sweep would
+  // have recut it under a name that had become false. The page's declaration
+  // (test/support/consent_composition.dart) now decides what this frame must
+  // hold, and the test fails instead of photographing a different picture.
   testWidgets('01 — JA consent gate (deny-by-default)', (tester) async {
     await tester.pumpWidget(const SngnavApp(locale: Locale('ja')));
     await tester.pump();
     // The consent gate = the Column that holds the disclosure paragraph
     // (buttons row + disclosure). Nothing tapped: deny-by-default.
+    // It holds the control exactly when the page is declared `together`; if
+    // the two disagree, this frame became a different picture and the test
+    // says so instead of photographing it.
     final gate = find
         .ancestor(
           of: find.byKey(const Key('location-disclosure')),
           matching: find.byType(Column),
         )
         .first;
+    final controlInFrame = find
+        .descendant(
+          of: gate,
+          matching: find.byKey(const Key('share-location-button')),
+        )
+        .evaluate()
+        .isNotEmpty;
+    expect(
+      controlInFrame,
+      kDeclaredConsentComposition == ConsentComposition.together,
+      reason: 'this capture\'s subject no longer matches its name.\n'
+          '  declared: ${kDeclaredConsentComposition.name}\n'
+          '  the share control is ${controlInFrame ? '' : 'NOT '}inside the '
+          'Column this capture photographs.\n'
+          'Rename this test and recut its golden together, or re-target it so '
+          'it holds the control and the words at once. Recutting the pixels '
+          'while this sentence still says something else produces a green '
+          'suite over a false description.',
+    );
     await captureApp(
       tester,
       target: gate,
