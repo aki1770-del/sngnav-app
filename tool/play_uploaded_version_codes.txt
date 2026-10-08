@@ -29,9 +29,9 @@
 # 0.0.2 has since been built at codes 3 to 12, and the phone above reported 12
 # when last read (2026-10-02T00:34:10Z). pubspec.yaml stamps 10, below the
 # spent floor in tool/version_code_floor, so a release-key build of it is
-# refused until it says 13 or more. No local record shows an upload to Play,
-# so this file still holds no integers; that is UNVERIFIED against Play
-# itself, which no one here has read. A code used OFF Play (minted under the
-# release key, or reported back by a device) is recorded in
+# refused until it says a code above that floor. No local record shows an
+# upload to Play, so this file still holds no integers; that is UNVERIFIED
+# against Play itself, which no one here has read. A code used OFF Play
+# (minted under the release key, or reported back by a device) is recorded in
 # tool/version_code_floor, not here: this file says what Play has received,
 # and nothing else.
