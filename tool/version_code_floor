@@ -18,6 +18,8 @@
 # absent from Play.
 #
 # What the number already names (each line: code, then the bytes):
+# 14: 0.0.2, release key (cert 6a4906ed...0f14), sha256 97dd95fe7e6ebfdb4765cb305fe9e068b71d3a8034f908474b52cd1e5026e5a1, built 2026-10-08, not received (no device had reported 14 when this line was written, 2026-10-08)
+# 13: 0.0.2, release key (cert 6a4906ed...0f14), sha256 212620f3b36784c402a921a163ab87fe05fd67c6b63362257f6172e6948ea69c, built 2026-10-06 and installed on the maintainer's phone (device read 2026-10-08T00:35:26Z)
 # 12: 0.0.2, release key (cert 6a4906ed...0f14), sha256 561b56fac98b6c1898d4dee6de988faca5eb1d35f31cf49b1a099c18c5994bc1, built 2026-10-02 and installed on the maintainer's phone (device read 2026-10-02T00:34:10Z)
 # 2-11: each minted under the release key before this file existed; codes 2 and 9 each name more than one release APK, and codes 2, 3 and 10 also name release bundles
-12
+14
