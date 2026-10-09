@@ -783,9 +783,9 @@ tasks.configureEach {
 // is present as set, even when its value is empty, and an empty value cannot
 // sign. This gate refuses it rather than read a key AGP will not use (V16).
 //
-// WHY THE DIGEST AND NOT THE NAME. check_signer accepts any certificate whose
-// owner contains "CN=SNGNav Upload", and any throwaway key can carry that name.
-// A certificate's SHA-256 names one key.
+// WHY THE DIGEST AND NOT THE NAME. Any throwaway key can carry the name
+// "CN=SNGNav Upload". check_signer accepted a certificate by that name until
+// 2026-10-04 and compares its SHA-256 now; a SHA-256 names one key.
 //
 // BOUNDS. This reads the keystore the build is configured with, not the bytes
 // it produces (the ledger rows are written from the bytes), and AGP's order is

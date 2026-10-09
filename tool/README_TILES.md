@@ -27,7 +27,7 @@ the boundary input). A CJK font must be installed for ja labels
 ## Steps
 
 ```bash
-python -m venv venv && venv/bin/pip install osmium pillow shapely
+python -m venv venv && venv/bin/pip install -r tool/requirements.txt
 venv/bin/python tool/extract_akita.py tohoku-260709.osm.pbf extract.json tohoku-260709
 venv/bin/python tool/extract_akita_boundary.py tohoku-260709.osm.pbf boundary.json
 venv/bin/python tool/render_akita_mbtiles.py extract.json akita_offline.mbtiles boundary.json

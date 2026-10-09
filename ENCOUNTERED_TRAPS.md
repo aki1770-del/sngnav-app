@@ -63,7 +63,7 @@ The instruction ("do not worry about mistakes / use loupe") called for a lasting
 - **First observed**: nav2 PR #6104 C.2.a fix push, 2026-04-29 morning JST; clone at `~/tmp/navigation2`
 - **Symptom**: `--force-with-lease` rejects with "stale info" but `git ls-remote origin <branch>` shows the remote IS at the SHA you expect
 - **Class**: git-push / lifecycle (clone-config drift)
-- **Pre-flight check**: When `--force-with-lease` rejects unexpectedly, run `git ls-remote origin <branch>` to query github.com live (bypasses local ref cache). If the live SHA matches your expected, the cause is a stale local tracking ref. Inspect `git config --get remote.origin.fetch`: default is `+refs/heads/*:refs/remotes/origin/*` (all branches); narrow form `+refs/heads/main:refs/remotes/origin/main` (single-branch clones; main only) silently desyncs feature-branch tracking refs. Fix-A: `git fetch origin +<branch>:refs/remotes/origin/<branch>` then re-push. Fix-B: explicit lease form `git push --force-with-lease=<branch>:<expected-sha> origin <branch>`. Per `CLAUDE.md` "NEVER update the git config" — do NOT autonomously rewrite the refspec; surface to the maintainer for a manual fix.
+- **Pre-flight check**: When `--force-with-lease` rejects unexpectedly, run `git ls-remote origin <branch>` to query github.com live (bypasses local ref cache). If the live SHA matches your expected, the cause is a stale local tracking ref. Inspect `git config --get remote.origin.fetch`: default is `+refs/heads/*:refs/remotes/origin/*` (all branches); narrow form `+refs/heads/main:refs/remotes/origin/main` (single-branch clones; main only) silently desyncs feature-branch tracking refs. Fix-A: `git fetch origin +<branch>:refs/remotes/origin/<branch>` then re-push. Fix-B: explicit lease form `git push --force-with-lease=<branch>:<expected-sha> origin <branch>`. Do NOT autonomously rewrite the refspec; surface to the maintainer for a manual fix.
 - **Linked note**: kept outside this repository (git workflow gotchas, point 2)
 
 ## TRAP-06 — `--force-with-lease` without explicit lease target requires upstream-tracking config
@@ -100,9 +100,9 @@ The instruction ("do not worry about mistakes / use loupe") called for a lasting
 
 - **First observed**: `~/SNGNav`, 2026-09-13. A format gate printed `format exit=0` for four packages that were all actually exit 1. `$?` after a pipeline is the exit of the LAST command — `tail` — which succeeds no matter what `dart format` did.
 - **Symptom**: A gate reports green in the same breath as printing the evidence that it is red (`Changed <file>` lines were visible directly above `exit=0`).
-- **Class**: measurement-instrument / success-shaped-failure. Same family as the three cases recorded against the pen in CLAUDE.md v4.5 — "its own verification steps returned success-shaped while the operation failed".
+- **Class**: measurement-instrument / success-shaped-failure.
 - **Pre-flight check**: Never read `$?` through a pipe. Capture first, then inspect: `out=$(dart format --output=none --set-exit-if-changed .); rc=$?`. Applies to every `cmd | tail` / `| grep` / `| head` in a gate. Also: `--output=none` still prints `Changed <file>`; those are files that WOULD change, so grep that list against the files you actually touched before reformatting someone else's in-flight work.
-- **Linked feedback memory**: CLAUDE.md v4.5 version note (the three success-shaped verification failures); `gate-block-is-not-length-2026-09-04.md`
+- **Linked feedback memory**: kept outside this repository
 
 ---
 
@@ -243,4 +243,4 @@ This section reserved for traps that have been structurally eliminated (e.g., a 
 
 ---
 
-**End of trap log v0.1.** 7 TRAPs seeded from three feedback-memory sources. Next-slice author runs the pre-flight checklist before shipping.
+**End of trap log v0.1.** 7 TRAPs seeded from three feedback-memory sources; the TRAPs after TRAP-07 were appended under the append-on-observe rule. Next-slice author runs the pre-flight checklist before shipping.

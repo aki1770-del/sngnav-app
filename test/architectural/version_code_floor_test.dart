@@ -1,8 +1,9 @@
 // A build signed with the release key refuses a versionCode that is already
 // spent, and the Play preflight refuses one too. Both read
 // tool/version_code_floor. Gradle cannot run in a test, so this pins the
-// pieces in the source: if the floor file goes, is lowered below its seed, or
-// the wiring is removed, it fails here as well as in a release build.
+// pieces in the source: if the floor file goes, is lowered below its seed or
+// below a code it names as spent, or the wiring is removed, it fails here as
+// well as in a release build.
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -19,19 +20,40 @@ int? floorNumber(String text) {
   return lines.length == 1 ? int.tryParse(lines.single) : null;
 }
 
+/// The highest code the file names as spent, from its comment lines of the
+/// form `# 14: 0.0.2, release key ...`. A range line (`# 2-11: ...`) names
+/// codes below the ones listed singly and is not read. Null when none.
+int? highestNamedCode(String text) {
+  final codes = RegExp(r'^#\s*(\d+):', multiLine: true)
+      .allMatches(text)
+      .map((m) => int.parse(m[1]!));
+  return codes.isEmpty ? null : codes.reduce((a, b) => a > b ? a : b);
+}
+
 void main() {
   test('tool/version_code_floor holds the spent floor, and it is not lowered',
       () {
     final f = File('tool/version_code_floor');
     expect(f.existsSync(), isTrue, reason: 'the spent-code floor file is gone');
-    final n = floorNumber(f.readAsStringSync());
+    final text = f.readAsStringSync();
+    final n = floorNumber(text);
     expect(n, isNotNull,
         reason: 'it must hold exactly one number line, and that line a number');
+    final named = highestNamedCode(text);
+    expect(named, isNotNull,
+        reason: 'the file names no spent code (lines of the form "# 14: ...")');
     expect(
       n,
-      greaterThanOrEqualTo(12),
-      reason: 'code 12 is installed on the maintainer\'s phone; '
+      greaterThanOrEqualTo(named!),
+      reason: 'the file names code $named as spent; '
           'the floor is raised, never lowered',
+    );
+    // The seed: 14 was spent on 2026-10-08, so lowering the number together
+    // with the lines that name the codes above it still fails here.
+    expect(
+      n,
+      greaterThanOrEqualTo(14),
+      reason: 'code 14 is spent; the floor is raised, never lowered',
     );
   });
 

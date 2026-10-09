@@ -35,3 +35,8 @@
 # (minted under the release key, or reported back by a device) is recorded in
 # tool/version_code_floor, not here: this file says what Play has received,
 # and nothing else.
+#
+# RE-READ 2026-10-09: "built at codes 3 to 12" and "the phone above reported 12"
+# above are out of date. 0.0.2 has since been built at codes 13 and 14
+# (tool/version_code_floor), and a device read of the maintainer's phone at
+# 2026-10-09T00:26:10Z reported 14. This file still holds no integers.

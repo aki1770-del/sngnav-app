@@ -9,8 +9,12 @@ Enable them once per clone:
 
     git config core.hooksPath .githooks
 
-`pre-commit` runs the tile-pipeline gate when `tool/*.py`, `tool/requirements.txt`
-or `assets/tiles/*.mbtiles` are staged. It is quiet on every other path.
+`pre-commit` does not carry the tile-pipeline gate itself. When `tool/*.py`,
+`tool/requirements.txt` or `assets/tiles/*.mbtiles` are staged, it runs a gate
+script kept outside this repository, the one `TILE_PIPELINE_GATE` names or a
+default path under `$HOME`; where no such script is found, it prints a warning
+and does not block (`.githooks/pre-commit:7-14`). On a machine without that
+script, the hook checks nothing. It is quiet on every other path.
 CI runs the same guards' `--self-test` from `tool/`, so a clone that never
 enables hooks is still covered at the CI seam.
 

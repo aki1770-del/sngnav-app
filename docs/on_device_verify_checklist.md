@@ -1,7 +1,7 @@
 # On-Device Verify — Published JA Narration + Voice (the 10-minute act)
 
-**Owner**: the app maintainer. **Status**: **DEFERRED — no PHYSICAL
-Android device. An emulator exists and has been walked.** Everything below is
+**Owner**: the app maintainer. **Status**: **DEFERRED — no item below is
+ticked on a PHYSICAL phone. An emulator exists and has been walked.** Everything below is
 PREPARED; the moment a phone is plugged in, this is a ~10-minute verification,
 not a build session.
 
@@ -16,6 +16,12 @@ not a build session.
 > `flutter devices` → `Found 1 connected device: Linux (desktop)`; `adb devices`
 > → empty. Emulator ≠ phone: `ladder_out/` ran `-no-audio`, so **nobody has yet
 > HEARD this app speak** (`BETA_PLAN.md:31`). HEAR/FEEL stays ⬜.
+>
+> **Corrected 2026-10-09.** "No physical phone" no longer holds. A physical
+> phone has held release builds of this app and been read back over adb: codes
+> 12 and 13, and code 14 by a device read of 2026-10-09T00:26:10Z
+> (`tool/version_code_floor:21-23`). No item below is ticked, so the deferral
+> stands. That phone holds an SNGNav release: read step 1 before installing.
 
 **Companion**: `docs/DEVICE_VERIFICATION.md` (the WS5/WS6 actuator deep
 checklist — audio quality, haptic distinguishability, wakelock, long-drive).
@@ -62,6 +68,14 @@ flutter build apk --debug --target-platform android-arm64   # ~7 min cold, ~10 s
 ## The 10 minutes
 
 ### 1. Install (1 min)
+
+Only on an emulator or on a phone that does not hold an SNGNav release. An
+installed app takes an update only from the certificate that signed it, so
+this debug-signed APK cannot update an upload-signed install
+(`android/app/build.gradle.kts:742-749`); on the maintainer's phone (MIUI)
+`adb install` was refused whatever the key, on 2026-09-19 and 2026-10-02
+(`android/app/build.gradle.kts:68-72`). Do not uninstall a release to make
+room: an uninstall deletes its data.
 
 ```sh
 adb devices                      # device shows as 'device', not 'unauthorized'

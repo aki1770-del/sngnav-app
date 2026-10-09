@@ -25,15 +25,15 @@
 /// in the type system: `fromCondition` returns `RoadSurfaceState?`, and `null`
 /// means "cannot classify" — never `dry`.
 ///
-/// **This app cannot take that fix today.** Measured 2026-08-06 against the
-/// live pub.dev API, three PUBLISHED siblings cap us below the recall
+/// **On 2026-08-06 this app could not take that fix.** Measured then against
+/// the live pub.dev API, three PUBLISHED siblings capped us below the recall
 /// (`driving_conditions` 0.5.5 -> `snow_rendering ^0.2.1`; that package plus
 /// `adaptive_reroute` 0.1.6 and `route_condition_forecast` 0.1.5 all -> the
-/// `driving_weather ^0.4.0` that `snow_rendering` 0.3.0 leaves behind). The
-/// exact caps and the catalog-side republish they need are recorded in
-/// `pubspec.yaml`. Forcing the constraint past the resolver is forbidden
-/// here; so the guarantee is enforced in this file instead — which is exactly what
-/// `snow_rendering` 0.2.9's own dartdoc instructs, verbatim:
+/// `driving_weather ^0.4.0` that `snow_rendering` 0.3.0 leaves behind).
+/// Corrected 2026-10-09: `pubspec.yaml` now pins `snow_rendering: ^0.3.0`
+/// and the lock resolves 0.3.2. While the cap held, forcing the constraint
+/// past the resolver was forbidden here, so this file enforces the guarantee
+/// itself, as `snow_rendering` 0.2.9's own dartdoc instructs, verbatim:
 ///
 /// > Never call this with fields you did not measure; gate absence at your call
 /// > site and tell your user "unknown".
