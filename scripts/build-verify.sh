@@ -27,9 +27,12 @@
 
 set -uo pipefail
 
-# Toolchain pinned at the last claimed green (2026-07-27, commit a900e94):
-PINNED_FRAMEWORK_REV="3947205d67"
-PINNED_DART="3.11.1"
+# Toolchain pinned to CI's: stock Flutter 3.47.5, stable (.github/workflows/
+# ci.yml:184-185), whose framework revision and Dart are as Flutter's release
+# manifest lists them. Until 2026-10-09 this pinned the 2026-07-27 green
+# (a900e94: 3947205d67, Dart 3.11.1), and so reported drift on CI's toolchain.
+PINNED_FRAMEWORK_REV="6a19cca564"
+PINNED_DART="3.13.4"
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$APP_DIR"
@@ -47,7 +50,7 @@ VERSION_OUT="$(flutter --version 2>/dev/null)"
 echo "$VERSION_OUT"
 if ! grep -q "$PINNED_FRAMEWORK_REV" <<<"$VERSION_OUT"; then
   echo "!!! TOOLCHAIN DRIFT: framework revision is not $PINNED_FRAMEWORK_REV." >&2
-  echo "!!! Any golden/render claim from this run does NOT reproduce the pinned green." >&2
+  echo "!!! Any golden/render claim from this run does NOT reproduce the pinned toolchain." >&2
 fi
 if ! grep -q "Dart $PINNED_DART" <<<"$VERSION_OUT"; then
   echo "!!! TOOLCHAIN DRIFT: Dart is not $PINNED_DART." >&2
