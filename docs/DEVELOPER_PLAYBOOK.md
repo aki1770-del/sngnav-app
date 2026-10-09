@@ -198,6 +198,11 @@ SDK, and it installs Flutter, Java and Python through GitHub actions
 distribution instead. Run them as an ordinary user with `sudo`, in this
 order, one block at a time.
 
+They are for an x86-64 machine. Flutter's release manifest (step 2) lists
+no Linux archive for arm64: none of its 743 entries, read 2026-10-09. On an
+arm64 machine step 2 has nothing to download, and this page gives no other
+route.
+
 **1. System packages.** The first line is Flutter's own list of Linux
 prerequisites (https://docs.flutter.dev/install/manual). The second adds
 JDK 17, the venv module and `sqlite3`. The rest are the guard packages
@@ -257,8 +262,7 @@ deprecated and that `--licenses` is no longer needed, then download a newer
 (measured 2026-10-09). The sdkmanager page names `android sdk install` as
 the replacement.
 
-**4. Point Flutter at the SDK and the JDK.** On an arm64 machine the JDK
-directory ends in `-arm64`, not `-amd64`.
+**4. Point Flutter at the SDK and the JDK.**
 
 ```sh
 flutter config --android-sdk "$ANDROID_HOME"
@@ -780,8 +784,11 @@ reach that phone by push and tap (`build.gradle.kts:80-81, 742-743`):
 ```sh
 sha256sum <file.apk>                                   # on the host
 adb -s <serial> push <file.apk> /sdcard/Download/<file.apk>
-adb -s <serial> shell sha256sum /sdcard/Download/<file.apk>   # must equal the host's
+adb -s <serial> shell -n sha256sum /sdcard/Download/<file.apk>   # must equal the host's
 ```
+
+The third line is the check, not `adb push`'s own summary: a push that
+failed has also printed `1 file pushed, 0 skipped` (measured below).
 
 Then, on the phone, open the file in a file manager and tap it, with
 "install unknown apps" allowed for that file manager
@@ -795,7 +802,10 @@ on-device `sha256sum` compared with the host's).
 **On an emulator: measured.** On the API 30 emulator `sngnav_api30`, started
 `-read-only -no-snapshot`, a push 3 s after `sys.boot_completed` became `1`
 failed (`adb: error: failed to copy ...`), and the same push 12 s after it
-worked; the on-device `sha256sum` equalled the host's. The first version of
+worked; the on-device `sha256sum` equalled the host's. A second walk-through
+of this page saw a push fail that way and also print `app-debug.apk: 1 file
+pushed, 0 skipped.` beside the error; `adb` exited 1, and the on-device
+`sha256sum` printed `No such file or directory`. The first version of
 this page saw the same failure (`remote couldn't create file: Operation not
 permitted`) on a push made seconds after boot, and suspected `-read-only`;
 the person who followed that version pushed to the same read-only emulator
@@ -807,6 +817,15 @@ again. It says nothing about a phone.
 
 Always pass `-s <serial>` when more than one device can be attached.
 
+Every `adb -s <serial> shell` line in this chapter has `-n`, which tells
+`adb` not to read its input (`adb help`: "don't read from stdin"). Without
+it, `adb shell` takes the lines after it as its own input whenever a block
+reaches the shell as input: fed to `bash` on its standard input, or pasted
+into a terminal that does not use bracketed paste. Those lines then never
+run, and nothing says so: the block exits 0. Measured on the emulator, fed
+to `bash` and as a paste emulated through `script`: without `-n`, 9 of the
+17 command lines in this chapter's four blocks ran; with `-n`, 17 of 17.
+
 ### 6.3 Reading back what is installed: a receipt is a device read
 
 "Installed" is a statement about a phone, so it is settled by reading the
@@ -815,10 +834,10 @@ Four fields settle which build is there:
 
 ```sh
 P=dev.aki1770del.sngnav_app
-adb -s <serial> shell "dumpsys package $P | grep -E 'versionCode=|versionName=|firstInstallTime=|lastUpdateTime=|signatures='"
-adb -s <serial> shell pm path $P                       # prints package:<path>/base.apk
-adb -s <serial> shell sha256sum <path>/base.apk        # hash ON the device
-adb -s <serial> shell date +%FT%T%z                    # the phone's clock, with its UTC offset
+adb -s <serial> shell -n "dumpsys package $P | grep -E 'versionCode=|versionName=|firstInstallTime=|lastUpdateTime=|signatures='"
+adb -s <serial> shell -n pm path $P                    # prints package:<path>/base.apk
+adb -s <serial> shell -n sha256sum <path>/base.apk     # hash ON the device
+adb -s <serial> shell -n date +%FT%T%z                 # the phone's clock, with its UTC offset
 date -u                                                # the host's clock, in UTC: the read expires; stamp it
 ```
 
@@ -870,20 +889,37 @@ installed beside it: `pm list packages sngnav` printed both
 
 ```sh
 "$ANDROID_HOME"/build-tools/36.0.0/aapt2 dump badging <file.apk> | grep launchable-activity
-adb -s <serial> shell am start -W -n dev.aki1770del.sngnav_app/.MainActivity
-adb -s <serial> shell am start -W -n dev.aki1770del.sngnav_app.dev/dev.aki1770del.sngnav_app.MainActivity
+adb -s <serial> shell -n am start -W -n dev.aki1770del.sngnav_app.dev/dev.aki1770del.sngnav_app.MainActivity
+adb -s <serial> shell -n am start -W -n dev.aki1770del.sngnav_app/.MainActivity
 ```
 
-The second line starts the driver's app, the third the `.dev` build: its
-package differs, its activity class does not.
+The second line starts the `.dev` build, the third the driver's app: the
+package differs, the activity class does not. In both lines the first `-n` is
+`adb shell`'s (6.2); the second is `am start`'s and names what to start.
+
+**Read `Activity:` before any time.** `am start -W` prints the first launch
+that ends, or times out, while it waits, and `Activity:` names whose it is;
+it need not be the one this line started. A line that printed `Status:
+timeout` leaves its app still starting, which is why the `.dev` line, the
+faster of the two, comes first. After a `timeout`, start nothing else until
+that app has finished starting: the event log (6.4) then holds a
+`wm_activity_launch_time` line naming it.
+
 Measured 2026-10-09 on the emulator: `aapt2` printed
 `launchable-activity: name='dev.aki1770del.sngnav_app.MainActivity'` for the
-debug APK and for the `.dev` release. The `.dev` line printed `Status: ok`,
-`LaunchState: COLD`, `TotalTime: 4178`. The debug build's line printed
-`Status: timeout` after 10.4 s: `am start -W` stopped waiting, and the app
-did start, as its `am_proc_start` and `wm_on_resume_called` in the event log
-show (6.4). A debug build starts more slowly than a release one; when you see
-`timeout`, read the event log before you conclude anything.
+debug APK and for the `.dev` release. Run as given, the `.dev` line printed
+`Status: ok`, `LaunchState: COLD`, its own `Activity:` and `TotalTime: 2696`,
+the time of its own `wm_activity_launch_time` line. The debug build's line
+has printed `Status: timeout` after 10.2 to 10.4 s: `am start -W` stopped
+waiting, and the app did start, as its `am_proc_start` and
+`wm_on_resume_called` in the event log show (6.4). With the lines in the
+other order, a second walk-through of this page saw the `.dev` line print
+`Status: ok`, `LaunchState: COLD` and `TotalTime: 11476` with the debug
+build's `Activity:`: the debug build's launch, finishing late. With the debug
+build kept starting on purpose, the `.dev` line named it in 5 runs of 5;
+started after the debug build's `wm_activity_launch_time` line, it named
+itself in 5 of 5. A debug build starts more slowly than a release one; when
+you see `timeout`, read the event log before you conclude anything.
 
 A debug build also logs its own identity at each launch, debug builds only
 (`lib/main.dart:1687-1700`). Measured on the emulator:
@@ -903,10 +939,10 @@ whether it started.
 
 ```sh
 adb -s <serial> logcat -d -s flutter                    # the app's own lines (docs/on_device_verify_checklist.md:166)
-adb -s <serial> shell "logcat -d -b events -v UTC -v year | grep dev.aki1770del.sngnav_app"
-adb -s <serial> shell dumpsys activity services dev.aki1770del.sngnav_app
-adb -s <serial> shell cmd appops get dev.aki1770del.sngnav_app START_FOREGROUND
-adb -s <serial> shell cmd appops get dev.aki1770del.sngnav_app FINE_LOCATION
+adb -s <serial> shell -n "logcat -d -b events -v UTC -v year | grep dev.aki1770del.sngnav_app"
+adb -s <serial> shell -n dumpsys activity services dev.aki1770del.sngnav_app
+adb -s <serial> shell -n cmd appops get dev.aki1770del.sngnav_app START_FOREGROUND
+adb -s <serial> shell -n cmd appops get dev.aki1770del.sngnav_app FINE_LOCATION
 ```
 
 In the first line the first `-s` is `adb`'s and names the device; the second
