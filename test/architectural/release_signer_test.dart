@@ -78,8 +78,8 @@ void main() {
 
   test('the pin is the upload key\'s certificate, by VALUE', () {
     // Pinned here as well as in the file, so changing the key takes two
-    // deliberate edits. The value is the certificate that signed code 12, the
-    // build on her phone, as tool/version_code_floor records it.
+    // deliberate edits. The value is the certificate that signed the highest
+    // code tool/version_code_floor names, as that file records it (below).
     final pin =
         pinnedDigest(File('tool/upload_key_certificate_sha256').readAsStringSync());
     expect(pin,

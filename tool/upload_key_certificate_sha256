@@ -24,6 +24,6 @@
 # and the digest below:
 #   0.0.2+9  (04ca782)  APK sha256 1e7a3fad26d5c7e1e9d457ed0f48453c012b85e4719737db47b229d8ae1582d7
 #   0.0.2+11 (a6b907d)  APK sha256 fd2cdf4b615b275bdfbe1902ee8249473e603f83b8325def2552020f85038937
-# and code 12, the build on the maintainer's phone (tool/version_code_floor),
+# and code 12, installed on the maintainer's phone (tool/version_code_floor),
 # read the same way when it was built on 2026-10-02.
 6a4906edb4ebdc5f54ad24ab1818054618adba480df98b4f4f1dac45600d0f14
