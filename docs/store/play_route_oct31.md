@@ -16,6 +16,14 @@
 >   outside what this repository can see.
 > The Play policy figures (tester counts, review times, dates) were **not**
 > re-read on 2026-09-25.
+>
+> **⚑ Re-read 2026-10-09, one more.** Step (5)'s "download the
+> `sngnav-app-release-aab` artifact from a green CI run", and the same promise
+> under "And the CI release job was building the wrong artifact", name a file
+> no run has produced. That job runs only on manual dispatch and refuses to
+> build without the signing secrets (`.github/workflows/ci.yml:606-607`,
+> `:716-726`). Measured 2026-10-09: 0 of the repository's 176 workflow runs
+> were dispatched, and it holds 0 Actions secrets and 0 artifacts.
 
 Measured 2026-08-10. Every Play figure below was read live from Google's own pages
 on that date, not recalled. **Today is 82 days from Oct 31, and 92 from first ice (Nov 10–25).**
