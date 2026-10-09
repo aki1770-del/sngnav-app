@@ -1,6 +1,6 @@
 # プライバシーポリシー — sngnav-app
 
-最終更新: 2026-09-25
+最終更新: 2026-10-09
 
 <!-- Play Console は位置情報を要求するアプリに公開されたプライバシーポリシー URL を
      求める。本ファイルはその原文（ja 主・en 全訳付き）。ホスティング先が決まったら
@@ -125,7 +125,7 @@
      取り消し線は読み上げ（スクリーンリーダー）でも伝わらない。取り消しは言葉で書く。
      test/services/privacy_policy_render_test.dart が、この文書に取り消し線の記法が無いことを確かめる。 -->
 
-## 端末の外に出るデータ（この6つがすべてです）
+## 端末の外に出るデータ（アプリ自身の通信は、この6つがすべてです）
 
 1. **気象庁アメダス観測値の取得** — 秋田県内の決められた 5 か所の観測所（男鹿・秋田・大曲・横手・湯沢）の観測値を、気象庁のサーバー（www.jma.go.jp）から取得します。アプリの起動時に 5 か所すべてを取得し、その後は秋田の観測所を約10分ごとに取得します。観測所の一覧で再取得を押したときは、5 か所すべてを取り直します。現在地を共有するかどうかに関係なく行い、**あなたの座標は送信されません。** 通信には、本アプリの名前（sngnav-app）と、連絡先として開発プロジェクトの公開リポジトリ URL（https://github.com/aki1770-del/sngnav）を含む User-Agent が付きます（気象庁側の流量管理・セキュリティ連絡のためのもので、あなたを識別するものではありません）。
    <!-- flow: jma-amedas -->
@@ -208,7 +208,7 @@
 
 **IP アドレスについて（2026-09-25 追記）:** インターネットの通信である以上、上の 6 つのどの通信でも、あなたの端末の IP アドレスは通信先のサーバーに届きます。
 
-上記のほかに端末の外に出るのは、下の不具合ログと運転日記を、あなたが自分で共有したときだけです。
+上記のほかに、アプリが端末の外に送るのは、あなたが共有ボタン（「ログを共有」「日記を共有」など）を押して、端末の共有機能で送ったものだけです。また、端末のバックアップ（Google など）がオンなら、運転日記はその中に含まれ、新しい端末に移ることがあります（下の「運転日記について」）。
 <!-- 2026-09-25 訂正: 以前は「上記のほかに、端末の外に出るデータはありません。」と書き、運転日記に
      一度も触れていなかった。日記は、あなたが「日記を共有」を押したときに端末の共有機能で外に出る
      （lib/services/drive_diary.dart の shareDiaryViaShareSheet）。不具合ログはこの下で説明済みだった。
@@ -216,7 +216,7 @@
 
 ## 不具合ログについて
 
-アプリ内部のエラーは、端末内のログファイルにのみ記録されます（上限約200KB。超えた分は古いものから消えます）。エラーの文面は、起きたとおりに記録されます。位置を運ぶ通信（経路検索と米国の警報）は、自分のエラーをこのログに書かないことを確かめています。ただし、起こりうるすべてのエラーの文面までは確かめていません（たとえば地図タイルの読み込みエラーに、表示中の範囲を示すタイル座標が含まれるかどうか）。このログが端末の外に出るのは、**あなたが「ログを共有」を押して端末の共有機能で送ったときだけ**です。自動送信はありません。
+アプリ内部のエラーは、端末内のログファイルにのみ記録されます（上限約200KB。超えた分は古いものから消えます）。エラーの文面は、起きたとおりに記録されます。位置を運ぶ通信（経路検索と米国の警報）は、自分のエラーをこのログに書かないことを確かめています。ただし、起こりうるすべてのエラーの文面までは確かめていません（たとえば地図タイルの読み込みエラーに、表示中の範囲を示すタイル座標が含まれるかどうか）。アプリがこのログを端末の外に送るのは、**あなたが「ログを共有」を押して端末の共有機能で送ったときだけ**で、アプリが自分から送ることはありません。ログは Google のバックアップや、新しい端末へのデータ移行には含まれません（スマートフォンのメーカー独自のバックアップや移行アプリについては確かめていません）。
 <!-- lib/services/error_log.dart:9-15,32
      ⚑ 2026-09-25 追記の根拠: LocalErrorLog.record は error.toString() と stack をそのまま書く。
      経路検索（main.dart の _fetchRoute）は例外を RouteFailure にして画面に出し、ログには書かない。
@@ -226,10 +226,12 @@
 
 ## 運転日記について
 
-運転日記に記録した内容（日時、あなたが選んだ答え、あなたが書いた地域やメモ。警告の確認を記録したときは、聞こえたか・感じたかの答えと、端末の申告、アプリのバージョン）は、端末内のファイルにだけ保存されます（上限約512KB。超えた分は古いものから消えます）。位置や経路は記録しません — 場所として残るのは、あなたが自分で書いた言葉だけです。日記が端末の外に出るのは、**あなたが「日記を共有」を押して端末の共有機能で送ったときだけ**です。送られるのは日記の本文と、アプリのバージョン・OS の種類・書き出した時刻です。自動送信はありません。
+運転日記に記録した内容（日時、あなたが選んだ答え、あなたが書いた地域やメモ。警告の確認を記録したときは、聞こえたか・感じたかの答えと、端末の申告、アプリのバージョン）は、端末内のファイルに保存されます（上限約512KB。超えた分は古いものから消えます）。位置や経路は記録しません — 場所として残るのは、あなたが自分で書いた言葉だけです。アプリが日記を端末の外に送るのは、**あなたが「日記を共有」を押して端末の共有機能で送ったときだけ**です。送られるのは日記の本文と、アプリのバージョン・OS の種類・書き出した時刻です。アプリが自分から送ることはありません。端末のバックアップ（Google など）がオンなら、日記もその中に含まれ、新しい端末に移ることがあります。
 <!-- 2026-09-25 追加。出典（記号）: lib/services/drive_diary.dart の DriveDiary.record /
      recordChannelCheck（書く項目）、maxBytes = 512 * 1024（超えると半分まで古い順に削る）、
      composeDiarySharePayload（送る中身: 見出し 3 行 + 本文）、shareDiaryViaShareSheet（OS の共有シート）。 -->
+
+*訂正のお知らせ（2026-10-09）: 以前このページは、運転日記を「端末内のファイルにだけ保存されます」と書き、日記と不具合ログはどちらも、あなたが共有ボタンを押したときだけ端末の外に出る、と書いていました。端末のバックアップ（Google など）がオンなら、日記はその中に含まれ、新しい端末に移ることがあります。これまでのどの版でも同じでした。⟨この変更を含む最初の版⟩からは、アプリは不具合ログを Google のバックアップと新しい端末へのデータ移行に含めないよう、Android に指定しています（上の「不具合ログについて」を参照）。それより前の版では、バックアップがオンなら不具合ログも含まれることがありました。*
 
 ## お問い合わせ
 
@@ -242,7 +244,7 @@
 
 # Privacy Policy — sngnav-app (English)
 
-Last updated: 2026-09-25
+Last updated: 2026-10-09
 
 sngnav-app is an advisory app that supports driving on snowy roads. We deliberately keep your data on your device wherever possible. This page explains — matching the actual code — what the app uses, what it sends, and what it does not send.
 
@@ -295,7 +297,7 @@ of that note and is kept here. The drive notification may not be shown on a lock
 Android 14 and later it can be swiped away while the location feed continues (see the first section
 above). Both were observed on an Android 14 test emulator, not yet on a real phone.*
 
-## Data that leaves your device (these six flows are all of it)
+## Data that leaves your device (the app's own connections: these six flows are all of it)
 
 1. **JMA AMeDAS observation fetch** — the app requests observations for five fixed weather stations in Akita Prefecture (Oga, Akita, Omagari, Yokote, Yuzawa) from the Japan Meteorological Agency servers (www.jma.go.jp): all five when the app starts, then the Akita station about every 10 minutes, and all five again when you press re-fetch on the station list. This happens whether or not you share your location, and **your coordinates are not sent.** Requests carry a User-Agent naming this app (sngnav-app) and giving the project's public repository URL (https://github.com/aki1770-del/sngnav) as a contact, so the publisher can do rate-limit accounting and reach a security contact — it does not identify you.
    <!-- flow: jma-amedas -->
@@ -321,15 +323,17 @@ above). Both were observed on an Android 14 test emulator, not yet on a real pho
 
 **About your IP address (added 2026-09-25):** Like any internet request, each of the six flows above shows your device's IP address to the server that receives it.
 
-Besides the above, data leaves the device only when you share the error log or the drive diary yourself (below).
+Besides the above, the app sends data off your device only when you tap a share button (such as ログを共有, Share log, or 日記を共有, Share diary) and send it through your device's share sheet yourself. Separately, if your phone's backup (Google or other) is on, the drive diary may be included in it and moved to a new phone (see Drive diary below).
 
 ## Crash / error log
 
-Internal errors are recorded only in a local log file on your device (capped at roughly 200 KB; oldest entries are dropped first). The text of each error is recorded as it occurred. The requests that carry your position (route lookup, and US alerts) have been checked not to write their errors to this log, but not every possible error message has been checked (for example, whether a map-tile loading error could include the tile coordinates of the area on screen). The log leaves your device **only when you press "ログを共有" (Share log) and send it through your device's share sheet**. There is no automatic upload.
+Internal errors are recorded only in a local log file on your device (capped at roughly 200 KB; oldest entries are dropped first). The text of each error is recorded as it occurred. The requests that carry your position (route lookup, and US alerts) have been checked not to write their errors to this log, but not every possible error message has been checked (for example, whether a map-tile loading error could include the tile coordinates of the area on screen). The app sends the log off your device **only when you press "ログを共有" (Share log) and send it through your device's share sheet**; it never sends it by itself. The log is not included in Google's backup or in a transfer to a new phone (a phone maker's own backup or transfer app has not been checked).
 
 ## Drive diary
 
-What you record in the drive diary (the time, the answers you choose, the area and note you type, and, for a warning check, whether you heard and felt it, what the device reported and the app version) is saved only in a file on your device (capped at roughly 512 KB; the oldest entries are dropped first). No position or route is recorded; the only place in it is what you type yourself. The diary leaves your device **only when you press 日記を共有 (Share diary) and send it through your device's share sheet**. What is sent is the diary text, with the app version, the kind of operating system and the time it was exported. There is no automatic upload.
+What you record in the drive diary (the time, the answers you choose, the area and note you type, and, for a warning check, whether you heard and felt it, what the device reported and the app version) is saved in a file on your device (capped at roughly 512 KB; the oldest entries are dropped first). No position or route is recorded; the only place in it is what you type yourself. The app sends the diary off your device **only when you press 日記を共有 (Share diary) and send it through your device's share sheet**. What is sent is the diary text, with the app version, the kind of operating system and the time it was exported. The app never sends it by itself. If your phone's backup (Google or other) is on, the diary may be included in it and moved to a new phone.
+
+*Correction note (2026-10-09): this page said the drive diary "is saved only in a file on your device", and that the diary and the error log leave your device only when you tap a share button. If your phone's backup (Google or other) is on, the diary may be included in it and moved to a new phone, and that has been so in every version. From ⟨the first version with this change⟩, the app tells Android to leave the error log out of Google's backup and out of a transfer to a new phone (see "Crash / error log" above). In earlier versions, the error log could be included too, if your backup was on.*
 
 ## Contact
 
