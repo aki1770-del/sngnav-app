@@ -14,7 +14,10 @@ claim is made.
 
 ## How to use
 
-Run the app on a real Android device (`flutter run -d <device>`), drive the WS6
+Run the app on a real Android device that does not hold an SNGNav release
+(`flutter run -d <device>`; on a phone that holds one, `flutter run` can
+uninstall the installed app, which deletes its data:
+`android/app/build.gradle.kts:58-61, 120-132`), drive the WS6
 "Live drive — compound-failure caution" panel + the WS5 "Announce to driver"
 button, and check each item. Record PASS/FAIL + device + date. A FAIL is an
 Andon, not a footnote.
@@ -180,7 +183,7 @@ landed (geolocator's own `GeolocatorLocationService`, driven by
 
 ## Status
 
-**DEFERRED** — no **physical** Android device in this environment. An Android
+**DEFERRED** — no item above is ticked on a **physical** phone. An Android
 SDK, an emulator and the AVD `sngnav_api30` DO exist here and were walked on
 2026-07-09 (`ladder_out/`, 71 files tracked in git; airplane-mode pass
 2026-07-10). Until every item above is PASS on a **physical phone**, the app
@@ -193,3 +196,11 @@ HEAR / FEEL is deferred."* It never claims *"works on Android."*
 > `-no-audio` and bound a **server** voice, so it cannot discharge HEAR or FEEL.
 > Measured this turn: `flutter devices` → `Found 1 connected device: Linux
 > (desktop)`; `adb devices` → empty.
+
+> **Corrected 2026-10-09.** This line read *"no **physical** Android device in
+> this environment"*. A physical phone has held release builds of this app and
+> been read back over adb: codes 12 and 13, and code 14 by a device read of
+> 2026-10-09T00:26:10Z (`tool/version_code_floor:21-23`). Those reads are of the
+> installed version, not of this checklist: no item above is ticked, so the
+> deferral stands. That phone holds an SNGNav release, so read "How to use"
+> before running anything on it.
