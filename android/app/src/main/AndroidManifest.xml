@@ -112,10 +112,35 @@
          app, and @string/dev_app_label for the .dev build types (a development
          release, and every profile build), which install beside hers. Two
          "SNGNav" icons on one phone would be one glance from the wrong app. -->
+    <!-- BACKUP (2026-10-09): the error log and the fix-interval test records
+         are kept out of Google's backup and out of a transfer to a new phone,
+         PER FILE. The drive diary is deliberately left IN, so it can follow
+         her to a new phone (the 2026-10-09 dignity read, WDA W4); its words
+         were corrected instead. That is why this is NOT
+         android:allowBackup="false", which would take the diary out too.
+         allowBackup stays at its default (true).
+
+         Two attributes, because Android reads two schemes (AOSP source read
+         2026-10-09, frameworks/base core/java/android/app/backup/FullBackup.java):
+         - fullBackupContent (res/xml/backup_rules.xml): Android 11 and lower
+           read only this, for every backup operation. With exclusions and no
+           inclusions, everything else is still backed up.
+         - dataExtractionRules (res/xml/data_extraction_rules.xml): Android 12
+           and later. For an app targeting 31 or higher (this one targets
+           flutter.targetSdkVersion), device transfer IGNORES fullBackupContent
+           (IGNORE_FULL_BACKUP_CONTENT_IN_D2D), so the device-transfer section
+           is what keeps the files out of a transfer; cloud backup uses the
+           cloud-backup section.
+         The file names are held to the Dart constants by
+         test/architectural/backup_exclusion_rules_test.dart. NOT CHECKED: a
+         phone maker's own backup (for example Xiaomi's). Proven on a device:
+         not by this change; the backup proof on API 29 and 31+ is owed. -->
     <application
         android:label="${appLabel}"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"

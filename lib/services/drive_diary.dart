@@ -13,9 +13,14 @@
 ///
 /// Honest bounds (consent-preserving by construction, error_log.dart's
 /// contract carried through):
-/// - ZERO telemetry. Entries persist ONLY to a local file; they leave the
-///   device ONLY via the user's explicit 日記を共有 tap (OS share sheet,
-///   receiver of her own choice).
+/// - ZERO telemetry. Entries persist to a local file. The app sends the
+///   diary only via the user's explicit 日記を共有 tap (OS share sheet,
+///   receiver of her own choice); Android's backup may include it.
+///   Corrected 2026-10-09: this line said the entries leave the device ONLY
+///   via that tap, which Android's default backup made false. The diary is
+///   deliberately NOT excluded from backup (the 2026-10-09 dignity
+///   read, WDA W4: excluding it would empty her diary on a new phone to make our
+///   sentence true), so the words were corrected instead of her phone.
 /// - NO position, coordinate, route or destination state is recorded. The
 ///   only place is the one SHE TYPES (free-text area), which is her words,
 ///   not a sensor read.
@@ -44,6 +49,11 @@ import '../build_info.dart';
 /// Marker line that starts every entry — also the boundary trim/count
 /// respect, so rotation never leaves half an entry at the top.
 const String kDiaryEntryMarker = '--- sngnav diary ';
+
+/// The diary's file name in the app documents directory. Named so
+/// test/architectural/backup_exclusion_rules_test.dart can hold that the
+/// backup rules never exclude it: it follows her to a new phone (W4).
+const String kDriveDiaryFileName = 'drive_diary.txt';
 
 /// What she saw on the road — human-observed, never sensor-fabricated.
 /// The file records the ja label plus a stable en token so a dated entry
@@ -390,7 +400,7 @@ class DriveDiary {
 Future<DriveDiary?> openDriveDiary() async {
   try {
     final dir = await getApplicationDocumentsDirectory();
-    return DriveDiary(file: File('${dir.path}/drive_diary.txt'));
+    return DriveDiary(file: File('${dir.path}/$kDriveDiaryFileName'));
   } catch (_) {
     return null;
   }
