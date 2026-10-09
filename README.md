@@ -30,12 +30,16 @@ The target was two-staged and dated (see `BETA_PLAN.md`): a **beta gate on 2026-
 
 ## How to run
 
+Use Flutter 3.47.5 (stable). Every CI job pins that version, and a machine on another version resolves a different lock and renders some goldens differently (`.github/workflows/ci.yml:492-495`).
+
 ```sh
 git clone https://github.com/aki1770-del/sngnav-app
 cd sngnav-app
 flutter pub get
 flutter run
 ```
+
+Run it on an emulator, or on a phone that does not hold an SNGNav release. Never point `flutter run`, `flutter install` or `flutter drive` at a phone that holds one: each of them can uninstall the installed app, and an uninstall deletes its data (`android/app/build.gradle.kts:58-61, 120-132`).
 
 The JMA fetch happens on app start; the first observation appears within a few seconds. Tap "Fire 8 sequential warning alerts" to watch the throttle behavior for the selected profile.
 
