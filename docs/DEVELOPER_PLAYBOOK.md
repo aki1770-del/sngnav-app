@@ -823,8 +823,8 @@ it, `adb shell` takes the lines after it as its own input whenever a block
 reaches the shell as input: fed to `bash` on its standard input, or pasted
 into a terminal that does not use bracketed paste. Those lines then never
 run, and nothing says so: the block exits 0. Measured on the emulator, fed
-to `bash` and as a paste emulated through `script`: without `-n`, 9 of the
-17 command lines in this chapter's four blocks ran; with `-n`, 17 of 17.
+to `bash` and as a paste emulated through `script`, with 6.3's three launch
+lines run as one block: without `-n`, 9 of the chapter's 17 command lines ran; with `-n`, 17 of 17.
 
 ### 6.3 Reading back what is installed: a receipt is a device read
 
@@ -885,41 +885,68 @@ installed beside it: `pm list packages sngnav` printed both
 `dev.aki1770del.sngnav_app` and `dev.aki1770del.sngnav_app.dev`.
 
 **Starting it from the shell.** `am start` needs the launcher activity, which
-`aapt2` reads out of the APK:
+`aapt2` reads out of the APK. The `.dev` build starts first, in a block with
+the `aapt2` line:
 
 ```sh
 "$ANDROID_HOME"/build-tools/36.0.0/aapt2 dump badging <file.apk> | grep launchable-activity
 adb -s <serial> shell -n am start -W -n dev.aki1770del.sngnav_app.dev/dev.aki1770del.sngnav_app.MainActivity
+```
+
+Run the next block, which starts the driver's app, only once the `.dev` line
+has printed `Status: ok` and its own `Activity:`, or, if it printed `Status:
+timeout`, once the event log (6.4) holds a `wm_activity_launch_time` line
+naming `dev.aki1770del.sngnav_app.dev`:
+
+```sh
 adb -s <serial> shell -n am start -W -n dev.aki1770del.sngnav_app/.MainActivity
 ```
 
-The second line starts the `.dev` build, the third the driver's app: the
-package differs, the activity class does not. In both lines the first `-n` is
-`adb shell`'s (6.2); the second is `am start`'s and names what to start.
+The two `am start` lines start different packages with the same activity
+class. In both, the first `-n` is `adb shell`'s (6.2); the second is `am
+start`'s and names what to start.
 
 **Read `Activity:` before any time.** `am start -W` prints the first launch
 that ends, or times out, while it waits, and `Activity:` names whose it is;
 it need not be the one this line started. A line that printed `Status:
 timeout` leaves its app still starting, which is why the `.dev` line, the
-faster of the two, comes first. After a `timeout`, start nothing else until
-that app has finished starting: the event log (6.4) then holds a
-`wm_activity_launch_time` line naming it.
+faster of the two, comes first, and why the driver's app has a block of its
+own: after a `timeout`, start nothing else until that app has finished
+starting, which is when the event log holds a `wm_activity_launch_time` line
+naming it. The one time the `.dev` line was seen to time out (below), the
+driver's app was started right after it, and no `wm_activity_launch_time`
+line for that `.dev` launch followed. How long a `.dev` launch that timed out
+takes to finish with nothing else started was not measured.
 
-Measured 2026-10-09 on the emulator: `aapt2` printed
+Measured 2026-10-09 on the API 30 emulator in two walk-throughs, the author's
+and a second by someone who did not write this page (project records kept
+outside this repository). `aapt2` printed
 `launchable-activity: name='dev.aki1770del.sngnav_app.MainActivity'` for the
-debug APK and for the `.dev` release. Run as given, the `.dev` line printed
-`Status: ok`, `LaunchState: COLD`, its own `Activity:` and `TotalTime: 2696`,
-the time of its own `wm_activity_launch_time` line. The debug build's line
-has printed `Status: timeout` after 10.2 to 10.4 s: `am start -W` stopped
-waiting, and the app did start, as its `am_proc_start` and
-`wm_on_resume_called` in the event log show (6.4). With the lines in the
-other order, a second walk-through of this page saw the `.dev` line print
+debug APK and for the `.dev` release. With the `.dev` line run first and the
+debug line right after it, the `.dev` line printed `Status: ok`, `LaunchState:
+COLD`, its own `Activity:` and a `TotalTime` equal to the time of its own
+`wm_activity_launch_time` line in 16 of 17 runs (the author 9 of 9, the second
+walk-through 7 of 8), with `TotalTime` from 2326 to 6444 ms. The 17th was a
+first launch after a fresh boot and install: it printed `Status: timeout`,
+`LaunchState: UNKNOWN (-1)`, its own `Activity:`, `WaitTime: 11007` and no
+`TotalTime`. It was one of two such first launches, both in the second
+walk-through; the other printed `Status: ok` and `TotalTime: 3776`. None of
+the author's 9 was a first launch after a boot. So the `.dev` line can print
+`Status: timeout` too; that was seen only on a first launch after boot.
+The debug build's line printed `Status: timeout` in 10 of 42 runs, in either
+order (the author 2 of 28, the second walk-through 8 of 14), with `WaitTime`
+from 10195 to 11291: `am start -W` stopped waiting, and the app did start, as
+its `am_proc_start` and `wm_on_resume_called` in the event log show (6.4).
+All 4 of its first launches after a boot were among them. With the lines in
+the other order, a second walk-through of this page saw the `.dev` line print
 `Status: ok`, `LaunchState: COLD` and `TotalTime: 11476` with the debug
 build's `Activity:`: the debug build's launch, finishing late. With the debug
-build kept starting on purpose, the `.dev` line named it in 5 runs of 5;
-started after the debug build's `wm_activity_launch_time` line, it named
-itself in 5 of 5. A debug build starts more slowly than a release one; when
-you see `timeout`, read the event log before you conclude anything.
+build started and not waited for, a `.dev` line run 7.5 s later named the
+debug build in 6 of 10 runs: 5 of 5 in the author's walk-through, 1 of 5 in
+the second. Run only after the debug build's `wm_activity_launch_time` line,
+it named itself in 10 of 10, 5 in each. A debug build starts more slowly than
+a release one; when you see `timeout`, read the event log before you conclude
+anything.
 
 A debug build also logs its own identity at each launch, debug builds only
 (`lib/main.dart:1687-1700`). Measured on the emulator:
