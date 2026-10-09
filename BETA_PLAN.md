@@ -191,8 +191,8 @@ accounts). A beta tester sends feedback the way she sends a photo.
           bash tool/preflight_play_upload.sh          # builds AAB + APK, then gates
 
       **Five** gates, each a real Play rejection, all measured on the 2026-08-10
-      build and all PASSING: bundle signed `CN=SNGNav Upload` (valid to 2053, not
-      the silent debug fallback in `android/app/build.gradle.kts:65-69`) ·
+      build and all PASSING: bundle signed `CN=SNGNav Upload` (valid to 2053, not the
+      debug-key fallback in `android/app/build.gradle.kts`, which `assertReleaseSigner` now refuses) ·
       targetSdk **36** (Play requires API 36 from **2026-08-31**) · every
       64-bit `.so` LOAD-aligned ≥ 16 KB (16 KB page-size rule) · versionCode **2**
       unspent per `tool/play_uploaded_version_codes.txt` · **permission parity**
