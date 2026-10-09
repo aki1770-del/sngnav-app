@@ -84,8 +84,9 @@ with every field present and in range. Those cells are not a rectangle: from
 0.1 to 3.0 °C only near-saturated air declines (RH 100 % at 0.1 °C, widening to
 RH ≥ 85 % by 3.0 °C — 77 cells), and at 3.1 °C, one JMA temperature step above
 the model's +3.0 °C ceiling, every humidity from 5 % to 100 % declines
-(20 cells). **That fix is not yet on the public `main` branch**; see "The
-published branch lags this tree" below.
+(20 cells). **That fix is on the public `main` branch** (⚑ corrected
+2026-10-09: this said it was not yet there); see "The published branch lagged
+this tree" below.
 
 The boundary: geographic aggregation and clearly-labeled derivation from
 current observations are operation-class (e)/(β) under the Article 17
@@ -96,7 +97,7 @@ path is opened. No forecasting anywhere in the app.
 <!-- lib/main.dart, the "Source: JMA AMeDAS — observation fields are verbatim
      relay" caption under the watch rows; README.md ice-watch bullet. -->
 
-## The published branch lags this tree
+## The published branch lagged this tree
 
 The 判定範囲外 fix described above lives in commits that are **merged locally
 but not pushed**: as of 2026-08-06 the public `origin/main` is four commits
@@ -106,7 +107,11 @@ road the model declined to judge.** Anyone who clones the public repo today
 gets that behaviour, not the behaviour this file describes. The fix also sits
 on the pushed branch `fix/ice-watch-declined-not-clear`, which is a clean
 fast-forward. Until the merge is pushed, read this file's ice-watch section as
-describing the fix branch.
+describing the fix branch. ⚑ Corrected 2026-10-09: this no longer holds. Measured
+that day, `fix/ice-watch-declined-not-clear` is an ancestor of `origin/main`
+(`git merge-base --is-ancestor` exits 0), and `main` carries the 判定範囲外 label
+(`lib/l10n/app_localizations.dart:1757`) and the tests that pin the declined
+cells (`test/services/ice_watch_scope_envelope_test.dart`).
 
 ## The safety-recall dependency is pinned below the recall
 
