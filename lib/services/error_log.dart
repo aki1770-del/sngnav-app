@@ -7,10 +7,16 @@
 /// Why: when the app misbehaves on the driver's phone on a snow morning, the
 /// evidence of WHY must survive on the device so she (or a beta tester) can
 /// share it deliberately — the "ログを共有" (share log) action. Honest bounds:
-/// - NO network, NO telemetry, NO auto-upload. The log leaves the device
-///   ONLY via the user-initiated ログを共有 share action
+/// - NO network, NO telemetry, NO auto-upload. The APP sends the log
+///   only via the user-initiated ログを共有 share action
 ///   (services/log_share.dart; BETA_PLAN fix #8, consent-preserving by
 ///   construction).
+/// - Kept out of Google's backup and of a transfer to a new phone, per file,
+///   since 2026-10-09 ([kErrorLogFileName] in
+///   android/app/src/main/res/xml/backup_rules.xml for Android 11 and lower,
+///   data_extraction_rules.xml for 12 and later). Before that, Android's
+///   default backup could take it. A phone maker's own backup (for example
+///   Xiaomi's) has NOT been checked; the card's words say so.
 /// - Size-capped (~200 KB): when the cap is exceeded the OLDEST entries are
 ///   dropped at an entry boundary (ring-buffer discipline) — the log can
 ///   never grow to fill her storage.
@@ -27,6 +33,12 @@ import 'package:path_provider/path_provider.dart';
 /// Marker line that starts every entry — also the boundary the trim
 /// respects, so rotation never leaves half an entry at the top.
 const String kErrorLogEntryMarker = '--- sngnav error ';
+
+/// The log's file name in the app-support directory. Named so the backup
+/// exclusion (android/app/src/main/res/xml) is held to it by
+/// test/architectural/backup_exclusion_rules_test.dart: renaming the file
+/// without the rules would put it back into backup, silently.
+const String kErrorLogFileName = 'error_log.txt';
 
 /// Size-capped append-only error log ("ring buffer" at entry granularity).
 class LocalErrorLog {
@@ -93,7 +105,7 @@ Future<LocalErrorLog?> installCrashBoundary({LocalErrorLog? log}) async {
   if (resolved == null) {
     try {
       final dir = await getApplicationSupportDirectory();
-      resolved = LocalErrorLog(file: File('${dir.path}/error_log.txt'));
+      resolved = LocalErrorLog(file: File('${dir.path}/$kErrorLogFileName'));
     } catch (_) {
       // No path_provider on this platform/harness — boot without a log
       // rather than crash at the crash boundary.

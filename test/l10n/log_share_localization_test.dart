@@ -69,6 +69,12 @@ void main() {
       expect(disclosure, contains('アカウントも不要')); // no accounts
       expect(disclosure, contains('エラーの記録のみ')); // error records only
       expect(disclosure, contains('位置情報の履歴は含まれません')); // no location history
+      // 2026-10-09: out of Google's backup and transfer, and the maker's own
+      // backup named as unchecked (res/xml; the dignity read's bound, WDA W1).
+      expect(
+          disclosure,
+          contains('ログは Google のバックアップや、新しい端末へのデータ移行には含まれません'
+              '（スマートフォンのメーカー独自のバックアップについては確かめていません）。'));
     });
 
     testWidgets('empty-log status renders the honest ja empty line',
@@ -109,6 +115,11 @@ void main() {
       expect(disclosure, contains('no account')); // no accounts
       expect(disclosure, contains('only error records')); // records only
       expect(disclosure, contains('no location history')); // no location
+      expect(
+          disclosure,
+          contains("The log is not included in Google's backup or in a "
+              "transfer to a new phone (a phone maker's own backup has not "
+              'been checked).'));
     });
   });
 

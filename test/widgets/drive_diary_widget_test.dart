@@ -76,7 +76,10 @@ void main() {
     expect(text, contains('メモ: 橋の上で警告が鳴った。'));
 
     // The confirmation names WHERE the entry went (consent transparency).
-    expect(find.text('保存しました（この端末の中だけに記録されます）'), findsOneWidget);
+    // 2026-10-09: 「この端末の中だけ」 removed by the dignity read (WDA W4): with
+    // the phone's backup on, the entry may also be in that backup.
+    expect(find.text('保存しました（この端末に記録されます）'), findsOneWidget);
+    expect(find.textContaining('この端末の中だけ'), findsNothing);
   });
 
   testWidgets('cancel records NOTHING — the diary is hers to withhold',
@@ -182,8 +185,14 @@ void main() {
     final disclosure = tester
         .widget<Text>(find.byKey(const Key('diary-disclosure')))
         .data!;
-    expect(disclosure, contains('この端末の中だけ'));
-    expect(disclosure, contains('自動送信は一切なく'));
+    // 2026-10-09, the dignity read's words (WDA W4): the diary stays in
+    // Android's backup so it follows her to a new phone, and the words say
+    // so instead of claiming "only on this device".
+    expect(disclosure, isNot(contains('この端末の中だけ')));
+    expect(disclosure, contains('日記はこの端末に保存されます'));
+    expect(disclosure, contains('アプリが自分から送ることは一切なく'));
     expect(disclosure, contains('位置情報は記録されません'));
+    expect(disclosure, contains('端末のバックアップ（Google など）がオンなら、'
+        '日記もその中に含まれ、新しい端末に移ることがあります。'));
   });
 }

@@ -2166,21 +2166,74 @@ class AppL10n {
   /// Consent-framing disclosure under the share button (mirrors the
   /// location-disclosure discipline: state WHERE the data goes BEFORE the
   /// tap).
+  //
+  // 2026-10-09: the last sentence is added. Until then Android's default backup
+  // could take the log, so 自動送信・テレメトリはなく said more than the app
+  // guaranteed (the 2026-10-09 boundary read, AAA item 7). The log is now
+  // excluded from Google's backup and device transfer, per file (res/xml),
+  // and this sentence says exactly that much: a phone maker's own backup is
+  // unchecked. Its form follows the 2026-10-09 dignity read's bound for the
+  // record (WDA W1).
   String get logShareDisclosure => _ja
       ? '共有はこのボタンを押したときだけ行われます。自動送信・テレメトリはなく、'
           'アカウントも不要です。ログに含まれるのはエラーの記録のみで、'
           '位置情報の履歴は含まれません。送信先は端末の共有画面で自分で選べます。'
+          'ログは Google のバックアップや、新しい端末へのデータ移行には含まれません'
+          '（スマートフォンのメーカー独自のバックアップについては確かめていません）。'
       : 'Sharing happens only when you tap this button — no automatic '
           'upload, no telemetry, and no account. The log contains only '
           'error records; it holds no location history. You choose the '
-          "destination in your device's share sheet.";
+          "destination in your device's share sheet. The log is not included "
+          "in Google's backup or in a transfer to a new phone (a phone "
+          "maker's own backup has not been checked).";
+
+  // ===== Records left by the fix-interval test builds (2026-10-09) =====
+  //
+  // services/fix_interval_record_keeper.dart and code13_record_cleanup.dart.
+  // Every sentence below except the section title is the 2026-10-09
+  // dignity read's (WDA, W3), verbatim. The title is AAE's draft.
+
+  /// Section title. Shown only while there is something to show: a record left
+  /// by code 15, or this launch's deletion of code 13's record to tell.
+  String get leftBehindRecordSectionTitle => _ja
+      ? '前の版の測位間隔の記録'
+      : 'Fix-interval record from an earlier version';
+
+  /// The left-behind card's words (W3). Shown while code 15's record file is
+  /// on this phone, on every build that does not record.
+  String get leftBehindRecordStatus => _ja
+      ? '前の版の測位間隔の記録が残っています。この版は記録しません。'
+          '記録は「記録を消す」を押すまで、この端末に残ります'
+          '（Google のバックアップや、新しい端末へのデータ移行には含まれません）。'
+      : 'A fix-interval record from the earlier version is still on this '
+          'phone. This version does not record. It stays here until you tap '
+          "Delete record (it is not included in Google's backup or in a "
+          'transfer to a new phone).';
+
+  /// Share action on the left-behind card.
+  String get leftBehindRecordShare => _ja ? '記録を共有' : 'Share record';
+
+  /// Delete action on the left-behind card: the only deletion of the record.
+  String get leftBehindRecordDelete => _ja ? '記録を消す' : 'Delete record';
+
+  /// L (W3): told once, at the launch on which this version deleted code 13's
+  /// record holding a fix line. Never while a share runs. Asks nothing.
+  String get code13RecordDeletedNotice => _ja
+      ? '前の版の測位間隔の記録を、この版が削除しました。'
+          '「記録を共有」で送っていなければ、その記録はもう残っていません。'
+          'あなたがすることはありません。'
+      : 'This version deleted the fix-interval record from the earlier '
+          'version. If you had not sent it with Share record, it no longer '
+          'exists. Nothing is asked of you.';
 
   // ===== Ring-2 運転日記 — post-drive diary surface (three-month plan §2) =====
   //
-  // Honesty-traced to real code: entries persist ONLY to a local file
+  // Honesty-traced to real code: entries persist to a local file
   // (services/drive_diary.dart — zero telemetry), record no coordinates
-  // (the only place is the one SHE TYPES), and leave the device only via
-  // the explicit share tap.
+  // (the only place is the one SHE TYPES), and the app sends the diary only
+  // via the explicit share tap; Android's backup may include it. (Corrected
+  // 2026-10-09 by the dignity read, WDA W4: this said the entries
+  // persist ONLY locally and leave the device only via the tap.)
 
   /// Section title for the drive-diary card.
   // ---- WARNING-CHANNEL CHECK (2026-09-19) -----------------------------
@@ -2296,9 +2349,11 @@ class AppL10n {
   String get diaryCancelButton => _ja ? 'キャンセル' : 'Cancel';
 
   /// Post-save confirmation (SnackBar) — names where the entry went.
+  // 2026-10-09: 「この端末の中だけ」 / "only" removed (W4): with the phone's
+  // backup on, the entry may also be in that backup.
   String get diarySavedLine => _ja
-      ? '保存しました（この端末の中だけに記録されます）'
-      : 'Saved (recorded only on this device).';
+      ? '保存しました（この端末に記録されます）'
+      : 'Saved (recorded on this device).';
 
   /// Honest failure line when the entry could not be persisted.
   String get diarySaveFailedLine => _ja
@@ -2307,14 +2362,23 @@ class AppL10n {
 
   /// Consent-framing disclosure under the diary actions (location-disclosure
   /// discipline: state WHERE the data goes BEFORE the tap).
+  //
+  // 2026-10-09, the dignity read's words (WDA W4), verbatim. The diary stays
+  // IN Android's backup so it can follow her to a new phone; these words were
+  // corrected instead (they said "only on this device", which a backup made
+  // false). The Chair may overrule the diary choice.
   String get diaryDisclosure => _ja
-      ? '日記はこの端末の中だけに保存されます。自動送信は一切なく、'
+      ? '日記はこの端末に保存されます。アプリが自分から送ることは一切なく、'
           '位置情報は記録されません（地域欄はあなたが書いた言葉だけです）。'
-          '共有ボタンを押したときだけ、端末の共有画面で選んだ相手に送られます。'
-      : 'The diary is stored only on this device. Nothing is sent '
-          'automatically, and no location is recorded (the area '
-          'field is only your own words). It leaves the device only when '
-          'you tap share and choose a destination yourself.';
+          'アプリから送られるのは、共有ボタンを押して、'
+          '端末の共有画面で選んだ相手にだけです。'
+          '端末のバックアップ（Google など）がオンなら、日記もその中に含まれ、'
+          '新しい端末に移ることがあります。'
+      : 'The diary is stored on this device. The app never sends it by '
+          'itself, and no location is recorded (the area field is only your '
+          'own words). The app sends it only when you tap share and choose a '
+          "destination yourself. If your phone's backup (Google or other) is "
+          'on, the diary may be included in it and moved to a new phone.';
 
   // ===== Home page card titles (2026-09-15) =====
   //

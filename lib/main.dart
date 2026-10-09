@@ -104,6 +104,7 @@ import 'services/error_log.dart';
 import 'services/log_share.dart';
 import 'services/drive_diary.dart';
 import 'services/code13_record_cleanup.dart';
+import 'services/fix_interval_record_keeper.dart';
 import 'services/drive_hud_localizer.dart';
 import 'widgets/update_notice.dart';
 import 'widgets/keep_together.dart';
@@ -158,21 +159,31 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Crash boundary + local error log (services/error_log.dart): every
   // uncaught error is appended to a size-capped on-device file. NO network,
-  // NO telemetry — the log leaves the device only via the user-initiated
-  // ログを共有 action (the feedback card near the footer). Never blocks
-  // boot (best-effort install; a null log renders the action honestly
-  // disabled).
+  // NO telemetry — the app sends the log only via the user-initiated
+  // ログを共有 action (the feedback card near the footer); it is kept out of
+  // Google's backup and device transfer (res/xml; a phone maker's own backup
+  // is unchecked). Never blocks boot (best-effort install; a null log renders
+  // the action honestly disabled).
   final errorLog = await installCrashBoundary();
   // Ring-2 運転日記 — consented post-drive diary (services/drive_diary.dart):
-  // local file only, zero telemetry, leaves the device only via the
-  // user-initiated 日記を共有 action. Best-effort open (errorLog idiom); a
-  // null diary renders the card's actions honestly disabled.
+  // local file, zero telemetry; the app sends it only via the user-initiated
+  // 日記を共有 action, and Android's backup may include it (left in on
+  // purpose so it follows her to a new phone). Best-effort open (errorLog
+  // idiom); a null diary renders the card's actions honestly disabled.
   final diary = await openDriveDiary();
-  // Code 13, a test build, kept a fix-timing record and told him the next
-  // build deletes it. This is that build's promise kept: its two files, by
-  // name, if present (services/code13_record_cleanup.dart).
-  await deleteCode13FixTimingRecord();
-  runApp(SngnavApp(errorLog: errorLog, diary: diary));
+  // The fix-interval test builds' records, in ONE launch path
+  // (services/fix_interval_record_keeper.dart: launchRecordHousekeeping).
+  // Code 13 told him the next build deletes its record: that promise is kept
+  // here, and when the record held a reading the deletion is no longer thrown
+  // away: his page tells him once (code13Deletion). Code 15's record is KEPT:
+  // nothing on this path deletes it, and only his tap on 記録を消す does.
+  final records = await launchRecordHousekeeping();
+  runApp(SngnavApp(
+    errorLog: errorLog,
+    diary: diary,
+    code13Deletion: records.code13,
+    leftBehindRecord: records.leftBehind,
+  ));
 }
 
 /// WS5 — app-level severity for a mocked road-surface condition, used to gate
@@ -693,6 +704,9 @@ class SngnavApp extends StatelessWidget {
     this.logShareSink,
     this.diary,
     this.diaryShareSink,
+    this.code13Deletion,
+    this.leftBehindRecord,
+    this.leftBehindRecordShareSink,
     this.voiceLaneReader,
     this.speechUnverified,
     this.hapticUnverified,
@@ -723,6 +737,19 @@ class SngnavApp extends StatelessWidget {
 
   /// Injectable diary share exit door (null -> [shareDiaryViaShareSheet]).
   final DiaryShareSink? diaryShareSink;
+
+  /// This launch's deletion of code 13's record (null -> nothing to tell).
+  /// When [Code13RecordDeletion.mustTell], his page says once that this
+  /// version deleted it.
+  final Code13RecordDeletion? code13Deletion;
+
+  /// Code 15's record, kept until his tap (null -> no card). Its card shows
+  /// only while the record file is on this phone.
+  final LeftBehindFixIntervalRecord? leftBehindRecord;
+
+  /// Injectable share exit door for the left-behind record (null ->
+  /// [shareLeftBehindRecordViaShareSheet]).
+  final LeftBehindRecordShareSink? leftBehindRecordShareSink;
   final Future<VoiceLaneVerdict> Function()? voiceLaneReader;
   final ValueNotifier<bool>? speechUnverified;
   final ValueNotifier<bool>? hapticUnverified;
@@ -809,6 +836,9 @@ class SngnavApp extends StatelessWidget {
         logShareSink: logShareSink,
         diary: diary,
         diaryShareSink: diaryShareSink,
+        code13Deletion: code13Deletion,
+        leftBehindRecord: leftBehindRecord,
+        leftBehindRecordShareSink: leftBehindRecordShareSink,
         voiceLaneReader: voiceLaneReader,
         speechUnverified: speechUnverified,
         hapticUnverified: hapticUnverified,
@@ -837,6 +867,9 @@ class HomePage extends StatefulWidget {
     this.logShareSink,
     this.diary,
     this.diaryShareSink,
+    this.code13Deletion,
+    this.leftBehindRecord,
+    this.leftBehindRecordShareSink,
     this.voiceLaneReader,
     this.speechUnverified,
     this.hapticUnverified,
@@ -878,6 +911,19 @@ class HomePage extends StatefulWidget {
 
   /// Injectable diary share exit door (null -> [shareDiaryViaShareSheet]).
   final DiaryShareSink? diaryShareSink;
+
+  /// This launch's deletion of code 13's record (null -> nothing to tell).
+  /// When [Code13RecordDeletion.mustTell], his page says once that this
+  /// version deleted it.
+  final Code13RecordDeletion? code13Deletion;
+
+  /// Code 15's record, kept until his tap (null -> no card). Its card shows
+  /// only while the record file is on this phone.
+  final LeftBehindFixIntervalRecord? leftBehindRecord;
+
+  /// Injectable share exit door for the left-behind record (null ->
+  /// [shareLeftBehindRecordViaShareSheet]).
+  final LeftBehindRecordShareSink? leftBehindRecordShareSink;
 
   /// Injectable voice-channel readiness read (null ->
   /// [readVoiceLaneReadiness]).
@@ -4836,6 +4882,15 @@ class _HomePageState extends State<HomePage> {
               child: _logSharePanel(),
             ),
             const SizedBox(height: 16),
+            // The test builds' records (2026-10-09): drawn only while there is
+            // something to show, so no other phone pays a glance for it.
+            if (_showTestBuildRecordSection) ...[
+              _section(
+                title: AppL10n.of(context).leftBehindRecordSectionTitle,
+                child: _testBuildRecordPanel(),
+              ),
+              const SizedBox(height: 16),
+            ],
             _section(
               title: AppL10n.of(context).channelCheckSectionTitle,
               child: _channelCheckPanel(),
@@ -5333,12 +5388,104 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  /// Whether code 15's record is on this phone, as last looked at. Looked at
+  /// once in initState, and again after his tap; never stat-ed per frame.
+  late bool _leftBehindRecordPresent =
+      widget.leftBehindRecord?.present ?? false;
+
+  /// L (the 2026-10-09 dignity read, WDA W3): told once, on the launch whose
+  /// deletion of code 13's record took a reading. Never while a share runs
+  /// (the line is for a parked glance), and back after 停止 within the same
+  /// launch. The next launch deletes nothing and tells nothing.
+  bool get _showCode13DeletionNotice =>
+      (widget.code13Deletion?.mustTell ?? false) && !_driveActive;
+
+  bool get _showTestBuildRecordSection =>
+      _leftBehindRecordPresent || _showCode13DeletionNotice;
+
+  /// The test builds' records (2026-10-09). Two independent things, either of
+  /// which may be absent: the L line about code 13's deleted record, and the
+  /// left-behind card for code 15's kept record. Same shape as the log-share
+  /// card (liveRegion status, Wrap-ped actions).
+  Widget _testBuildRecordPanel() {
+    final l = AppL10n.of(context);
+    final record = widget.leftBehindRecord;
+    final textStyle = TextStyle(fontSize: 12, color: Colors.grey.shade700);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_showCode13DeletionNotice)
+          Semantics(
+            container: true,
+            child: Text(
+              key: const Key('code13-record-deleted-notice'),
+              l.code13RecordDeletedNotice,
+              style: textStyle,
+            ),
+          ),
+        if (_showCode13DeletionNotice && _leftBehindRecordPresent)
+          const SizedBox(height: 8),
+        if (_leftBehindRecordPresent && record != null) ...[
+          Semantics(
+            container: true,
+            liveRegion: true,
+            child: Text(
+              key: const Key('left-behind-record-status'),
+              l.leftBehindRecordStatus,
+              style: textStyle,
+            ),
+          ),
+          Align(
+            alignment: AlignmentDirectional.centerEnd,
+            child: Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                TextButton(
+                  key: const Key('left-behind-record-share-button'),
+                  onPressed: _shareLeftBehindRecord,
+                  child: Text(l.leftBehindRecordShare),
+                ),
+                TextButton(
+                  key: const Key('left-behind-record-delete-button'),
+                  // HIS TAP: the only deletion of code 15's record in lib/
+                  // (test/architectural/code15_record_is_kept_test.dart).
+                  onPressed: () => setState(() {
+                    _leftBehindRecordPresent = !record.deleteOnHisTap();
+                  }),
+                  child: Text(l.leftBehindRecordDelete),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Hands the whole left-behind record, under its header, to the injected
+  /// sink (production: the platform share sheet). Deletes nothing: the share
+  /// sheet cannot say that the text arrived.
+  Future<void> _shareLeftBehindRecord() async {
+    final record = widget.leftBehindRecord;
+    if (record == null) return;
+    final payload =
+        composeLeftBehindRecordSharePayload(recordText: record.readAll());
+    try {
+      await (widget.leftBehindRecordShareSink ??
+          shareLeftBehindRecordViaShareSheet)(payload);
+    } catch (_) {
+      // The record still holds every line for a later try.
+    }
+  }
+
   /// Ring-2 運転日記 — the season's consented evidence card (three-month
   /// plan §2). Same shape as the log-share panel: liveRegion status line,
   /// actions Wrap-ped (phone-width overflow discipline), disclosure last.
-  /// Consent-preserving by construction: entries persist only to a local
-  /// file (services/drive_diary.dart), no coordinates are recorded, and the
-  /// diary leaves the device only via the explicit 日記を共有 tap.
+  /// Consent-preserving by construction: entries persist to a local file
+  /// (services/drive_diary.dart), no coordinates are recorded, and the app
+  /// sends the diary only via the explicit 日記を共有 tap; Android's backup
+  /// may include it (corrected 2026-10-09, W4).
   /// Composes what the PLATFORM claims about the cue it just fired.
   ///
   /// Deliberately not a verdict. On Android `hasVibrator()` reports

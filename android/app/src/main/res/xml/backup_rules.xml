@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- android:fullBackupContent: read by Android 11 (API 30) and lower, for
+     every backup operation (cloud backup, device transfer, adb backup).
+     Exclusions only, no inclusions: everything not listed here is still
+     backed up, the drive diary (app_flutter/drive_diary.txt, domain "root")
+     included on purpose. domain="file" is Context.getFilesDir(), which is
+     path_provider_android 2.3.1's getApplicationSupportDirectory(), where the
+     files below are written.
+     Held to the Dart constants by
+     test/architectural/backup_exclusion_rules_test.dart; keep this list and
+     data_extraction_rules.xml identical. -->
+<full-backup-content>
+    <!-- services/error_log.dart: kErrorLogFileName -->
+    <exclude domain="file" path="error_log.txt" />
+    <!-- services/code13_record_cleanup.dart: kCode13RecordFileNames -->
+    <exclude domain="file" path="fix_timing_record.txt" />
+    <exclude domain="file" path="fix_timing_record.stopped" />
+    <!-- services/fix_interval_record_keeper.dart: kCode15RecordFileNames -->
+    <exclude domain="file" path="fix_interval_record_15.txt" />
+    <exclude domain="file" path="fix_interval_record_15.stopped" />
+</full-backup-content>
