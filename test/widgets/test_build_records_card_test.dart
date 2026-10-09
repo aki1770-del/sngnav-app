@@ -30,20 +30,25 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart';
 import 'package:sngnav_app/services/code13_record_cleanup.dart';
 import 'package:sngnav_app/services/fix_interval_record_keeper.dart';
+import 'package:sngnav_app/widgets/keep_together.dart';
 
 import '../support/fake_alert_actuators.dart';
 
-// The dignity read's words (WDA W3), verbatim. Pinned here as literals so a
-// paraphrase in app_localizations.dart fails.
+// The dignity read's words (WDA W3), verbatim, as WDA corrected them on
+// 2026-10-09 in her read of the error-log card: W1's bound, which W3 had
+// dropped, restored and widened to a maker's transfer app. Pinned here as
+// literals so a paraphrase in app_localizations.dart fails.
 const _cardJa =
     '前の版の測位間隔の記録が残っています。この版は記録しません。'
-    '記録は「記録を消す」を押すまで、この端末に残ります'
-    '（Google のバックアップや、新しい端末へのデータ移行には含まれません）。';
+    '記録は「記録を消す」を押すまで、この端末に残ります。'
+    'Google のバックアップや、新しい端末へのデータ移行には含まれません'
+    '（スマートフォンのメーカー独自のバックアップや移行アプリについては確かめていません）。';
 const _cardEn =
     'A fix-interval record from the earlier version is still on '
     'this phone. This version does not record. It stays here until you tap '
-    "Delete record (it is not included in Google's backup or in a transfer to "
-    'a new phone).';
+    "Delete record. It is not included in Google's backup or in a transfer to "
+    "a new phone (a phone maker's own backup or transfer app has not been "
+    'checked).';
 const _lJa =
     '前の版の測位間隔の記録を、この版が削除しました。'
     '「記録を共有」で送っていなければ、その記録はもう残っていません。'
@@ -101,8 +106,17 @@ void main() {
     await tester.pump();
   }
 
-  String textOf(WidgetTester tester, Key key) =>
-      tester.widget<Text>(find.byKey(key)).data!;
+  /// The words she is shown under [key]: the one drawn Text there (a plain
+  /// Text, or the one a KeepTogetherText draws), with the word joiners
+  /// removed. Where the drawn string carries joiners (the card's break hint,
+  /// 2026-10-09), the semantics label TalkBack reads must be those words.
+  String textOf(WidgetTester tester, Key key) {
+    final t = tester.widget<Text>(find.descendant(
+        of: find.byKey(key), matching: find.byType(Text), matchRoot: true));
+    final shown = plainOf(t.data!);
+    if (t.data != shown) expect(t.semanticsLabel, shown);
+    return shown;
+  }
 
   testWidgets('nothing to show: no section, no words, no buttons', (
     tester,

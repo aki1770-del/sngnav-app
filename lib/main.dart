@@ -5329,8 +5329,9 @@ class _HomePageState extends State<HomePage> {
         Semantics(
           container: true,
           liveRegion: true,
-          child: Text(
+          child: KeepTogetherText(
             status,
+            words: l.logShareStatusKeepTogether,
             style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
           ),
         ),
@@ -5349,9 +5350,10 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
+        KeepTogetherText(
           key: const Key('log-share-disclosure'),
           l.logShareDisclosure,
+          words: l.logShareKeepTogether,
           style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
         ),
       ],
@@ -5429,9 +5431,10 @@ class _HomePageState extends State<HomePage> {
           Semantics(
             container: true,
             liveRegion: true,
-            child: Text(
+            child: KeepTogetherText(
               key: const Key('left-behind-record-status'),
               l.leftBehindRecordStatus,
+              words: l.leftBehindRecordKeepTogether,
               style: textStyle,
             ),
           ),
