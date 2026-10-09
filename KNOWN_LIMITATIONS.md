@@ -113,14 +113,18 @@ that day, `fix/ice-watch-declined-not-clear` is an ancestor of `origin/main`
 (`lib/l10n/app_localizations.dart:1757`) and the tests that pin the declined
 cells (`test/services/ice_watch_scope_envelope_test.dart`).
 
-## The safety-recall dependency is pinned below the recall
+## The safety-recall dependency was pinned below the recall
 
 `snow_rendering` is pinned `^0.2.0` and resolves to **0.2.9** — one version
 *below* `0.3.0`, which is a **safety recall**: up to and including 0.2.7 that
 package resolved absent data to `dry` / maximum grip / "Conditions normal", and
 0.3.0 made the classification nullable so that "cannot classify" is never
 "dry". A caret pin of `^0.2.0` means `>=0.2.0 <0.3.0`, so **this app cannot
-receive that recall without a constraint change.**
+receive that recall without a constraint change.** ⚑ Corrected 2026-10-09: that
+change was made on 2026-08-28 (49f77a4). `pubspec.yaml:125` reads
+`snow_rendering: ^0.3.0` and `pubspec.lock` resolves 0.3.2, so the recall is
+received, and `lib/services/road_surface_classifier.dart:115` takes the nullable
+result. The rest of this section is the 2026-08-06 record.
 
 Scope of the exposure, measured 2026-08-06 rather than assumed:
 
