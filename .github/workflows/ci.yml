@@ -155,10 +155,10 @@ jobs:
       # end. Built is not armed, and the distance between them is where the
       # defect lived. Armed in all three jobs, to match the sibling exactly.
       #
-      # It reds this tree today, naming raw.githubusercontent.com: the update
-      # check is a fifth network egress and the privacy policy still tells her
-      # four flows are all of it. THAT RED IS CORRECT. Do not disarm the gate to
-      # get green -- name the flow on the page, and the gate clears itself.
+      # When armed it redded this tree, naming raw.githubusercontent.com: the
+      # update check was a fifth egress the privacy policy did not name. The page
+      # names it now, and the gate passes (2026-10-09, exit 0). Do not disarm the
+      # gate to get green -- name the flow on the page, and the gate clears itself.
       - name: Disclosure parity self-test (the loom proves itself before it judges)
         run: bash tool/assert_disclosure_parity.sh --self-test
 
@@ -542,10 +542,10 @@ jobs:
       # end. Built is not armed, and the distance between them is where the
       # defect lived. Armed in all three jobs, to match the sibling exactly.
       #
-      # It reds this tree today, naming raw.githubusercontent.com: the update
-      # check is a fifth network egress and the privacy policy still tells her
-      # four flows are all of it. THAT RED IS CORRECT. Do not disarm the gate to
-      # get green -- name the flow on the page, and the gate clears itself.
+      # When armed it redded this tree, naming raw.githubusercontent.com: the
+      # update check was a fifth egress the privacy policy did not name. The page
+      # names it now, and the gate passes (2026-10-09, exit 0). Do not disarm the
+      # gate to get green -- name the flow on the page, and the gate clears itself.
       - name: Disclosure parity self-test (the loom proves itself before it judges)
         run: bash tool/assert_disclosure_parity.sh --self-test
 
@@ -652,10 +652,10 @@ jobs:
       # end. Built is not armed, and the distance between them is where the
       # defect lived. Armed in all three jobs, to match the sibling exactly.
       #
-      # It reds this tree today, naming raw.githubusercontent.com: the update
-      # check is a fifth network egress and the privacy policy still tells her
-      # four flows are all of it. THAT RED IS CORRECT. Do not disarm the gate to
-      # get green -- name the flow on the page, and the gate clears itself.
+      # When armed it redded this tree, naming raw.githubusercontent.com: the
+      # update check was a fifth egress the privacy policy did not name. The page
+      # names it now, and the gate passes (2026-10-09, exit 0). Do not disarm the
+      # gate to get green -- name the flow on the page, and the gate clears itself.
       - name: Disclosure parity self-test (the loom proves itself before it judges)
         run: bash tool/assert_disclosure_parity.sh --self-test
 
