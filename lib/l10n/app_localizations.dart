@@ -1275,8 +1275,15 @@ class AppL10n {
   /// 2026-10-06, with one change of form: 通話中でも話します is protected WITH
   /// its brackets, for the reason 「停止」 is. 「（」 cannot end a line and
   /// 「）」 cannot begin one, so the unit that must fit is the bracketed one.
-  /// Protected bare, keep_together_test's sweep found it split at 163 points
-  /// (ja, widths 109 to 263 px across the five scales); bracketed, at none.
+  /// Protected bare, keep_together_test's sweep counted 163 split points (ja,
+  /// widths 109 to 263 px across the five scales); bracketed, it counted none.
+  /// That "none" is not a protection at those widths (corrected 2026-10-10 on
+  /// WDA 47cdb8a9 section 2.2, then measured): all 163 were forced breaks at
+  /// widths narrower than the bracketed unit, which the sweep skips for it,
+  /// and at every one of them the bracketed unit breaks inside as well. What
+  /// the brackets give is this: at every width the unit fits, it is never
+  /// split. Where it does not fit, as at her largest text size in the
+  /// narrowest place, it breaks; that geometry is the HMI review's.
   List<String> get driveDisclosureKeepTogether => _ja
       ? const [
           '止まりません',
