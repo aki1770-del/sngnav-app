@@ -2250,7 +2250,7 @@ class AppL10n {
   //   does, so this build cannot pass its suite with it.
 
   /// Marks a sentence no ruling seat has drafted.
-  static const String kWordsNotDraftedMark = '⟨PLACEHOLDER';
+  static const String kWordsNotDraftedMark = '[PLACEHOLDER';
 
   /// Section title (code 13's).
   String get code15RecordSectionTitle =>
@@ -2354,7 +2354,7 @@ class AppL10n {
   }) =>
       '$kWordsNotDraftedMark code15RecordCount ${_ja ? 'ja' : 'en'}: '
       'moving $movingMinutes min, stopped $stoppedMinutes min, minimum '
-      '${minimumReached ? 'reached' : 'not yet'}⟩';
+      '${minimumReached ? 'reached' : 'not yet'}]';
 
   // ===== Ring-2 運転日記 — post-drive diary surface (three-month plan §2) =====
   //
