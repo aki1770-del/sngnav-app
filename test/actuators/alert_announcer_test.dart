@@ -342,5 +342,145 @@ void main() {
         expect(a.log.last, 'speak-end:E', reason: 'control: it was told');
       },
     );
+
+    // P-3 (AAA bb2d2937 section 4, 2026-10-10): the reverse order. A warning
+    // that arrives while the stop confirmation speaks waits for it, and is
+    // then told whole, with its own cue. First-come for this order was held
+    // only by the queue's general tests; a later "cut" or "drop" must fail
+    // here and route through the safety review.
+    test(
+      'a warning that arrives while the stop confirmation speaks waits for '
+      'it, then is told whole, with its own cue',
+      () async {
+        final a = _OrderedHoldingActuators();
+        final announcer = AlertAnnouncer(actuators: a);
+        final ended = announcer.announce(
+          severity: AlertSeverity.warning,
+          text: 'E',
+          localeTag: 'ja',
+          cue: AnnounceCue.ended,
+          deliverIf: () => true,
+        );
+        await pumpEventQueue();
+        expect(a.log, ['haptic:ended', 'speak-start:E'],
+            reason: 'control: the stop confirmation is in the air');
+        final warning = announcer.announce(
+          severity: AlertSeverity.critical,
+          text: 'W',
+          localeTag: 'ja',
+        );
+        await pumpEventQueue();
+        expect(a.log, ['haptic:ended', 'speak-start:E'],
+            reason: 'the warning waits: neither its cue nor its words start '
+                'over the stop confirmation');
+        a.release(0);
+        await pumpEventQueue();
+        expect(a.log, [
+          'haptic:ended',
+          'speak-start:E',
+          'speak-end:E',
+          'haptic:critical',
+          'speak-start:W',
+        ]);
+        a.release(1);
+        await ended;
+        await warning;
+        expect(a.log.last, 'speak-end:W', reason: 'told whole');
+      },
+    );
+  });
+
+  // F-1 (AAA bb2d2937 section 7, WDA 46e240b2 section 6, 2026-10-10): a line
+  // whose truth can lapse while it waits passes the condition under which it
+  // is still true, and the announcer reads it at delivery.
+  group('AlertAnnouncer — the condition read at delivery (deliverIf)', () {
+    test(
+      'a condition that has turned false while the line waited withholds '
+      'BOTH channels: neither the cue nor the words',
+      () async {
+        final a = _OrderedHoldingActuators();
+        final announcer = AlertAnnouncer(actuators: a);
+        var stillTrue = true;
+        final warning = announcer.announce(
+          severity: AlertSeverity.warning,
+          text: 'W',
+          localeTag: 'ja',
+        );
+        final ended = announcer.announce(
+          severity: AlertSeverity.warning,
+          text: 'E',
+          localeTag: 'ja',
+          cue: AnnounceCue.ended,
+          deliverIf: () => stillTrue,
+        );
+        await pumpEventQueue();
+        stillTrue = false;
+        a.release(0);
+        await warning;
+        await ended;
+        await pumpEventQueue();
+        expect(a.log, ['haptic:warning', 'speak-start:W', 'speak-end:W'],
+            reason: 'never the pulse alone, never the words alone');
+      },
+    );
+
+    test(
+      'it is read at delivery, not when the line joins the queue',
+      () async {
+        final a = _OrderedHoldingActuators();
+        final announcer = AlertAnnouncer(actuators: a);
+        var stillTrue = false;
+        final warning = announcer.announce(
+          severity: AlertSeverity.warning,
+          text: 'W',
+          localeTag: 'ja',
+        );
+        final ended = announcer.announce(
+          severity: AlertSeverity.warning,
+          text: 'E',
+          localeTag: 'ja',
+          cue: AnnounceCue.ended,
+          deliverIf: () => stillTrue,
+        );
+        await pumpEventQueue();
+        stillTrue = true;
+        a.release(0);
+        await pumpEventQueue();
+        expect(a.log, [
+          'haptic:warning',
+          'speak-start:W',
+          'speak-end:W',
+          'haptic:ended',
+          'speak-start:E',
+        ]);
+        a.release(1);
+        await warning;
+        await ended;
+      },
+    );
+
+    test('a condition that throws counts as false: nothing is delivered',
+        () async {
+      final a = _OrderedHoldingActuators();
+      final announcer = AlertAnnouncer(actuators: a);
+      await announcer.announce(
+        severity: AlertSeverity.warning,
+        text: 'E',
+        localeTag: 'ja',
+        cue: AnnounceCue.ended,
+        deliverIf: () => throw StateError('test'),
+      );
+      expect(a.log, isEmpty);
+      // Control: the queue is not wedged by it.
+      final next = announcer.announce(
+        severity: AlertSeverity.warning,
+        text: 'W',
+        localeTag: 'ja',
+      );
+      await pumpEventQueue();
+      expect(a.log, ['haptic:warning', 'speak-start:W']);
+      a.release(0);
+      await next;
+    });
   });
 }

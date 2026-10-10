@@ -52,6 +52,28 @@ Future<JmaResult> _jma() async => JmaSuccess(JmaObservation(
       fetchedAt: _now,
     ));
 
+/// The warning-channel check's line: a real announce at warning severity with
+/// the warning cue, reachable on her page during a share. Held here as "a
+/// warning in flight".
+const _checkJa = 'これはテストです。警報の音と振動を確認しています。';
+
+/// Holds the channel check's words in the air until [release] completes, so a
+/// line queued behind it waits, as behind any warning still being spoken.
+class _HeldWarningActuators extends FakeAlertActuators {
+  final Completer<void> release = Completer<void>();
+  bool inTheAir = false;
+
+  @override
+  Future<void> speak(String text, {required String localeTag}) async {
+    await super.speak(text, localeTag: localeTag);
+    if (text == _checkJa) {
+      inTheAir = true;
+      await release.future;
+      inTheAir = false;
+    }
+  }
+}
+
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 5; i++) {
     await tester.pump();
@@ -60,8 +82,9 @@ Future<void> _settle(WidgetTester tester) async {
 
 Future<FakeAlertActuators> _boot(WidgetTester tester,
     {required Stream<PositionFix> Function() source,
-    Locale locale = const Locale('ja')}) async {
-  final a = FakeAlertActuators();
+    Locale locale = const Locale('ja'),
+    FakeAlertActuators? actuators}) async {
+  final a = actuators ?? FakeAlertActuators();
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
   await tester.pumpWidget(SngnavApp(
@@ -158,6 +181,86 @@ void main() {
       await _settle(tester);
       expect(a.spoken.where((l) => l.text == _endedJa), isEmpty);
       expect(a.felt.where((f) => f == 'ended'), isEmpty);
+    });
+  });
+
+  // F-1 (AAA bb2d2937 section 7, WDA 46e240b2 section 6, 2026-10-10). The
+  // line can wait in the queue behind a warning still being spoken. What is
+  // true when it PLAYS decides, on both channels.
+  group('read when it plays, behind a warning in flight', () {
+    Future<void> fireCheck(WidgetTester tester, _HeldWarningActuators a) async {
+      final fire = find.byKey(const Key('channel-check-fire'));
+      await tester.scrollUntilVisible(fire, 300);
+      await tester.pump();
+      await tester.tap(fire);
+      await _settle(tester);
+      expect(a.inTheAir, isTrue, reason: 'control: a warning is in the air');
+    }
+
+    Future<void> releaseAndSettle(
+        WidgetTester tester, _HeldWarningActuators a) async {
+      a.release.complete();
+      for (var i = 0; i < 5; i++) {
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await _settle(tester);
+      }
+    }
+
+    testWidgets(
+        'control: 停止 behind the warning, nothing else: the line and the '
+        'ended cue, after the warning has finished', (tester) async {
+      final a = _HeldWarningActuators();
+      final ctrl = StreamController<PositionFix>.broadcast();
+      addTearDown(ctrl.close);
+      await _boot(tester, source: () => ctrl.stream, actuators: a);
+      await _tapKeyed(tester, const Key('share-location-button'));
+      await fireCheck(tester, a);
+      await _tapText(tester, const AppL10n(Locale('ja')).stop);
+      expect([for (final l in a.spoken) l.text], [_checkJa],
+          reason: 'it waits behind the warning');
+      await releaseAndSettle(tester, a);
+      expect([for (final l in a.spoken) l.text], [_checkJa, _endedJa]);
+      expect(a.felt, ['warning', 'ended']);
+    });
+
+    testWidgets(
+        '(i) 停止, then a new share, while the warning is in the air: when it '
+        'ends, no stop line and no ended cue, because her new share\'s '
+        'warnings run', (tester) async {
+      final a = _HeldWarningActuators();
+      final ctrl = StreamController<PositionFix>.broadcast();
+      addTearDown(ctrl.close);
+      await _boot(tester, source: () => ctrl.stream, actuators: a);
+      await _tapKeyed(tester, const Key('share-location-button'));
+      await fireCheck(tester, a);
+      await _tapText(tester, const AppL10n(Locale('ja')).stop);
+      await _tapKeyed(tester, const Key('share-location-button'));
+      expect(ctrl.hasListener, isTrue, reason: 'control: sharing again');
+      await releaseAndSettle(tester, a);
+      expect([for (final l in a.spoken) l.text], [_checkJa],
+          reason: '「現在地の警告も止まりました」 would be false now');
+      expect(a.felt, ['warning'], reason: 'never the pulse alone');
+    });
+
+    testWidgets(
+        '(ii) 停止, a new share, 停止, while the warning is in the air: '
+        'exactly one stop line and one ended cue', (tester) async {
+      final a = _HeldWarningActuators();
+      final ctrl = StreamController<PositionFix>.broadcast();
+      addTearDown(ctrl.close);
+      await _boot(tester, source: () => ctrl.stream, actuators: a);
+      const ja = AppL10n(Locale('ja'));
+      await _tapKeyed(tester, const Key('share-location-button'));
+      await fireCheck(tester, a);
+      await _tapText(tester, ja.stop);
+      await _tapKeyed(tester, const Key('share-location-button'));
+      expect(ctrl.hasListener, isTrue, reason: 'control: sharing again');
+      await _tapText(tester, ja.stop);
+      expect(ctrl.hasListener, isFalse, reason: 'control: ended again');
+      await releaseAndSettle(tester, a);
+      expect([for (final l in a.spoken) l.text], [_checkJa, _endedJa],
+          reason: 'one line about where she stands now');
+      expect(a.felt, ['warning', 'ended']);
     });
   });
 

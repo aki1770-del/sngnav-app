@@ -3559,6 +3559,9 @@ class _HomePageState extends State<HomePage> {
     _lastPositionEventAt = null;
     _herHeldEvent = null;
     _herShareSession++;
+    // The session this end closes: the stop confirmation reports it, and only
+    // it (2026-10-10). A new share, or another end, moves the number on.
+    final endedSession = _herShareSession;
     setState(() {
       _herFix = null;
       _isMockPosition = false;
@@ -3566,7 +3569,7 @@ class _HomePageState extends State<HomePage> {
       _herFirstEventOverdue = false;
     });
     if (cancelled != null && !refused && !alreadyTold) {
-      unawaited(_tellShareEnded(cancelled));
+      unawaited(_tellShareEnded(cancelled, endedSession));
     }
   }
 
@@ -3579,11 +3582,19 @@ class _HomePageState extends State<HomePage> {
   /// Keyed on the END, never on the tap: spoken only after [cancelled], the
   /// subscription's own cancel, has completed (the words are past tense). If
   /// that cancel fails, the app has still stopped listening, and the warnings
-  /// for her location have still stopped, so she is told. Not told if a new
-  /// share has started by then: its warnings run, and the line would be false.
-  /// The line plays from the bundled mouth in ja, with the ended cue, through
-  /// the one announcer, so it never talks over a warning in flight.
-  Future<void> _tellShareEnded(Future<void> cancelled) async {
+  /// for her location have still stopped, so she is told.
+  ///
+  /// Not told, on either channel, unless at the moment it PLAYS no share runs
+  /// and [endedSession] is still the latest share to have ended (2026-10-10,
+  /// AAA bb2d2937 F-1, WDA 46e240b2 section 6). The line can wait in the queue
+  /// behind a warning; a new share started in that wait would make
+  /// 「現在地の警告も止まりました」 false while its warnings run, and a second
+  /// 停止 in that wait would tell the same state twice. So the condition is read
+  /// by the announcer at delivery, not here before the queue: the check here
+  /// only spares a queue slot. The line plays from the bundled mouth in ja,
+  /// with the ended cue, through the one announcer, so it never talks over a
+  /// warning in flight.
+  Future<void> _tellShareEnded(Future<void> cancelled, int endedSession) async {
     final line = AppL10n.of(context).shareEndedSpokenLine;
     final localeTag = _spokenJa ? 'ja-JP' : 'en-US';
     try {
@@ -3591,7 +3602,9 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {
       // Ended all the same: see above.
     }
-    if (!mounted || _herSub != null) return;
+    bool stillEnded() =>
+        mounted && _herSub == null && endedSession == _herShareSession;
+    if (!stillEnded()) return;
     try {
       await _announcer.announce(
         // The announcer's gate to speak at all; the cue is the ended one,
@@ -3600,6 +3613,7 @@ class _HomePageState extends State<HomePage> {
         text: line,
         localeTag: localeTag,
         cue: AnnounceCue.ended,
+        deliverIf: stillEnded,
       );
     } catch (_) {
       // The announcer never throws; a share has ended whatever happens here.

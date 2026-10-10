@@ -68,12 +68,23 @@ class AlertAnnouncer {
   /// receive — the exact reduced-subset failure the floor forbids.)
   Future<void> _tail = Future<void>.value();
 
+  ///
+  /// **[deliverIf], read at DELIVERY (added 2026-10-10).** A line whose truth
+  /// can lapse while it waits in the queue passes the condition under which it
+  /// is still true. It is read after the wait and before either channel fires.
+  /// If it is false then, NOTHING of this announcement is delivered: neither
+  /// the cue nor the words, never one without the other. A condition that
+  /// throws counts as false (the line plays only when its truth is
+  /// established). It is read here, in the one queue body, because this is
+  /// the only caller of [_deliver]: no announcement reaches a channel without
+  /// passing it. Lines whose words cannot lapse pass none.
   Future<void> announce({
     required AlertSeverity severity,
     required String text,
     required String localeTag,
     String? spokenPrefix,
     AnnounceCue cue = AnnounceCue.severity,
+    bool Function()? deliverIf,
   }) {
     if (severity.index < AlertSeverity.warning.index) {
       return Future<void>.value();
@@ -85,6 +96,7 @@ class AlertAnnouncer {
     final prev = _tail;
     final next = () async {
       await prev;
+      if (deliverIf != null && !_holds(deliverIf)) return;
       await _deliver(
         severity: severity,
         text: text,
@@ -95,6 +107,15 @@ class AlertAnnouncer {
     }();
     _tail = next;
     return next;
+  }
+
+  /// [deliverIf] read once, at delivery. A throw counts as false.
+  static bool _holds(bool Function() deliverIf) {
+    try {
+      return deliverIf();
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _deliver({
