@@ -22,12 +22,14 @@
 /// Android's getCacheDir()):
 /// - [RecordShareFile.staged]: the text this app writes for the share sheet,
 ///   in `<cache>/record_share/`. Deleted as soon as the share call returns,
-///   whatever it returned.
+///   whatever it returned: no receiver reads it.
 /// - [RecordShareFile.sharePlusCopy]: share_plus copies every shared file into
 ///   `<cache>/share_plus/<same name>` before it launches the sheet
 ///   (Share.kt:297-305), and deletes that folder only at its next share
-///   (:119, :287-294). The page deletes it when the app is back in front after
-///   the share, at the next launch, and at 記録を消す.
+///   (:119, :287-294). This is the copy the receiver reads. It is KEPT after
+///   the share, because a receiver may open the link after he is back in the
+///   app (2026-10-10): the page deletes it at his next 記録を共有, at the next
+///   launch, and at 記録を消す.
 /// Neither is backed up or moved to a new phone: Android excludes the cache
 /// directory from every full backup, cloud and device transfer alike, whatever
 /// the rules say (AOSP BackupAgent.java: android10-release :396, :424;

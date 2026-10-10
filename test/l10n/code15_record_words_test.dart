@@ -177,12 +177,13 @@ void main() {
           ['Share record', 'Stop recording', 'Record again', 'Delete record']);
     });
 
-    test('the share-failed line (R-D3-4), exactly as ruled', () {
+    test('the share-failed line (R-D3-4), exactly as ruled, its last sentence '
+        'dropped (the dignity follow-up, 2026-10-10)', () {
       expect(_ja.code15RecordShareFailed,
-          '記録を端末の共有画面に渡せませんでした。何も送られていません。記録は残っています。');
+          '記録を端末の共有画面に渡せませんでした。何も送られていません。');
       expect(_en.code15RecordShareFailed,
           'The record could not be handed to the share screen. Nothing was '
-          'sent, and the record is kept.');
+          'sent.');
     });
 
     test('the code 13 promise this build reverses is not carried, and the '
@@ -308,11 +309,14 @@ void main() {
           keep,
           containsAll([
             '最低限', '達していません', '満たしていません', '「記録を共有」', 'わかりません',
-            '渡せませんでした', '送られていません', '残っています', '欠けずに', '駐車中',
+            '渡せませんでした', '送られていません', '欠けずに', '駐車中',
             '消さずに', '修正版', 'のろのろ運転', '上限', '必要', '出せるかどうか',
             '届いたと知らされるまで', '残しておいてください', '（アプリの数え方で）',
             '12分', '3分', '${kBarsMinMovingMs ~/ 60000}分', '${kBarsMinStoppedMs ~/ 60000}分',
           ]));
+      expect(keep, isNot(contains('残っています')),
+          reason: 'the failure line no longer says 記録は残っています (dropped '
+              '2026-10-10), so the list keeps no word of it');
       expect(_en.code15RecordCountKeep(movingMinutes: 12, stoppedMinutes: 3),
           isEmpty);
     });

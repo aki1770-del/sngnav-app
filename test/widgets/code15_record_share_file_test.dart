@@ -9,8 +9,12 @@
 /// - the file handed on is the whole record under its header, its `lines:`
 ///   and `bytes:` equal to the body, at any size up to the cap;
 /// - this app's staging copy is gone as soon as the call returns;
-/// - share_plus's copy (`<cache>/share_plus/<name>`) is gone once the app is
-///   in front again, and never deleted while the share call still runs;
+/// - share_plus's copy (`<cache>/share_plus/<name>`), the one the receiver
+///   reads, is KEPT after the share: while the call runs, when it returns,
+///   and after he is back in the app, so a receiver that opens the link late
+///   still reads the whole record (the receiver-copy move, 2026-10-10). It
+///   goes at his next 記録を共有, even if that share fails before share_plus
+///   is reached;
 /// - 記録を消す deletes every copy; the launch path deletes any left over;
 /// - copies live only under the cache directory, which Android never backs up
 ///   or transfers;
@@ -19,8 +23,8 @@
 ///
 /// HONEST BOUND. A test binding with a fake share sink that copies the file
 /// as share_plus 13.3.0 does (Share.kt:297-305). Not the platform share sheet,
-/// not a receiver, not a phone. Whether a receiver reads the file before he
-/// comes back to the app is not shown here.
+/// not a receiver, not a phone. Whether a real receiver opens the link late,
+/// and what it then reads, is not shown here (an emulator read).
 library;
 
 import 'dart:async';
@@ -35,9 +39,8 @@ import 'package:sngnav_app/services/record_share_file.dart';
 
 import '../support/fake_alert_actuators.dart';
 
-const _failedJa = '記録を端末の共有画面に渡せませんでした。何も送られていません。記録は残っています。';
-const _failedEn = 'The record could not be handed to the share screen. Nothing was sent, '
-    'and the record is kept.';
+const _failedJa = '記録を端末の共有画面に渡せませんでした。何も送られていません。';
+const _failedEn = 'The record could not be handed to the share screen. Nothing was sent.';
 
 JmaObservation _clear() => JmaObservation(
       stationId: '32402',
@@ -162,20 +165,23 @@ void main() {
     expect(_status(tester), isNot(contains(_failedJa)));
   });
 
-  testWidgets('no copy outlives the share: the staging copy goes when the call '
-      'returns, share_plus\'s copy when the app is in front again', (tester) async {
+  testWidgets('the staging copy goes when the call returns; share_plus\'s copy, '
+      'the one the receiver reads, is kept whole, the app being in front',
+      (tester) async {
     final (record, fake) = await boot(tester);
     fill(record);
     final copies = RecordShareFile(cacheDirectory: cache);
     await _tap(tester, 'code15-record-share-button');
     expect(fake.handed, hasLength(1), reason: 'control: the sink was called');
     expect(copies.staged.existsSync(), isFalse, reason: 'the staging copy outlived the call');
-    expect(copies.sharePlusCopy.existsSync(), isFalse,
-        reason: 'share_plus\'s copy outlived the share, the app being in front');
+    expect(copies.sharePlusCopy.existsSync(), isTrue,
+        reason: 'a receiver that opens the link late would read nothing');
+    expect(copies.sharePlusCopy.readAsStringSync(), fake.texts.single,
+        reason: 'the kept copy is the whole file that was handed on');
   });
 
   testWidgets('while the share call still runs (the app behind the share sheet), '
-      'share_plus\'s copy is kept; back in front after it, the copy goes',
+      'and after he is back in front, share_plus\'s copy is kept',
       (tester) async {
     final (record, fake) = await boot(tester);
     fill(record);
@@ -207,8 +213,27 @@ void main() {
     await _settle(tester);
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await _settle(tester);
+    expect(copies.sharePlusCopy.existsSync(), isTrue,
+        reason: 'his return deleted the copy a late receiver reads');
+    expect(copies.sharePlusCopy.readAsStringSync(), fake.texts.single);
+  });
+
+  testWidgets('his next 記録を共有 deletes the last share\'s receiver copy, even '
+      'when that share fails before share_plus is reached', (tester) async {
+    final (record, fake) = await boot(tester);
+    fill(record);
+    final copies = RecordShareFile(cacheDirectory: cache);
+    await _tap(tester, 'code15-record-share-button');
+    expect(copies.sharePlusCopy.existsSync(), isTrue, reason: 'control: kept after the share');
+    // The next staging write cannot be made: a regular file where the folder was.
+    final staging = Directory('${cache.path}/$kRecordShareStagingDir');
+    if (staging.existsSync()) staging.deleteSync(recursive: true);
+    File(staging.path).writeAsStringSync('x');
+    await _tap(tester, 'code15-record-share-button');
+    expect(fake.handed, hasLength(1), reason: 'control: the second share reached nothing');
+    expect(_status(tester).split('\n').first, _failedJa, reason: 'control: said');
     expect(copies.sharePlusCopy.existsSync(), isFalse,
-        reason: 'the copy outlived the share');
+        reason: 'the last share\'s receiver copy outlived his next 記録を共有');
   });
 
   testWidgets('記録を消す deletes every copy made for sharing, with the record',
@@ -216,10 +241,11 @@ void main() {
     final (record, _) = await boot(tester);
     fill(record);
     final copies = RecordShareFile(cacheDirectory: cache);
-    // Copies left on disk (as if a share were cut short).
+    // The receiver copy his share left, kept for a late reader.
+    await _tap(tester, 'code15-record-share-button');
+    expect(copies.sharePlusCopy.existsSync(), isTrue, reason: 'control: kept after the share');
+    // A staging copy left on disk too (as if a share were cut short).
     copies.stage('leftover\n');
-    copies.sharePlusCopy.parent.createSync(recursive: true);
-    copies.sharePlusCopy.writeAsStringSync('leftover\n');
     await _tap(tester, 'code15-record-delete-button');
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await _settle(tester);
@@ -245,7 +271,7 @@ void main() {
     expect(_status(tester), contains(_failedJa));
     await _tap(tester, 'code15-record-delete-button');
     expect(_status(tester), isNot(contains(_failedJa)),
-        reason: '"the record is kept" is false after 記録を消す');
+        reason: 'the line is about a share of a record he has now deleted');
   });
 
   testWidgets('a copy that cannot be written is a share that cannot be handed '

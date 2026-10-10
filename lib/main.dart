@@ -186,9 +186,9 @@ Future<void> main() async {
   // Its own card replaces the left-behind card on this build, so the
   // left-behind view the housekeeping opened is not handed to the app.
   final code15Record = await openCode15FixIntervalRecord();
-  // A share copy of the record (services/record_share_file.dart) never
-  // outlives its share: one left by a process that ended mid-share is
-  // deleted here, at the next launch.
+  // Every share copy of the record (services/record_share_file.dart) is
+  // deleted here, at the next launch: the receiver copy his last share left
+  // for a late reader, and any copy left by a process that ended mid-share.
   (await openRecordShareFile())?.deleteAll();
   runApp(SngnavApp(
     errorLog: errorLog,
@@ -1577,12 +1577,9 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _appLifecycle = AppLifecycleListener(
-      onResume: () {
-        // Code 15 only: back in front after a share, the share is over: its
-        // copies go (services/record_share_file.dart).
-        _code15ShareEnded();
-        _onAppResumed();
-      },
+      // Code 15: his return deletes no share copy. A receiver may open the
+      // link after he is back (services/record_share_file.dart).
+      onResume: _onAppResumed,
       onStateChange: _onLifecycleStateForShare,
       onHide: () {
         // Code 15 only: the record's `leave` is written first, before anything
@@ -5675,7 +5672,8 @@ class _HomePageState extends State<HomePage> {
                     : () {
                         setState(() {
                           record.deleteRecordOnHisTap();
-                          // "The record is kept" would be false now.
+                          // The line is about a share of the record he has
+                          // now deleted.
                           _code15ShareFailed = false;
                         });
                         // Every copy made for sharing is the record too.
@@ -5697,8 +5695,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   /// Hands the whole record, under its header, to the injected sink
-  /// (production: the platform share sheet). Deletes nothing: the share sheet
-  /// cannot say that the text arrived.
+  /// (production: the platform share sheet) as a FILE. Deletes nothing of the
+  /// record: the share sheet cannot say that it arrived. Of the copies made
+  /// for sharing, it deletes the last share's receiver copy (share_plus's) as
+  /// his new tap starts, and this app's staging copy as soon as the call
+  /// returns. This share's receiver copy is kept, because a receiver may open
+  /// the link after he is back in the app: it goes at his next 記録を共有, at
+  /// the next launch ([main]), or at 記録を消す.
   Future<void> _shareCode15Record() async {
     final record = widget.code15Record;
     if (record == null) return;
@@ -5707,7 +5710,9 @@ class _HomePageState extends State<HomePage> {
         cacheDirectory: widget.code15ShareCacheDirectory);
     var failed = copies == null;
     if (copies != null) {
-      _code15ShareInFlight = true;
+      // His new tap ends the last share: its receiver copy goes now, even if
+      // this share fails before share_plus is reached.
+      copies.deleteSharePlusCopy();
       try {
         // The whole record, under its header, as a FILE: the share sheet
         // carries a link, never the text (services/record_share_file.dart).
@@ -5718,28 +5723,16 @@ class _HomePageState extends State<HomePage> {
       } catch (_) {
         failed = true;
       } finally {
-        // This app's copy goes as soon as the call returns; share_plus's copy
-        // goes when the app is back in front ([_code15ShareEnded]).
+        // This app's copy goes as soon as the call returns: no receiver
+        // reads it.
         copies.deleteStaged();
-        _code15ShareInFlight = false;
       }
-      if (_appInFront()) copies.deleteSharePlusCopy();
     }
     if (mounted) setState(() => _code15ShareFailed = failed);
   }
 
-  /// Whether a share call of the record is running (its copies are in use).
-  bool _code15ShareInFlight = false;
-
   /// Whether his last tap on 記録を共有 handed nothing to the share sheet.
   bool _code15ShareFailed = false;
-
-  /// The app is in front again: unless a share call is still running, the
-  /// share is over, and every copy made for it is deleted.
-  void _code15ShareEnded() {
-    if (_code15ShareInFlight || widget.code15Record == null) return;
-    unawaited(_code15DeleteShareCopies());
-  }
 
   /// Deletes every copy of the record made for sharing. Never throws.
   Future<void> _code15DeleteShareCopies() async {

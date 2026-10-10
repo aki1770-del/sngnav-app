@@ -2297,11 +2297,13 @@ class AppL10n {
   /// share screen (the 2026-10-10 boundary ruling on a share that fails at
   /// the phone; the display
   /// review's Japanese; the dignity review placed it in the status live
-  /// region). Shown until his next tap on 記録を共有 or 記録を消す.
+  /// region). Shown until his next tap on 記録を共有 or 記録を消す. Its last
+  /// sentence ("and the record is kept") was dropped by the dignity review's
+  /// follow-up the same day: the status line under it says the record is
+  /// present, and beside "There is no fix-interval record." it contradicted.
   String get code15RecordShareFailed => _ja
-      ? '記録を端末の共有画面に渡せませんでした。何も送られていません。記録は残っています。'
-      : 'The record could not be handed to the share screen. Nothing was sent, '
-          'and the record is kept.';
+      ? '記録を端末の共有画面に渡せませんでした。何も送られていません。'
+      : 'The record could not be handed to the share screen. Nothing was sent.';
 
   /// Share action (code 13's).
   String get code15RecordShare => _ja ? '記録を共有' : 'Share record';
@@ -2441,7 +2443,6 @@ class AppL10n {
               'わかりません',
               '渡せませんでした',
               '送られていません',
-              '残っています',
               '欠けずに',
               '駐車中',
               '消さずに',
