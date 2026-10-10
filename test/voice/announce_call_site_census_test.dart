@@ -108,7 +108,69 @@ void main() {
 
   _reachability();
   _citationsByFunction();
+  _alreadyToldOnlyWhereTold();
   _selfTest();
+}
+
+/// P-2 (AAA bb2d2937 section 2, 2026-10-10). `_clearPosition(alreadyTold:
+/// true)` keeps the stop confirmation silent because the caller has just told
+/// her of the end in its own words. Put on a road that has told her nothing,
+/// it would end her share in silence, and only a reviewer's eye would catch
+/// it. So every place in lib/ that passes `alreadyTold:` must sit in a function
+/// this census registers with at least one announce() call.
+List<String> _alreadyToldProblems(_Lib lib) {
+  final census = lib.announceCensus().found;
+  final pass = RegExp(r'\balreadyTold\s*:');
+  return [
+    for (final s in lib.files.values)
+      for (final m in pass.allMatches(s.code))
+        if (lib.innermost(s, m.start) case final fn?)
+          if (!_registered.containsKey('${s.path}::${fn.name}') ||
+              (census['${s.path}::${fn.name}'] ?? 0) < 1)
+            '${s.path}::${fn.name} passes alreadyTold and tells her nothing '
+                'itself: no announce() call of its own is registered here. '
+                'The stop confirmation would be kept silent on a road that '
+                'never told her the share ended.'
+          else
+            ''
+        else
+          'an alreadyTold: argument at ${s.path}:${s.lineOf(m.start)} is in no '
+              'function this census can name',
+  ].where((p) => p.isNotEmpty).toList();
+}
+
+void _alreadyToldOnlyWhereTold() {
+  test('alreadyTold is passed only from a function that tells her itself '
+      '(an announce() call registered in this census)', () {
+    final lib = _Lib.fromDisk();
+    final sites = [
+      for (final s in lib.files.values)
+        for (final m in RegExp(r'\balreadyTold\s*:').allMatches(s.code))
+          '${s.path}::${lib.innermost(s, m.start)?.name}',
+    ];
+    expect(sites, ['lib/main.dart::_endShareWithoutServiceAway'],
+        reason: 'control: the instrument finds the one road that passes it '
+            'today; a new one must be read against the rule below');
+    final problems = _alreadyToldProblems(lib);
+    expect(problems, isEmpty, reason: problems.join('\n'));
+  });
+
+  test('NEGATIVE CONTROL: alreadyTold passed from a function with no '
+      'announce() is reported', () {
+    final lib = _Lib({
+      'lib/main.dart': '''
+class S {
+  void _clearPosition({bool alreadyTold = false}) {}
+  void _quietEnd() {
+    _clearPosition(alreadyTold: true);
+  }
+}
+''',
+    });
+    final problems = _alreadyToldProblems(lib);
+    expect(problems, hasLength(1));
+    expect(problems.single, contains('lib/main.dart::_quietEnd passes alreadyTold'));
+  });
 }
 
 /// The voice derivation says it cites call sites BY FUNCTION and that this
