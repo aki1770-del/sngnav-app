@@ -48,6 +48,36 @@ class _HoldingActuators implements AlertActuators {
   Future<void> keepAwake(bool enabled) async {}
 }
 
+/// Records, in one ordered log, every cue fired and every utterance's start
+/// and end, with [speak] held until the test releases it. Added 2026-10-10 so
+/// that "the stop confirmation never talks over a warning" is read for the
+/// ended cue itself, not inferred from the queue's general tests.
+class _OrderedHoldingActuators implements AlertActuators {
+  final List<String> log = <String>[];
+  final List<Completer<void>> _completers = <Completer<void>>[];
+
+  void release(int i) => _completers[i].complete();
+
+  @override
+  Future<void> speak(String text, {required String localeTag}) async {
+    log.add('speak-start:$text');
+    final c = Completer<void>();
+    _completers.add(c);
+    await c.future;
+    log.add('speak-end:$text');
+  }
+
+  @override
+  Future<void> haptic(HapticCuePattern pattern) async =>
+      log.add('haptic:${pattern.name}');
+
+  @override
+  Future<void> hapticEnded() async => log.add('haptic:ended');
+
+  @override
+  Future<void> keepAwake(bool enabled) async {}
+}
+
 class _SpeakThrowsActuators implements AlertActuators {
   final List<HapticCuePattern> haptics = <HapticCuePattern>[];
   bool speakAttempted = false;
@@ -273,6 +303,43 @@ void main() {
         // Both haptics fired — the chain survived the first fault.
         expect(throwing.haptics,
             [HapticCuePattern.critical, HapticCuePattern.warning]);
+      },
+    );
+
+    test(
+      'the stop confirmation waits behind a warning in flight: its ended cue '
+      'and its words start only after the warning has finished',
+      () async {
+        final a = _OrderedHoldingActuators();
+        final announcer = AlertAnnouncer(actuators: a);
+        final warning = announcer.announce(
+          severity: AlertSeverity.warning,
+          text: 'W',
+          localeTag: 'ja',
+        );
+        final ended = announcer.announce(
+          severity: AlertSeverity.warning,
+          text: 'E',
+          localeTag: 'ja',
+          cue: AnnounceCue.ended,
+        );
+        await pumpEventQueue();
+        expect(a.log, ['haptic:warning', 'speak-start:W'],
+            reason: 'the warning is in the air: nothing of the stop '
+                'confirmation, neither its cue nor its words, may start');
+        a.release(0);
+        await pumpEventQueue();
+        expect(a.log, [
+          'haptic:warning',
+          'speak-start:W',
+          'speak-end:W',
+          'haptic:ended',
+          'speak-start:E',
+        ]);
+        a.release(1);
+        await warning;
+        await ended;
+        expect(a.log.last, 'speak-end:E', reason: 'control: it was told');
       },
     );
   });

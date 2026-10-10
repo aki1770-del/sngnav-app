@@ -2137,7 +2137,11 @@ class _HomePageState extends State<HomePage> {
           : kShareStoppedAppLeftEnSpokenText,
       localeTag: _spokenJa ? 'ja-JP' : 'en-US',
     ));
-    _clearPosition();
+    // Told above, once: the stop confirmation is not told as well. It would
+    // be a second telling of one end, and 「共有を終了しました」 names an act she
+    // did not do (2026-10-10, test/widgets/
+    // stop_line_is_not_told_when_the_app_ends_the_share_test.dart).
+    _clearPosition(alreadyTold: true);
     // The page she returns to says why the share is not running.
     setState(() => _shareEndedAway = true);
   }
@@ -3517,7 +3521,13 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _clearPosition() {
+  /// Ends the share (or clears the development page's mock position).
+  ///
+  /// [alreadyTold] is true only where the caller has itself just told her
+  /// that this share ended, in its own words: then the stop confirmation is
+  /// not told as well. Everywhere else it is false, so an end reached by a
+  /// road nobody thought of is told rather than left silent (2026-10-10).
+  void _clearPosition({bool alreadyTold = false}) {
     // Ruled 2026-09-15: what this share told
     // stays told. No WHITEOUT is told at her tap: a whiteout this share did
     // not tell is told at the next refresh. (The one thing told about this
@@ -3555,7 +3565,9 @@ class _HomePageState extends State<HomePage> {
       _herPositionStreamSubscribedAt = null;
       _herFirstEventOverdue = false;
     });
-    if (cancelled != null && !refused) unawaited(_tellShareEnded(cancelled));
+    if (cancelled != null && !refused && !alreadyTold) {
+      unawaited(_tellShareEnded(cancelled));
+    }
   }
 
   /// Tell her, eyes off, that the share she started has ended and that the

@@ -53,7 +53,15 @@
 ///     front, and not counted as told until then) needs the bundled player to
 ///     report "withheld" without falling back to the phone's own voice. That is
 ///     a change to the voice lane, and the design is open with the dignity
-///     review.
+///     review;
+///   - the stop confirmation (AppL10n.shareEndedSpokenLine, told at 停止,
+///     main.dart _tellShareEnded) is NOT YET CLASSIFIED (2026-10-10). As
+///     built it reaches the same players, and neither waits on a focus
+///     answer, so it speaks through a refusal, including over a call: that is
+///     inherited, not decided. The reason above for the line before it does
+///     not carry over whole: at 停止 the app is on her screen and its card
+///     reads 「位置情報は共有されていません。」, but the line exists for the end
+///     she did not see. Routed to the safety and dignity reviews.
 library;
 
 /// The settle window at the share's subscription (see the rule above).
