@@ -111,10 +111,15 @@ const _leave = [
 /// the app's own position path over a faked platform stream; gives it four
 /// fixes 5 s apart.
 Future<(FakeAlertActuators, StreamController<Position>)> _driveWithoutService(
-  WidgetTester tester,
-) async {
-  final a = FakeAlertActuators();
-  final positions = StreamController<Position>();
+  WidgetTester tester, {
+  FakeAlertActuators? actuators,
+  bool broadcast = false,
+}) async {
+  final a = actuators ?? FakeAlertActuators();
+  // Broadcast when a test starts a second share on the same source.
+  final positions = broadcast
+      ? StreamController<Position>.broadcast()
+      : StreamController<Position>();
   _clockNow = DateTime.utc(2026, 1, 14, 21);
   await tester.pumpWidget(const SizedBox.shrink());
   await tester.pump();
@@ -160,6 +165,42 @@ Future<(FakeAlertActuators, StreamController<Position>)> _driveWithoutService(
   );
   return (a, positions);
 }
+
+/// The warning-channel check's line: a real announce at warning severity, on
+/// her page in every build. Held here as "a warning in flight".
+const _checkJa = 'これはテストです。警報の音と振動を確認しています。';
+
+/// Holds the channel check's words in the air until [release] completes, so a
+/// line queued behind it waits, as behind any warning still being spoken.
+class _HeldWarningActuators extends FakeAlertActuators {
+  final Completer<void> release = Completer<void>();
+  bool inTheAir = false;
+
+  @override
+  Future<void> speak(String text, {required String localeTag}) async {
+    await super.speak(text, localeTag: localeTag);
+    if (text == _checkJa) {
+      inTheAir = true;
+      await release.future;
+      inTheAir = false;
+    }
+  }
+}
+
+Future<void> _lifecycle(
+    WidgetTester tester, List<AppLifecycleState> states) async {
+  for (final s in states) {
+    tester.binding.handleAppLifecycleStateChanged(s);
+    await tester.pump();
+  }
+  await _settle(tester);
+}
+
+const _back = [
+  AppLifecycleState.hidden,
+  AppLifecycleState.inactive,
+  AppLifecycleState.resumed,
+];
 
 List<String> _spokenSince(FakeAlertActuators a, int from) =>
     [for (final s in a.spoken.skip(from)) s.text];
@@ -291,6 +332,109 @@ void main() {
       await _settle(tester);
     },
   );
+
+  // N1's own condition (2026-10-10, AAA cc5191e3 section 5, WDA 47cdb8a9
+  // section 5). The app-left line can wait in the queue behind a warning still
+  // being spoken. What is true when it PLAYS decides, on both channels.
+  group('the app-left line, read when it plays, behind a warning in flight',
+      () {
+    Future<(int, int)> leaveBehindTheCheck(
+        WidgetTester tester, _HeldWarningActuators a) async {
+      final fire = find.byKey(const Key('channel-check-fire'));
+      await tester.scrollUntilVisible(fire, 300);
+      await tester.pump();
+      final marks = (a.spoken.length, a.felt.length);
+      await tester.tap(fire);
+      await _settle(tester);
+      expect(a.inTheAir, isTrue, reason: 'control: a warning is in the air');
+      await _lifecycle(tester, _leave);
+      await _turns(tester);
+      expect(_spokenSince(a, marks.$1), [_checkJa],
+          reason: 'the app-left line waits behind the warning');
+      return marks;
+    }
+
+    Future<void> shareAgain(
+        WidgetTester tester, StreamController<Position> positions) async {
+      await _lifecycle(tester, _back);
+      final share = find.byKey(const Key('share-location-button'));
+      await tester.ensureVisible(share);
+      await tester.pump();
+      await tester.tap(share);
+      await _settle(tester);
+      expect(positions.hasListener, isTrue, reason: 'control: sharing again');
+    }
+
+    Future<void> releaseAndSettle(
+        WidgetTester tester, _HeldWarningActuators a) async {
+      a.release.complete();
+      for (var i = 0; i < 5; i++) {
+        await _turns(tester);
+      }
+      await tester.pump(const Duration(seconds: 10));
+      await _turns(tester);
+    }
+
+    testWidgets(
+      'control: a leave behind the warning and nothing else: the app-left '
+      'line plays once, after the warning, felt as the ended cue',
+      (tester) async {
+        final a = _HeldWarningActuators();
+        final (_, positions) =
+            await _driveWithoutService(tester, actuators: a, broadcast: true);
+        final (sb, fb) = await leaveBehindTheCheck(tester, a);
+        await releaseAndSettle(tester, a);
+        expect(_spokenSince(a, sb), [_checkJa, _n1],
+            reason: 'nothing changed in the wait, so the line is still true; '
+                'keyed to the wrong session it would never play');
+        expect(a.felt.skip(fb), ['warning', 'ended']);
+        await _lifecycle(tester, _back);
+        unawaited(positions.close());
+        await _settle(tester);
+      },
+    );
+
+    testWidgets(
+      "(i') a leave, a return and a new share, all behind the warning: when "
+      'it ends, no app-left line and no ended cue, because her new share runs',
+      (tester) async {
+        final a = _HeldWarningActuators();
+        final (_, positions) =
+            await _driveWithoutService(tester, actuators: a, broadcast: true);
+        final (sb, fb) = await leaveBehindTheCheck(tester, a);
+        await shareAgain(tester, positions);
+        await releaseAndSettle(tester, a);
+        expect(_spokenSince(a, sb), [_checkJa],
+            reason: '「現在地の警告は止まりました」 would be false now');
+        expect(a.felt.skip(fb), ['warning'], reason: 'never the pulse alone');
+        unawaited(positions.close());
+        await _settle(tester);
+      },
+    );
+
+    testWidgets(
+      "(ii') the same, then a second leave: exactly one app-left line and one "
+      'ended cue',
+      (tester) async {
+        final a = _HeldWarningActuators();
+        final (_, positions) =
+            await _driveWithoutService(tester, actuators: a, broadcast: true);
+        final (sb, fb) = await leaveBehindTheCheck(tester, a);
+        await shareAgain(tester, positions);
+        positions.add(_fix(0));
+        await _settle(tester);
+        await _lifecycle(tester, _leave);
+        await _turns(tester);
+        await releaseAndSettle(tester, a);
+        expect(_spokenSince(a, sb), [_checkJa, _n1],
+            reason: 'one line about where she stands now');
+        expect(a.felt.skip(fb), ['warning', 'ended']);
+        await _lifecycle(tester, _back);
+        unawaited(positions.close());
+        await _settle(tester);
+      },
+    );
+  });
 
   group('the settle window at the subscription', () {
     late GeolocatorPlatform originalGeolocator;
