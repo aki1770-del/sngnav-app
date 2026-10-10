@@ -42,18 +42,23 @@
 /// down so that it is decided, not inherited by whatever reaches the player):
 ///   - every hazard line in the offline catalog: an existing decision, not
 ///     reopened here (MainActivity.kt, "DENIAL does not gate a safety phrase");
-///   - the line below, [kShareStoppedAppLeftJaSpokenText], also speaks through a
-///     refusal, including over a phone call. It is a status line, and under the
-///     dignity principle that the machine yields to the person it need not. It
-///     does so for now because on this branch the app cannot post a
-///     notification: once she is away, nothing else can carry the words, and
-///     withholding them would leave a vibration with no content until she
-///     returns. Its cost is one spoken line, about 4.7 s, over her call, once
-///     per leave. Yielding (the vibration now and the words when she is back in
-///     front, and not counted as told until then) needs the bundled player to
-///     report "withheld" without falling back to the phone's own voice. That is
-///     a change to the voice lane, and the design is open with the dignity
-///     review;
+///   - the line below, [kShareStoppedAppLeftJaSpokenText], also SPEAKS THROUGH a
+///     refusal, including over a phone call. Decided 2026-10-06 by the safety
+///     review (AAA, r122_build_call_and_preshare_ruling_2026_10_06.md section
+///     1, which withdrew its own earlier "need not" the same day) with the
+///     dignity review, not inherited. On this branch the share is over once she
+///     is away, and the app cannot post a notification, so nothing else can
+///     carry the words: withholding them would leave her a vibration with no
+///     content until she reopens the app, which may be never on that drive.
+///     Whether she would be told at all is ambiguous, and that ambiguity routes
+///     toward telling her now; one line of about 4.7 s over her call is the
+///     cheaper halt. Its manner: once per leave, ducked, as navigation
+///     guidance; told means handed to the player, never heard; the notice on
+///     her return stays the backstop. Its condition: the cannot-post words, and
+///     the half of the not-known-yet words for a drive without notifications,
+///     tell her before her yes that the app says so once, even during a call.
+///     It reopens on the same terms as the line after it, and a yield design
+///     then meets the same floor;
 ///   - the stop confirmation (AppL10n.shareEndedSpokenLine, told at 停止,
 ///     main.dart _tellShareEnded) also SPEAKS THROUGH a refusal, including
 ///     over a call. Decided 2026-10-10 by the safety review (AAA bb2d2937,

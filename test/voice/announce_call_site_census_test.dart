@@ -109,7 +109,84 @@ void main() {
   _reachability();
   _citationsByFunction();
   _alreadyToldOnlyWhereTold();
+  _endedCueCarriesItsCondition();
   _selfTest();
+}
+
+/// Every announce() call in lib/ that carries the ended cue, with whether its
+/// own argument list passes `deliverIf:`. Read on code only: a comment or a
+/// string never counts, and the argument list is matched by its parentheses.
+List<({String key, bool hasCondition})> _endedCueCalls(_Lib lib) {
+  final out = <({String key, bool hasCondition})>[];
+  final call = RegExp(r'\.announce\(');
+  for (final s in lib.files.values) {
+    for (final m in call.allMatches(s.code)) {
+      var depth = 0;
+      var end = m.end - 1;
+      for (var i = m.end - 1; i < s.code.length; i++) {
+        final ch = s.code[i];
+        if (ch == '(') depth++;
+        if (ch == ')') {
+          depth--;
+          if (depth == 0) {
+            end = i;
+            break;
+          }
+        }
+      }
+      final args = s.code.substring(m.end, end);
+      if (!RegExp(r'\bAnnounceCue\s*\.\s*ended\b').hasMatch(args)) continue;
+      out.add((
+        key: '${s.path}::${lib.innermost(s, m.start)?.name}',
+        hasCondition: RegExp(r'\bdeliverIf\s*:').hasMatch(args),
+      ));
+    }
+  }
+  return out;
+}
+
+/// WDA 47cdb8a9 section 5, 2026-10-10. Every line felt as the ended cue says
+/// a share has ended, and every such line becomes false if she shares again
+/// while it waits in the queue. So every announce() that carries the ended
+/// cue must pass the condition under which it is still true, read when it
+/// plays. A third such line that forgets it is caught here, not by her eyes.
+void _endedCueCarriesItsCondition() {
+  test('every announce() that carries the ended cue also passes deliverIf', () {
+    final calls = _endedCueCalls(_Lib.fromDisk());
+    expect([for (final c in calls) c.key]..sort(), [
+      'lib/main.dart::_endShareWithoutServiceAway',
+      'lib/main.dart::_tellShareEnded',
+    ], reason: 'control: the instrument finds the two lines that say a share '
+        'has ended; a new one must be read against the rule below');
+    final missing = [
+      for (final c in calls)
+        if (!c.hasCondition) c.key,
+    ];
+    expect(missing, isEmpty,
+        reason: 'these carry the ended cue with no deliverIf: $missing');
+  });
+
+  test('NEGATIVE CONTROL: an ended-cue announce() with no deliverIf is '
+      'reported', () {
+    final lib = _Lib({
+      'lib/main.dart': '''
+class S {
+  void _endedQuietly() {
+    announcer.announce(text: 'x', cue: AnnounceCue.ended);
+  }
+  void _endedTruly() {
+    announcer.announce(text: 'y', cue: AnnounceCue.ended, deliverIf: () => true);
+  }
+}
+''',
+    });
+    final calls = _endedCueCalls(lib);
+    expect(calls, hasLength(2));
+    expect([
+      for (final c in calls)
+        if (!c.hasCondition) c.key,
+    ], ['lib/main.dart::_endedQuietly']);
+  });
 }
 
 /// P-2 (AAA bb2d2937 section 2, 2026-10-10). `_clearPosition(alreadyTold:

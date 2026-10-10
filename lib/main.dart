@@ -2130,18 +2130,38 @@ class _HomePageState extends State<HomePage> {
     if (_herPositionStreamSubscribedAt == null) return;
     final s = WidgetsBinding.instance.lifecycleState;
     if (s != AppLifecycleState.hidden && s != AppLifecycleState.paused) return;
+    // The share ends first, and the end hands back the session it closed: the
+    // line below reports that end and no other (2026-10-10, AAA cc5191e3
+    // section 5, WDA 47cdb8a9 section 5). Read before the end, the number is
+    // the running share's; the end moves it on at once, so the line's
+    // condition would be false at every delivery and she would never be told:
+    // a silent end on every leave. Taking it from the end itself is what makes
+    // that order impossible to get wrong.
+    // alreadyTold: this road tells her itself, just below, in its own words;
+    // the stop confirmation is not told as well. It would be a second telling
+    // of one end, and 「共有を終了しました」 names an act she did not do
+    // (test/widgets/stop_line_is_not_told_when_the_app_ends_the_share_test.dart).
+    final endedSession = _clearPosition(alreadyTold: true);
+    // Delivered only if, when it PLAYS, no share runs and this end is still
+    // the latest: queued behind a warning, it would otherwise play while a
+    // share she started on her return runs, and say its warnings stopped.
+    // The condition reads three fields and `mounted`, none of which can
+    // throw, so the announcer's throw-means-false rule never decides it.
+    bool stillEnded() =>
+        mounted && _herSub == null && endedSession == _herShareSession;
     unawaited(_announcer.announce(
       severity: AlertSeverity.warning,
       text: _spokenJa
           ? kShareStoppedAppLeftJaSpokenText
           : kShareStoppedAppLeftEnSpokenText,
       localeTag: _spokenJa ? 'ja-JP' : 'en-US',
+      // Felt as the ended cue, one long pulse, as the stop confirmation is
+      // (2026-10-10, AAA bb2d2937 F-2, WDA 46e240b2 section 4): one fact, one
+      // pulse. The warning pattern means "reduce speed" in the only grammar a
+      // deaf driver has, and here her warnings have stopped.
+      cue: AnnounceCue.ended,
+      deliverIf: stillEnded,
     ));
-    // Told above, once: the stop confirmation is not told as well. It would
-    // be a second telling of one end, and 「共有を終了しました」 names an act she
-    // did not do (2026-10-10, test/widgets/
-    // stop_line_is_not_told_when_the_app_ends_the_share_test.dart).
-    _clearPosition(alreadyTold: true);
     // The page she returns to says why the share is not running.
     setState(() => _shareEndedAway = true);
   }
@@ -3523,11 +3543,15 @@ class _HomePageState extends State<HomePage> {
 
   /// Ends the share (or clears the development page's mock position).
   ///
-  /// [alreadyTold] is true only where the caller has itself just told her
-  /// that this share ended, in its own words: then the stop confirmation is
-  /// not told as well. Everywhere else it is false, so an end reached by a
-  /// road nobody thought of is told rather than left silent (2026-10-10).
-  void _clearPosition({bool alreadyTold = false}) {
+  /// [alreadyTold] is true only where the caller itself tells her, in the
+  /// same step and in its own words, that this share ended: then the stop
+  /// confirmation is not told as well. Everywhere else it is false, so an end
+  /// reached by a road nobody thought of is told rather than left silent
+  /// (2026-10-10).
+  ///
+  /// Returns the session this end closed (the number after its increment), so
+  /// a caller that tells her of the end can key its line to this end alone.
+  int _clearPosition({bool alreadyTold = false}) {
     // Ruled 2026-09-15: what this share told
     // stays told. No WHITEOUT is told at her tap: a whiteout this share did
     // not tell is told at the next refresh. (The one thing told about this
@@ -3571,6 +3595,7 @@ class _HomePageState extends State<HomePage> {
     if (cancelled != null && !refused && !alreadyTold) {
       unawaited(_tellShareEnded(cancelled, endedSession));
     }
+    return endedSession;
   }
 
   /// Tell her, eyes off, that the share she started has ended and that the
@@ -4084,9 +4109,12 @@ class _HomePageState extends State<HomePage> {
   bool _locationConsentAskAgain = false;
 
   /// What a stored record means here, and the ONE place that decides it: only
-  /// a yes to the words the dialog shows now is honoured. A withdrawal, a yes
-  /// written before revisions existed, or a yes to other words leaves her
-  /// undecided, so her next tap asks. Nothing read from disk is ever a no:
+  /// a yes to this revision's words is honoured, whichever wording of this
+  /// revision she read (holdsYes checks the revision and that words were
+  /// stored, never which words; pinned in
+  /// test/services/location_consent_store_test.dart). A withdrawal, a yes
+  /// written before revisions existed, or a yes to another revision's words
+  /// leaves her undecided, so her next tap asks. Nothing read from disk is ever a no:
   /// a stored no used to make the share button do nothing at all on every
   /// later launch (2026-09-25), the lock-out a remembered refusal was always
   /// meant not to cause.
