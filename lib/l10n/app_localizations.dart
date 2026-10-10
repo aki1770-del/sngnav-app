@@ -25,7 +25,12 @@ import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/widgets.dart';
 
 import '../services/code15_fix_interval_record.dart'
-    show kCode15DesignFixPeriod, kCode15RecordCapKbText, kCode15RecordHoursText;
+    show
+        kBarsMinMovingMs,
+        kBarsMinStoppedMs,
+        kCode15DesignFixPeriod,
+        kCode15RecordCapKbText,
+        kCode15RecordHoursText;
 import '../services/invisible_ice_watch.dart' show InvisibleIceWatchResult;
 import '../services/location_consent.dart' show DrivePromise;
 import '../services/turmoil_watch.dart' show TurmoilWatchState, turmoilRowText;
@@ -2239,15 +2244,21 @@ class AppL10n {
   //   (89ed430 lib/l10n/app_localizations.dart:1965-2004); the full note's cap
   //   is filled from source.
   // - the disclosure: the 2026-10-09 boundary ruling's card draft (item 5),
-  //   with the 2026-10-09 dignity read's two required changes (the backup
-  //   sentence bounded to what was shown; why the leave, return and
-  //   still-running marks exist) and its later widening to "backup or
-  //   transfer app" (b83ed352). The cap, the fix period and the hours are
-  //   filled from source, never typed here.
-  // - the count line: NO ruling seat has drafted it, in either language. It
-  //   carries [kWordsNotDraftedMark], and
-  //   test/l10n/code15_record_words_test.dart refuses any card text that
-  //   does, so this build cannot pass its suite with it.
+  //   with the 2026-10-09 dignity read's required changes and its widening
+  //   to "backup or transfer app" (b83ed352), then the 2026-10-10 dignity
+  //   read's three changes: the app's own ending of a share is named (it
+  //   lands with the record's appstop line, never without it); the marks'
+  //   purpose is what the reading does with them (how the app and the phone
+  //   behaved, never what he did); and "the app sends it only when you tap
+  //   Share record". The cap, the fix period and the hours are filled from
+  //   source, never typed here.
+  // - the count line: the 2026-10-10 boundary ruling's English (forms R, N1,
+  //   N2 and F), the display review's Japanese, read in both languages by the
+  //   dignity review. Its marks (30 and 5 minutes) are filled from source. The
+  //   Japanese is drawn with [code15RecordCountKeep] kept whole, so no line
+  //   end reads as done.
+  // - [kWordsNotDraftedMark] marks any sentence no ruling seat has drafted;
+  //   test/l10n/code15_record_words_test.dart refuses card text carrying it.
 
   /// Marks a sentence no ruling seat has drafted.
   static const String kWordsNotDraftedMark = '[PLACEHOLDER';
@@ -2302,16 +2313,18 @@ class AppL10n {
             'アカウントも不要です。このテスト版は、現在地を共有している間だけ、GPS の測位が'
             '届いた間隔を記録します（届いた時刻の間隔と遅れ・測位の種類と精度・速度・'
             'アプリが前面にあったか）。'
-            '共有を止めたとき、アプリが起動したとき、アプリを離れたときと戻ったとき、'
+            '共有を止めたとき、アプリ自身が共有を終えたとき、アプリが起動したとき、'
+            'アプリを離れたときと戻ったとき、'
             '測位が届かない間はアプリが動いていること（数秒ごと）も記録します'
             '（時刻は書きません）。'
-            'アプリを離れた・戻った印と、動いている印は、端末がアプリを止めたかどうかを'
-            '見分けるためだけに使います。'
+            'アプリを離れた・戻った印、動いている印、アプリが共有を終えた印は、'
+            '端末がアプリを止めたかどうかなど、アプリと端末がどう動いたかを'
+            '見るためだけに使い、あなたが何をしたかを見るためには使いません。'
             '記録を止めたときと再開したときも、その印だけを残します。'
             '緯度経度や地名は記録しません。共有する内容には書き出した時刻が入ります。'
             '記録はこの端末に残り、Google のバックアップや、新しい端末へのデータ移行には'
             '含まれません（スマートフォンのメーカー独自のバックアップや移行アプリについては'
-            '確かめていません）。押すまで送られません。'
+            '確かめていません）。アプリから送られるのは、「記録を共有」を押したときだけです。'
             '送信先は端末の共有画面で自分で選べますが、届いたかどうかはアプリにはわかりません。'
             '「記録を止める」で止まり、「記録を消す」で消えます。'
             'コード13と違い、新しい版を入れても消えません。'
@@ -2324,16 +2337,19 @@ class AppL10n {
             'only while you share your location, how far apart GPS fixes '
             'arrive (the interval and delay of each, its kind and accuracy, '
             'your speed, and whether the app was in front). It also records '
-            'when you stop sharing, when the app starts, when you leave the '
-            'app and come back, and, while no fix arrives, that the app is '
-            'still running (every few seconds). No clock time. The leave, '
-            'return and still-running marks are used only to tell whether the '
-            'phone stopped the app. It marks when you stop and restart '
+            'when you stop sharing, when the app itself ends a share, when the '
+            'app starts, when you leave the app and come back, and, while no '
+            'fix arrives, that the app is still running (every few seconds). '
+            'No clock time. The leave, return, still-running and app-ended '
+            'marks are used only to read how the app and the phone behaved, '
+            'such as whether the phone stopped the app, never to read what you '
+            'did. It marks when you stop and restart '
             'recording. It records no coordinates and no place names. The '
             'shared text includes the time it was exported. The record stays '
             "on this phone. It is not included in Google's backup or in a "
             "transfer to a new phone (a phone maker's own backup or transfer "
-            'app has not been checked). It is sent only when you tap. You '
+            'app has not been checked). The app sends it only when you tap '
+            'Share record. You '
             "choose the destination in your device's share sheet; the app "
             'cannot tell whether it arrived. Stop recording stops it; Delete '
             'record deletes it. Unlike code 13, installing a newer version '
@@ -2343,18 +2359,96 @@ class AppL10n {
             'if fixes arrive every $period s); when reached, recording stops.';
   }
 
-  /// The count line: the bars' data minimum, in his units. NOT DRAFTED by any
-  /// ruling seat in either language: a placeholder the suite refuses. What it
-  /// must say is ruled (only that the minimum is reached, never clean, passed
-  /// or done); its words are not.
+  /// The count line: the bars' data minimum, in his units. It says only that
+  /// the minimum is reached or not, by the card's own count; never clean,
+  /// passed or done. Four forms:
+  /// - R when [minimumReached], full or not;
+  /// - F when not reached and [full];
+  /// - N1 when not reached, not full, and the moving or the stopped minutes
+  ///   are under their marks;
+  /// - N2 otherwise (both minutes at their marks, another part not yet met).
+  /// [movingMinutes] and [stoppedMinutes] are the card's floored minutes; the
+  /// marks are read from source.
   String code15RecordCount({
     required int movingMinutes,
     required int stoppedMinutes,
     required bool minimumReached,
+    required bool full,
+  }) {
+    final mm = kBarsMinMovingMs ~/ 60000;
+    final sm = kBarsMinStoppedMs ~/ 60000;
+    final m = movingMinutes;
+    final s = stoppedMinutes;
+    if (minimumReached) {
+      return _ja
+          ? '最低限に達しました（アプリの数え方で）。修正版を出せるかどうかは、'
+              'これだけではまだわかりません。駐車中に「記録を共有」を押して送り、'
+              '欠けずに届いたと知らされるまで、記録は消さずに残しておいてください。'
+          : "The minimum is reached, by this card's count. That does not yet "
+              'say whether the fix can come. When you are parked, tap Share '
+              'record and send it, and keep the record until you are told it '
+              'arrived whole.';
+    }
+    if (full) {
+      return _ja
+          ? '記録が上限に達しました。最低限には達していません（アプリの数え方で）。'
+              '駐車中に「記録を共有」を押して送り、欠けずに届いたと知らされるまで、'
+              '記録は消さずに残しておいてください。'
+          : "The record filled before the minimum was reached, by this card's "
+              'count. When you are parked, tap Share record and send it, and '
+              'keep the record until you are told it arrived whole.';
+    }
+    if (m < mm || s < sm) {
+      return _ja
+          ? 'まだ最低限に達していません（アプリの数え方で）。これまでに数えたのは、'
+              '走行$m分（$mm分以上必要）、停車$s分（$sm分以上必要）です。'
+          : "Not yet, by this card's count. So far: driving $m minutes (at "
+              'least $mm needed), standing still $s minutes (at least $sm '
+              'needed).';
+    }
+    return _ja
+        ? 'まだ最低限に達していません（アプリの数え方で）。走行$m分と停車$s分は'
+            '数えましたが、のろのろ運転の割合など、最低限のほかの条件をまだ'
+            '満たしていません。'
+        : "Not yet, by this card's count. Driving $m minutes and standing "
+            'still $s minutes are counted; another part of the minimum, such as '
+            'how much of the driving was a slow crawl, is not yet met.';
+  }
+
+  /// The words the count line's Japanese keeps whole across line breaks (the
+  /// display review's keep list), with each number and its 分. The English
+  /// keeps none. Drawing only: the plain words stay the semantics label.
+  List<String> code15RecordCountKeep({
+    required int movingMinutes,
+    required int stoppedMinutes,
   }) =>
-      '$kWordsNotDraftedMark code15RecordCount ${_ja ? 'ja' : 'en'}: '
-      'moving $movingMinutes min, stopped $stoppedMinutes min, minimum '
-      '${minimumReached ? 'reached' : 'not yet'}]';
+      _ja
+          ? [
+              '最低限',
+              '達していません',
+              '満たしていません',
+              '「記録を共有」',
+              'わかりません',
+              '渡せませんでした',
+              '送られていません',
+              '残っています',
+              '欠けずに',
+              '駐車中',
+              '消さずに',
+              '修正版',
+              'のろのろ運転',
+              '上限',
+              '必要',
+              '出せるかどうか',
+              '届いたと知らされるまで',
+              '残しておいてください',
+              '（アプリの数え方で）',
+              '$movingMinutes分',
+              '$stoppedMinutes分',
+              '${kBarsMinMovingMs ~/ 60000}分',
+              '${kBarsMinStoppedMs ~/ 60000}分',
+            ]
+          : const [];
 
   // ===== Ring-2 運転日記 — post-drive diary surface (three-month plan §2) =====
   //

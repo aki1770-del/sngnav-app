@@ -1,0 +1,5 @@
+s=0 t=0 k=launch
+s=1 t=0 k=start a=- v=- late=- fg=1
+s=1 t=100000 k=fine a=6.2 v=13.4 late=180 fg=1
+s=1 t=104500 k=leave
+s=1 t=103000 k=back

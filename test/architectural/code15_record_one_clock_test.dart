@@ -79,6 +79,7 @@ void main() {
       'void _code15AliveTick() {',
       'void _code15RecordLifecycle(',
       'void _clearPositionAtHisTap() {',
+      'void _endShareWithoutServiceAway() {',
     ]) {
       expect(_body(main, sig), contains('_code15ShareT()'), reason: sig);
     }

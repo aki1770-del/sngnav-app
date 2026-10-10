@@ -219,6 +219,31 @@ void main() {
         reason: 'the app also ends shares through _clearPosition');
   });
 
+  test('`appstop` is written only at the app\'s own ending: one call of '
+      'recordAppStop in lib/, inside _endShareWithoutServiceAway, after its '
+      'three guards and before the announce and _clearPosition', () {
+    final main = _code('lib/main.dart');
+    var calls = 0;
+    for (final f in _libFiles()) {
+      calls += RegExp(r'\.recordAppStop\(').allMatches(_code(f.path)).length;
+    }
+    expect(calls, 1);
+    final i = main.indexOf('void _endShareWithoutServiceAway() {');
+    expect(i, isNot(-1));
+    final body = main.substring(i, main.indexOf('\n  }\n', i));
+    final guards = body.lastIndexOf(
+        'if (s != AppLifecycleState.hidden && s != AppLifecycleState.paused) return;');
+    final write = body.indexOf('.recordAppStop(');
+    expect(guards, isNot(-1));
+    expect(write, greaterThan(guards), reason: 'written before its guards');
+    expect(write, lessThan(body.indexOf('_announcer.announce(')),
+        reason: 'written after the share is told ended');
+    expect(write, lessThan(body.indexOf('_clearPosition();')),
+        reason: 'written after the share moved: its t would be gone');
+    expect(_code('lib/main.dart'), isNot(contains('Code15MarkKind.appstop')),
+        reason: 'appstop is written only through recordAppStop');
+  });
+
   test('no recursive delete anywhere in lib/', () {
     for (final f in _libFiles()) {
       expect(

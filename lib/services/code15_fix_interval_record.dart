@@ -16,17 +16,22 @@
 ///   format functions below are ported from that file with no changed
 ///   character in their bodies; test/services/code15_fix_interval_record_test
 ///   .dart pins every shape code 13's own tests pinned.
-/// - THREE NEW KINDS, and no others (the 2026-10-09 rulings on this reading,
-///   and section 16 of the binding decision bars for it):
+/// - FOUR NEW KINDS, and no others (the 2026-10-09 and 2026-10-10 rulings on
+///   this reading, and sections 16 and 17 of the binding decision bars for it):
 ///   - `s=N t=N k=alive`: written by a timer every [kCode15AliveTimerPeriod]
 ///     only when the share has written no line for [kCode15AliveThreshold] or
 ///     more. While fixes arrive every 5 s nothing is added. In a gap, it shows
 ///     the app was alive with no fix; its absence before a `launch` bounds a
 ///     death.
 ///   - `s=N t=N k=leave` / `s=N t=N k=back`: when the app stops being visible
-///     and when it is visible again, while a share runs. They are read only to
-///     tell whether the phone stopped the app (the 2026-10-09 dignity read),
-///     never as his conduct.
+///     and when it is visible again, while a share runs.
+///   - `s=N t=N k=appstop`: the APP ended the share itself (a share without its
+///     foreground service, when the app left the screen; main b970dec), written
+///     before anything of the share moves. Never `end`, which is his tap.
+///   The marks are read only for how the app and the phone behaved: the
+///   ending class, the clock checks, and whether the app was in front or
+///   behind. Never as what he did (the 2026-10-10 dignity read, which widened
+///   the 2026-10-09 one).
 /// - ONE CLOCK FOR EVERY KIND (the bars, section 16 item 3): every line that
 ///   carries a share's `t` takes it as code 13's fix lines do, the page's
 ///   `_now()` minus the share's stream-subscription time, in ms. No monotonic
@@ -247,11 +252,11 @@ bool fixTimingTextHasFixLines(String text) =>
     RegExp(r'(^|\n)s=\d+ t=\d+ k=(fine|coarse) ').hasMatch(text);
 
 // ---------------------------------------------------------------------------
-// Code 15's three new kinds. Same shape as `end`: the share and its t, nothing
+// Code 15's four new kinds. Same shape as `end`: the share and its t, nothing
 // else (the reading's ending classifier parses exactly this shape).
 // ---------------------------------------------------------------------------
 
-/// The three kinds code 15 adds, and no others.
+/// The four kinds code 15 adds, and no others.
 enum Code15MarkKind {
   /// The app was alive while the share had written nothing for the threshold.
   alive('alive'),
@@ -260,7 +265,11 @@ enum Code15MarkKind {
   leave('leave'),
 
   /// The app was visible again while a share ran.
-  back('back');
+  back('back'),
+
+  /// The app ended the share itself: a share without its foreground service,
+  /// when the app left the screen (main b970dec). Never his tap.
+  appstop('appstop');
 
   const Code15MarkKind(this.token);
 
@@ -268,7 +277,7 @@ enum Code15MarkKind {
   final String token;
 }
 
-/// One `alive`, `leave` or `back` line.
+/// One `alive`, `leave`, `back` or `appstop` line.
 String formatCode15Mark({
   required int share,
   required int msSinceStreamStart,
@@ -277,11 +286,11 @@ String formatCode15Mark({
     's=${share < 0 ? 0 : share} '
     't=${msSinceStreamStart < 0 ? 0 : msSinceStreamStart} k=${kind.token}';
 
-/// Code 15's whitelist: code 13's, plus exactly one alternative for the three
+/// Code 15's whitelist: code 13's, plus exactly one alternative for the four
 /// new kinds. Every line written matches it, and nothing else is written.
 final RegExp kCode15LinePattern = RegExp(
   '${kFixTimingLinePattern.pattern.substring(0, kFixTimingLinePattern.pattern.length - 2)}'
-  r'|s=\d+ t=\d+ k=(alive|leave|back))$',
+  r'|s=\d+ t=\d+ k=(alive|leave|back|appstop))$',
 );
 
 // ---------------------------------------------------------------------------
@@ -354,6 +363,10 @@ class Code15FixIntervalRecord {
   /// full. When the line carries a share's t, it is remembered for the alive
   /// timer. Returns whether it was written.
   bool _append(String line, {bool evenIfStopped = false, int? share, int? t}) {
+    // The count starts from the file BEFORE the first write, so the line about
+    // to be written is counted once, never twice (the 2026-10-10 boundary
+    // ruling, section 1.2: a lazy start after the write read it, then added it).
+    final count = _count;
     try {
       if ((!evenIfStopped && stopped) || full) return false;
       file.parent.createSync(recursive: true);
@@ -365,7 +378,7 @@ class Code15FixIntervalRecord {
       _lastShare = share;
       _lastShareT = t;
     }
-    _count.add(line);
+    count.add(line);
     return true;
   }
 
@@ -422,7 +435,10 @@ class Code15FixIntervalRecord {
     required int msSinceStreamStart,
     required Code15MarkKind kind,
   }) {
-    if (kind == Code15MarkKind.alive) return false; // the timer's alone
+    // alive is the timer's alone, and appstop is [recordAppStop]'s alone.
+    if (kind == Code15MarkKind.alive || kind == Code15MarkKind.appstop) {
+      return false;
+    }
     return _append(
       formatCode15Mark(
           share: share, msSinceStreamStart: msSinceStreamStart, kind: kind),
@@ -430,6 +446,20 @@ class Code15FixIntervalRecord {
       t: msSinceStreamStart,
     );
   }
+
+  /// The app's own ending of [share] (a share without its foreground service,
+  /// the app off the screen). Written before the share's stream or number
+  /// moves. Never `end`, which is his tap. Returns whether it was written.
+  bool recordAppStop({required int share, required int msSinceStreamStart}) =>
+      _append(
+        formatCode15Mark(
+          share: share,
+          msSinceStreamStart: msSinceStreamStart,
+          kind: Code15MarkKind.appstop,
+        ),
+        share: share,
+        t: msSinceStreamStart,
+      );
 
   /// The alive timer's tick: writes `alive` when [share] has written no line
   /// for [kCode15AliveThreshold] or more by [msSinceStreamStart]. A share with
@@ -516,7 +546,8 @@ const double kBarsStoppedBelowMps = 0.1;
 
 /// T = 12 s (bars :14). An interval over this is never counted toward the
 /// moving minimum here: it may be a tunnel the reading excludes (the
-/// conservative side).
+/// conservative side). An over-12 STOPPED interval stays in its run, as the
+/// bars count it (the 2026-10-10 safety ruling, item 2 (iii)).
 const int kBarsOver12Ms = 12000;
 
 /// A or B minimum: 30 minutes of open-sky MOVING time (bars :160).
@@ -568,6 +599,10 @@ class Code15MinimumCount {
   int? _lastFixT;
   double? _lastFixV;
   int? _lastLineT;
+  // A line's t went back since the segment's last fix: the interval to the
+  // next fix holds a CLOCK STEP (the bars, section 16 item 3), even when the
+  // fixes alone step forward (the 2026-10-10 safety ruling, item 2).
+  bool _stepBackSinceLastFix = false;
   int _runIntervals = 0;
   int _runMs = 0;
 
@@ -592,7 +627,7 @@ class Code15MinimumCount {
   bool get _openTrailingOver12 =>
       _lastFixT != null &&
       _lastLineT != null &&
-      _lastLineT! - _lastFixT! > kBarsOver12Ms;
+      (_lastLineT! - _lastFixT! > kBarsOver12Ms || _stepBackSinceLastFix);
 
   /// Whether the data MINIMUM of the bars is reached. Only that: never clean,
   /// passed or done.
@@ -617,6 +652,7 @@ class Code15MinimumCount {
     // A share's trailing span over 12 s counts as one UNCLASSIFIED interval
     // (the bars, section 16 item 2).
     if (_openTrailingOver12) _unclassified++;
+    _stepBackSinceLastFix = false;
     _segShare = null;
     _lastFixT = null;
     _lastFixV = null;
@@ -626,8 +662,8 @@ class Code15MinimumCount {
   static double? _speed(String v) => v == '-' ? null : double.tryParse(v);
 
   /// One line, in file order. A marker (`launch`, `pause`, `resume`), an
-  /// `end`, or a change of share ends a segment; no interval or run crosses
-  /// one (the bars, section 14 item 2).
+  /// `end`, an `appstop`, or a change of share ends a segment; no interval or
+  /// run crosses one (the bars, section 14 item 2, and section 17).
   void add(String line) {
     final m = _shareLine.firstMatch(line);
     if (m == null || line.startsWith('s=0 t=0 k=')) {
@@ -639,6 +675,7 @@ class Code15MinimumCount {
     final kind = m.group(3)!;
     if (_segShare != null && share != _segShare) _closeSegment();
     _segShare = share;
+    if (_lastLineT != null && t < _lastLineT!) _stepBackSinceLastFix = true;
     _lastLineT = t;
     final f = _fixLine.firstMatch(line);
     if (f != null) {
@@ -657,7 +694,7 @@ class Code15MinimumCount {
             v != null &&
             a < kBarsStoppedBelowMps &&
             v < kBarsStoppedBelowMps;
-        if (ms < 0) {
+        if (ms < 0 || _stepBackSinceLastFix) {
           // A clock step: counted as UNCLASSIFIED (the bars, section 16 item 3).
           _closeRun();
           _unclassified++;
@@ -667,11 +704,9 @@ class Code15MinimumCount {
             _movingIntervals++;
             _movingMs += ms;
           }
-        } else if (stoppedPair && ms <= kBarsOver12Ms) {
+        } else if (stoppedPair) {
           _runIntervals++;
           _runMs += ms;
-        } else if (stoppedPair) {
-          _closeRun(); // an over-12 stopped interval breaks the run
         } else {
           _closeRun();
           _unclassified++;
@@ -679,8 +714,9 @@ class Code15MinimumCount {
       }
       _lastFixT = t;
       _lastFixV = v;
+      _stepBackSinceLastFix = false;
     }
-    if (kind == 'end') _closeSegment();
+    if (kind == 'end' || kind == 'appstop') _closeSegment();
   }
 }
 

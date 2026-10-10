@@ -32,10 +32,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sngnav_app/her_position.dart';
 import 'package:sngnav_app/jma_fetch.dart';
+import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 import 'package:sngnav_app/services/code15_fix_interval_record.dart';
 import 'package:sngnav_app/services/error_log.dart';
 import 'package:sngnav_app/services/notification_permission.dart';
+import 'package:sngnav_app/widgets/keep_together.dart';
 
 import '../support/fake_alert_actuators.dart';
 
@@ -300,6 +302,8 @@ void main() {
       final share = RegExp(r'^s=(\d+)').firstMatch(lines.first)!.group(1);
       expect(lines.last, 's=$share t=5000 k=end', reason: lines.join('\n'));
       expect(lines.where((l) => l.contains(' k=end')).length, 1);
+      expect(app.record.readAll(), isNot(contains('k=appstop')),
+          reason: 'his 停止 is never the app\'s ending');
       final held = lines.length;
       app.positions.add(_sample(100));
       for (var i = 0; i < 10; i++) {
@@ -370,6 +374,9 @@ void main() {
           reason: app.lines.join('\n'));
       expect(app.lines.where((l) => l.endsWith(' k=leave')).length, 1);
       expect(app.lines.where((l) => l.endsWith(' k=back')).length, 1);
+      expect(app.record.readAll(), isNot(contains('k=appstop')),
+          reason: 'a share with its service keeps going when the app leaves: '
+              'the app did not end it');
       expect(app.lines.where((l) => l.contains(' k=fine ') && l.endsWith('fg=0')),
           hasLength(2), reason: 'the fixes while away are behind');
       await app.positions.close();
@@ -390,20 +397,27 @@ void main() {
   });
 
   testWidgets('when the APP ends a share (no service, the app left), the '
-      'record holds the leave and NO end line: the ending was not his tap',
-      (tester) async {
+      'record holds the leave, then appstop, and NO end line: the ending was '
+      'not his tap', (tester) async {
     final app = _App(dir);
     await app.boot(tester); // the notification read says "cannot post"
     await app.share(tester);
     await app.drive(tester, 2, const Duration(seconds: 1));
+    final share =
+        RegExp(r'^s=(\d+)').firstMatch(app.lines.first)!.group(1);
     await _to(tester, _leave);
     await _advance(tester, const Duration(seconds: 3));
     await _to(tester, _back);
     expect(find.byKey(const Key('share-location-button')), findsOneWidget,
         reason: 'control: the app ended the share itself');
-    final text = app.record.readAll();
-    expect(text, contains('k=leave'));
-    expect(text, isNot(contains('k=end')),
+    final lines = app.lines;
+    final mine = [for (final l in lines) if (l.startsWith('s=$share ')) l];
+    expect(mine.reversed.take(2).toList().reversed.toList(),
+        ['s=$share t=2000 k=leave', 's=$share t=2000 k=appstop'],
+        reason: lines.join('\n'));
+    expect(lines.last, 's=$share t=2000 k=appstop',
+        reason: 'nothing of that share follows its appstop');
+    expect(app.record.readAll(), isNot(contains('k=end')),
         reason: 'an app ending was written as his tap');
     unawaited(app.positions.close());
   });
@@ -459,6 +473,15 @@ void main() {
           '測位間隔の記録があります。「記録を共有」で送れます。');
       expect(find.byKey(const Key('code15-record-stop-button'),
           skipOffstage: false), findsNothing);
+      expect(
+          tester
+              .widget<KeepTogetherText>(find.byKey(
+                  const Key('code15-record-count'), skipOffstage: false))
+              .data,
+          '記録が上限に達しました。最低限には達していません（アプリの数え方で）。'
+          '駐車中に「記録を共有」を押して送り、欠けずに届いたと知らされるまで、'
+          '記録は消さずに残しておいてください。',
+          reason: 'full and not reached: form F, never a reached-shaped line');
       expect(find.byKey(const Key('code15-record-delete-button'),
           skipOffstage: false), findsOneWidget);
       await app.tap(tester, 'code15-record-share-button');
@@ -472,8 +495,32 @@ void main() {
       await app.boot(tester);
       expect(_textOf(tester, 'code15-record-disclosure'),
           contains('コード13と違い、新しい版を入れても消えません。'));
-      expect(_textOf(tester, 'code15-record-count'),
-          contains('moving 0 min, stopped 0 min, minimum not yet'));
+      final count = tester.widget<KeepTogetherText>(
+          find.byKey(const Key('code15-record-count'), skipOffstage: false));
+      expect(count.data,
+          'まだ最低限に達していません（アプリの数え方で）。これまでに数えたのは、'
+          '走行0分（30分以上必要）、停車0分（5分以上必要）です。');
+      expect(count.words,
+          const AppL10n(Locale('ja'))
+              .code15RecordCountKeep(movingMinutes: 0, stoppedMinutes: 0),
+          reason: 'the Japanese is drawn with the keep list');
+      expect(count.words, containsAll(['最低限', '（アプリの数え方で）', '30分', '5分']));
+      final drawn = tester.widget<Text>(find.descendant(
+          of: find.byKey(const Key('code15-record-count'), skipOffstage: false),
+          matching: find.byType(Text, skipOffstage: false)));
+      expect(drawn.semanticsLabel, count.data,
+          reason: 'the plain words are the semantics label');
+      expect(drawn.data, contains(kWordJoiner),
+          reason: 'control: the drawn string carries the joiners');
+      expect(
+          find.ancestor(
+            of: find.byKey(const Key('code15-record-count'), skipOffstage: false),
+            matching: find.byWidgetPredicate(
+                (w) => w is Semantics && (w.properties.liveRegion ?? false),
+                skipOffstage: false),
+          ),
+          findsNothing,
+          reason: 'the count line is never inside a live region');
       expect(find.text('前の版の測位間隔の記録', skipOffstage: false), findsNothing);
       expect(find.textContaining('この版は記録しません', skipOffstage: false),
           findsNothing);

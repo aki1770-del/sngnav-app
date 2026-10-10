@@ -2148,6 +2148,14 @@ class _HomePageState extends State<HomePage> {
     if (_herPositionStreamSubscribedAt == null) return;
     final s = WidgetsBinding.instance.lifecycleState;
     if (s != AppLifecycleState.hidden && s != AppLifecycleState.paused) return;
+    // Code 15 only: the record's line for the app's own ending, written before
+    // anything of the share moves; never `end`, which is his tap.
+    final record = widget.code15Record;
+    final t = _code15ShareT();
+    if (record != null && t != null) {
+      _code15AfterWrite(
+          record.recordAppStop(share: _herShareSession, msSinceStreamStart: t));
+    }
     unawaited(_announcer.announce(
       severity: AlertSeverity.warning,
       text: _spokenJa
@@ -3678,7 +3686,9 @@ class _HomePageState extends State<HomePage> {
   /// The record's `end` is written here, before the share's stream or number
   /// moves, and only here: when the app ends a share itself (a share without
   /// its service, the app left), [_clearPosition] is reached without this, so
-  /// the record never says "his tap" for an ending he did not make.
+  /// the record never says "his tap" for an ending he did not make. That
+  /// ending writes `appstop` instead, in [_endShareWithoutServiceAway] and
+  /// nowhere else.
   void _clearPositionAtHisTap() {
     final record = widget.code15Record;
     final t = _code15ShareT();
@@ -5591,13 +5601,22 @@ class _HomePageState extends State<HomePage> {
             style: textStyle,
           ),
         ),
+        // The count line: a plain line, never a live region, so its redraw is
+        // never spoken. Its Japanese keeps the reviewed words whole across
+        // line breaks, so no line end reads as done (the 2026-10-10 display
+        // and dignity reads); the plain words stay its semantics label.
         if (count != null)
-          Text(
+          KeepTogetherText(
             key: const Key('code15-record-count'),
             l.code15RecordCount(
               movingMinutes: count.movingMs ~/ 60000,
               stoppedMinutes: count.stoppedMs ~/ 60000,
               minimumReached: count.minimumReached,
+              full: full,
+            ),
+            words: l.code15RecordCountKeep(
+              movingMinutes: count.movingMs ~/ 60000,
+              stoppedMinutes: count.stoppedMs ~/ 60000,
             ),
             style: textStyle,
           ),

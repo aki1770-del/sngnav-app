@@ -183,7 +183,8 @@ void main() {
     });
   });
 
-  group('the whitelist gains exactly three kinds: alive, leave, back', () {
+  group('the whitelist gains exactly four kinds: alive, leave, back, appstop',
+      () {
     final code13Lines = [
       's=3 t=15040 k=coarse a=304.9 v=16.5 late=850 fg=0',
       's=1 t=5000 k=unavail a=- v=- late=- fg=1',
@@ -212,6 +213,10 @@ void main() {
       's=2 k=alive',
       's=2 t=5 k=alived',
       's=2 t=5 k=gone',
+      's=2 t=5 k=appstop fg=0',
+      's=0 t=0 k=appstop 2026-10-10T07:00:00Z',
+      's=2 t=5 k=appstopped',
+      's=2 t=5 k=app_stop',
     ];
 
     test('every code 13 line is read exactly as before, by both whitelists',
@@ -225,10 +230,10 @@ void main() {
       }
     });
 
-    test('the new shapes are `s=N t=N k=<kind>` for exactly these three, and '
+    test('the new shapes are `s=N t=N k=<kind>` for exactly these four, and '
         'code 15\'s whitelist refuses every variant', () {
       expect(Code15MarkKind.values.map((k) => k.token).toList(),
-          ['alive', 'leave', 'back']);
+          ['alive', 'leave', 'back', 'appstop']);
       for (final k in Code15MarkKind.values) {
         final line =
             formatCode15Mark(share: 4, msSinceStreamStart: 61234, kind: k);
@@ -243,8 +248,11 @@ void main() {
     });
 
     test('the shape is the one the reading\'s ending classifier parses: '
-        r'^s=(\d+) t=(\d+) k=(alive|leave|back)$', () {
-      final reader = RegExp(r'^s=(\d+) t=(\d+) k=(alive|leave|back)$');
+        r'^s=(\d+) t=(\d+) k=(alive|leave|back|appstop)$', () {
+      // Retyped from the classifier's NEW_KINDS_RE, version 2 (the 2026-10-10
+      // safety ruling, evidence/classify_endings.py).
+      final reader =
+          RegExp(r'^s=(\d+) t=(\d+) k=(alive|leave|back|appstop)$');
       for (final k in Code15MarkKind.values) {
         final line =
             formatCode15Mark(share: 7, msSinceStreamStart: 1200, kind: k);
@@ -252,6 +260,42 @@ void main() {
         expect(m, isNotNull, reason: line);
         expect(m!.group(3), k.token);
       }
+    });
+
+    test('appstop: one shape, accepted by code 15\'s whitelist and refused by '
+        'code 13\'s', () {
+      const line = 's=4 t=61234 k=appstop';
+      expect(
+          formatCode15Mark(
+              share: 4, msSinceStreamStart: 61234, kind: Code15MarkKind.appstop),
+          line);
+      expect(kCode15LinePattern.hasMatch(line), isTrue);
+      expect(kFixTimingLinePattern.hasMatch(line), isFalse);
+    });
+
+    test('appstop is written only by recordAppStop: recordLifecycle refuses it, '
+        'as it refuses alive', () {
+      final r = open();
+      expect(
+          r.recordLifecycle(
+              share: 2, msSinceStreamStart: 9000, kind: Code15MarkKind.appstop),
+          isFalse);
+      expect(r.hasLines, isFalse);
+      expect(r.recordAppStop(share: 2, msSinceStreamStart: 9000), isTrue);
+      expect(linesOf(r), ['s=2 t=9000 k=appstop']);
+    });
+
+    test('a stopped or a full record writes no appstop', () {
+      final r = open();
+      r.stop();
+      expect(r.recordAppStop(share: 1, msSinceStreamStart: 5000), isFalse);
+      expect(r.readAll(), isNot(contains('appstop')));
+      final small = open(maxBytes: 256);
+      small.resume();
+      while (fine(small, 1)) {}
+      expect(small.full, isTrue);
+      expect(small.recordAppStop(share: 1, msSinceStreamStart: 5000), isFalse);
+      expect(small.readAll(), isNot(contains('appstop')));
     });
   });
 
@@ -275,6 +319,7 @@ void main() {
       r.recordLifecycle(
           share: 1, msSinceStreamStart: 13000, kind: Code15MarkKind.back);
       r.recordEnd(share: 1, msSinceStreamStart: 14000);
+      r.recordAppStop(share: 2, msSinceStreamStart: 3000);
       r.stop();
       final names = dir
           .listSync()
@@ -721,5 +766,80 @@ void main() {
       r.deleteRecordOnHisTap();
       expect(r.count.minimumReached, isFalse, reason: 'a delete keeps a count');
     });
+  });
+
+  group('the count, as the 2026-10-10 safety ruling fixed it (item 2), on its '
+      'own case records (test/fixtures/code15_count, copied byte for byte)',
+      () {
+    Code15MinimumCount fixture(String name) => Code15MinimumCount.ofText(
+        File('test/fixtures/code15_count/$name').readAsStringSync());
+
+    test('b1m: a backward clock step behind a leave line makes the last moving '
+        'interval a clock step, so the minimum is NOT reached', () {
+      final c = fixture('b1m_margin_record.txt');
+      expect(c.movingIntervals, 299);
+      expect(c.unclassifiedIntervals, 1);
+      expect(c.minimumReached, isFalse,
+          reason: 'the card would say "reached" where the bars do not');
+    });
+
+    test('b3: a clock step inside the trailing span counts it', () {
+      expect(fixture('b3_clock_step_in_tail.txt').unclassifiedIntervals, 1);
+    });
+
+    test('b2: parked with fixes 15 s apart, every STOPPED interval stays in its '
+        'run, as the bars count it', () {
+      final c = fixture('b2_parked_15s.txt');
+      expect(c.stoppedIntervals, 40);
+      expect(c.stoppedMs, 600000);
+    });
+
+    test('three STOPPED intervals at 5 s, one at 15 s, then three at 5 s: one '
+        'run of 7', () {
+      final lines = <String>[];
+      var t = 0;
+      for (final step in [5000, 5000, 5000, 15000, 5000, 5000, 5000]) {
+        lines.add('s=1 t=$t k=fine a=5.0 v=0 late=200 fg=0');
+        t += step;
+      }
+      lines.add('s=1 t=$t k=fine a=5.0 v=0 late=200 fg=0');
+      final c = Code15MinimumCount.ofText(lines.join('\n'));
+      expect(c.stoppedIntervals, 7);
+      expect(c.stoppedMs, 45000);
+    });
+
+    test('appstop closes the segment: no interval crosses it, and the '
+        'trailing span counts at it, as at every ending', () {
+      final crossed = Code15MinimumCount.ofText([
+        's=1 t=0 k=fine a=5.0 v=13.4 late=200 fg=0',
+        's=1 t=5000 k=appstop',
+        's=1 t=10000 k=fine a=5.0 v=13.4 late=200 fg=0',
+      ].join('\n'));
+      expect(crossed.movingIntervals, 0,
+          reason: 'an interval was formed across the app\'s own ending');
+      final tail = Code15MinimumCount.ofText([
+        's=1 t=0 k=fine a=5.0 v=0 late=200 fg=0',
+        's=1 t=13000 k=appstop',
+        's=1 t=40000 k=alive',
+      ].join('\n'));
+      expect(tail.unclassifiedIntervals, 1,
+          reason: 'the 13 s fix-less tail ends at appstop, once');
+    });
+  });
+
+  test('the count starts before the first write: a first write that is a fix '
+      'is counted once, never twice (the 2026-10-10 boundary ruling, 1.2)', () {
+    final r = open();
+    // No launch first: the first write after construction is a fix.
+    r.record(share: 1, msSinceStreamStart: 5000, kind: FixEventKind.fine,
+        accuracyMeters: 5, reportedSpeedMps: 13.4, lateMs: 200,
+        appInFront: false);
+    r.record(share: 1, msSinceStreamStart: 10000, kind: FixEventKind.fine,
+        accuracyMeters: 5, reportedSpeedMps: 13.4, lateMs: 200,
+        appInFront: false);
+    expect(r.count.movingIntervals, 1,
+        reason: 'the file holds two fixes, so one interval');
+    expect(r.count.movingIntervals,
+        Code15MinimumCount.ofText(r.readAll()).movingIntervals);
   });
 }
