@@ -1,6 +1,6 @@
 # プライバシーポリシー — sngnav-app
 
-最終更新: 2026-10-10
+最終更新: 2026-10-11
 
 <!-- Play Console は位置情報を要求するアプリに公開されたプライバシーポリシー URL を
      求める。本ファイルはその原文（ja 主・en 全訳付き）。ホスティング先が決まったら
@@ -231,7 +231,7 @@
      recordChannelCheck（書く項目）、maxBytes = 512 * 1024（超えると半分まで古い順に削る）、
      composeDiarySharePayload（送る中身: 見出し 3 行 + 本文）、shareDiaryViaShareSheet（OS の共有シート）。 -->
 
-*訂正のお知らせ（2026-10-10）: 以前このページは、運転日記を「端末内のファイルにだけ保存されます」と書き、日記と不具合ログはどちらも、あなたが共有ボタンを押したときだけ端末の外に出る、と書いていました。端末のバックアップ（Google など）がオンなら、日記はその中に含まれ、新しい端末に移ることがあります。これまでのどの版でも同じでした。アプリ内のプライバシーポリシーにこのお知らせが載っている版からは、アプリは不具合ログを Google のバックアップと新しい端末へのデータ移行に含めないよう、Android に指定しています（上の「不具合ログについて」を参照）。それより前の版では、バックアップがオンなら不具合ログも含まれることがありました。*
+*訂正のお知らせ（2026-10-11）: 以前このページは、運転日記を「端末内のファイルにだけ保存されます」と書き、日記と不具合ログはどちらも、あなたが共有ボタンを押したときだけ端末の外に出る、と書いていました。端末のバックアップ（Google など）がオンなら、日記はその中に含まれ、新しい端末に移ることがあります。これまでのどの版でも同じでした。アプリ内のプライバシーポリシーにこのお知らせが載っている版からは、アプリは不具合ログを Google のバックアップと新しい端末へのデータ移行に含めないよう、Android に指定しています（上の「不具合ログについて」を参照）。それより前の版では、バックアップがオンなら不具合ログも含まれることがありました。*
 
 ## お問い合わせ
 
@@ -244,7 +244,7 @@
 
 # Privacy Policy — sngnav-app (English)
 
-Last updated: 2026-10-10
+Last updated: 2026-10-11
 
 sngnav-app is an advisory app that supports driving on snowy roads. We deliberately keep your data on your device wherever possible. This page explains — matching the actual code — what the app uses, what it sends, and what it does not send.
 
@@ -333,7 +333,7 @@ Internal errors are recorded only in a local log file on your device (capped at 
 
 What you record in the drive diary (the time, the answers you choose, the area and note you type, and, for a warning check, whether you heard and felt it, what the device reported and the app version) is saved in a file on your device (capped at roughly 512 KB; the oldest entries are dropped first). No position or route is recorded; the only place in it is what you type yourself. The app sends the diary off your device **only when you press 日記を共有 (Share diary) and send it through your device's share sheet**. What is sent is the diary text, with the app version, the kind of operating system and the time it was exported. The app never sends it by itself. If your phone's backup (Google or other) is on, the diary may be included in it and moved to a new phone.
 
-*Correction note (2026-10-10): this page said the drive diary "is saved only in a file on your device", and that the diary and the error log leave your device only when you tap a share button. If your phone's backup (Google or other) is on, the diary may be included in it and moved to a new phone, and that has been so in every version. From the first version whose in-app privacy policy shows this note, the app tells Android to leave the error log out of Google's backup and out of a transfer to a new phone (see "Crash / error log" above). In earlier versions, the error log could be included too, if your backup was on.*
+*Correction note (2026-10-11): this page said the drive diary "is saved only in a file on your device", and that the diary and the error log leave your device only when you tap a share button. If your phone's backup (Google or other) is on, the diary may be included in it and moved to a new phone, and that has been so in every version. From the first version whose in-app privacy policy shows this note, the app tells Android to leave the error log out of Google's backup and out of a transfer to a new phone (see "Crash / error log" above). In earlier versions, the error log could be included too, if your backup was on.*
 
 ## Contact
 
