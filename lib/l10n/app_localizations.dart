@@ -2294,7 +2294,8 @@ class AppL10n {
           'recording has stopped.';
 
   /// The status's first line after his tap on 記録を共有 handed nothing to the
-  /// share screen (the 2026-10-10 boundary ruling, R-D3-4; the display
+  /// share screen (the 2026-10-10 boundary ruling on a share that fails at
+  /// the phone; the display
   /// review's Japanese; the dignity review placed it in the status live
   /// region). Shown until his next tap on 記録を共有 or 記録を消す.
   String get code15RecordShareFailed => _ja
