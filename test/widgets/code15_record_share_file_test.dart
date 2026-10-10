@@ -36,6 +36,7 @@ import 'package:sngnav_app/jma_fetch.dart';
 import 'package:sngnav_app/main.dart' show SngnavApp;
 import 'package:sngnav_app/services/code15_fix_interval_record.dart';
 import 'package:sngnav_app/services/record_share_file.dart';
+import 'package:sngnav_app/widgets/keep_together.dart' show plainOf;
 
 import '../support/fake_alert_actuators.dart';
 
@@ -69,9 +70,14 @@ Future<void> _tap(WidgetTester tester, String key) async {
   await _settle(tester);
 }
 
-String _status(WidgetTester tester) => tester
-    .widget<Text>(find.byKey(const Key('code15-record-status'), skipOffstage: false))
-    .data!;
+/// The status's plain words: it is drawn through KeepTogetherText, so the
+/// drawn Text's joiners are removed (the plain words are its label).
+String _status(WidgetTester tester) => plainOf(tester
+    .widget<Text>(find.descendant(
+        of: find.byKey(const Key('code15-record-status'), skipOffstage: false),
+        matching: find.byType(Text, skipOffstage: false),
+        matchRoot: true))
+    .data!);
 
 /// A sink that does what share_plus 13.3.0 does with a file: copy it into
 /// `<cache>/share_plus/<name>` before the sheet opens. It records what it was

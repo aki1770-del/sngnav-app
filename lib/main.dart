@@ -5616,9 +5616,14 @@ class _HomePageState extends State<HomePage> {
         Semantics(
           container: true,
           liveRegion: true,
-          child: Text(
+          // Its Japanese keeps the display review's words whole across line
+          // breaks in every state it draws, so no line end reads "was sent" or
+          // "can open" (2026-10-10); the plain words stay the live region's
+          // label.
+          child: KeepTogetherText(
             key: const Key('code15-record-status'),
             status,
+            words: l.code15RecordStatusKeepTogether,
             style: textStyle,
           ),
         ),
@@ -5685,9 +5690,13 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
+        // Its Japanese keeps the display review's words whole, so no line end
+        // reverses one of its promises (2026-10-10); the plain words stay its
+        // semantics label.
+        KeepTogetherText(
           key: const Key('code15-record-disclosure'),
           l.code15RecordDisclosure,
+          words: l.code15RecordDisclosureKeepTogether,
           style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
         ),
       ],

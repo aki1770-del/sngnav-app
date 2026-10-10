@@ -186,8 +186,17 @@ class _App {
   }
 }
 
-String _textOf(WidgetTester tester, String key) =>
-    tester.widget<Text>(find.byKey(Key(key), skipOffstage: false)).data ?? '';
+/// The plain words of the keyed widget's drawn Text: its joiners removed,
+/// and, where it is drawn with joiners, its semantics label the plain words.
+String _textOf(WidgetTester tester, String key) {
+  final t = tester.widget<Text>(find.descendant(
+      of: find.byKey(Key(key), skipOffstage: false),
+      matching: find.byType(Text, skipOffstage: false),
+      matchRoot: true));
+  final shown = plainOf(t.data ?? '');
+  if (t.data != shown) expect(t.semanticsLabel, shown);
+  return shown;
+}
 
 int _t(String line) => int.parse(RegExp(r' t=(\d+) ').firstMatch('$line ')!.group(1)!);
 

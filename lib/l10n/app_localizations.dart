@@ -2305,6 +2305,23 @@ class AppL10n {
       ? '記録を端末の共有画面に渡せませんでした。何も送られていません。'
       : 'The record could not be handed to the share screen. Nothing was sent.';
 
+  /// The status line's words that must not break across lines (the display
+  /// review's list for this widget, 2026-10-10), for every state the status
+  /// draws: the failure line's two negations, which split as 「…送られて」 or
+  /// 「…渡せ」 (a line end that reads "was sent"); the unavailable line's
+  /// 開けません, which split as 「…開け」 ("can open"); the empty line's
+  /// ありません; and the quoted control name. The English keeps none. Drawing
+  /// only: the plain words stay the live region's label.
+  List<String> get code15RecordStatusKeepTogether => _ja
+      ? const [
+          '渡せませんでした',
+          '送られていません',
+          '「記録を共有」',
+          '開けません',
+          'ありません',
+        ]
+      : const <String>[];
+
   /// Share action (code 13's).
   String get code15RecordShare => _ja ? '記録を共有' : 'Share record';
 
@@ -2370,6 +2387,43 @@ class AppL10n {
             '$kCode15RecordCapKbText KB (about $kCode15RecordHoursText hours '
             'if fixes arrive every $period s); when reached, recording stops.';
   }
+
+  /// The disclosure's words that must not break across lines (the display
+  /// review's list for this widget, 2026-10-10): its loanwords; each negation
+  /// whose split leaves a stem that reads as the affirmative (「…使い」 read
+  /// "used to see what you did", 「…確かめていま」 "have checked"); 不要, whose
+  /// split opens a line on 「要」; 届いたかどうか; the quoted control names; and
+  /// the "only" phrases, so "only" stays with what it limits. The English
+  /// keeps none. Drawing only: the plain words stay its semantics label.
+  List<String> get code15RecordDisclosureKeepTogether => _ja
+      ? const [
+          'テレメトリ',
+          'アカウント',
+          'テスト版',
+          'アプリ',
+          'バックアップ',
+          'データ移行',
+          'スマートフォン',
+          'メーカー',
+          '移行アプリ',
+          'コード13',
+          '書きません',
+          '使いません',
+          '記録しません',
+          '含まれません',
+          '確かめていません',
+          'わかりません',
+          '消えません',
+          '不要',
+          '届いたかどうか',
+          '「記録を共有」',
+          '「記録を止める」',
+          '「記録を消す」',
+          'ときだけ',
+          '間だけ',
+          'ためだけに',
+        ]
+      : const <String>[];
 
   /// The count line: the bars' data minimum, in his units. It says only that
   /// the minimum is reached or not, by the card's own count; never clean,
@@ -2441,8 +2495,6 @@ class AppL10n {
               '満たしていません',
               '「記録を共有」',
               'わかりません',
-              '渡せませんでした',
-              '送られていません',
               '欠けずに',
               '駐車中',
               '消さずに',

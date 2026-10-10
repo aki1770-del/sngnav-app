@@ -309,7 +309,7 @@ void main() {
           keep,
           containsAll([
             '最低限', '達していません', '満たしていません', '「記録を共有」', 'わかりません',
-            '渡せませんでした', '送られていません', '欠けずに', '駐車中',
+            '欠けずに', '駐車中',
             '消さずに', '修正版', 'のろのろ運転', '上限', '必要', '出せるかどうか',
             '届いたと知らされるまで', '残しておいてください', '（アプリの数え方で）',
             '12分', '3分', '${kBarsMinMovingMs ~/ 60000}分', '${kBarsMinStoppedMs ~/ 60000}分',
@@ -317,8 +317,60 @@ void main() {
       expect(keep, isNot(contains('残っています')),
           reason: 'the failure line no longer says 記録は残っています (dropped '
               '2026-10-10), so the list keeps no word of it');
+      expect(keep, hasLength(20), reason: 'the display review\'s 20 entries');
+      // A word kept on a widget that never draws it guards nothing (the
+      // display review, 2026-10-10: the failure line's two negations sat
+      // here while the status that draws them had no list).
+      final forms = [
+        _ja.code15RecordCount(movingMinutes: 12, stoppedMinutes: 3, minimumReached: true, full: false),
+        _ja.code15RecordCount(movingMinutes: 12, stoppedMinutes: 3, minimumReached: false, full: true),
+        _ja.code15RecordCount(movingMinutes: 12, stoppedMinutes: 3, minimumReached: false, full: false),
+        _ja.code15RecordCount(
+            movingMinutes: kBarsMinMovingMs ~/ 60000,
+            stoppedMinutes: kBarsMinStoppedMs ~/ 60000,
+            minimumReached: false,
+            full: false),
+      ];
+      for (final w in keep) {
+        expect(forms.any((f) => f.contains(w)), isTrue,
+            reason: '$w is in no count form, so keeping it on the count line keeps nothing');
+      }
       expect(_en.code15RecordCountKeep(movingMinutes: 12, stoppedMinutes: 3),
           isEmpty);
+    });
+  });
+
+  group('the keep lists for the status and the disclosure (the display '
+      'review, 2026-10-10), Japanese only', () {
+    test('the status\'s list, exactly, and each word is in a state it draws', () {
+      expect(_ja.code15RecordStatusKeepTogether,
+          ['渡せませんでした', '送られていません', '「記録を共有」', '開けません', 'ありません']);
+      final states = [
+        _ja.code15RecordShareFailed,
+        _ja.code15RecordPresent,
+        _ja.code15RecordEmpty,
+        _ja.code15RecordUnavailable,
+        _ja.code15RecordFullNote,
+        _ja.code15RecordStoppedNote,
+      ];
+      for (final w in _ja.code15RecordStatusKeepTogether) {
+        expect(states.any((t) => t.contains(w)), isTrue, reason: '$w is drawn by no state');
+      }
+      expect(_en.code15RecordStatusKeepTogether, isEmpty);
+    });
+
+    test('the disclosure\'s list, exactly (25 words), each in the disclosure', () {
+      expect(_ja.code15RecordDisclosureKeepTogether, [
+        'テレメトリ', 'アカウント', 'テスト版', 'アプリ', 'バックアップ', 'データ移行',
+        'スマートフォン', 'メーカー', '移行アプリ', 'コード13', '書きません', '使いません',
+        '記録しません', '含まれません', '確かめていません', 'わかりません', '消えません',
+        '不要', '届いたかどうか', '「記録を共有」', '「記録を止める」', '「記録を消す」',
+        'ときだけ', '間だけ', 'ためだけに',
+      ]);
+      for (final w in _ja.code15RecordDisclosureKeepTogether) {
+        expect(_ja.code15RecordDisclosure, contains(w), reason: '$w is not in the disclosure');
+      }
+      expect(_en.code15RecordDisclosureKeepTogether, isEmpty);
     });
   });
 
