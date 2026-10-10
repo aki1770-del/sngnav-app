@@ -18,6 +18,17 @@ import 'package:navigation_safety_core/navigation_safety_core.dart'
 
 import 'alert_actuators.dart';
 
+/// Which tactile cue an announcement carries.
+enum AnnounceCue {
+  /// The cue for its severity (the catalog's grammar): every warning.
+  severity,
+
+  /// The ended cue ([AlertActuators.hapticEnded]): the one announcement that
+  /// is not a warning, the line that says a share has ended (decided
+  /// 2026-10-05). Its severity only opens the gate.
+  ended,
+}
+
 /// Delivers a hazard to the driver on the audio + haptic channels.
 class AlertAnnouncer {
   AlertAnnouncer({required this.actuators});
@@ -57,11 +68,23 @@ class AlertAnnouncer {
   /// receive — the exact reduced-subset failure the floor forbids.)
   Future<void> _tail = Future<void>.value();
 
+  ///
+  /// **[deliverIf], read at DELIVERY (added 2026-10-10).** A line whose truth
+  /// can lapse while it waits in the queue passes the condition under which it
+  /// is still true. It is read after the wait and before either channel fires.
+  /// If it is false then, NOTHING of this announcement is delivered: neither
+  /// the cue nor the words, never one without the other. A condition that
+  /// throws counts as false (the line plays only when its truth is
+  /// established). It is read here, in the one queue body, because this is
+  /// the only caller of [_deliver]: no announcement reaches a channel without
+  /// passing it. Lines whose words cannot lapse pass none.
   Future<void> announce({
     required AlertSeverity severity,
     required String text,
     required String localeTag,
     String? spokenPrefix,
+    AnnounceCue cue = AnnounceCue.severity,
+    bool Function()? deliverIf,
   }) {
     if (severity.index < AlertSeverity.warning.index) {
       return Future<void>.value();
@@ -73,15 +96,26 @@ class AlertAnnouncer {
     final prev = _tail;
     final next = () async {
       await prev;
+      if (deliverIf != null && !_holds(deliverIf)) return;
       await _deliver(
         severity: severity,
         text: text,
         localeTag: localeTag,
         spokenPrefix: spokenPrefix,
+        cue: cue,
       );
     }();
     _tail = next;
     return next;
+  }
+
+  /// [deliverIf] read once, at delivery. A throw counts as false.
+  static bool _holds(bool Function() deliverIf) {
+    try {
+      return deliverIf();
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<void> _deliver({
@@ -89,12 +123,18 @@ class AlertAnnouncer {
     required String text,
     required String localeTag,
     String? spokenPrefix,
+    AnnounceCue cue = AnnounceCue.severity,
   }) async {
     final ttsTag = ttsLocaleTagFor(localeTag);
     // Haptic first + guarded: the tactile cue is delivered regardless of the
     // audio channel's fate.
     try {
-      await actuators.haptic(hapticCueForCoreSeverity(severity));
+      switch (cue) {
+        case AnnounceCue.severity:
+          await actuators.haptic(hapticCueForCoreSeverity(severity));
+        case AnnounceCue.ended:
+          await actuators.hapticEnded();
+      }
     } catch (_) {
       // A haptic fault must not suppress the audio channel fired below.
     }

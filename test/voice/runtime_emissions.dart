@@ -174,6 +174,12 @@ Set<String> emittableSafetyStaticJa() {
   // Told once, through the same announcer as every warning.
   out.add(kShareStoppedAppLeftJaSpokenText);
 
+  // (9) main.dart _tellShareEnded — the stop confirmation (added 2026-10-05).
+  // Not a hazard line either, but it is what she hears when a drive ends, and
+  // it must be heard offline. Produced by CALLING the app's localizations, the
+  // exact string _tellShareEnded passes to announce().
+  out.add(const AppL10n(Locale('ja')).shareEndedSpokenLine);
+
   return out;
 }
 

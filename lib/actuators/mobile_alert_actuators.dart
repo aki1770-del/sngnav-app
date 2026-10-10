@@ -222,6 +222,14 @@ class MobileAlertActuators implements AlertActuators {
   }
 
   @override
+  Future<void> hapticEnded() async {
+    // The same platform rule as [haptic]: a surface with no vibrator to begin
+    // with owes no sensation.
+    if (!_isMobilePlatform && _injectedHaptics == null) return;
+    await _haptics.fireEnded();
+  }
+
+  @override
   Future<void> keepAwake(bool enabled) async {
     if (!_isMobilePlatform) return;
     try {

@@ -37,6 +37,12 @@
 ///                   kConditionsUnknownJaSpokenText                       (1)
 ///   main.dart _fireChannelCheck  AppL10n.channelCheckSpokenLine (ja)      (1)
 ///                   the warning-channel check's own line, added 2026-09-19
+///   main.dart _endShareWithoutServiceAway
+///                   kShareStoppedAppLeftJaSpokenText                     (1)
+///                   a share without its service ended because the app left
+///                   the screen, added 2026-10-06 (listed here 2026-10-10)
+///   main.dart _tellShareEnded  AppL10n.shareEndedSpokenLine (ja)          (1)
+///                   the stop confirmation, added 2026-10-05
 /// `test/voice/runtime_voice_coverage_test.dart` RE-DERIVES that list on every
 /// run and FAILS if any emittable safety line is not in this map — so the mouth
 /// can never again drift from what the app says.
@@ -214,6 +220,14 @@ const Map<String, String> kOfflineSafetyVoiceJa = <String, String>{
   // runtime_emissions.dart step (8) reads it from there.
   'share_stopped_app_left':
       'アプリが画面から離れたため、現在地の警告は止まりました。',
+  // --- THE STOP CONFIRMATION (main.dart _tellShareEnded). Spoken once a share
+  // she started has ended at 停止, so that an end she did not mean is heard
+  // eyes off. It plays from this mouth so that it is heard offline, where the
+  // phone has no ja voice of its own. The value is AppL10n's ja
+  // shareEndedSpokenLine exactly; test/voice/runtime_emissions.dart step (9)
+  // reads it from there.
+  'share_ended':
+      '共有を終了しました。現在地の警告も止まりました。',
 };
 
 /// RENDER overrides — id -> the text the WAV is actually synthesised FROM,

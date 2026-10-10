@@ -362,6 +362,7 @@ class AppL10n {
           'Android 14 以降はスワイプで消せます。消しても位置情報の使用は止まりません。'
           '終了するには、アプリを開いて（または通知をタップして）'
           '「停止」を押してください。'
+          '「停止」で終了すると、そのことを一度だけ声と振動でお知らせします（通話中でも話します）。'
       : 'How a drive runs depends on whether you allow notifications.\n'
           'If you do not allow them, a drive runs only while the app is on the '
           'screen. Turning the screen off, switching to another app or going '
@@ -374,7 +375,8 @@ class AppL10n {
           'for the drive, but it may not show on a locked screen, and from '
           'Android 14 you can swipe it away — that does not stop the drive or '
           'its use of your location. To end it, open the app (or tap the '
-          'notification), then Stop.';
+          'notification), then Stop. When you end it with Stop, the app says '
+          'so once, by voice and vibration, even during a call.';
 
   /// Words in [driveDisclosureIfNotificationsAllowed] that must not break
   /// across lines: [driveDisclosureKeepTogether] plus the HMI review's four
@@ -1242,12 +1244,15 @@ class AppL10n {
           'Android 14 以降はスワイプで消せます。消しても位置情報の使用は止まりません。'
           '終了するには、アプリを開いて（または通知をタップして）'
           '「停止」を押してください。'
+          '「停止」で終了すると、そのことを一度だけ声と振動でお知らせします（通話中でも話します）。'
       : 'Once you start a drive it keeps going with the screen off, while '
           'you use another app, or when you go back (button or swipe). A '
           'notification is posted for the drive, but it '
           'may not show on a locked screen, and from Android 14 you can swipe '
           'it away — that does not stop the drive or its use of your location. '
-          'To end it, open the app (or tap the notification), then Stop.';
+          'To end it, open the app (or tap the notification), then Stop. '
+          'When you end it with Stop, the app says so once, by voice and '
+          'vibration, even during a call.';
 
   /// Words in [driveDisclosure] that must never break across two lines.
   /// Each must occur in the text; test/widgets/keep_together_test.dart checks
@@ -1262,6 +1267,23 @@ class AppL10n {
   /// characters; the narrowest line measured holds about 10 at 2.0. It names
   /// the fact the notification's title names (位置情報を使用中), and a line
   /// ending on 「使」 would leave that fact half said.
+  ///
+  /// 一度だけ, 声と振動 and （通話中でも話します） (en: "by voice and vibration",
+  /// "even during a call") joined 2026-10-10 with the sentence that tells her
+  /// 停止 is said once, by voice and vibration, even during a call (a dignity
+  /// review's words, WDA 46e240b2 section 3.2). The W-call words of
+  /// 2026-10-06, with one change of form: 通話中でも話します is protected WITH
+  /// its brackets, for the reason 「停止」 is. 「（」 cannot end a line and
+  /// 「）」 cannot begin one, so the unit that must fit is the bracketed one.
+  /// Protected bare, keep_together_test's sweep counted 163 split points (ja,
+  /// widths 109 to 263 px across the five scales); bracketed, it counted none.
+  /// That "none" is not a protection at those widths (corrected 2026-10-10 on
+  /// WDA 47cdb8a9 section 2.2, then measured): all 163 were forced breaks at
+  /// widths narrower than the bracketed unit, which the sweep skips for it,
+  /// and at every one of them the bracketed unit breaks inside as well. What
+  /// the brackets give is this: at every width the unit fits, it is never
+  /// split. Where it does not fit, as at her largest text size in the
+  /// narrowest place, it breaks; that geometry is the HMI review's.
   List<String> get driveDisclosureKeepTogether => _ja
       ? const [
           '止まりません',
@@ -1271,8 +1293,18 @@ class AppL10n {
           '「停止」',
           '位置情報',
           '位置情報の使用',
+          '一度だけ',
+          '声と振動',
+          '（通話中でも話します）',
         ]
-      : const ['does not stop', 'Android 14', 'Stop', 'your location'];
+      : const [
+          'does not stop',
+          'Android 14',
+          'Stop',
+          'your location',
+          'by voice and vibration',
+          'even during a call',
+        ];
 
   // ===== Other-egress disclosure (B27 + B30) — the rest of the wire =====
   //
@@ -2247,6 +2279,25 @@ class AppL10n {
   /// tongue, so a cue heard from the next room is never mistaken for a real
   /// hazard — and it names both channels, so she knows what to listen and
   /// feel for.
+  /// Spoken once a share she started has ended at 停止, with the ended cue
+  /// (decided 2026-10-05). On her Android 10 phone a floating window can put a
+  /// tap meant for something else onto 停止; this is how she learns, eyes off,
+  /// that the warnings for where she is have stopped.
+  ///
+  /// The words are the HMI seat's, and two of them are load-bearing:
+  ///  - 共有 / "Sharing" first: no line the app speaks opens with its sound,
+  ///    so its first half-second cannot be heard as a warning; and it is the
+  ///    name of her own act and of the card's 「位置情報は共有されていません。」.
+  ///  - 現在地の警告 / "warnings for your location", not "the warnings": some
+  ///    warnings are about the Akita station, not about her, and continue after
+  ///    停止 (a whiteout is told at the next refresh). A flat 「警告は止まりました」
+  ///    would be contradicted ten minutes later in the same voice.
+  /// The ja value is the bundled clip's lookup key (`kOfflineSafetyVoiceJa`,
+  /// `share_ended`) byte for byte.
+  String get shareEndedSpokenLine => _ja
+      ? '共有を終了しました。現在地の警告も止まりました。'
+      : 'Sharing has ended, and warnings for your location have stopped.';
+
   String get channelCheckSpokenLine => _ja
       ? 'これはテストです。警報の音と振動を確認しています。'
       : 'This is a test. Checking the warning sound and vibration.';

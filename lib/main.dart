@@ -2137,7 +2137,11 @@ class _HomePageState extends State<HomePage> {
           : kShareStoppedAppLeftEnSpokenText,
       localeTag: _spokenJa ? 'ja-JP' : 'en-US',
     ));
-    _clearPosition();
+    // Told above, once: the stop confirmation is not told as well. It would
+    // be a second telling of one end, and 「共有を終了しました」 names an act she
+    // did not do (2026-10-10, test/widgets/
+    // stop_line_is_not_told_when_the_app_ends_the_share_test.dart).
+    _clearPosition(alreadyTold: true);
     // The page she returns to says why the share is not running.
     setState(() => _shareEndedAway = true);
   }
@@ -3517,14 +3521,26 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  void _clearPosition() {
+  /// Ends the share (or clears the development page's mock position).
+  ///
+  /// [alreadyTold] is true only where the caller has itself just told her
+  /// that this share ended, in its own words: then the stop confirmation is
+  /// not told as well. Everywhere else it is false, so an end reached by a
+  /// road nobody thought of is told rather than left silent (2026-10-10).
+  void _clearPosition({bool alreadyTold = false}) {
     // Ruled 2026-09-15: what this share told
-    // stays told. Nothing is told at her tap: a whiteout this share did not
-    // tell is told at the next refresh.
+    // stays told. No WHITEOUT is told at her tap: a whiteout this share did
+    // not tell is told at the next refresh. (The one thing told about this
+    // tap is that the share ended, and only once it has: _tellShareEnded.)
     _noteShareToldWhiteout();
     _forgetAdvisoryPointOfTheShare();
     _herNoEventYet = false;
-    _herSub?.cancel();
+    // Read before anything below clears them: whether a share was running,
+    // and whether its last event was her location being refused (then
+    // nothing ran, and 閉じる, not 停止, is what she pressed).
+    final ending = _herSub;
+    final refused = isLocationRefusal(_herFix);
+    final cancelled = ending?.cancel();
     _herSub = null;
     _shareWithoutService = false;
     _shareHadFix = false;
@@ -3543,12 +3559,65 @@ class _HomePageState extends State<HomePage> {
     _lastPositionEventAt = null;
     _herHeldEvent = null;
     _herShareSession++;
+    // The session this end closes: the stop confirmation reports it, and only
+    // it (2026-10-10). A new share, or another end, moves the number on.
+    final endedSession = _herShareSession;
     setState(() {
       _herFix = null;
       _isMockPosition = false;
       _herPositionStreamSubscribedAt = null;
       _herFirstEventOverdue = false;
     });
+    if (cancelled != null && !refused && !alreadyTold) {
+      unawaited(_tellShareEnded(cancelled, endedSession));
+    }
+  }
+
+  /// Tell her, eyes off, that the share she started has ended and that the
+  /// warnings for where she is have stopped (decided 2026-10-05). On her
+  /// Android 10 phone a floating window can put a tap meant for something else
+  /// onto 停止, and nothing but her eyes would catch that her warnings had
+  /// stopped.
+  ///
+  /// Keyed on the END, never on the tap: spoken only after [cancelled], the
+  /// subscription's own cancel, has completed (the words are past tense). If
+  /// that cancel fails, the app has still stopped listening, and the warnings
+  /// for her location have still stopped, so she is told.
+  ///
+  /// Not told, on either channel, unless at the moment it PLAYS no share runs
+  /// and [endedSession] is still the latest share to have ended (2026-10-10,
+  /// AAA bb2d2937 F-1, WDA 46e240b2 section 6). The line can wait in the queue
+  /// behind a warning; a new share started in that wait would make
+  /// 「現在地の警告も止まりました」 false while its warnings run, and a second
+  /// 停止 in that wait would tell the same state twice. So the condition is read
+  /// by the announcer at delivery, not here before the queue: the check here
+  /// only spares a queue slot. The line plays from the bundled mouth in ja,
+  /// with the ended cue, through the one announcer, so it never talks over a
+  /// warning in flight.
+  Future<void> _tellShareEnded(Future<void> cancelled, int endedSession) async {
+    final line = AppL10n.of(context).shareEndedSpokenLine;
+    final localeTag = _spokenJa ? 'ja-JP' : 'en-US';
+    try {
+      await cancelled;
+    } catch (_) {
+      // Ended all the same: see above.
+    }
+    bool stillEnded() =>
+        mounted && _herSub == null && endedSession == _herShareSession;
+    if (!stillEnded()) return;
+    try {
+      await _announcer.announce(
+        // The announcer's gate to speak at all; the cue is the ended one,
+        // never a warning's.
+        severity: AlertSeverity.warning,
+        text: line,
+        localeTag: localeTag,
+        cue: AnnounceCue.ended,
+        deliverIf: stillEnded,
+      );
+    } catch (_) {
+      // The announcer never throws; a share has ended whatever happens here.
+    }
   }
 
   /// Detection survival — wall-clock read, injectable for host-deterministic

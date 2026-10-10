@@ -53,7 +53,25 @@
 ///     front, and not counted as told until then) needs the bundled player to
 ///     report "withheld" without falling back to the phone's own voice. That is
 ///     a change to the voice lane, and the design is open with the dignity
-///     review.
+///     review;
+///   - the stop confirmation (AppL10n.shareEndedSpokenLine, told at 停止,
+///     main.dart _tellShareEnded) also SPEAKS THROUGH a refusal, including
+///     over a call. Decided 2026-10-10 by the safety review (AAA bb2d2937,
+///     section 3) and the dignity review (WDA 46e240b2, section 2), not
+///     inherited. The app cannot tell a meant 停止 from one she did not mean,
+///     and the line exists for the second. A line deferred to the end of the
+///     call would leave her, for the call, with one pulse nothing has taught
+///     her. And nothing built can yield honestly today: the bundled player
+///     discards the focus answer. Its manner: once per end, ducked, as
+///     navigation guidance; told means handed to the player, never heard. Its
+///     condition, as the line before it rests on the call words: the can-post
+///     words tell her, before her yes, that 停止 is said once even during a
+///     call (AppL10n.driveDisclosure). It reopens only when the ended pulse is
+///     taught somewhere she will meet it AND the bundled player can report
+///     "withheld" without falling back to the phone's own voice; a yield
+///     design then meets the safety review's floor (not told until spoken; the
+///     pulse alone is never told; spoken when the call releases focus; yields
+///     only during a call).
 library;
 
 /// The settle window at the share's subscription (see the rule above).
