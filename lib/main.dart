@@ -4109,9 +4109,12 @@ class _HomePageState extends State<HomePage> {
   bool _locationConsentAskAgain = false;
 
   /// What a stored record means here, and the ONE place that decides it: only
-  /// a yes to the words the dialog shows now is honoured. A withdrawal, a yes
-  /// written before revisions existed, or a yes to other words leaves her
-  /// undecided, so her next tap asks. Nothing read from disk is ever a no:
+  /// a yes to this revision's words is honoured, whichever wording of this
+  /// revision she read (holdsYes checks the revision and that words were
+  /// stored, never which words; pinned in
+  /// test/services/location_consent_store_test.dart). A withdrawal, a yes
+  /// written before revisions existed, or a yes to another revision's words
+  /// leaves her undecided, so her next tap asks. Nothing read from disk is ever a no:
   /// a stored no used to make the share button do nothing at all on every
   /// later launch (2026-09-25), the lock-out a remembered refusal was always
   /// meant not to cause.
