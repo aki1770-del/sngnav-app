@@ -14,10 +14,16 @@
 /// Japanese, at 360, 392.7 and 411.4 dp and at text sizes 0.85 to 2.0, the
 /// records-present status line, the log disclosure and the left-behind status
 /// each lay out so that no break falls inside a negation (含まれません,
-/// 確かめていません, 記録しません) or a katakana word, no line after the first
-/// opens with 「ー」 or a small kana, and no last line holds three characters
-/// or fewer. A control renders the same words as plain Text at the same width
-/// and must find at least one such break, so a pass is not a blind reader.
+/// 確かめていません, 記録しません, ありません, 利用できません) or a katakana
+/// word, no line after the first opens with 「ー」 or a small kana, and no last
+/// line holds three characters or fewer. The same holds for the log card's
+/// other two status lines, each in its own state of the app: the empty line (a
+/// log with no records), which ended 「…記録はありま」, "there are records",
+/// and the unavailable line (no log), which ended 「…利用でき」, "can use".
+/// A screen reader is given their plain words. A control renders the same
+/// words as plain Text at the same width and must find at least one such
+/// break, and a split negation in each of those two lines, so a pass is not a
+/// blind reader.
 ///
 /// BOUNDS. Drawn with the Japanese face this host and CI discover
 /// (render_see_env.dart); her phone's face is unmeasured. Laid out, not seen
@@ -41,7 +47,13 @@ import '../render_see/render_see_env.dart';
 const _dpr = 2.75;
 const _widths = [360.0, 1080 / _dpr, 411.4285714];
 const _scales = [0.85, 1.0, 1.1, 1.15, 1.3, 1.5, 2.0];
-const _negations = ['含まれません', '確かめていません', '記録しません'];
+const _negations = [
+  '含まれません',
+  '確かめていません',
+  '記録しません',
+  'ありません',
+  '利用できません',
+];
 const _smallStarters = 'ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ';
 
 bool _katakana(String c) =>
@@ -102,6 +114,7 @@ void main() {
 
   const l = AppL10n(Locale('ja'));
   var controlBreaks = 0;
+  final statusControlNegations = <String, int>{};
 
   for (final w in _widths) {
     for (final s in _scales) {
@@ -147,6 +160,42 @@ void main() {
         await t.pump();
         bad.addAll(_badBreaks(_lines(_under(t, left))));
 
+        // The empty and unavailable status lines: what she reads when nothing
+        // has gone wrong, and when no log could be opened. Each is its own
+        // state of the app, so each is its own pump.
+        final statusWidths = <String, double>{};
+        for (final (state, emptyLog, words) in [
+          ('empty', LocalErrorLog(file: File('${tmp.path}/empty_log.txt')), l.logShareEmpty),
+          ('unavailable', null, l.logShareUnavailable),
+        ]) {
+          await t.pumpWidget(SngnavApp(
+            key: ValueKey(state),
+            locale: const Locale('ja'),
+            errorLog: emptyLog,
+            logShareSink: (_) async {},
+          ));
+          await t.pump();
+          await t.ensureVisible(find.byKey(const Key('log-share-disclosure')));
+          await t.pump();
+          final line = find.byWidgetPredicate((x) =>
+              x is RichText &&
+              x.text.toPlainText(includeSemanticsLabels: false).replaceAll('\u2060', '') ==
+                  words);
+          final found = line.evaluate().length;
+          if (found != 1) {
+            bad.add('the $state status line found $found times');
+            continue;
+          }
+          final p = t.renderObject<RenderParagraph>(line);
+          statusWidths[state] = p.constraints.maxWidth;
+          bad.addAll(_badBreaks(_lines(p)).map((b) => '$state: $b'));
+          final drawn =
+              t.widget<Text>(find.ancestor(of: line, matching: find.byType(Text)).first);
+          if (drawn.semanticsLabel != words) {
+            bad.add('$state: a screen reader is given ${drawn.semanticsLabel}');
+          }
+        }
+
         // Control: the same words as plain Text, same theme, width and size.
         // It runs before the assertion below, so a red card never leaves the
         // control unrun and the teardown's "blind" never names a reader that
@@ -170,6 +219,32 @@ void main() {
           ));
           controlBreaks += _badBreaks(_lines(_under(t, find.byKey(const Key('control'))))).length;
         }
+        // The same control for the two status lines, at their own width: it
+        // must split each line's negation somewhere in the sweep.
+        for (final (state, words) in [
+          ('empty', l.logShareEmpty),
+          ('unavailable', l.logShareUnavailable),
+        ]) {
+          final lineWidth = statusWidths[state];
+          if (lineWidth == null) continue;
+          await t.pumpWidget(MaterialApp(
+            theme: sngnavTheme(),
+            home: Material(
+              child: Center(
+                child: SizedBox(
+                  width: lineWidth,
+                  child: Text(words,
+                      key: const Key('control'),
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                ),
+              ),
+            ),
+          ));
+          statusControlNegations[state] = (statusControlNegations[state] ?? 0) +
+              _badBreaks(_lines(_under(t, find.byKey(const Key('control')))))
+                  .where((b) => b.startsWith('negation'))
+                  .length;
+        }
         expect(bad, isEmpty, reason: 'at ${w.toStringAsFixed(1)} dp x$s');
       });
     }
@@ -180,5 +255,10 @@ void main() {
     // to find none in the drawn cards.
     expect(controlBreaks, greaterThan(0),
         reason: 'the plain-text control found no bad break anywhere: the reader is blind');
+    for (final state in ['empty', 'unavailable']) {
+      expect(statusControlNegations[state] ?? 0, greaterThan(0),
+          reason: 'the plain-text control never split the $state line\'s negation: '
+              'the reader is blind to it');
+    }
   });
 }

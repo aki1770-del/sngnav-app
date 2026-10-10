@@ -59,6 +59,26 @@ String keepTogether(String text, Iterable<String> words) {
 String plainOf(String shown) =>
     shown.replaceAll(kWordJoiner, '').replaceAll(kNoBreakSpace, ' ');
 
+/// [keepTogether]'s result as a span to DRAW, each joiner a span of its own
+/// with no letter spacing, as [keepPhrasesTogether] draws its joiners.
+///
+/// WHY (2026-10-09). The log card's empty and unavailable status lines split
+/// their negations (「…記録はありま / せん）。」, 「…利用でき / ません。」). In a
+/// plain [keepTogether] string each joiner takes the theme's letter spacing
+/// and moves every word after it, so a line whose breaks did not change was
+/// still drawn wider. Through this span, a line on which no kept word moves a
+/// break is drawn as its plain words are.
+TextSpan keepTogetherSpan(String text, Iterable<String> words) {
+  const joiner =
+      TextSpan(text: kWordJoiner, style: TextStyle(letterSpacing: 0));
+  final children = <InlineSpan>[];
+  for (final run in keepTogether(text, words).split(kWordJoiner)) {
+    if (children.isNotEmpty) children.add(joiner);
+    children.add(TextSpan(text: run));
+  }
+  return TextSpan(children: children);
+}
+
 /// A [Text] whose [words] cannot break across lines, and whose semantics
 /// label is the plain [data], so assistive technology reads the words and not
 /// the joiners.
@@ -68,6 +88,7 @@ class KeepTogetherText extends StatelessWidget {
     super.key,
     required this.words,
     this.style,
+    this.spacedJoiners = true,
   });
 
   /// The plain text, exactly as the l10n getter returns it.
@@ -78,10 +99,21 @@ class KeepTogetherText extends StatelessWidget {
 
   final TextStyle? style;
 
+  /// Whether each joiner takes the style's letter spacing, as a joiner in a
+  /// plain [keepTogether] string does. False draws the joiners through
+  /// [keepTogetherSpan], with none. True stays the default, so no caller from
+  /// before 2026-10-09 is drawn differently; moving them is a change of its
+  /// own.
+  final bool spacedJoiners;
+
   @override
   Widget build(BuildContext context) {
-    return Text(
-      keepTogether(data, words),
+    final joined = keepTogether(data, words);
+    if (spacedJoiners || joined == data) {
+      return Text(joined, style: style, semanticsLabel: data);
+    }
+    return Text.rich(
+      keepTogetherSpan(data, words),
       style: style,
       semanticsLabel: data,
     );

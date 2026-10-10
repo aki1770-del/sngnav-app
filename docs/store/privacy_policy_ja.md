@@ -1,6 +1,6 @@
 # プライバシーポリシー — sngnav-app
 
-最終更新: 2026-10-09
+最終更新: 2026-10-10
 
 <!-- Play Console は位置情報を要求するアプリに公開されたプライバシーポリシー URL を
      求める。本ファイルはその原文（ja 主・en 全訳付き）。ホスティング先が決まったら
@@ -216,7 +216,7 @@
 
 ## 不具合ログについて
 
-アプリ内部のエラーは、端末内のログファイルにのみ記録されます（上限約200KB。超えた分は古いものから消えます）。エラーの文面は、起きたとおりに記録されます。位置を運ぶ通信（経路検索と米国の警報）は、自分のエラーをこのログに書かないことを確かめています。ただし、起こりうるすべてのエラーの文面までは確かめていません（たとえば地図タイルの読み込みエラーに、表示中の範囲を示すタイル座標が含まれるかどうか）。アプリがこのログを端末の外に送るのは、**あなたが「ログを共有」を押して端末の共有機能で送ったときだけ**で、アプリが自分から送ることはありません。ログは Google のバックアップや、新しい端末へのデータ移行には含まれません（スマートフォンのメーカー独自のバックアップや移行アプリについては確かめていません）。
+アプリ内部のエラーは、端末内のログファイルにのみ記録されます（上限約200KB。超えた分は古いものから消えます）。エラーの文面は、起きたとおりに記録されます。位置を運ぶ通信（経路検索と米国の警報）は、自分のエラーをこのログに書かないことを確かめています。ただし、起こりうるすべてのエラーの文面までは確かめていません（たとえば地図タイルの読み込みエラーに、表示中の範囲を示すタイル座標が含まれるかどうか）。アプリがこのログを端末の外に送るのは、**あなたが「ログを共有」を押して端末の共有機能で送ったときだけ**で、アプリが自分から送ることはありません。アプリ内のプライバシーポリシーに下の訂正のお知らせが載っている版では、ログは Google のバックアップや、新しい端末へのデータ移行には含まれません（スマートフォンのメーカー独自のバックアップや移行アプリについては確かめていません）。
 <!-- lib/services/error_log.dart:9-15,32
      ⚑ 2026-09-25 追記の根拠: LocalErrorLog.record は error.toString() と stack をそのまま書く。
      経路検索（main.dart の _fetchRoute）は例外を RouteFailure にして画面に出し、ログには書かない。
@@ -231,7 +231,7 @@
      recordChannelCheck（書く項目）、maxBytes = 512 * 1024（超えると半分まで古い順に削る）、
      composeDiarySharePayload（送る中身: 見出し 3 行 + 本文）、shareDiaryViaShareSheet（OS の共有シート）。 -->
 
-*訂正のお知らせ（2026-10-09）: 以前このページは、運転日記を「端末内のファイルにだけ保存されます」と書き、日記と不具合ログはどちらも、あなたが共有ボタンを押したときだけ端末の外に出る、と書いていました。端末のバックアップ（Google など）がオンなら、日記はその中に含まれ、新しい端末に移ることがあります。これまでのどの版でも同じでした。⟨この変更を含む最初の版⟩からは、アプリは不具合ログを Google のバックアップと新しい端末へのデータ移行に含めないよう、Android に指定しています（上の「不具合ログについて」を参照）。それより前の版では、バックアップがオンなら不具合ログも含まれることがありました。*
+*訂正のお知らせ（2026-10-10）: 以前このページは、運転日記を「端末内のファイルにだけ保存されます」と書き、日記と不具合ログはどちらも、あなたが共有ボタンを押したときだけ端末の外に出る、と書いていました。端末のバックアップ（Google など）がオンなら、日記はその中に含まれ、新しい端末に移ることがあります。これまでのどの版でも同じでした。アプリ内のプライバシーポリシーにこのお知らせが載っている版からは、アプリは不具合ログを Google のバックアップと新しい端末へのデータ移行に含めないよう、Android に指定しています（上の「不具合ログについて」を参照）。それより前の版では、バックアップがオンなら不具合ログも含まれることがありました。*
 
 ## お問い合わせ
 
@@ -244,7 +244,7 @@
 
 # Privacy Policy — sngnav-app (English)
 
-Last updated: 2026-10-09
+Last updated: 2026-10-10
 
 sngnav-app is an advisory app that supports driving on snowy roads. We deliberately keep your data on your device wherever possible. This page explains — matching the actual code — what the app uses, what it sends, and what it does not send.
 
@@ -327,13 +327,13 @@ Besides the above, the app sends data off your device only when you tap a share 
 
 ## Crash / error log
 
-Internal errors are recorded only in a local log file on your device (capped at roughly 200 KB; oldest entries are dropped first). The text of each error is recorded as it occurred. The requests that carry your position (route lookup, and US alerts) have been checked not to write their errors to this log, but not every possible error message has been checked (for example, whether a map-tile loading error could include the tile coordinates of the area on screen). The app sends the log off your device **only when you press "ログを共有" (Share log) and send it through your device's share sheet**; it never sends it by itself. The log is not included in Google's backup or in a transfer to a new phone (a phone maker's own backup or transfer app has not been checked).
+Internal errors are recorded only in a local log file on your device (capped at roughly 200 KB; oldest entries are dropped first). The text of each error is recorded as it occurred. The requests that carry your position (route lookup, and US alerts) have been checked not to write their errors to this log, but not every possible error message has been checked (for example, whether a map-tile loading error could include the tile coordinates of the area on screen). The app sends the log off your device **only when you press "ログを共有" (Share log) and send it through your device's share sheet**; it never sends it by itself. In versions whose in-app privacy policy shows the correction note below, the log is not included in Google's backup or in a transfer to a new phone (a phone maker's own backup or transfer app has not been checked).
 
 ## Drive diary
 
 What you record in the drive diary (the time, the answers you choose, the area and note you type, and, for a warning check, whether you heard and felt it, what the device reported and the app version) is saved in a file on your device (capped at roughly 512 KB; the oldest entries are dropped first). No position or route is recorded; the only place in it is what you type yourself. The app sends the diary off your device **only when you press 日記を共有 (Share diary) and send it through your device's share sheet**. What is sent is the diary text, with the app version, the kind of operating system and the time it was exported. The app never sends it by itself. If your phone's backup (Google or other) is on, the diary may be included in it and moved to a new phone.
 
-*Correction note (2026-10-09): this page said the drive diary "is saved only in a file on your device", and that the diary and the error log leave your device only when you tap a share button. If your phone's backup (Google or other) is on, the diary may be included in it and moved to a new phone, and that has been so in every version. From ⟨the first version with this change⟩, the app tells Android to leave the error log out of Google's backup and out of a transfer to a new phone (see "Crash / error log" above). In earlier versions, the error log could be included too, if your backup was on.*
+*Correction note (2026-10-10): this page said the drive diary "is saved only in a file on your device", and that the diary and the error log leave your device only when you tap a share button. If your phone's backup (Google or other) is on, the diary may be included in it and moved to a new phone, and that has been so in every version. From the first version whose in-app privacy policy shows this note, the app tells Android to leave the error log out of Google's backup and out of a transfer to a new phone (see "Crash / error log" above). In earlier versions, the error log could be included too, if your backup was on.*
 
 ## Contact
 

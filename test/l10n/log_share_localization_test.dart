@@ -25,19 +25,27 @@ import 'package:sngnav_app/widgets/keep_together.dart';
 Text _drawn(WidgetTester tester, Finder of) => tester.widget<Text>(find.descendant(
     of: of, matching: find.byType(Text), matchRoot: true));
 
+/// The string [t] draws: its data, or its span's text when it is drawn as a
+/// span (the empty and unavailable status lines, 2026-10-09).
+String? _drawnString(Text t) => t.data ?? t.textSpan?.toPlainText();
+
 /// The words she is shown at [of]: the drawn string with the word joiners
 /// removed. Where the string carries joiners (the card's break hint, 2026-10-09),
 /// the semantics label TalkBack reads must be exactly those words.
 String _shown(WidgetTester tester, Finder of) {
   final t = _drawn(tester, of);
-  final shown = plainOf(t.data!);
-  if (t.data != shown) expect(t.semanticsLabel, shown);
+  final drawn = _drawnString(t)!;
+  final shown = plainOf(drawn);
+  if (drawn != shown) expect(t.semanticsLabel, shown);
   return shown;
 }
 
 /// Every Text drawing exactly [words] once joiners are removed.
-Finder _drawing(String words) => find.byWidgetPredicate(
-    (w) => w is Text && w.data != null && plainOf(w.data!) == words);
+Finder _drawing(String words) => find.byWidgetPredicate((w) {
+      if (w is! Text) return false;
+      final drawn = _drawnString(w);
+      return drawn != null && plainOf(drawn) == words;
+    });
 
 void main() {
   late Directory tmp;
@@ -113,7 +121,12 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('share-log-button')));
       await tester.pump();
 
-      expect(find.text(jaL10n.logShareEmpty), findsOneWidget);
+      // Drawn with its loanwords and its negation kept whole (2026-10-09), so
+      // it is found by the words she reads, and its semantics label must be
+      // those words.
+      expect(_drawing(jaL10n.logShareEmpty), findsOneWidget);
+      expect(_shown(tester, _drawing(jaL10n.logShareEmpty)),
+          jaL10n.logShareEmpty);
     });
   });
 

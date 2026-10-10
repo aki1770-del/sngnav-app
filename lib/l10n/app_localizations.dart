@@ -2179,9 +2179,26 @@ class AppL10n {
 
   /// The records-present status line's own words that must not break: its
   /// loanwords and its last word, so no line holds only 「す。」. The empty and
-  /// unavailable lines contain none of them and are drawn unchanged.
+  /// unavailable lines have lists of their own, below.
   List<String> get logShareStatusKeepTogether => _ja
       ? const ['ボタン', 'ベータ・フィードバック', '送れます']
+      : const <String>[];
+
+  /// The empty status line's words that must not break, by the rule of
+  /// [logShareKeepTogether]: its loanwords and its negation. Split, this line
+  /// ended 「…記録はありま」 or 「…記録はあり」, which reads "there are
+  /// records", on the line she sees when nothing has gone wrong (laid out
+  /// 2026-10-09 at 360, 392.7 and 411.4 dp, text sizes 0.85 to 2.0).
+  List<String> get logShareEmptyKeepTogether => _ja
+      ? const ['ログ', 'クラッシュ', 'エラー', 'ありません']
+      : const <String>[];
+
+  /// The unavailable status line's words that must not break: its loanword,
+  /// and its negation whole, as [leftBehindRecordKeepTogether] keeps
+  /// 記録しません whole. Split, this line ended 「…利用でき」, which reads
+  /// "can use" (laid out 2026-10-09, as above).
+  List<String> get logShareUnavailableKeepTogether => _ja
+      ? const ['エラーログ', '利用できません']
       : const <String>[];
 
   /// Status line when error records are present to share.
