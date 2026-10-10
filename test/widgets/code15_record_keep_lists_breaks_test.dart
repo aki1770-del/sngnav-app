@@ -19,6 +19,10 @@
 /// somewhere in the sweep, for each widget, so a pass is not a blind reader;
 /// and the split finder itself must report a planted split.
 ///
+/// The words watched are the display review's lists, written out here, not
+/// read from the getters under test: a word dropped from a getter is then
+/// still watched, and the sweep finds it drawn unjoined or split.
+///
 /// BOUNDS. Drawn with the Japanese face this host and CI discover
 /// (render_see_env.dart); her phone's face is unmeasured. Laid out, not seen
 /// on a device.
@@ -42,6 +46,21 @@ import '../support/fake_alert_actuators.dart';
 const _dpr = 2.75;
 const _widths = [360.0, 1080 / _dpr, 411.4285714];
 const _scales = [0.85, 1.0, 1.1, 1.15, 1.3, 1.5, 2.0];
+
+/// The display review's lists (2026-10-10, rows 1, 4 and 5), as ruled.
+const _statusWords = ['渡せませんでした', '送られていません', '「記録を共有」', '開けません', 'ありません'];
+const _disclosureWords = [
+  'テレメトリ', 'アカウント', 'テスト版', 'アプリ', 'バックアップ', 'データ移行',
+  'スマートフォン', 'メーカー', '移行アプリ', 'コード13', '書きません', '使いません',
+  '記録しません', '含まれません', '確かめていません', 'わかりません', '消えません',
+  '不要', '届いたかどうか', '「記録を共有」', '「記録を止める」', '「記録を消す」',
+  'ときだけ', '間だけ', 'ためだけに',
+];
+const _countWords = [
+  '最低限', '達していません', '満たしていません', '「記録を共有」', 'わかりません',
+  '欠けずに', '駐車中', '消さずに', '修正版', 'のろのろ運転', '上限', '必要',
+  '出せるかどうか', '届いたと知らされるまで', '残しておいてください', '（アプリの数え方で）',
+];
 
 /// The lines [p] draws: glyphs sharing one box top, joiners dropped.
 List<String> _lines(RenderParagraph p) {
@@ -109,9 +128,9 @@ void main() {
 
   test('control: the split finder reports a planted split, and none on whole words', () {
     expect(_splits(['記録を端末の共有画面に渡せませんでした。何も送られて', 'いません。'],
-        l.code15RecordStatusKeepTogether), hasLength(1));
+        _statusWords), hasLength(1));
     expect(_splits(['記録を端末の共有画面に渡せませんでした。何も', '送られていません。'],
-        l.code15RecordStatusKeepTogether), isEmpty);
+        _statusWords), isEmpty);
   });
 
   for (final w in _widths) {
@@ -162,8 +181,10 @@ void main() {
           if (drawn.data != plain && drawn.semanticsLabel != plain) {
             bad.add('$name: a screen reader is given ${drawn.semanticsLabel}');
           }
-          if (words.isNotEmpty && drawn.data == plain && words.any(plain.contains)) {
-            bad.add('$name: drawn without its keep list');
+          for (final word in words) {
+            if (plain.contains(word) && !drawn.data!.contains(keepTogether(word, [word]))) {
+              bad.add('$name: $word is drawn without being kept whole');
+            }
           }
         }
 
@@ -185,43 +206,47 @@ void main() {
         await pumpCard('present', full, tmp);
         await t.ensureVisible(find.byKey(const Key('code15-record-disclosure')));
         await t.pump();
-        read('status present', const Key('code15-record-status'), l.code15RecordStatusKeepTogether,
+        read('status present', const Key('code15-record-status'), _statusWords,
             '${l.code15RecordShareFailed}\n${l.code15RecordPresent}');
         final c = full.count;
         read(
             'count line',
             const Key('code15-record-count'),
-            l.code15RecordCountKeep(
-                movingMinutes: c.movingMs ~/ 60000, stoppedMinutes: c.stoppedMs ~/ 60000),
+            [
+              ..._countWords,
+              '${c.movingMs ~/ 60000}分',
+              '${c.stoppedMs ~/ 60000}分',
+              '${kBarsMinMovingMs ~/ 60000}分',
+              '${kBarsMinStoppedMs ~/ 60000}分',
+            ],
             l.code15RecordCount(
                 movingMinutes: c.movingMs ~/ 60000,
                 stoppedMinutes: c.stoppedMs ~/ 60000,
                 minimumReached: c.minimumReached,
                 full: full.full));
-        read('disclosure', const Key('code15-record-disclosure'),
-            l.code15RecordDisclosureKeepTogether, l.code15RecordDisclosure);
+        read('disclosure', const Key('code15-record-disclosure'), _disclosureWords,
+            l.code15RecordDisclosure);
 
         // A record with no fix lines, the share failed: failure line + empty.
         final empty = Code15FixIntervalRecord(directory: Directory('${tmp.path}/b')..createSync());
         await pumpCard('empty', empty, tmp);
         await t.ensureVisible(find.byKey(const Key('code15-record-status')));
         await t.pump();
-        read('status empty', const Key('code15-record-status'), l.code15RecordStatusKeepTogether,
+        read('status empty', const Key('code15-record-status'), _statusWords,
             '${l.code15RecordShareFailed}\n${l.code15RecordEmpty}');
 
         // No record at all: the unavailable line.
         await pumpCard('unavailable', null, tmp);
         await t.ensureVisible(find.byKey(const Key('code15-record-status')));
         await t.pump();
-        read('status unavailable', const Key('code15-record-status'),
-            l.code15RecordStatusKeepTogether, l.code15RecordUnavailable);
+        read('status unavailable', const Key('code15-record-status'), _statusWords,
+            l.code15RecordUnavailable);
 
         // Controls: the same words as plain Text, same theme, width and size.
         for (final (name, words, plain, size) in [
-          ('status', l.code15RecordStatusKeepTogether,
-              '${l.code15RecordShareFailed}\n${l.code15RecordPresent}', 12.0),
-          ('status unavailable', l.code15RecordStatusKeepTogether, l.code15RecordUnavailable, 12.0),
-          ('disclosure', l.code15RecordDisclosureKeepTogether, l.code15RecordDisclosure, 11.0),
+          ('status', _statusWords, '${l.code15RecordShareFailed}\n${l.code15RecordPresent}', 12.0),
+          ('status unavailable', _statusWords, l.code15RecordUnavailable, 12.0),
+          ('disclosure', _disclosureWords, l.code15RecordDisclosure, 11.0),
         ]) {
           final width = widths[name == 'status' ? 'status present' : name]!;
           await t.pumpWidget(MaterialApp(
