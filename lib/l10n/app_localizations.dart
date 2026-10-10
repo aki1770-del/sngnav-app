@@ -24,6 +24,8 @@ library;
 import 'package:flutter/foundation.dart' show SynchronousFuture;
 import 'package:flutter/widgets.dart';
 
+import '../services/code15_fix_interval_record.dart'
+    show kCode15DesignFixPeriod, kCode15RecordCapKbText, kCode15RecordHoursText;
 import '../services/invisible_ice_watch.dart' show InvisibleIceWatchResult;
 import '../services/location_consent.dart' show DrivePromise;
 import '../services/turmoil_watch.dart' show TurmoilWatchState, turmoilRowText;
@@ -2225,6 +2227,134 @@ class AppL10n {
       : 'This version deleted the fix-interval record from the earlier '
           'version. If you had not sent it with Share record, it no longer '
           'exists. Nothing is asked of you.';
+
+  // ===== The fix-interval record: CODE 15 ONLY (2026-10-10) =====
+  //
+  // Code 15's own recording card (services/code15_fix_interval_record.dart).
+  // On this build the left-behind card above is never shown: its
+  // 「この版は記録しません」 would be false here.
+  //
+  // Whose words, line by line:
+  // - title, status lines and actions: code 13's card, carried unchanged
+  //   (89ed430 lib/l10n/app_localizations.dart:1965-2004); the full note's cap
+  //   is filled from source.
+  // - the disclosure: the 2026-10-09 boundary ruling's card draft (item 5),
+  //   with the 2026-10-09 dignity read's two required changes (the backup
+  //   sentence bounded to what was shown; why the leave, return and
+  //   still-running marks exist) and its later widening to "backup or
+  //   transfer app" (b83ed352). The cap, the fix period and the hours are
+  //   filled from source, never typed here.
+  // - the count line: NO ruling seat has drafted it, in either language. It
+  //   carries [kWordsNotDraftedMark], and
+  //   test/l10n/code15_record_words_test.dart refuses any card text that
+  //   does, so this build cannot pass its suite with it.
+
+  /// Marks a sentence no ruling seat has drafted.
+  static const String kWordsNotDraftedMark = '⟨PLACEHOLDER';
+
+  /// Section title (code 13's).
+  String get code15RecordSectionTitle =>
+      _ja ? '測位間隔の記録（テスト版）' : 'Fix-interval record (test build)';
+
+  /// Status: the record could not be opened on this device (code 13's).
+  String get code15RecordUnavailable => _ja
+      ? 'この端末では測位間隔の記録を開けません。'
+      : 'The fix-interval record cannot be opened on this device.';
+
+  /// Status row when the record holds no FIX line (code 13's).
+  String get code15RecordEmpty => _ja
+      ? '測位間隔の記録はありません。'
+      : 'There is no fix-interval record.';
+
+  /// Status row when the record holds one or more fix lines (code 13's).
+  String get code15RecordPresent => _ja
+      ? '測位間隔の記録があります。「記録を共有」で送れます。'
+      : 'A fix-interval record is present. Use Share record to send it.';
+
+  /// The status's first line while he has stopped the record (code 13's).
+  String get code15RecordStoppedNote =>
+      _ja ? '記録は止めています。' : 'Recording is stopped.';
+
+  /// The status's first line once the record reaches its cap (code 13's, the
+  /// cap filled from source): the card says when the record is full.
+  String get code15RecordFullNote => _ja
+      ? '上限（約$kCode15RecordCapKbText KB）に達したため、記録を止めています。'
+      : 'The record reached its cap (about $kCode15RecordCapKbText KB), so '
+          'recording has stopped.';
+
+  /// Share action (code 13's).
+  String get code15RecordShare => _ja ? '記録を共有' : 'Share record';
+
+  /// Stop action (code 13's).
+  String get code15RecordStop => _ja ? '記録を止める' : 'Stop recording';
+
+  /// Start-again action (code 13's).
+  String get code15RecordResume => _ja ? '記録を再開' : 'Record again';
+
+  /// Delete action (code 13's).
+  String get code15RecordDelete => _ja ? '記録を消す' : 'Delete record';
+
+  /// The disclosure under the actions (see the block comment for whose words).
+  String get code15RecordDisclosure {
+    final period = kCode15DesignFixPeriod.inSeconds;
+    return _ja
+        ? '共有は「記録を共有」を押したときだけ行われます。自動送信・テレメトリはなく、'
+            'アカウントも不要です。このテスト版は、現在地を共有している間だけ、GPS の測位が'
+            '届いた間隔を記録します（届いた時刻の間隔と遅れ・測位の種類と精度・速度・'
+            'アプリが前面にあったか）。'
+            '共有を止めたとき、アプリが起動したとき、アプリを離れたときと戻ったとき、'
+            '測位が届かない間はアプリが動いていること（数秒ごと）も記録します'
+            '（時刻は書きません）。'
+            'アプリを離れた・戻った印と、動いている印は、端末がアプリを止めたかどうかを'
+            '見分けるためだけに使います。'
+            '記録を止めたときと再開したときも、その印だけを残します。'
+            '緯度経度や地名は記録しません。共有する内容には書き出した時刻が入ります。'
+            '記録はこの端末に残り、Google のバックアップや、新しい端末へのデータ移行には'
+            '含まれません（スマートフォンのメーカー独自のバックアップや移行アプリについては'
+            '確かめていません）。押すまで送られません。'
+            '送信先は端末の共有画面で自分で選べますが、届いたかどうかはアプリにはわかりません。'
+            '「記録を止める」で止まり、「記録を消す」で消えます。'
+            'コード13と違い、新しい版を入れても消えません。'
+            '消えるのは「記録を消す」を押したとき、アプリのデータを消去したとき、'
+            'アプリを削除したときです。'
+            '上限は約$kCode15RecordCapKbText KB（$period秒ごとに届けば約'
+            '$kCode15RecordHoursText時間分）で、達すると記録を止めます。'
+        : 'Sharing happens only when you tap Share record — no automatic '
+            'upload, no telemetry, and no account. This test build records, '
+            'only while you share your location, how far apart GPS fixes '
+            'arrive (the interval and delay of each, its kind and accuracy, '
+            'your speed, and whether the app was in front). It also records '
+            'when you stop sharing, when the app starts, when you leave the '
+            'app and come back, and, while no fix arrives, that the app is '
+            'still running (every few seconds). No clock time. The leave, '
+            'return and still-running marks are used only to tell whether the '
+            'phone stopped the app. It marks when you stop and restart '
+            'recording. It records no coordinates and no place names. The '
+            'shared text includes the time it was exported. The record stays '
+            "on this phone. It is not included in Google's backup or in a "
+            "transfer to a new phone (a phone maker's own backup or transfer "
+            'app has not been checked). It is sent only when you tap. You '
+            "choose the destination in your device's share sheet; the app "
+            'cannot tell whether it arrived. Stop recording stops it; Delete '
+            'record deletes it. Unlike code 13, installing a newer version '
+            'does not delete it. It is deleted when you tap Delete record, '
+            "clear the app's data, or uninstall the app. Its cap is about "
+            '$kCode15RecordCapKbText KB (about $kCode15RecordHoursText hours '
+            'if fixes arrive every $period s); when reached, recording stops.';
+  }
+
+  /// The count line: the bars' data minimum, in his units. NOT DRAFTED by any
+  /// ruling seat in either language: a placeholder the suite refuses. What it
+  /// must say is ruled (only that the minimum is reached, never clean, passed
+  /// or done); its words are not.
+  String code15RecordCount({
+    required int movingMinutes,
+    required int stoppedMinutes,
+    required bool minimumReached,
+  }) =>
+      '$kWordsNotDraftedMark code15RecordCount ${_ja ? 'ja' : 'en'}: '
+      'moving $movingMinutes min, stopped $stoppedMinutes min, minimum '
+      '${minimumReached ? 'reached' : 'not yet'}⟩';
 
   // ===== Ring-2 運転日記 — post-drive diary surface (three-month plan §2) =====
   //

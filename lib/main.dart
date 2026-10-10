@@ -104,7 +104,9 @@ import 'services/error_log.dart';
 import 'services/log_share.dart';
 import 'services/drive_diary.dart';
 import 'services/code13_record_cleanup.dart';
+import 'services/code15_fix_interval_record.dart';
 import 'services/fix_interval_record_keeper.dart';
+import 'services/gps_trust.dart' show kGpsCoarseAccuracyMeters;
 import 'services/drive_hud_localizer.dart';
 import 'widgets/update_notice.dart';
 import 'widgets/keep_together.dart';
@@ -178,11 +180,16 @@ Future<void> main() async {
   // away: his page tells him once (code13Deletion). Code 15's record is KEPT:
   // nothing on this path deletes it, and only his tap on 記録を消す does.
   final records = await launchRecordHousekeeping();
+  // Code 15 only: the fix-interval record (services/code15_fix_interval_record
+  // .dart), opened after the housekeeping, which deletes only code 13's names.
+  // Its own card replaces the left-behind card on this build, so the
+  // left-behind view the housekeeping opened is not handed to the app.
+  final code15Record = await openCode15FixIntervalRecord();
   runApp(SngnavApp(
     errorLog: errorLog,
     diary: diary,
     code13Deletion: records.code13,
-    leftBehindRecord: records.leftBehind,
+    code15Record: code15Record,
   ));
 }
 
@@ -705,8 +712,8 @@ class SngnavApp extends StatelessWidget {
     this.diary,
     this.diaryShareSink,
     this.code13Deletion,
-    this.leftBehindRecord,
-    this.leftBehindRecordShareSink,
+    this.code15Record,
+    this.code15RecordShareSink,
     this.voiceLaneReader,
     this.speechUnverified,
     this.hapticUnverified,
@@ -743,13 +750,14 @@ class SngnavApp extends StatelessWidget {
   /// version deleted it.
   final Code13RecordDeletion? code13Deletion;
 
-  /// Code 15's record, kept until his tap (null -> no card). Its card shows
-  /// only while the record file is on this phone.
-  final LeftBehindFixIntervalRecord? leftBehindRecord;
+  /// Code 15 only: the fix-interval record this build writes (null -> its
+  /// card says it cannot be opened). Its own card replaces the left-behind
+  /// card, whose 「この版は記録しません」 would be false on this build.
+  final Code15FixIntervalRecord? code15Record;
 
-  /// Injectable share exit door for the left-behind record (null ->
-  /// [shareLeftBehindRecordViaShareSheet]).
-  final LeftBehindRecordShareSink? leftBehindRecordShareSink;
+  /// Injectable share exit door for code 15's record (null ->
+  /// [shareCode15RecordViaShareSheet]).
+  final Code15RecordShareSink? code15RecordShareSink;
   final Future<VoiceLaneVerdict> Function()? voiceLaneReader;
   final ValueNotifier<bool>? speechUnverified;
   final ValueNotifier<bool>? hapticUnverified;
@@ -837,8 +845,8 @@ class SngnavApp extends StatelessWidget {
         diary: diary,
         diaryShareSink: diaryShareSink,
         code13Deletion: code13Deletion,
-        leftBehindRecord: leftBehindRecord,
-        leftBehindRecordShareSink: leftBehindRecordShareSink,
+        code15Record: code15Record,
+        code15RecordShareSink: code15RecordShareSink,
         voiceLaneReader: voiceLaneReader,
         speechUnverified: speechUnverified,
         hapticUnverified: hapticUnverified,
@@ -868,8 +876,8 @@ class HomePage extends StatefulWidget {
     this.diary,
     this.diaryShareSink,
     this.code13Deletion,
-    this.leftBehindRecord,
-    this.leftBehindRecordShareSink,
+    this.code15Record,
+    this.code15RecordShareSink,
     this.voiceLaneReader,
     this.speechUnverified,
     this.hapticUnverified,
@@ -917,13 +925,14 @@ class HomePage extends StatefulWidget {
   /// version deleted it.
   final Code13RecordDeletion? code13Deletion;
 
-  /// Code 15's record, kept until his tap (null -> no card). Its card shows
-  /// only while the record file is on this phone.
-  final LeftBehindFixIntervalRecord? leftBehindRecord;
+  /// Code 15 only: the fix-interval record this build writes (null -> its
+  /// card says it cannot be opened). Its own card replaces the left-behind
+  /// card, whose 「この版は記録しません」 would be false on this build.
+  final Code15FixIntervalRecord? code15Record;
 
-  /// Injectable share exit door for the left-behind record (null ->
-  /// [shareLeftBehindRecordViaShareSheet]).
-  final LeftBehindRecordShareSink? leftBehindRecordShareSink;
+  /// Injectable share exit door for code 15's record (null ->
+  /// [shareCode15RecordViaShareSheet]).
+  final Code15RecordShareSink? code15RecordShareSink;
 
   /// Injectable voice-channel readiness read (null ->
   /// [readVoiceLaneReadiness]).
@@ -1554,7 +1563,15 @@ class _HomePageState extends State<HomePage> {
     _appLifecycle = AppLifecycleListener(
       onResume: _onAppResumed,
       onStateChange: _onLifecycleStateForShare,
-      onHide: _onAppLeftScreenForShare,
+      onHide: () {
+        // Code 15 only: the record's `leave` is written first, before anything
+        // leaving does to the share, so a share the app ends here still shows
+        // the leave that ended it.
+        _code15RecordLifecycle(Code15MarkKind.leave);
+        _onAppLeftScreenForShare();
+      },
+      // Code 15 only: visible again (hidden to inactive), the record's `back`.
+      onShow: () => _code15RecordLifecycle(Code15MarkKind.back),
     );
     _seedLocationConsent();
     _loadPersistedLocationConsent();
@@ -2025,6 +2042,7 @@ class _HomePageState extends State<HomePage> {
     unawaited(_actuators.keepAwake(false));
     _jmaTicker?.cancel();
     _positionWatchdog?.cancel();
+    _code15AliveTicker?.cancel();
     _shareAwaySettle?.cancel();
     _audioReadinessTicker?.cancel();
     _advisoryExpiryTicker?.cancel();
@@ -2265,6 +2283,7 @@ class _HomePageState extends State<HomePage> {
                       onPlatformStreamSubscribed: () {
                         if (mounted && session == _herShareSession) {
                           _herPositionStreamSubscribedAt = _now();
+                          _code15ShareSubscribed();
                           // She may have left while the share waited on her
                           // answers, or her return may not be reported yet:
                           // hidden or paused here starts the settle window.
@@ -2309,7 +2328,10 @@ class _HomePageState extends State<HomePage> {
     // An injected source is the position stream itself: it is subscribed now.
     // The real stream reports its own subscription, after the permission
     // answer, through the callback above.
-    if (injected != null) _herPositionStreamSubscribedAt = _now();
+    if (injected != null) {
+      _herPositionStreamSubscribedAt = _now();
+      _code15ShareSubscribed();
+    }
     // An injected source has no service of its own: it stands for the drive
     // the app would start now, with or without its service.
     if (injected != null) _shareWithoutService = !_mayPostDriveNotification;
@@ -2328,6 +2350,17 @@ class _HomePageState extends State<HomePage> {
   /// path, so all three keep the watchdog fed and reach the same surfaces.
   void _onPositionEvent(PositionFix fix) {
     if (!mounted) return;
+    // Code 15 only: when this event arrived, before anything decides what it
+    // means. Every event of her share, given to the brain or held (code 13's
+    // place for it).
+    _code15RecordEvent(switch (fix) {
+      PositionAvailable(accuracyMeters: null) => FixEventKind.noAccuracy,
+      PositionAvailable(:final double accuracyMeters)
+          when accuracyMeters > kGpsCoarseAccuracyMeters =>
+        FixEventKind.coarse,
+      PositionAvailable() => FixEventKind.fine,
+      PositionUnavailable() => FixEventKind.unavailable,
+    }, fix: fix);
     // Ruled 2026-09-15: an event came.
     _herNoEventYet = false;
     // 2026-10-06: the service is a positive reading, not the app's intent. A
@@ -3526,6 +3559,9 @@ class _HomePageState extends State<HomePage> {
     _herNoEventYet = false;
     _herSub?.cancel();
     _herSub = null;
+    // Code 15 only: the alive timer ends with the share, however it ended.
+    _code15AliveTicker?.cancel();
+    _code15AliveTicker = null;
     _shareWithoutService = false;
     _shareHadFix = false;
     _shareAwaySettle?.cancel();
@@ -3554,6 +3590,103 @@ class _HomePageState extends State<HomePage> {
   /// Detection survival — wall-clock read, injectable for host-deterministic
   /// staleness.
   DateTime _now() => (widget.clock ?? DateTime.now)();
+
+  // ===== Code 15 only: the fix-interval record's writers =====
+  //
+  // services/code15_fix_interval_record.dart. Every line that carries a
+  // share's t takes it from ONE clock: [_now] minus the share's
+  // stream-subscription time, exactly as code 13's fix lines did (the binding
+  // bars, section 16 item 3). Nothing here touches the blackout watchdog, the
+  // drought, or the drive brain: the alive timer is its own timer.
+
+  /// Writes `alive` while the share is quiet (see [kCode15AliveThreshold]).
+  Timer? _code15AliveTicker;
+
+  /// ms since this real share's stream subscribed, by [_now]; null when there
+  /// is no record or no subscribed real share (never the development page's
+  /// test position).
+  int? _code15ShareT() {
+    final since = _herPositionStreamSubscribedAt;
+    if (widget.code15Record == null ||
+        since == null ||
+        _herSub == null ||
+        _isMockPosition) {
+      return null;
+    }
+    return _now().difference(since).inMilliseconds;
+  }
+
+  /// Redraws the page when a write changed what the record's card shows.
+  void _code15AfterWrite(bool wrote) {
+    if (wrote && mounted && _code15CardState() != _code15CardDrawn) {
+      setState(() {});
+    }
+  }
+
+  /// One position-event line, while her real share runs (never the
+  /// development page's test position, never before a share's stream
+  /// subscribes, never after 停止). An unavailable event is its kind alone.
+  void _code15RecordEvent(FixEventKind kind, {PositionFix? fix}) {
+    final record = widget.code15Record;
+    final since = _herPositionStreamSubscribedAt;
+    if (record == null || since == null || _herSub == null || _isMockPosition) {
+      return;
+    }
+    final now = _now();
+    _code15AfterWrite(record.record(
+      share: _herShareSession,
+      msSinceStreamStart: now.difference(since).inMilliseconds,
+      kind: kind,
+      accuracyMeters: fix is PositionAvailable ? fix.accuracyMeters : null,
+      reportedSpeedMps: fix is PositionAvailable ? fix.reportedSpeedMps : null,
+      lateMs: fix is PositionAvailable
+          ? now.difference(fix.timestamp).inMilliseconds
+          : null,
+      appInFront: _appInFront(),
+    ));
+  }
+
+  /// The share's stream subscribed: its `start` line, and the alive timer
+  /// starts for it.
+  void _code15ShareSubscribed() {
+    _code15RecordEvent(FixEventKind.start);
+    _code15AliveTicker?.cancel();
+    _code15AliveTicker = widget.code15Record == null
+        ? null
+        : Timer.periodic(kCode15AliveTimerPeriod, (_) => _code15AliveTick());
+  }
+
+  /// One tick: `alive`, only if the share has been quiet for the threshold.
+  void _code15AliveTick() {
+    final record = widget.code15Record;
+    final t = _code15ShareT();
+    if (record == null || t == null) return;
+    _code15AfterWrite(
+        record.recordAliveIfQuiet(share: _herShareSession, msSinceStreamStart: t));
+  }
+
+  /// `leave` or `back`, while a real share runs.
+  void _code15RecordLifecycle(Code15MarkKind kind) {
+    final record = widget.code15Record;
+    final t = _code15ShareT();
+    if (record == null || t == null) return;
+    _code15AfterWrite(record.recordLifecycle(
+        share: _herShareSession, msSinceStreamStart: t, kind: kind));
+  }
+
+  /// HIS ending of the share: 停止, 閉じる after a refusal, or the clear action.
+  /// The record's `end` is written here, before the share's stream or number
+  /// moves, and only here: when the app ends a share itself (a share without
+  /// its service, the app left), [_clearPosition] is reached without this, so
+  /// the record never says "his tap" for an ending he did not make.
+  void _clearPositionAtHisTap() {
+    final record = widget.code15Record;
+    final t = _code15ShareT();
+    if (record != null && t != null) {
+      record.recordEnd(share: _herShareSession, msSinceStreamStart: t);
+    }
+    _clearPosition();
+  }
 
   /// Build the on-disk store, or null when this platform/harness has no
   /// documents dir (tests, desktop harnesses). A null store means the memory is
@@ -4882,15 +5015,14 @@ class _HomePageState extends State<HomePage> {
               child: _logSharePanel(),
             ),
             const SizedBox(height: 16),
-            // The test builds' records (2026-10-09): drawn only while there is
-            // something to show, so no other phone pays a glance for it.
-            if (_showTestBuildRecordSection) ...[
-              _section(
-                title: AppL10n.of(context).leftBehindRecordSectionTitle,
-                child: _testBuildRecordPanel(),
-              ),
-              const SizedBox(height: 16),
-            ],
+            // Code 15 only: this build records, so its own card is always
+            // drawn here, as code 13's was, with main's L line above it when
+            // there is one. The left-behind card is never drawn on this build.
+            _section(
+              title: AppL10n.of(context).code15RecordSectionTitle,
+              child: _testBuildRecordPanel(),
+            ),
+            const SizedBox(height: 16),
             _section(
               title: AppL10n.of(context).channelCheckSectionTitle,
               child: _channelCheckPanel(),
@@ -5388,33 +5520,58 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  /// Whether code 15's record is on this phone, as last looked at. Looked at
-  /// once in initState, and again after his tap; never stat-ed per frame.
-  late bool _leftBehindRecordPresent =
-      widget.leftBehindRecord?.present ?? false;
-
-  /// L (the 2026-10-09 dignity read, WDA W3): told once, on the launch whose
+  /// L (the 2026-10-09 dignity read, W3): told once, on the launch whose
   /// deletion of code 13's record took a reading. Never while a share runs
   /// (the line is for a parked glance), and back after 停止 within the same
   /// launch. The next launch deletes nothing and tells nothing.
   bool get _showCode13DeletionNotice =>
       (widget.code13Deletion?.mustTell ?? false) && !_driveActive;
 
-  bool get _showTestBuildRecordSection =>
-      _leftBehindRecordPresent || _showCode13DeletionNotice;
+  /// What code 15's card last drew, so a write that changes it (a first fix
+  /// line, the cap reached, a minute of the count) redraws the page, and a
+  /// write that does not, does not.
+  String _code15CardDrawn = '';
 
-  /// The test builds' records (2026-10-09). Two independent things, either of
-  /// which may be absent: the L line about code 13's deleted record, and the
-  /// left-behind card for code 15's kept record. Same shape as the log-share
-  /// card (liveRegion status, Wrap-ped actions).
+  String _code15CardState() {
+    final r = widget.code15Record;
+    if (r == null) return 'none';
+    final c = r.count;
+    return '${r.hasFixLines} ${r.full} ${r.stopped} '
+        '${c.movingMs ~/ 60000} ${c.stoppedMs ~/ 60000} ${c.minimumReached}';
+  }
+
+  /// Code 15 only: the test builds' records. Main's L line about code 13's
+  /// deleted record, when there is one, then code 15's own recording card, in
+  /// code 13's card shape (liveRegion status, Wrap-ped actions, disclosure
+  /// last). The left-behind card is not drawn on this build.
   Widget _testBuildRecordPanel() {
     final l = AppL10n.of(context);
-    final record = widget.leftBehindRecord;
+    final record = widget.code15Record;
     final textStyle = TextStyle(fontSize: 12, color: Colors.grey.shade700);
+    final String status;
+    if (record == null) {
+      status = l.code15RecordUnavailable;
+    } else {
+      // Present or none follows FIX lines only (code 13's rule). The state
+      // note, when there is one, comes first on its own line.
+      status = [
+        if (record.full)
+          l.code15RecordFullNote
+        else if (record.stopped)
+          l.code15RecordStoppedNote,
+        record.hasFixLines ? l.code15RecordPresent : l.code15RecordEmpty,
+      ].join('\n');
+    }
+    _code15CardDrawn = _code15CardState();
+    final count = record?.count;
+    final stopped = record?.stopped ?? false;
+    // While full, stopping or restarting does nothing he could see, and a stop
+    // set then would outlive a delete: the control is not offered (code 13).
+    final full = record?.full ?? false;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_showCode13DeletionNotice)
+        if (_showCode13DeletionNotice) ...[
           Semantics(
             container: true,
             child: Text(
@@ -5423,57 +5580,81 @@ class _HomePageState extends State<HomePage> {
               style: textStyle,
             ),
           ),
-        if (_showCode13DeletionNotice && _leftBehindRecordPresent)
           const SizedBox(height: 8),
-        if (_leftBehindRecordPresent && record != null) ...[
-          Semantics(
-            container: true,
-            liveRegion: true,
-            child: Text(
-              key: const Key('left-behind-record-status'),
-              l.leftBehindRecordStatus,
-              style: textStyle,
-            ),
-          ),
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: Wrap(
-              spacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                TextButton(
-                  key: const Key('left-behind-record-share-button'),
-                  onPressed: _shareLeftBehindRecord,
-                  child: Text(l.leftBehindRecordShare),
-                ),
-                TextButton(
-                  key: const Key('left-behind-record-delete-button'),
-                  // HIS TAP: the only deletion of code 15's record in lib/
-                  // (test/architectural/code15_record_is_kept_test.dart).
-                  onPressed: () => setState(() {
-                    _leftBehindRecordPresent = !record.deleteOnHisTap();
-                  }),
-                  child: Text(l.leftBehindRecordDelete),
-                ),
-              ],
-            ),
-          ),
         ],
+        Semantics(
+          container: true,
+          liveRegion: true,
+          child: Text(
+            key: const Key('code15-record-status'),
+            status,
+            style: textStyle,
+          ),
+        ),
+        if (count != null)
+          Text(
+            key: const Key('code15-record-count'),
+            l.code15RecordCount(
+              movingMinutes: count.movingMs ~/ 60000,
+              stoppedMinutes: count.stoppedMs ~/ 60000,
+              minimumReached: count.minimumReached,
+            ),
+            style: textStyle,
+          ),
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TextButton(
+                key: const Key('code15-record-share-button'),
+                onPressed: record == null ? null : _shareCode15Record,
+                child: Text(l.code15RecordShare),
+              ),
+              if (!full)
+                TextButton(
+                  key: const Key('code15-record-stop-button'),
+                  onPressed: record == null
+                      ? null
+                      : () => setState(
+                          () => stopped ? record.resume() : record.stop()),
+                  child: Text(
+                      stopped ? l.code15RecordResume : l.code15RecordStop),
+                ),
+              TextButton(
+                key: const Key('code15-record-delete-button'),
+                // HIS TAP: the only deletion of code 15's record that any
+                // control reaches on this build
+                // (test/architectural/code15_record_is_kept_test.dart).
+                onPressed: record == null
+                    ? null
+                    : () => setState(record.deleteRecordOnHisTap),
+                child: Text(l.code15RecordDelete),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          key: const Key('code15-record-disclosure'),
+          l.code15RecordDisclosure,
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+        ),
       ],
     );
   }
 
-  /// Hands the whole left-behind record, under its header, to the injected
-  /// sink (production: the platform share sheet). Deletes nothing: the share
-  /// sheet cannot say that the text arrived.
-  Future<void> _shareLeftBehindRecord() async {
-    final record = widget.leftBehindRecord;
+  /// Hands the whole record, under its header, to the injected sink
+  /// (production: the platform share sheet). Deletes nothing: the share sheet
+  /// cannot say that the text arrived.
+  Future<void> _shareCode15Record() async {
+    final record = widget.code15Record;
     if (record == null) return;
-    final payload =
-        composeLeftBehindRecordSharePayload(recordText: record.readAll());
+    final payload = composeCode15SharePayload(recordText: record.readAll());
     try {
-      await (widget.leftBehindRecordShareSink ??
-          shareLeftBehindRecordViaShareSheet)(payload);
+      await (widget.code15RecordShareSink ?? shareCode15RecordViaShareSheet)(
+          payload);
     } catch (_) {
       // The record still holds every line for a later try.
     }
@@ -6607,7 +6788,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
           TextButton(
-            onPressed: _clearPosition,
+            onPressed: _clearPositionAtHisTap,
             child: Text(l.clear),
           ),
         ],
@@ -6718,7 +6899,7 @@ class _HomePageState extends State<HomePage> {
             // Brought onto her screen when she returns during a drive
             // (_bringDriveStopIntoView).
             key: _driveStopKey,
-            onPressed: _clearPosition,
+            onPressed: _clearPositionAtHisTap,
             // After a denial nothing was started, so the same action is
             // offered as 閉じる / "Close", not 停止 / "Stop".
             child: Text(isLocationRefusal(fix) ? l.close : l.stop),

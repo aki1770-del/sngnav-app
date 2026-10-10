@@ -1,5 +1,5 @@
 /// Code 15's fix-interval record is deleted by HIS TAP and by nothing else in
-/// lib/, and nothing in this build writes it.
+/// lib/, ON CODE 15, where it is also written.
 ///
 /// WHY A SOURCE-LEVEL GUARD. test/services/fix_interval_record_keeper_test.dart
 /// runs the launch path main() runs and proves it leaves code 15's files. It
@@ -10,10 +10,21 @@
 /// last line of defense against defects — the machine itself must catch
 /// them." Without this file, a reviewer is that last line.
 ///
-/// It also fails on any WRITER of these names in lib/. The left-behind card
-/// says 「この版は記録しません」 / "This version does not record". A build that
-/// records (code 15) must replace that card with its own; this test failing is
-/// how the person building it is told.
+/// WHAT CHANGED FROM MAIN, AND WHY (code 15's branch only, never merged).
+/// On main this file fails on any WRITER of these names, because main's
+/// left-behind card says 「この版は記録しません」 / "This version does not
+/// record". Code 15 records, so here:
+/// - the names may appear in exactly two files: the keeper (main's, unchanged
+///   here) and the recorder, which imports them and never retypes them;
+/// - the keeper still deletes in one place (deleteOnHisTap), and on this build
+///   NOTHING calls it: the left-behind card is not drawn;
+/// - the recorder deletes in one place, deleteRecordOnHisTap, which keeps the
+///   stopped marker (code 13's rule), and its one caller is code 15's
+///   記録を消す button;
+/// - the left-behind card's words are referenced nowhere in lib/ but their
+///   definition, so no surface of this build can show them;
+/// - the recorder writes `end` only at his tap: in one function, reached only
+///   from the two buttons that end a share at his hand.
 ///
 /// HONEST BOUND. This is a grep over source text, not a call graph. It cannot
 /// see a deletion reached through a path built at run time from other
@@ -37,13 +48,12 @@ String _code(String path) => File(path)
       final t = l.trimLeft();
       if (t.startsWith('///') || t.startsWith('//')) return '';
       final i = l.indexOf('//');
-      // Keep URLs and string contents that hold '//' only when they are not
-      // comments; every line this guard reads has no such string.
       return i >= 0 ? l.substring(0, i) : l;
     })
     .join('\n');
 
 const _keeper = 'lib/services/fix_interval_record_keeper.dart';
+const _recorder = 'lib/services/code15_fix_interval_record.dart';
 
 List<File> _libFiles() => Directory('lib')
     .listSync(recursive: true)
@@ -51,113 +61,117 @@ List<File> _libFiles() => Directory('lib')
     .where((f) => f.path.endsWith('.dart'))
     .toList();
 
+String _norm(File f) => f.path.replaceAll(r'\', '/');
+
 void main() {
-  test('code 15\'s names appear in exactly one file of lib/: the keeper', () {
+  test('code 15\'s names appear in exactly two files of lib/: the keeper, and '
+      'the recorder that imports them', () {
     final names = RegExp(
       r'kCode15RecordFileName|kCode15StoppedFileName|kCode15RecordFileNames'
       r'|fix_interval_record_15',
     );
-    final where = <String>[];
-    for (final f in _libFiles()) {
-      if (names.hasMatch(_code(f.path))) {
-        where.add(f.path.replaceAll(r'\', '/'));
-      }
-    }
-    expect(
-      where,
-      [_keeper],
-      reason:
-          'Code 15\'s file names (or the literal) are used outside the '
-          'keeper: $where. Every use outside it is a route to a deletion or '
-          'a write that the keeper\'s rule cannot see. Use '
-          'LeftBehindFixIntervalRecord instead.',
-    );
+    final where = <String>[
+      for (final f in _libFiles())
+        if (names.hasMatch(_code(f.path))) _norm(f),
+    ]..sort();
+    expect(where, [_recorder, _keeper]..sort());
+    expect(_code(_recorder), isNot(contains('fix_interval_record_15')),
+        reason: 'the recorder retyped a name instead of importing it');
+    expect(_code(_recorder), contains("import 'fix_interval_record_keeper.dart'"));
   });
 
   test('the keeper deletes in exactly ONE place, and that place is '
-      'deleteOnHisTap', () {
+      'deleteOnHisTap (main\'s keeper, unchanged)', () {
     final code = _code(_keeper);
-    expect(
-      RegExp(r'\.deleteSync\(').allMatches(code).length,
-      1,
-      reason: 'one deleteSync, inside deleteOnHisTap',
-    );
-    expect(
-      RegExp(r'\.delete\(').allMatches(code).length,
-      0,
-      reason: 'no async delete in the keeper',
-    );
+    expect(RegExp(r'\.deleteSync\(').allMatches(code).length, 1);
+    expect(RegExp(r'\.delete\(').allMatches(code).length, 0);
     final body = RegExp(
       r'bool deleteOnHisTap\(\) \{(.*?)\n  \}',
       dotAll: true,
     ).firstMatch(code);
-    expect(body, isNotNull, reason: 'deleteOnHisTap not found');
+    expect(body, isNotNull);
     expect(body!.group(1), contains('.deleteSync('));
   });
 
-  test('deleteOnHisTap has ONE caller in lib/, inside the 記録を消す button\'s '
-      'onPressed', () {
+  test('on this build the keeper\'s deleteOnHisTap has NO caller: the '
+      'left-behind card is not drawn', () {
     var calls = 0;
     for (final f in _libFiles()) {
-      final code = _code(f.path);
-      final n = RegExp(r'\bdeleteOnHisTap\b').allMatches(code).length;
-      calls += f.path.replaceAll(r'\', '/') == _keeper ? n - 1 : n;
+      final n = RegExp(r'\bdeleteOnHisTap\b').allMatches(_code(f.path)).length;
+      calls += _norm(f) == _keeper ? n - 1 : n;
     }
-    expect(
-      calls,
-      1,
-      reason:
-          'Expected the declaration plus exactly one call: the Delete '
-          'record button. A second call is a deletion he did not ask for.',
-    );
+    expect(calls, 0);
+  });
+
+  test('the recorder deletes in exactly two places: its record, in '
+      'deleteRecordOnHisTap, and the stopped marker, in resume', () {
+    final code = _code(_recorder);
+    expect(RegExp(r'\.deleteSync\(').allMatches(code).length, 2);
+    expect(RegExp(r'\.delete\(').allMatches(code).length, 0);
+    final del = RegExp(
+      r'void deleteRecordOnHisTap\(\) \{(.*?)\n  \}',
+      dotAll: true,
+    ).firstMatch(code);
+    expect(del, isNotNull);
+    expect(del!.group(1), contains('file.deleteSync('));
+    expect(del.group(1), isNot(contains('stoppedFile')),
+        reason: 'his delete must keep whether it records (code 13\'s rule)');
+    final resume =
+        RegExp(r'void resume\(\) \{(.*?)\n  \}', dotAll: true).firstMatch(code);
+    expect(resume!.group(1), contains('stoppedFile.deleteSync('));
+  });
+
+  test('deleteRecordOnHisTap has ONE caller in lib/, inside code 15\'s '
+      '記録を消す button\'s onPressed', () {
+    var calls = 0;
+    for (final f in _libFiles()) {
+      final n =
+          RegExp(r'\bdeleteRecordOnHisTap\b').allMatches(_code(f.path)).length;
+      calls += _norm(f) == _recorder ? n - 1 : n;
+    }
+    expect(calls, 1);
     final main = _code('lib/main.dart');
     final button = RegExp(
-      r"Key\('left-behind-record-delete-button'\),(.*?)child:",
+      r"Key\('code15-record-delete-button'\),(.*?)child:",
       dotAll: true,
     ).firstMatch(main);
     expect(button, isNotNull, reason: 'the Delete record button is gone');
     expect(button!.group(1), contains('onPressed'));
-    expect(button.group(1), contains('deleteOnHisTap'));
+    expect(button.group(1), contains('deleteRecordOnHisTap'));
   });
 
-  test('main() reaches the records only through launchRecordHousekeeping, '
-      'which calls no delete of code 15\'s', () {
+  test('main() reaches the records through launchRecordHousekeeping, then '
+      'opens code 15\'s record, and hands both to the app', () {
     final main = _code('lib/main.dart');
     final body = RegExp(
       r'Future<void> main\(\) async \{(.*?)\n\}',
       dotAll: true,
     ).firstMatch(main);
     expect(body, isNotNull);
-    expect(body!.group(1), contains('launchRecordHousekeeping('));
-    expect(body.group(1), isNot(contains('deleteOnHisTap')));
-    // What it found reaches the app. Dropping it is how code 13's deletion
-    // went silent: the count was returned and thrown away at this call site.
-    expect(
-      body.group(1),
-      contains('code13Deletion: records.code13'),
-      reason:
-          'main() calls the housekeeping but does not hand its deletion '
-          'to the app: a lost reading would be silent again',
-    );
-    expect(
-      body.group(1),
-      contains('leftBehindRecord: records.leftBehind'),
-      reason:
-          'main() does not hand code 15\'s record to the app: his card '
-          'would never show, and he could not see or delete his data',
-    );
-    final keeper = _code(_keeper);
-    final housekeeping = RegExp(
-      r'Future<LaunchRecordsState> launchRecordHousekeeping\((.*?)\n\}',
-      dotAll: true,
-    ).firstMatch(keeper);
-    expect(housekeeping, isNotNull);
-    expect(housekeeping!.group(1), isNot(contains('deleteOnHisTap')));
-    expect(housekeeping.group(1), isNot(contains('deleteSync')));
+    final b = body!.group(1)!;
+    expect(b, contains('launchRecordHousekeeping('));
+    expect(b, contains('openCode15FixIntervalRecord('));
+    expect(b.indexOf('launchRecordHousekeeping('),
+        lessThan(b.indexOf('openCode15FixIntervalRecord(')));
+    expect(b, isNot(contains('deleteOnHisTap')));
+    expect(b, isNot(contains('deleteRecordOnHisTap')));
+    expect(b, contains('code13Deletion: records.code13'));
+    expect(b, contains('code15Record: code15Record'));
+    expect(b, isNot(contains('leftBehind')),
+        reason: 'the left-behind view reached the app on a recording build');
   });
 
-  test('nothing in this build WRITES code 15\'s record: the left-behind card '
-      'says this version does not record', () {
+  test('the left-behind card\'s words are referenced nowhere in lib/ but '
+      'their definition', () {
+    final words = RegExp(r'\bleftBehindRecord(Status|SectionTitle|Share|Delete)\b');
+    for (final f in _libFiles()) {
+      if (_norm(f) == 'lib/l10n/app_localizations.dart') continue;
+      expect(words.hasMatch(_code(f.path)), isFalse, reason: _norm(f));
+    }
+  });
+
+  test('the keeper itself still writes nothing; the recorder is the only '
+      'writer of these names', () {
     final code = _code(_keeper);
     for (final writer in [
       'writeAsString',
@@ -170,26 +184,47 @@ void main() {
       'copySync',
       '.copy(',
     ]) {
-      expect(
-        code,
-        isNot(contains(writer)),
-        reason:
-            'The keeper now writes ($writer). If this is code 15, its '
-            'own recording card must replace the left-behind card, whose '
-            'words say 「この版は記録しません」, and this guard is updated '
-            'with that change in view.',
-      );
+      expect(code, isNot(contains(writer)), reason: writer);
     }
+    expect(_code(_recorder), contains('writeAsStringSync('));
   });
 
-  test('no recursive delete anywhere in lib/ (it would take code 15\'s record '
-      'without naming it)', () {
+  test('`end` is written only at his tap: one call of recordEnd in lib/, in '
+      'the function the two share-ending buttons call, and nowhere else', () {
+    final main = _code('lib/main.dart');
+    var calls = 0;
     for (final f in _libFiles()) {
-      final code = _code(f.path);
+      final n = RegExp(r'\.recordEnd\(').allMatches(_code(f.path)).length;
+      calls += n;
+    }
+    expect(calls, 1);
+    final wrapper = RegExp(
+      r'void _clearPositionAtHisTap\(\) \{(.*?)\n  \}',
+      dotAll: true,
+    ).firstMatch(main);
+    expect(wrapper, isNotNull);
+    expect(wrapper!.group(1), contains('.recordEnd('));
+    expect(
+      RegExp(r'onPressed: _clearPositionAtHisTap,').allMatches(main).length,
+      2,
+      reason: 'the clear action and 停止/閉じる',
+    );
+    expect(RegExp(r'\b_clearPositionAtHisTap\b').allMatches(main).length, 3,
+        reason: 'the declaration and the two buttons');
+    final clear = RegExp(
+      r'void _clearPosition\(\) \{(.*?)\n  \}',
+      dotAll: true,
+    ).firstMatch(main);
+    expect(clear!.group(1), isNot(contains('recordEnd')),
+        reason: 'the app also ends shares through _clearPosition');
+  });
+
+  test('no recursive delete anywhere in lib/', () {
+    for (final f in _libFiles()) {
       expect(
-        RegExp(r'delete(Sync)?\(\s*recursive:\s*true').hasMatch(code),
+        RegExp(r'delete(Sync)?\(\s*recursive:\s*true').hasMatch(_code(f.path)),
         isFalse,
-        reason: '${f.path} deletes recursively',
+        reason: f.path,
       );
     }
   });
