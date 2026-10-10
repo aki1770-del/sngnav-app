@@ -322,13 +322,16 @@ Future<void> _returnToFront(WidgetTester tester) =>
       AppLifecycleState.resumed,
     ]);
 
-/// What has been told so far: lines and haptics.
-(int, int) _mark(FakeAlertActuators a) => (a.spoken.length, a.haptics.length);
+/// What has been told so far: lines and cues. Every cue is counted from `felt`,
+/// which records the ended cue too: since 2026-10-10 the line told when the
+/// app ends a share without its service carries the ended cue (one long
+/// pulse), which `haptics`, the warning grammar alone, never records.
+(int, int) _mark(FakeAlertActuators a) => (a.spoken.length, a.felt.length);
 
 /// What was told since [mark].
 (List<String>, int) _since(FakeAlertActuators a, (int, int) mark) => (
   a.spoken.skip(mark.$1).map((x) => x.text).toList(),
-  a.haptics.length - mark.$2,
+  a.felt.length - mark.$2,
 );
 
 /// [seconds] of silence, one second at a time; returns what was told.
@@ -337,12 +340,12 @@ Future<(List<String>, int)> _silence(
   FakeAlertActuators a,
   int seconds,
 ) async {
-  final sb = a.spoken.length, hb = a.haptics.length;
+  final sb = a.spoken.length, hb = a.felt.length;
   for (var s = 0; s < seconds; s++) {
     await _advance(tester, const Duration(seconds: 1));
   }
   await _settle(tester);
-  return (a.spoken.skip(sb).map((x) => x.text).toList(), a.haptics.length - hb);
+  return (a.spoken.skip(sb).map((x) => x.text).toList(), a.felt.length - hb);
 }
 
 bool _isDroughtLine(String s) => s == _slowDown || s == _stopLine;

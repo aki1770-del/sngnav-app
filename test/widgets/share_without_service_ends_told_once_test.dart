@@ -176,9 +176,13 @@ const _back = [
   AppLifecycleState.resumed,
 ];
 
-/// What was told since [sb] spoken lines and [hb] haptics.
-(List<String>, int) _toldSince(FakeAlertActuators a, int sb, int hb) =>
-    (a.spoken.skip(sb).map((x) => x.text).toList(), a.haptics.length - hb);
+/// What was told since [sb] spoken lines and [fb] cues felt. Every cue is
+/// read from `felt`, which records the ended cue too: since 2026-10-10 the
+/// line told here carries the ended cue (one long pulse), which `haptics`,
+/// the warning grammar alone, never records. Read from `haptics`, a repeat of
+/// this line while she is away would have been invisible.
+(List<String>, List<String>) _toldSince(FakeAlertActuators a, int sb, int fb) =>
+    (a.spoken.skip(sb).map((x) => x.text).toList(), a.felt.skip(fb).toList());
 
 bool _running(WidgetTester tester) => find
     .widgetWithText(TextButton, '停止', skipOffstage: false)
@@ -208,7 +212,7 @@ void main() {
       await _drive(tester, positions);
       expect(_running(tester), isTrue, reason: 'control: the share runs');
 
-      var sb = a.spoken.length, hb = a.haptics.length;
+      var sb = a.spoken.length, hb = a.felt.length;
       await _to(tester, _leave);
       final (atLeave, hapticsAtLeave) = _toldSince(a, sb, hb);
       expect(
@@ -220,16 +224,17 @@ void main() {
       );
       expect(atLeave.single, _n1,
           reason: 'what she is told is that the share stopped, not a GPS loss');
-      expect(hapticsAtLeave, greaterThan(0),
-          reason: 'the line comes with a haptic, for the driver who cannot '
-              'hear it');
+      expect(hapticsAtLeave, ['ended'],
+          reason: 'the line comes with one cue, for the driver who cannot '
+              'hear it: the ended cue, one long pulse, never the warning '
+              'pattern, which tells her to slow down (2026-10-10)');
 
       sb = a.spoken.length;
-      hb = a.haptics.length;
+      hb = a.felt.length;
       await _silence(tester, 75);
       final (whileAway, hapticsAway) = _toldSince(a, sb, hb);
       expect(whileAway, isEmpty, reason: 'no repeat while away: $whileAway');
-      expect(hapticsAway, 0);
+      expect(hapticsAway, isEmpty);
 
       await _to(tester, _back);
       expect(_running(tester), isFalse,
@@ -247,7 +252,7 @@ void main() {
     (tester) async {
       final (a, positions) = await _bootAndShare(tester, canPost: false);
       await _drive(tester, positions);
-      final sb = a.spoken.length, hb = a.haptics.length;
+      final sb = a.spoken.length, hb = a.felt.length;
       await _to(tester, const [AppLifecycleState.inactive]);
       expect(a.spoken.length - sb, 0,
           reason: 'the app is on screen: 「画面から離れた」 would be false');
@@ -260,7 +265,7 @@ void main() {
         reason: 'the GPS-loss reading runs in inactive as in front; '
             'suppressing it would withdraw a real warning untold: $told',
       );
-      expect(haptics, greaterThan(0));
+      expect(haptics, isNotEmpty);
       await _to(tester, const [AppLifecycleState.resumed]);
       expect(_running(tester), isTrue, reason: 'inactive did not end it');
       unawaited(positions.close());

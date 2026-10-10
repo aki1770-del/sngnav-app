@@ -22,6 +22,11 @@
 /// service does tell the stop confirmation, so "not told" below is a reading,
 /// not a blind spot.
 ///
+/// Since 2026-10-10 (F-2, AAA bb2d2937, WDA 46e240b2 section 4) the app's own
+/// line is felt as the ended cue too, one long pulse, as the stop confirmation
+/// is: one fact, one pulse. So the two are told apart here by their words, and
+/// on both roads her felt list is exactly that one ended cue.
+///
 /// The fake actuators prove the app asked to speak and vibrate, not that she
 /// heard or felt it.
 library;
@@ -254,11 +259,10 @@ void main() {
           reason: 'one end, one telling: the app ended this share, and the '
               'line that says so is told; 「共有を終了しました」 names an act '
               'she did not do');
-      final felt = a.felt.skip(fb).toList();
-      expect(felt, hasLength(1),
-          reason: 'one cue with the one line: $felt');
-      expect(felt, isNot(contains('ended')),
-          reason: 'the ended cue belongs to the stop confirmation');
+      expect(a.felt.skip(fb), ['ended'],
+          reason: 'one cue with the one line, and it is the ended cue, one '
+              'long pulse: one fact, one pulse, never the warning pattern, '
+              'which tells a deaf driver to slow down (F-2, 2026-10-10)');
       unawaited(positions.close());
       await _settle(tester);
     },
@@ -358,9 +362,8 @@ void main() {
         await _turns(tester, rounds: 25);
         expect(_spokenSince(a, sb), [_n1],
             reason: 'one end, one telling, on this road too');
-        final felt = a.felt.skip(fb).toList();
-        expect(felt, hasLength(1), reason: 'one cue: $felt');
-        expect(felt, isNot(contains('ended')));
+        expect(a.felt.skip(fb), ['ended'],
+            reason: 'one cue, the ended cue, on this road too (F-2)');
         // Back the way a return comes: paused, hidden, inactive, resumed.
         to(AppLifecycleState.hidden);
         to(AppLifecycleState.inactive);

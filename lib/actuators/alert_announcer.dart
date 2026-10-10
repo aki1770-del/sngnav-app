@@ -23,9 +23,11 @@ enum AnnounceCue {
   /// The cue for its severity (the catalog's grammar): every warning.
   severity,
 
-  /// The ended cue ([AlertActuators.hapticEnded]): the one announcement that
-  /// is not a warning, the line that says a share has ended (decided
-  /// 2026-10-05). Its severity only opens the gate.
+  /// The ended cue ([AlertActuators.hapticEnded]): the lines that are not a
+  /// warning but say a share has ended. The stop confirmation at 停止
+  /// (decided 2026-10-05), and, since 2026-10-10, the line told when the app
+  /// ends a share without its service as it leaves the screen. Its severity
+  /// only opens the gate.
   ended,
 }
 

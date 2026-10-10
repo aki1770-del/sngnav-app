@@ -2136,6 +2136,11 @@ class _HomePageState extends State<HomePage> {
           ? kShareStoppedAppLeftJaSpokenText
           : kShareStoppedAppLeftEnSpokenText,
       localeTag: _spokenJa ? 'ja-JP' : 'en-US',
+      // Felt as the ended cue, one long pulse, as the stop confirmation is
+      // (2026-10-10, AAA bb2d2937 F-2, WDA 46e240b2 section 4): one fact, one
+      // pulse. The warning pattern means "reduce speed" in the only grammar a
+      // deaf driver has, and here her warnings have stopped.
+      cue: AnnounceCue.ended,
     ));
     // Told above, once: the stop confirmation is not told as well. It would
     // be a second telling of one end, and 「共有を終了しました」 names an act she
