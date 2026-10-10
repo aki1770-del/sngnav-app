@@ -65,7 +65,7 @@ import 'package:voice_guidance/voice_guidance.dart'
     show BudgetAwarePaceProfile, VoiceGuidanceConfig;
 
 import 'dart:async';
-import 'dart:io' show File;
+import 'dart:io' show Directory, File;
 import 'dart:math' as math;
 import 'dart:ui' show FrameTiming;
 
@@ -105,6 +105,7 @@ import 'services/log_share.dart';
 import 'services/drive_diary.dart';
 import 'services/code13_record_cleanup.dart';
 import 'services/code15_fix_interval_record.dart';
+import 'services/record_share_file.dart';
 import 'services/fix_interval_record_keeper.dart';
 import 'services/gps_trust.dart' show kGpsCoarseAccuracyMeters;
 import 'services/drive_hud_localizer.dart';
@@ -185,6 +186,10 @@ Future<void> main() async {
   // Its own card replaces the left-behind card on this build, so the
   // left-behind view the housekeeping opened is not handed to the app.
   final code15Record = await openCode15FixIntervalRecord();
+  // A share copy of the record (services/record_share_file.dart) never
+  // outlives its share: one left by a process that ended mid-share is
+  // deleted here, at the next launch.
+  (await openRecordShareFile())?.deleteAll();
   runApp(SngnavApp(
     errorLog: errorLog,
     diary: diary,
@@ -714,6 +719,7 @@ class SngnavApp extends StatelessWidget {
     this.code13Deletion,
     this.code15Record,
     this.code15RecordShareSink,
+    this.code15ShareCacheDirectory,
     this.voiceLaneReader,
     this.speechUnverified,
     this.hapticUnverified,
@@ -758,6 +764,10 @@ class SngnavApp extends StatelessWidget {
   /// Injectable share exit door for code 15's record (null ->
   /// [shareCode15RecordViaShareSheet]).
   final Code15RecordShareSink? code15RecordShareSink;
+
+  /// Injectable cache directory for the record's share copies (null -> the
+  /// app's cache directory, Android's getCacheDir()).
+  final Directory? code15ShareCacheDirectory;
   final Future<VoiceLaneVerdict> Function()? voiceLaneReader;
   final ValueNotifier<bool>? speechUnverified;
   final ValueNotifier<bool>? hapticUnverified;
@@ -847,6 +857,7 @@ class SngnavApp extends StatelessWidget {
         code13Deletion: code13Deletion,
         code15Record: code15Record,
         code15RecordShareSink: code15RecordShareSink,
+        code15ShareCacheDirectory: code15ShareCacheDirectory,
         voiceLaneReader: voiceLaneReader,
         speechUnverified: speechUnverified,
         hapticUnverified: hapticUnverified,
@@ -878,6 +889,7 @@ class HomePage extends StatefulWidget {
     this.code13Deletion,
     this.code15Record,
     this.code15RecordShareSink,
+    this.code15ShareCacheDirectory,
     this.voiceLaneReader,
     this.speechUnverified,
     this.hapticUnverified,
@@ -933,6 +945,10 @@ class HomePage extends StatefulWidget {
   /// Injectable share exit door for code 15's record (null ->
   /// [shareCode15RecordViaShareSheet]).
   final Code15RecordShareSink? code15RecordShareSink;
+
+  /// Injectable cache directory for the record's share copies (null -> the
+  /// app's cache directory, Android's getCacheDir()).
+  final Directory? code15ShareCacheDirectory;
 
   /// Injectable voice-channel readiness read (null ->
   /// [readVoiceLaneReadiness]).
@@ -1561,7 +1577,12 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _appLifecycle = AppLifecycleListener(
-      onResume: _onAppResumed,
+      onResume: () {
+        // Code 15 only: back in front after a share, the share is over: its
+        // copies go (services/record_share_file.dart).
+        _code15ShareEnded();
+        _onAppResumed();
+      },
       onStateChange: _onLifecycleStateForShare,
       onHide: () {
         // Code 15 only: the record's `leave` is written first, before anything
@@ -5565,6 +5586,9 @@ class _HomePageState extends State<HomePage> {
       // Present or none follows FIX lines only (code 13's rule). The state
       // note, when there is one, comes first on its own line.
       status = [
+        // His tap handed nothing on: said once, in the live region, until his
+        // next tap on 記録を共有 or 記録を消す.
+        if (_code15ShareFailed) l.code15RecordShareFailed,
         if (record.full)
           l.code15RecordFullNote
         else if (record.stopped)
@@ -5648,7 +5672,15 @@ class _HomePageState extends State<HomePage> {
                 // (test/architectural/code15_record_is_kept_test.dart).
                 onPressed: record == null
                     ? null
-                    : () => setState(record.deleteRecordOnHisTap),
+                    : () {
+                        setState(() {
+                          record.deleteRecordOnHisTap();
+                          // "The record is kept" would be false now.
+                          _code15ShareFailed = false;
+                        });
+                        // Every copy made for sharing is the record too.
+                        unawaited(_code15DeleteShareCopies());
+                      },
                 child: Text(l.code15RecordDelete),
               ),
             ],
@@ -5670,13 +5702,49 @@ class _HomePageState extends State<HomePage> {
   Future<void> _shareCode15Record() async {
     final record = widget.code15Record;
     if (record == null) return;
-    final payload = composeCode15SharePayload(recordText: record.readAll());
-    try {
-      await (widget.code15RecordShareSink ?? shareCode15RecordViaShareSheet)(
-          payload);
-    } catch (_) {
-      // The record still holds every line for a later try.
+    setState(() => _code15ShareFailed = false);
+    final copies = await openRecordShareFile(
+        cacheDirectory: widget.code15ShareCacheDirectory);
+    var failed = copies == null;
+    if (copies != null) {
+      _code15ShareInFlight = true;
+      try {
+        // The whole record, under its header, as a FILE: the share sheet
+        // carries a link, never the text (services/record_share_file.dart).
+        final file =
+            copies.stage(composeCode15SharePayload(recordText: record.readAll()));
+        await (widget.code15RecordShareSink ?? shareCode15RecordViaShareSheet)(
+            file.path);
+      } catch (_) {
+        failed = true;
+      } finally {
+        // This app's copy goes as soon as the call returns; share_plus's copy
+        // goes when the app is back in front ([_code15ShareEnded]).
+        copies.deleteStaged();
+        _code15ShareInFlight = false;
+      }
+      if (_appInFront()) copies.deleteSharePlusCopy();
     }
+    if (mounted) setState(() => _code15ShareFailed = failed);
+  }
+
+  /// Whether a share call of the record is running (its copies are in use).
+  bool _code15ShareInFlight = false;
+
+  /// Whether his last tap on 記録を共有 handed nothing to the share sheet.
+  bool _code15ShareFailed = false;
+
+  /// The app is in front again: unless a share call is still running, the
+  /// share is over, and every copy made for it is deleted.
+  void _code15ShareEnded() {
+    if (_code15ShareInFlight || widget.code15Record == null) return;
+    unawaited(_code15DeleteShareCopies());
+  }
+
+  /// Deletes every copy of the record made for sharing. Never throws.
+  Future<void> _code15DeleteShareCopies() async {
+    (await openRecordShareFile(cacheDirectory: widget.code15ShareCacheDirectory))
+        ?.deleteAll();
   }
 
   /// Ring-2 運転日記 — the season's consented evidence card (three-month

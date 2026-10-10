@@ -135,7 +135,11 @@ class _App {
         jmaFetch: () async => JmaSuccess(_clear()),
         errorLog: errorLog,
         code15Record: record,
-        code15RecordShareSink: (p) async => shared.add(p),
+        // The sink is handed a FILE path; what it shares is that file's text,
+        // read at the moment of the call (services/record_share_file.dart).
+        code15RecordShareSink: (path) async =>
+            shared.add(File(path).readAsStringSync()),
+        code15ShareCacheDirectory: Directory('${dir.path}/cache'),
         positionSource: () => herPositionStream(
           isServiceEnabled: () async => true,
           checkPermission: () async => LocationPermission.whileInUse,

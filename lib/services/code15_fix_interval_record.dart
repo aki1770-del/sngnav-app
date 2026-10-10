@@ -61,9 +61,9 @@ import 'dart:convert' show utf8;
 import 'dart:io' show Directory, File, FileMode, Platform;
 
 import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../build_info.dart';
+import 'record_share_file.dart' show RecordFileShareSink, shareRecordFileViaShareSheet;
 import 'fix_interval_record_keeper.dart'
     show kCode15RecordFileName, kCode15StoppedFileName, kCode15RecordFileNames;
 
@@ -71,9 +71,14 @@ export 'fix_interval_record_keeper.dart' show kCode15RecordFileNames;
 
 // ---------------------------------------------------------------------------
 // The alive timer. The reading's bound B = threshold + period + j (the bars,
-// section 16 item 4) is READ from these two constants; j is set later from an
-// emulator measurement. With a 6 s threshold checked on a 3 s tick, the first
-// `alive` line comes up to just under 9 s after the line before it.
+// section 16 item 4) is READ from these two constants; j is written in the
+// bars from an emulator measurement (1.0 s, so B = 10.0 s: IDV c62d5113, the
+// bars at 24f8a83a). With a 6 s threshold checked on a 3 s tick, an `alive`
+// line comes about 9 s at most after the line before it: nominally the first
+// tick at least 6 s after that line, in [6, 9) s. Measured on the emulator up
+// to 9,009 ms, because a tick that reads 5,999 ms or less skips to the next
+// one, so about-9 s steps fall between two `alive` lines too; j absorbs it.
+// [Until 2026-10-10 this said "just under 9 s": wrong as written.]
 // ---------------------------------------------------------------------------
 
 /// No line from the share for this long, and the next tick writes `alive`.
@@ -770,17 +775,16 @@ String composeCode15SharePayload({
   return buf.toString();
 }
 
-/// Injectable exit door for the record's payload.
-typedef Code15RecordShareSink = Future<void> Function(String payload);
+/// Injectable exit door: hands the FILE at its path (the payload above,
+/// written by [RecordShareFile.stage]) to the share sheet.
+typedef Code15RecordShareSink = RecordFileShareSink;
 
-/// Production [Code15RecordShareSink]: the platform share sheet, as plain
-/// text. The share sheet reports at most the chosen target, never that the
-/// text arrived, so nothing is deleted on its result.
-Future<void> shareCode15RecordViaShareSheet(String payload) async {
-  await SharePlus.instance.share(
-    ShareParams(
-      text: payload,
-      subject: 'sngnav-app $appVersion — fix-timing record',
-    ),
-  );
-}
+/// Production [Code15RecordShareSink]: the platform share sheet with the
+/// record as a FILE, never as text in the intent: at the cap the text could
+/// not be delivered (an emulator read on API 30 and 34, 2026-10-10), and the
+/// file goes as a link the receiver reads (services/record_share_file.dart).
+/// The share sheet reports at most the chosen target, never that the record
+/// arrived, so nothing is deleted on its result.
+Future<void> shareCode15RecordViaShareSheet(String path) =>
+    shareRecordFileViaShareSheet(path,
+        subject: 'sngnav-app $appVersion — fix-timing record');

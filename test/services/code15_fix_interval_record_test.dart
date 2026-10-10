@@ -363,7 +363,7 @@ void main() {
   group('alive: one line only when the share has been quiet for the '
       'threshold', () {
     test('the threshold and period are the named constants: 6 s on a 3 s '
-        'tick, so the first alive line comes under 9 s after the last line',
+        'tick, so an alive line comes about 9 s at most after the last line',
         () {
       expect(kCode15AliveThreshold, const Duration(seconds: 6));
       expect(kCode15AliveTimerPeriod, const Duration(seconds: 3));

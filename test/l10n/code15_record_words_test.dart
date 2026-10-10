@@ -177,6 +177,14 @@ void main() {
           ['Share record', 'Stop recording', 'Record again', 'Delete record']);
     });
 
+    test('the share-failed line (R-D3-4), exactly as ruled', () {
+      expect(_ja.code15RecordShareFailed,
+          '記録を端末の共有画面に渡せませんでした。何も送られていません。記録は残っています。');
+      expect(_en.code15RecordShareFailed,
+          'The record could not be handed to the share screen. Nothing was '
+          'sent, and the record is kept.');
+    });
+
     test('the code 13 promise this build reverses is not carried, and the '
         'passive "only" is gone', () {
       expect(_ja.code15RecordDisclosure, isNot(contains('次の版を入れると消えます')));
@@ -320,6 +328,7 @@ void main() {
           'code15RecordPresent': l.code15RecordPresent,
           'code15RecordStoppedNote': l.code15RecordStoppedNote,
           'code15RecordFullNote': l.code15RecordFullNote,
+          'code15RecordShareFailed': l.code15RecordShareFailed,
           'code15RecordDisclosure': l.code15RecordDisclosure,
           for (final e in _allForms().entries) 'code15RecordCount ${e.key}': e.value,
         };

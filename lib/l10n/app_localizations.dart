@@ -2293,6 +2293,15 @@ class AppL10n {
       : 'The record reached its cap (about $kCode15RecordCapKbText KB), so '
           'recording has stopped.';
 
+  /// The status's first line after his tap on 記録を共有 handed nothing to the
+  /// share screen (the 2026-10-10 boundary ruling, R-D3-4; the display
+  /// review's Japanese; the dignity review placed it in the status live
+  /// region). Shown until his next tap on 記録を共有 or 記録を消す.
+  String get code15RecordShareFailed => _ja
+      ? '記録を端末の共有画面に渡せませんでした。何も送られていません。記録は残っています。'
+      : 'The record could not be handed to the share screen. Nothing was sent, '
+          'and the record is kept.';
+
   /// Share action (code 13's).
   String get code15RecordShare => _ja ? '記録を共有' : 'Share record';
 
