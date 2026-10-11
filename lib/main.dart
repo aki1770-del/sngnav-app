@@ -5413,9 +5413,12 @@ class _HomePageState extends State<HomePage> {
   Widget _logSharePanel() {
     final l = AppL10n.of(context);
     final log = widget.errorLog;
-    final status = log == null
-        ? l.logShareUnavailable
-        : (_logHasRecords(log) ? l.logShareHasRecords : l.logShareEmpty);
+    final hasRecords = log != null && _logHasRecords(log);
+    final (status, keep) = log == null
+        ? (l.logShareUnavailable, l.logShareUnavailableKeepTogether)
+        : hasRecords
+            ? (l.logShareHasRecords, l.logShareStatusKeepTogether)
+            : (l.logShareEmpty, l.logShareEmptyKeepTogether);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -5426,8 +5429,14 @@ class _HomePageState extends State<HomePage> {
         Semantics(
           container: true,
           liveRegion: true,
-          child: Text(
+          child: KeepTogetherText(
             status,
+            words: keep,
+            // The records-present line keeps its joiners as they were drawn
+            // when it was last checked on an emulator. The empty and
+            // unavailable lines draw theirs with no letter spacing, so wherever
+            // a kept word moves no break they are drawn as before (2026-10-09).
+            spacedJoiners: hasRecords,
             style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
           ),
         ),
@@ -5446,9 +5455,10 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
+        KeepTogetherText(
           key: const Key('log-share-disclosure'),
           l.logShareDisclosure,
+          words: l.logShareKeepTogether,
           style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
         ),
       ],
@@ -5526,9 +5536,10 @@ class _HomePageState extends State<HomePage> {
           Semantics(
             container: true,
             liveRegion: true,
-            child: Text(
+            child: KeepTogetherText(
               key: const Key('left-behind-record-status'),
               l.leftBehindRecordStatus,
+              words: l.leftBehindRecordKeepTogether,
               style: textStyle,
             ),
           ),

@@ -18,6 +18,34 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 import 'package:sngnav_app/services/error_log.dart';
+import 'package:sngnav_app/widgets/keep_together.dart';
+
+/// The one drawn [Text] at or under [of]: a plain Text, or the Text a
+/// KeepTogetherText draws.
+Text _drawn(WidgetTester tester, Finder of) => tester.widget<Text>(find.descendant(
+    of: of, matching: find.byType(Text), matchRoot: true));
+
+/// The string [t] draws: its data, or its span's text when it is drawn as a
+/// span (the empty and unavailable status lines, 2026-10-09).
+String? _drawnString(Text t) => t.data ?? t.textSpan?.toPlainText();
+
+/// The words she is shown at [of]: the drawn string with the word joiners
+/// removed. Where the string carries joiners (the card's break hint, 2026-10-09),
+/// the semantics label TalkBack reads must be exactly those words.
+String _shown(WidgetTester tester, Finder of) {
+  final t = _drawn(tester, of);
+  final drawn = _drawnString(t)!;
+  final shown = plainOf(drawn);
+  if (drawn != shown) expect(t.semanticsLabel, shown);
+  return shown;
+}
+
+/// Every Text drawing exactly [words] once joiners are removed.
+Finder _drawing(String words) => find.byWidgetPredicate((w) {
+      if (w is! Text) return false;
+      final drawn = _drawnString(w);
+      return drawn != null && plainOf(drawn) == words;
+    });
 
 void main() {
   late Directory tmp;
@@ -56,25 +84,30 @@ void main() {
       // The one-tap action is in the driver's language (BETA_PLAN's ログを共有, verbatim).
       expect(find.text('ログを共有'), findsOneWidget);
       expect(find.text('Share log'), findsNothing);
-      // Records-present status in ja.
-      expect(find.text(jaL10n.logShareHasRecords), findsOneWidget);
-      expect(find.text(enL10n.logShareHasRecords), findsNothing);
+      // Records-present status in ja. It is drawn with its words kept whole
+      // (2026-10-09), so it is found by the words she reads, not the joined
+      // string, and its semantics label must be those words.
+      expect(_drawing(jaL10n.logShareHasRecords), findsOneWidget);
+      expect(_shown(tester, _drawing(jaL10n.logShareHasRecords)),
+          jaL10n.logShareHasRecords);
+      expect(_drawing(enL10n.logShareHasRecords), findsNothing);
 
       // Disclosure carries the load-bearing consent facts, in ja.
-      final disclosure = tester
-          .widget<Text>(find.byKey(const Key('log-share-disclosure')))
-          .data!;
+      final disclosure =
+          _shown(tester, find.byKey(const Key('log-share-disclosure')));
       expect(disclosure, contains('押したときだけ')); // user-initiated only
       expect(disclosure, contains('自動送信・テレメトリはなく')); // no auto-telemetry
       expect(disclosure, contains('アカウントも不要')); // no accounts
       expect(disclosure, contains('エラーの記録のみ')); // error records only
       expect(disclosure, contains('位置情報の履歴は含まれません')); // no location history
       // 2026-10-09: out of Google's backup and transfer, and the maker's own
-      // backup named as unchecked (res/xml; the dignity read's bound, WDA W1).
+      // backup and transfer app named as unchecked (res/xml; the dignity
+      // read's bound, WDA W1, widened to the transfer app by WDA's read of
+      // this card the same day).
       expect(
           disclosure,
           contains('ログは Google のバックアップや、新しい端末へのデータ移行には含まれません'
-              '（スマートフォンのメーカー独自のバックアップについては確かめていません）。'));
+              '（スマートフォンのメーカー独自のバックアップや移行アプリについては確かめていません）。'));
     });
 
     testWidgets('empty-log status renders the honest ja empty line',
@@ -88,7 +121,12 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('share-log-button')));
       await tester.pump();
 
-      expect(find.text(jaL10n.logShareEmpty), findsOneWidget);
+      // Drawn with its loanwords and its negation kept whole (2026-10-09), so
+      // it is found by the words she reads, and its semantics label must be
+      // those words.
+      expect(_drawing(jaL10n.logShareEmpty), findsOneWidget);
+      expect(_shown(tester, _drawing(jaL10n.logShareEmpty)),
+          jaL10n.logShareEmpty);
     });
   });
 
@@ -107,9 +145,8 @@ void main() {
       expect(find.text('Share log'), findsOneWidget);
       expect(find.text('ログを共有'), findsNothing);
 
-      final disclosure = tester
-          .widget<Text>(find.byKey(const Key('log-share-disclosure')))
-          .data!;
+      final disclosure =
+          _shown(tester, find.byKey(const Key('log-share-disclosure')));
       expect(disclosure, contains('only when you tap')); // user-initiated
       expect(disclosure, contains('no automatic upload')); // no auto-telemetry
       expect(disclosure, contains('no account')); // no accounts
@@ -118,8 +155,8 @@ void main() {
       expect(
           disclosure,
           contains("The log is not included in Google's backup or in a "
-              "transfer to a new phone (a phone maker's own backup has not "
-              'been checked).'));
+              "transfer to a new phone (a phone maker's own backup or "
+              'transfer app has not been checked).'));
     });
   });
 

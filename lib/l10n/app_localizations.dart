@@ -2189,6 +2189,50 @@ class AppL10n {
       ? 'ログは空です（クラッシュ・エラーの記録はありません）。'
       : 'The log is empty (no crash or error records).';
 
+  /// Words in the log card's disclosure that must not break across lines:
+  /// each katakana loanword, and each negation whose split would leave a stem
+  /// that reads as the affirmative (含まれま / せん).
+  List<String> get logShareKeepTogether => _ja
+      ? const [
+          'ボタン',
+          'ログ',
+          'テレメトリ',
+          'アカウント',
+          'エラー',
+          'バックアップ',
+          'データ移行',
+          'スマートフォン',
+          'メーカー',
+          '移行アプリ',
+          '含まれません',
+          '確かめていません',
+        ]
+      : const <String>[];
+
+  /// The records-present status line's own words that must not break: its
+  /// loanwords and its last word, so no line holds only 「す。」. The empty and
+  /// unavailable lines have lists of their own, below.
+  List<String> get logShareStatusKeepTogether => _ja
+      ? const ['ボタン', 'ベータ・フィードバック', '送れます']
+      : const <String>[];
+
+  /// The empty status line's words that must not break, by the rule of
+  /// [logShareKeepTogether]: its loanwords and its negation. Split, this line
+  /// ended 「…記録はありま」 or 「…記録はあり」, which reads "there are
+  /// records", on the line she sees when nothing has gone wrong (laid out
+  /// 2026-10-09 at 360, 392.7 and 411.4 dp, text sizes 0.85 to 2.0).
+  List<String> get logShareEmptyKeepTogether => _ja
+      ? const ['ログ', 'クラッシュ', 'エラー', 'ありません']
+      : const <String>[];
+
+  /// The unavailable status line's words that must not break: its loanword,
+  /// and its negation whole, as [leftBehindRecordKeepTogether] keeps
+  /// 記録しません whole. Split, this line ended 「…利用でき」, which reads
+  /// "can use" (laid out 2026-10-09, as above).
+  List<String> get logShareUnavailableKeepTogether => _ja
+      ? const ['エラーログ', '利用できません']
+      : const <String>[];
+
   /// Status line when error records are present to share.
   String get logShareHasRecords => _ja
       ? 'エラー記録があります。共有ボタンでベータ・フィードバックとして送れます。'
@@ -2203,27 +2247,32 @@ class AppL10n {
   // could take the log, so 自動送信・テレメトリはなく said more than the app
   // guaranteed (the 2026-10-09 boundary read, AAA item 7). The log is now
   // excluded from Google's backup and device transfer, per file (res/xml),
-  // and this sentence says exactly that much: a phone maker's own backup is
-  // unchecked. Its form follows the 2026-10-09 dignity read's bound for the
-  // record (WDA W1).
+  // and this sentence says exactly that much: a phone maker's own backup and
+  // its own transfer app are unchecked. Its form follows the 2026-10-09
+  // dignity read's bound for the record (WDA W1), widened the same day to the
+  // maker's transfer app by WDA's read of this card: the sentence also names
+  // a transfer to a new phone, and nobody had read a maker's transfer app.
   String get logShareDisclosure => _ja
       ? '共有はこのボタンを押したときだけ行われます。自動送信・テレメトリはなく、'
           'アカウントも不要です。ログに含まれるのはエラーの記録のみで、'
           '位置情報の履歴は含まれません。送信先は端末の共有画面で自分で選べます。'
           'ログは Google のバックアップや、新しい端末へのデータ移行には含まれません'
-          '（スマートフォンのメーカー独自のバックアップについては確かめていません）。'
+          '（スマートフォンのメーカー独自のバックアップや移行アプリについては確かめていません）。'
       : 'Sharing happens only when you tap this button — no automatic '
           'upload, no telemetry, and no account. The log contains only '
           'error records; it holds no location history. You choose the '
           "destination in your device's share sheet. The log is not included "
           "in Google's backup or in a transfer to a new phone (a phone "
-          "maker's own backup has not been checked).";
+          "maker's own backup or transfer app has not been checked).";
 
   // ===== Records left by the fix-interval test builds (2026-10-09) =====
   //
   // services/fix_interval_record_keeper.dart and code13_record_cleanup.dart.
   // Every sentence below except the section title is the 2026-10-09
-  // dignity read's (WDA, W3), verbatim. The title is AAE's draft.
+  // dignity read's (WDA, W3), verbatim. The title is AAE's draft. The
+  // left-behind card's words are W3 as WDA corrected them the same day, in
+  // her read of the error-log card: W1's bound, which W3 had dropped, is
+  // restored and widened to a maker's transfer app.
 
   /// Section title. Shown only while there is something to show: a record left
   /// by code 15, or this launch's deletion of code 13's record to tell.
@@ -2235,12 +2284,32 @@ class AppL10n {
   /// on this phone, on every build that does not record.
   String get leftBehindRecordStatus => _ja
       ? '前の版の測位間隔の記録が残っています。この版は記録しません。'
-          '記録は「記録を消す」を押すまで、この端末に残ります'
-          '（Google のバックアップや、新しい端末へのデータ移行には含まれません）。'
+          '記録は「記録を消す」を押すまで、この端末に残ります。'
+          'Google のバックアップや、新しい端末へのデータ移行には含まれません'
+          '（スマートフォンのメーカー独自のバックアップや移行アプリについては確かめていません）。'
       : 'A fix-interval record from the earlier version is still on this '
           'phone. This version does not record. It stays here until you tap '
-          "Delete record (it is not included in Google's backup or in a "
-          'transfer to a new phone).';
+          "Delete record. It is not included in Google's backup or in a "
+          "transfer to a new phone (a phone maker's own backup or transfer "
+          'app has not been checked).';
+
+  /// Words on the left-behind card that must not break across lines, by
+  /// the rule of [logShareKeepTogether], plus the quoted control name and
+  /// 残っています, whose small 「っ」 must not open a line.
+  List<String> get leftBehindRecordKeepTogether => _ja
+      ? const [
+          '「記録を消す」',
+          '記録しません',
+          '残っています',
+          'バックアップ',
+          'データ移行',
+          'スマートフォン',
+          'メーカー',
+          '移行アプリ',
+          '含まれません',
+          '確かめていません',
+        ]
+      : const <String>[];
 
   /// Share action on the left-behind card.
   String get leftBehindRecordShare => _ja ? '記録を共有' : 'Share record';
