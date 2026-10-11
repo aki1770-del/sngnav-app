@@ -2194,6 +2194,59 @@ class AppL10n {
           "in Google's backup or in a transfer to a new phone (a phone "
           "maker's own backup has not been checked).";
 
+  // The log card's keep lists (code 15, 2026-10-11).
+  //
+  // WHY. On an emulator frame at text size 2.0 this card's disclosure ended a
+  // line 「…については確かめてい」 with 「ません）。」 on the next: "is being
+  // checked", the reverse of the clause (HIE, 2026-10-10). Laid out on the host
+  // at 360, 392.7 and 411.4 dp and text sizes 0.85 to 2.0, it also ended
+  // 「…位置情報の履歴は含まれ」 ("location history is included"), the empty
+  // line ended 「…記録はありま」 ("there are records"), and the unavailable line
+  // ended 「…利用でき」 ("can use"). Code 15 keeps its own words: these are the
+  // 2026-10-09 lists for this card, cut to the words code 15's lines hold, plus
+  // the one loanword they missed by their own rule. Drawing only: each line's
+  // plain words stay its semantics label. The English keeps none.
+
+  /// Words in the log card's disclosure that must not break across lines:
+  /// each katakana loanword, and each negation whose split would leave a stem
+  /// that reads as the affirmative (含まれ / ません, 確かめてい / ません).
+  List<String> get logShareKeepTogether => _ja
+      ? const [
+          'ボタン',
+          'ログ',
+          'テレメトリ',
+          'アカウント',
+          'エラー',
+          'バックアップ',
+          'データ移行',
+          'スマートフォン',
+          'メーカー',
+          '含まれません',
+          '確かめていません',
+        ]
+      : const <String>[];
+
+  /// The records-present status line's words that must not break: its
+  /// loanwords and its last word, so no line holds only 「す。」.
+  List<String> get logShareStatusKeepTogether => _ja
+      ? const ['エラー', 'ボタン', 'ベータ・フィードバック', '送れます']
+      : const <String>[];
+
+  /// The empty status line's words that must not break: its loanwords and its
+  /// negation. Split, this line ended 「…記録はありま」 or 「…記録はあり」,
+  /// which reads "there are records", on the line he sees when nothing has
+  /// gone wrong.
+  List<String> get logShareEmptyKeepTogether => _ja
+      ? const ['ログ', 'クラッシュ', 'エラー', 'ありません']
+      : const <String>[];
+
+  /// The unavailable status line's words that must not break: its loanword,
+  /// and its negation whole. Split, this line ended 「…利用でき」, which reads
+  /// "can use".
+  List<String> get logShareUnavailableKeepTogether => _ja
+      ? const ['エラーログ', '利用できません']
+      : const <String>[];
+
   // ===== Records left by the fix-interval test builds (2026-10-09) =====
   //
   // services/fix_interval_record_keeper.dart and code13_record_cleanup.dart.

@@ -5476,21 +5476,27 @@ class _HomePageState extends State<HomePage> {
   Widget _logSharePanel() {
     final l = AppL10n.of(context);
     final log = widget.errorLog;
-    final status = log == null
-        ? l.logShareUnavailable
-        : (_logHasRecords(log) ? l.logShareHasRecords : l.logShareEmpty);
+    // Each status line is drawn with its own keep list, so no line end reads
+    // "there are records" or "can use" (2026-10-11).
+    final (status, keep) = log == null
+        ? (l.logShareUnavailable, l.logShareUnavailableKeepTogether)
+        : _logHasRecords(log)
+            ? (l.logShareHasRecords, l.logShareStatusKeepTogether)
+            : (l.logShareEmpty, l.logShareEmptyKeepTogether);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // liveRegion: assistive tech announces the log-state line when it
         // changes (accessibility floor — parity with the consent card). A node of
         // its own, or the flag merges into the card and the whole card is
-        // announced (measured 2026-09-14).
+        // announced (measured 2026-09-14). The plain words stay the live
+        // region's label.
         Semantics(
           container: true,
           liveRegion: true,
-          child: Text(
+          child: KeepTogetherText(
             status,
+            words: keep,
             style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
           ),
         ),
@@ -5509,9 +5515,13 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         const SizedBox(height: 4),
-        Text(
+        // Its Japanese keeps its loanwords and negations whole, so no line end
+        // reads 「…確かめてい」 ("is being checked") or 「…含まれ」 ("is
+        // included") (2026-10-11); the plain words stay its semantics label.
+        KeepTogetherText(
           key: const Key('log-share-disclosure'),
           l.logShareDisclosure,
+          words: l.logShareKeepTogether,
           style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
         ),
       ],

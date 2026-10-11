@@ -18,6 +18,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sngnav_app/l10n/app_localizations.dart';
 import 'package:sngnav_app/main.dart';
 import 'package:sngnav_app/services/error_log.dart';
+import 'package:sngnav_app/widgets/keep_together.dart';
+
+/// The one drawn [Text] at or under [of]: a plain Text, or the Text a
+/// KeepTogetherText draws.
+Text _drawn(WidgetTester tester, Finder of) => tester.widget<Text>(find.descendant(
+    of: of, matching: find.byType(Text), matchRoot: true));
+
+/// The words she is shown at [of]: the drawn string with the word joiners
+/// removed. Where the string carries joiners (the card's keep lists,
+/// 2026-10-11), the semantics label TalkBack reads must be exactly those words.
+String _shown(WidgetTester tester, Finder of) {
+  final t = _drawn(tester, of);
+  final shown = plainOf(t.data!);
+  if (t.data != shown) expect(t.semanticsLabel, shown);
+  return shown;
+}
+
+/// Every Text drawing exactly [words] once joiners are removed.
+Finder _drawing(String words) => find.byWidgetPredicate(
+    (w) => w is Text && w.data != null && plainOf(w.data!) == words);
 
 void main() {
   late Directory tmp;
@@ -56,14 +76,17 @@ void main() {
       // The one-tap action is in the driver's language (BETA_PLAN's ログを共有, verbatim).
       expect(find.text('ログを共有'), findsOneWidget);
       expect(find.text('Share log'), findsNothing);
-      // Records-present status in ja.
-      expect(find.text(jaL10n.logShareHasRecords), findsOneWidget);
-      expect(find.text(enL10n.logShareHasRecords), findsNothing);
+      // Records-present status in ja. It is drawn with its words kept whole
+      // (2026-10-11), so it is found by the words she reads, not the joined
+      // string, and its semantics label must be those words.
+      expect(_drawing(jaL10n.logShareHasRecords), findsOneWidget);
+      expect(_shown(tester, _drawing(jaL10n.logShareHasRecords)),
+          jaL10n.logShareHasRecords);
+      expect(_drawing(enL10n.logShareHasRecords), findsNothing);
 
       // Disclosure carries the load-bearing consent facts, in ja.
-      final disclosure = tester
-          .widget<Text>(find.byKey(const Key('log-share-disclosure')))
-          .data!;
+      final disclosure =
+          _shown(tester, find.byKey(const Key('log-share-disclosure')));
       expect(disclosure, contains('押したときだけ')); // user-initiated only
       expect(disclosure, contains('自動送信・テレメトリはなく')); // no auto-telemetry
       expect(disclosure, contains('アカウントも不要')); // no accounts
@@ -88,7 +111,12 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('share-log-button')));
       await tester.pump();
 
-      expect(find.text(jaL10n.logShareEmpty), findsOneWidget);
+      // Drawn with its loanwords and its negation kept whole (2026-10-11), so
+      // it is found by the words she reads, and its semantics label must be
+      // those words.
+      expect(_drawing(jaL10n.logShareEmpty), findsOneWidget);
+      expect(_shown(tester, _drawing(jaL10n.logShareEmpty)),
+          jaL10n.logShareEmpty);
     });
   });
 
@@ -107,9 +135,8 @@ void main() {
       expect(find.text('Share log'), findsOneWidget);
       expect(find.text('ログを共有'), findsNothing);
 
-      final disclosure = tester
-          .widget<Text>(find.byKey(const Key('log-share-disclosure')))
-          .data!;
+      final disclosure =
+          _shown(tester, find.byKey(const Key('log-share-disclosure')));
       expect(disclosure, contains('only when you tap')); // user-initiated
       expect(disclosure, contains('no automatic upload')); // no auto-telemetry
       expect(disclosure, contains('no account')); // no accounts
