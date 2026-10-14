@@ -1512,9 +1512,43 @@ class AppL10n {
 
   /// Said after she takes it back, so the effect is visible rather than
   /// inferred from a control disappearing.
+  ///
+  /// Since code 16 (2026-10-14) the note is a live region, announced away from
+  /// the control it reports, so it names what was withdrawn in the control's
+  /// own words (共有の同意を取り消…) and names the act at which she will be
+  /// asked, by the share control's label in 「」. Proposed by the consent
+  /// review, accepted at a glance by the screen review; the dignity review
+  /// reads it before it reaches a phone.
   String get locationConsentWithdrawnNote => _ja
-      ? '同意を取り消しました。次に共有するときにもう一度おたずねします。'
-      : 'Consent withdrawn. You will be asked again the next time you share.';
+      ? '共有の同意を取り消しました。次に「現在地を共有」を押したときに、もう一度おたずねします。'
+      : 'Sharing consent withdrawn. You will be asked again the next time you '
+          'tap Share my location.';
+
+  /// Words in [locationConsentWithdrawnNote] that must not break across lines
+  /// (the screen review's keep list, 2026-10-14).
+  List<String> get locationConsentWithdrawnNoteKeepTogether => _ja
+      ? const ['「現在地を共有」', '取り消しました', '押したときに', 'もう一度', 'おたずねします']
+      : const ['Share my location', 'Sharing consent'];
+
+  /// Said first in the consent dialog when what she last did was take her
+  /// consent back: the stored record is a withdrawal (`granted: false`, the
+  /// only false this app writes), or she withdrew in this session. Never for
+  /// an absent or unreadable record. Without it, a question after a
+  /// withdrawal read as if the app had lost her answer (2026-10-14).
+  ///
+  /// It states the act, never an intent ("withdrew", not "chose to"): the act
+  /// may not have been chosen. It pushes toward neither answer, and it is not
+  /// one of the words a yes stores.
+  String get locationConsentAskedAgainAfterWithdrawal => _ja
+      ? '前に共有の同意を取り消したので、もう一度おたずねしています。'
+      : 'You withdrew your sharing consent earlier, so you are being asked '
+          'again.';
+
+  /// Words in [locationConsentAskedAgainAfterWithdrawal] that must not break
+  /// across lines: a list of its own, never the slot's (2026-10-14).
+  List<String> get locationConsentAskedAgainAfterWithdrawalKeepTogether => _ja
+      ? const ['同意', '取り消したので', 'もう一度', 'おたずね']
+      : const ['sharing consent', 'asked again'];
 
   /// Names the route we do NOT control.
   ///

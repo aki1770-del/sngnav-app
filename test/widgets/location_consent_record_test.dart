@@ -326,18 +326,53 @@ void main() {
   ]) {
     testWidgets('a withdrawal on disk ($what) never leaves her with a share '
         'button that does nothing', (tester) async {
+      const l = AppL10n(Locale('ja'));
       await write(tester, record);
       final c = await launch(tester);
       await tapShare(tester);
       expect(find.byKey(_accept), findsOneWidget,
           reason: 'her tap must ASK. Before this change it did nothing at '
               'all: no dialog and no share');
-      expect(find.byKey(_askedAgain), findsNothing,
-          reason: 'she withdrew; a question after that needs no preface');
+      // CHANGED 2026-10-14 (code 16). This said 'she withdrew; a question
+      // after that needs no preface'. A question with no reason, after a
+      // withdrawal she may not have meant (a second press where 停止 had
+      // been), read as if the app had lost her answer. The consent review
+      // proposed a reason line, the screen review accepted it, and the
+      // dignity review reads it before it reaches a phone; if that review
+      // says no, this pin returns with the commit that drops the words.
+      final line = tester.widget<KeepTogetherText>(find.byKey(_askedAgain));
+      expect(line.data, l.locationConsentAskedAgainAfterWithdrawal,
+          reason: 'she is told first that she withdrew earlier');
       expect(c.starts, 0);
       await c.controller.close();
     });
   }
+
+  testWidgets('withdraw in this session, then tap: the question says first '
+      'that she withdrew', (tester) async {
+    const l = AppL10n(Locale('ja'));
+    await write(tester, {
+      'schema': 2,
+      'locationShareConsent': true,
+      'decidedAt': '2026-09-25T00:00:00.000Z',
+      'disclosureRevision': kLocationConsentRevision,
+      'disclosureLocale': 'ja',
+      'disclosureWords': currentWords('ja'),
+    });
+    final c = await launch(tester);
+    final w = find.byKey(_withdraw);
+    await tester.ensureVisible(w);
+    await tester.pump();
+    await tester.tap(w);
+    await _settleIO(tester);
+    await tapShare(tester);
+    expect(find.byKey(_accept), findsOneWidget, reason: 'she is asked');
+    expect(tester.widget<KeepTogetherText>(find.byKey(_askedAgain)).data,
+        l.locationConsentAskedAgainAfterWithdrawal,
+        reason: 'the reason comes first, in its own words');
+    expect(c.starts, 0, reason: 'nothing starts until she answers');
+    await c.controller.close();
+  });
 
   testWidgets('withdraw, relaunch, tap: she is asked, as the note promised',
       (tester) async {
@@ -356,9 +391,11 @@ void main() {
     await tester.pump();
     await tester.tap(w);
     await _settleIO(tester);
+    // The note is drawn through KeepTogetherText since code 16; its .data is
+    // the words without the joiners.
     expect(
         tester
-            .widget<Text>(
+            .widget<KeepTogetherText>(
                 find.byKey(const Key('location-consent-withdrawn-note')))
             .data,
         l.locationConsentWithdrawnNote,
@@ -372,6 +409,9 @@ void main() {
     expect(find.byKey(_accept), findsOneWidget,
         reason: 'the note said she would be asked again; on the next launch '
             'she must be');
+    expect(tester.widget<KeepTogetherText>(find.byKey(_askedAgain)).data,
+        l.locationConsentAskedAgainAfterWithdrawal,
+        reason: 'and told first why, from the stored withdrawal');
     expect(c2.starts, 0);
     await c2.controller.close();
   });

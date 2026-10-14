@@ -4176,6 +4176,12 @@ class _HomePageState extends State<HomePage> {
   /// otherwise would be false (2026-09-25, a dignity review).
   bool _locationConsentAskAgain = false;
 
+  /// What she last did was take her consent back: in this session, or as the
+  /// stored record says (a withdrawal). The dialog then says first why it asks
+  /// again ([AppL10n.locationConsentAskedAgainAfterWithdrawal], 2026-10-14).
+  /// Never set by an absent or unreadable record; cleared by her next yes.
+  bool _locationConsentAskAgainAfterWithdrawal = false;
+
   /// What a stored record means here, and the ONE place that decides it: only
   /// a yes to the words the dialog shows now is honoured. A withdrawal, a yes
   /// written before revisions existed, or a yes to other words leaves her
@@ -4196,6 +4202,8 @@ class _HomePageState extends State<HomePage> {
     }
     _locationConsentAskAgain =
         record.isYesToOtherRevision(kLocationConsentRevision);
+    // `granted: false` is the only false this app writes: a withdrawal.
+    _locationConsentAskAgainAfterWithdrawal = !record.granted;
   }
 
   /// Read the persisted answer at startup, so the WITHDRAWAL control can be
@@ -4269,6 +4277,7 @@ class _HomePageState extends State<HomePage> {
       _locationConsentWithdrawn = true;
       _locationConsentAskAgain = false;
       _locationConsentAskAgainForVariant = false;
+      _locationConsentAskAgainAfterWithdrawal = true;
       _consentedVariant = null;
     });
     // Fire-and-forget, the same idiom as the grant: her answer takes effect
@@ -4370,7 +4379,8 @@ class _HomePageState extends State<HomePage> {
     final words = l.locationConsentDialogFor(shown);
     final granted = await _promptLocationConsent(words,
         askedAgain: _locationConsentAskAgain,
-        askedAgainForVariant: _locationConsentAskAgainForVariant);
+        askedAgainForVariant: _locationConsentAskAgainForVariant,
+        askedAfterWithdrawal: _locationConsentAskAgainAfterWithdrawal);
     if (granted == null) return false; // dismissed - not a decision.
     // ONLY A YES IS REMEMBERED, and this is where it differs from the OSRM
     // pair on purpose. A remembered NO would trap her: the route question has
@@ -4383,6 +4393,7 @@ class _HomePageState extends State<HomePage> {
     _locationConsentAskAgain = false;
     _consentedVariant = shown;
     _locationConsentAskAgainForVariant = false;
+    _locationConsentAskAgainAfterWithdrawal = false;
     unawaited(_locationConsentStore(hangBound: null).then((s) => s?.saveYes(
           revision: kLocationConsentRevision,
           locale: l.wordsLanguage,
@@ -4417,8 +4428,25 @@ class _HomePageState extends State<HomePage> {
         words, {
     required bool askedAgain,
     bool askedAgainForVariant = false,
+    bool askedAfterWithdrawal = false,
   }) {
     final l = AppL10n.of(context);
+    // One reason line at most, said first, each with its own keep list
+    // (2026-10-14: a list per text, never per slot). After a withdrawal the
+    // last thing she did was take consent back, so that is the reason given.
+    final (String, List<String>)? reason = askedAfterWithdrawal
+        ? (
+            l.locationConsentAskedAgainAfterWithdrawal,
+            l.locationConsentAskedAgainAfterWithdrawalKeepTogether,
+          )
+        : askedAgainForVariant
+            ? (
+                l.locationConsentAskedAgainForVariant,
+                const ['説明', '運転', 'もう一度'],
+              )
+            : askedAgain
+                ? (l.locationConsentAskedAgain, const ['説明', '運転', 'もう一度'])
+                : null;
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -4438,17 +4466,16 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (askedAgain || askedAgainForVariant) ...[
+              if (reason != null) ...[
                 KeepTogetherText(
                   // Its own reason when the revision has not changed and her
-                  // yes did not cover the variant now shown (2026-10-06).
-                  // Its words are kept whole where a break would split them
-                  // (2026-10-07, a screen review).
-                  askedAgainForVariant
-                      ? l.locationConsentAskedAgainForVariant
-                      : l.locationConsentAskedAgain,
+                  // yes did not cover the variant now shown (2026-10-06), and
+                  // after a withdrawal (2026-10-14). Its words are kept whole
+                  // where a break would split them (2026-10-07, a screen
+                  // review).
+                  reason.$1,
                   key: const Key('location-consent-asked-again'),
-                  words: const ['説明', '運転', 'もう一度'],
+                  words: reason.$2,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 12),
@@ -6839,9 +6866,13 @@ class _HomePageState extends State<HomePage> {
             Semantics(
               container: true,
               liveRegion: true,
-              child: Text(
-                key: const Key('location-consent-withdrawn-note'),
+              // Its key words are kept whole on every line (the screen
+              // review's keep list, 2026-10-14); the announced label is the
+              // plain words.
+              child: KeepTogetherText(
                 l.locationConsentWithdrawnNote,
+                key: const Key('location-consent-withdrawn-note'),
+                words: l.locationConsentWithdrawnNoteKeepTogether,
                 style:
                     const TextStyle(fontSize: 11, color: kCautionTextOnAmber),
               ),
