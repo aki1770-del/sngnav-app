@@ -731,6 +731,11 @@ class Code15FixIntervalRecord {
     _hasFixLines = fixTimingTextHasFixLines(readAll());
     _count = Code15MinimumCount.ofText(readAll());
     _lastShare = null;
+    // Lines made before his tap and still waiting for the naming are his
+    // record too: they go with it (2026-10-14). Kept, they were written into
+    // the fresh file at the naming, after his delete, where code 15 had them
+    // on disk at his tap and deleted them with it.
+    _held.clear();
     // A fresh file holds no boundary: the next line this build writes is
     // preceded by one (decided from the file's bytes, as at naming). Until
     // the writer is named it stays owed.

@@ -402,6 +402,31 @@ void main() {
     });
   });
 
+  group('W-11: his delete deletes every line made before his tap, the lines '
+      'still waiting for the naming included', () {
+    // The safety reader's T-A (2026-10-14), as offered. On 55bad2e8 his delete
+    // left the waiting lines to be written into the fresh file at the naming:
+    // lines from before his tap, after it. Code 15 had every such line on disk
+    // at his tap, and it went with the file.
+    test('T-A his delete before the naming deletes the lines waiting for it',
+        () async {
+      File('${dir.path}/${kCode15RecordFileNames[0]}').writeAsStringSync(
+          's=0 t=0 k=launch\n'
+          's=1 t=0 k=start a=- v=- late=- fg=1\n'
+          's=1 t=5000 k=fine a=4.0 v=13.4 late=900 fg=1\n');
+      final c = Completer<BuildIdentity>();
+      final r = (await openCode15FixIntervalRecord(
+          directory: dir, identity: () => c.future))!;
+      fine(r, 1000); // made before his tap, still waiting
+      fine(r, 2000);
+      r.deleteRecordOnHisTap();
+      fine(r, 3000); // made after his tap
+      c.complete(await testBuildIdentity());
+      await r.named;
+      expect(linesOf(r), [kTestBoundaryLine, startsWith('s=1 t=3000 k=fine')]);
+    });
+  });
+
   group('W-8: no k=engine line on code 16', () {
     test('lib/ carries no k=engine at all', () {
       final hits = Directory('lib')
