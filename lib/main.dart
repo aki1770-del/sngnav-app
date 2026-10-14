@@ -5770,7 +5770,7 @@ class _HomePageState extends State<HomePage> {
     if (copies != null) {
       // His new tap ends the last share: its receiver copy goes now, even if
       // this share fails before share_plus is reached.
-      copies.deleteSharePlusCopy();
+      copies.deleteSharePlusCopies();
       try {
         // The header names the build that shares (code 16). In the first
         // second after a start it may not be named yet: wait for it briefly,

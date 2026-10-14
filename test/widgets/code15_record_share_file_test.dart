@@ -42,6 +42,10 @@ import '../support/fake_alert_actuators.dart';
 import '../support/test_record_writer.dart';
 
 const _failedJa = '記録を端末の共有画面に渡せませんでした。何も送られていません。';
+
+/// A share's file name since code 16 (ported from d7c5b6a): the prefix, a
+/// token of 8 hex digits, `.txt`. No time of day.
+final _shareName = RegExp(r'^sngnav-fix-interval-record-[0-9a-f]{8}\.txt$');
 const _failedEn = 'The record could not be handed to the share screen. Nothing was sent.';
 
 JmaObservation _clear() => JmaObservation(
@@ -162,7 +166,9 @@ directory: Directory('${dir.path}/files')..createSync(),
     expect(record.full, isTrue, reason: 'control: the record is at its cap');
     await _tap(tester, 'code15-record-share-button');
     expect(fake.handed, hasLength(1));
-    expect(fake.handed.single, '${cache.path}/$kRecordShareStagingDir/$kRecordShareFileName');
+    final handed = File(fake.handed.single);
+    expect(handed.parent.path, '${cache.path}/$kRecordShareStagingDir');
+    expect(handed.uri.pathSegments.last, matches(_shareName));
     final text = fake.texts.single;
     final body = record.readAll();
     expect(text.endsWith('---\n$body'), isTrue, reason: 'the file cut the record');
@@ -181,10 +187,10 @@ directory: Directory('${dir.path}/files')..createSync(),
     final copies = RecordShareFile(cacheDirectory: cache);
     await _tap(tester, 'code15-record-share-button');
     expect(fake.handed, hasLength(1), reason: 'control: the sink was called');
-    expect(copies.staged.existsSync(), isFalse, reason: 'the staging copy outlived the call');
-    expect(copies.sharePlusCopy.existsSync(), isTrue,
+    expect(copies.staged, isEmpty, reason: 'the staging copy outlived the call');
+    expect(copies.sharePlusCopies, hasLength(1),
         reason: 'a receiver that opens the link late would read nothing');
-    expect(copies.sharePlusCopy.readAsStringSync(), fake.texts.single,
+    expect(copies.sharePlusCopies.single.readAsStringSync(), fake.texts.single,
         reason: 'the kept copy is the whole file that was handed on');
   });
 
@@ -205,13 +211,13 @@ directory: Directory('${dir.path}/files')..createSync(),
       tester.binding.handleAppLifecycleStateChanged(s);
       await tester.pump();
     }
-    expect(copies.sharePlusCopy.existsSync(), isTrue,
+    expect(copies.sharePlusCopies, hasLength(1),
         reason: 'the receiver may still be reading: kept while the call runs');
     // The call returns while the app is still behind.
     fake.hold!.complete();
     await _settle(tester);
-    expect(copies.staged.existsSync(), isFalse);
-    expect(copies.sharePlusCopy.existsSync(), isTrue,
+    expect(copies.staged, isEmpty);
+    expect(copies.sharePlusCopies, hasLength(1),
         reason: 'not deleted while the app is not in front');
     // He comes back.
     for (final s in const [AppLifecycleState.inactive, AppLifecycleState.resumed]) {
@@ -221,9 +227,9 @@ directory: Directory('${dir.path}/files')..createSync(),
     await _settle(tester);
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await _settle(tester);
-    expect(copies.sharePlusCopy.existsSync(), isTrue,
+    expect(copies.sharePlusCopies, hasLength(1),
         reason: 'his return deleted the copy a late receiver reads');
-    expect(copies.sharePlusCopy.readAsStringSync(), fake.texts.single);
+    expect(copies.sharePlusCopies.single.readAsStringSync(), fake.texts.single);
   });
 
   testWidgets('his next 記録を共有 deletes the last share\'s receiver copy, even '
@@ -232,7 +238,7 @@ directory: Directory('${dir.path}/files')..createSync(),
     fill(record);
     final copies = RecordShareFile(cacheDirectory: cache);
     await _tap(tester, 'code15-record-share-button');
-    expect(copies.sharePlusCopy.existsSync(), isTrue, reason: 'control: kept after the share');
+    expect(copies.sharePlusCopies, hasLength(1), reason: 'control: kept after the share');
     // The next staging write cannot be made: a regular file where the folder was.
     final staging = Directory('${cache.path}/$kRecordShareStagingDir');
     if (staging.existsSync()) staging.deleteSync(recursive: true);
@@ -240,7 +246,7 @@ directory: Directory('${dir.path}/files')..createSync(),
     await _tap(tester, 'code15-record-share-button');
     expect(fake.handed, hasLength(1), reason: 'control: the second share reached nothing');
     expect(_status(tester).split('\n').first, _failedJa, reason: 'control: said');
-    expect(copies.sharePlusCopy.existsSync(), isFalse,
+    expect(copies.sharePlusCopies, isEmpty,
         reason: 'the last share\'s receiver copy outlived his next 記録を共有');
   });
 
@@ -251,15 +257,15 @@ directory: Directory('${dir.path}/files')..createSync(),
     final copies = RecordShareFile(cacheDirectory: cache);
     // The receiver copy his share left, kept for a late reader.
     await _tap(tester, 'code15-record-share-button');
-    expect(copies.sharePlusCopy.existsSync(), isTrue, reason: 'control: kept after the share');
+    expect(copies.sharePlusCopies, hasLength(1), reason: 'control: kept after the share');
     // A staging copy left on disk too (as if a share were cut short).
     copies.stage('leftover\n');
     await _tap(tester, 'code15-record-delete-button');
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
     await _settle(tester);
     expect(record.hasLines, isFalse, reason: 'control: the record is deleted');
-    expect(copies.staged.existsSync(), isFalse);
-    expect(copies.sharePlusCopy.existsSync(), isFalse);
+    expect(copies.staged, isEmpty);
+    expect(copies.sharePlusCopies, isEmpty);
   });
 
   testWidgets('a share that cannot be handed on says so, in the ruled words, in '
@@ -269,7 +275,7 @@ directory: Directory('${dir.path}/files')..createSync(),
     fake.throwThis = Exception('Share failed');
     await _tap(tester, 'code15-record-share-button');
     expect(_status(tester).split('\n').first, _failedJa);
-    expect(RecordShareFile(cacheDirectory: cache).staged.existsSync(), isFalse,
+    expect(RecordShareFile(cacheDirectory: cache).staged, isEmpty,
         reason: 'the staging copy outlived a failed call');
     fake.throwThis = null;
     await _tap(tester, 'code15-record-share-button');
@@ -297,8 +303,12 @@ directory: Directory('${dir.path}/files')..createSync(),
       'openRecordShareFile()?.deleteAll())', () async {
     final copies = (await openRecordShareFile(cacheDirectory: cache))!;
     copies.stage('left by a process that ended mid-share\n');
-    copies.sharePlusCopy.parent.createSync(recursive: true);
-    copies.sharePlusCopy.writeAsStringSync('x');
+    // A receiver copy, and the one fixed name earlier builds wrote.
+    for (final n in ['sngnav-fix-interval-record-0badf00d.txt', 'sngnav-fix-interval-record.txt']) {
+      File('${copies.sharePlusDirectory.path}/$n')
+        ..parent.createSync(recursive: true)
+        ..writeAsStringSync('x');
+    }
     expect(copies.anyCopy, isTrue, reason: 'control');
     copies.deleteAll();
     expect(copies.anyCopy, isFalse);
@@ -332,7 +342,66 @@ directory: Directory('${dir.path}/files')..createSync(),
     expect(RegExp(r'ShareParams\(').hasMatch(rec), isFalse,
         reason: 'the recorder builds no share of its own');
     final c = RecordShareFile(cacheDirectory: Directory('/cache'));
-    expect(c.staged.path, '/cache/$kRecordShareStagingDir/$kRecordShareFileName');
-    expect(c.sharePlusCopy.path, '/cache/share_plus/$kRecordShareFileName');
+    expect(c.stagingDirectory.path, '/cache/$kRecordShareStagingDir');
+    expect(c.sharePlusDirectory.path, '/cache/share_plus');
+    expect(c.newShareFileName(), matches(_shareName));
+  });
+
+  testWidgets('each share has a file name of its own; the last share\'s link '
+      'then names a file that is gone, so a late read fails rather than '
+      'reading the next share', (tester) async {
+    final (record, fake) = await boot(tester);
+    fill(record);
+    final copies = RecordShareFile(cacheDirectory: cache);
+    await _tap(tester, 'code15-record-share-button');
+    final first = copies.sharePlusCopies.single;
+    await _tap(tester, 'code15-record-share-button');
+    final second = copies.sharePlusCopies.single;
+    expect(fake.handed, hasLength(2), reason: 'control: two shares');
+    for (final f in [first, second]) {
+      expect(f.uri.pathSegments.last, matches(_shareName));
+    }
+    expect(second.path, isNot(first.path),
+        reason: 'one name for two shares: a late link would read the next '
+            'share\'s bytes');
+    expect(() => first.readAsStringSync(), throwsA(isA<FileSystemException>()),
+        reason: 'the first share\'s link must fail, not read another share');
+    expect(second.readAsStringSync(), fake.texts.last);
+  });
+
+  test('every copy is deleted by the name\'s prefix, an earlier build\'s fixed '
+      'name included, and nothing else in the folders is touched', () {
+    final copies = RecordShareFile(cacheDirectory: cache);
+    final plant = [
+      File('${cache.path}/$kSharePlusCacheDir/sngnav-fix-interval-record.txt'),
+      File('${cache.path}/$kSharePlusCacheDir/sngnav-fix-interval-record-0badf00d.txt'),
+      File('${cache.path}/$kSharePlusCacheDir/sngnav-fix-interval-record-12345678.txt'),
+      File('${cache.path}/$kRecordShareStagingDir/sngnav-fix-interval-record-cafe0001.txt'),
+    ];
+    final other = File('${cache.path}/$kSharePlusCacheDir/someone-else.txt');
+    for (final f in [...plant, other]) {
+      f.parent.createSync(recursive: true);
+      f.writeAsStringSync('x');
+    }
+    expect(copies.sharePlusCopies, hasLength(3), reason: 'control');
+    copies.deleteAll();
+    for (final f in plant) {
+      expect(f.existsSync(), isFalse, reason: f.path);
+    }
+    expect(other.existsSync(), isTrue, reason: 'not the record\'s: not touched');
+  });
+
+  test('a share\'s name is the prefix and a random token, with no field for '
+      'a version code or a time of day', () {
+    final c = RecordShareFile(cacheDirectory: Directory('/cache'));
+    final names = {for (var i = 0; i < 50; i++) c.newShareFileName()};
+    for (final n in names) {
+      expect(n, matches(_shareName));
+    }
+    expect(names.length, greaterThan(45),
+        reason: 'the token is random: 50 draws of 32 bits barely repeat');
+    expect(recordShareFileName('0badf00d'), 'sngnav-fix-interval-record-0badf00d.txt');
+    expect(kRecordShareFilePrefix, 'sngnav-fix-interval-record',
+        reason: 'the name is a key; identity lives in the header');
   });
 }
