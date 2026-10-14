@@ -622,7 +622,25 @@ Future<List<String>> d8EffectGrid(
 /// Everything one geometry measured: every line, and every failure.
 class D8Result {
   final List<String> lines = [];
+
+  /// The row checks: every transition, effect grid, `end` pin and positive
+  /// control. These are D-8's own and bind code 16.
   final List<String> failures = [];
+
+  /// S-3 WHOLE: an answer of the consent dialog lies under 現在地を共有's
+  /// place, in either window. Carried as its own requirement (the Chair,
+  /// 2026-10-14); its red lines are kept here, never dropped.
+  final List<String> dialogFailures = [];
+
+  /// The consent dialog's yes, as a share of 現在地を共有's place: the larger
+  /// of the two windows. Null when the dialog was not measured, which is never
+  /// a pass. S-3 NARROW compares it with code 15's.
+  double? yesFraction;
+
+  /// True only once the dialog was measured in both windows. S-3 WHOLE with
+  /// nothing measured is never a pass (an aborted sequence D leaves it false).
+  bool dialogMeasured = false;
+
   void fail(String s) => failures.add(s);
 }
 
@@ -839,6 +857,7 @@ Future<D8Result> d8RunGeometry(
     // reached by a double press is not her affirmative act. The answers are
     // pinned to the dialog's foot, so where they sit depends on the window:
     // measured in both frames, and the worse one governs.
+    var measured = true;
     for (final f in const [kD8Edge, kD8Api29Window]) {
       final gd = g.inFrame(f);
       await d8SetGeometry(tester, gd);
@@ -858,10 +877,12 @@ Future<D8Result> d8RunGeometry(
             D8Control(k, tester.getRect(find.byKey(Key(k)))),
       ];
       if (answers.length != 2) {
-        r.fail(
+        r.dialogFailures.add(
           'dialog ${gd.label}: control: the consent dialog\'s two answers '
           'are not both drawn (${answers.length})',
         );
+        r.yesFraction = null;
+        measured = false;
       } else {
         for (final a in answers) {
           final gap = d8EdgeGap(from, a.rect);
@@ -870,23 +891,97 @@ Future<D8Result> d8RunGeometry(
             '${gap.toStringAsFixed(1)} dp from 現在地を共有\'s place ${d8Rect(from)}',
           );
           if (gap < 0) {
-            r.fail(
+            r.dialogFailures.add(
               'dialog ${gd.label}: ${a.name} ${d8Rect(a.rect)} intersects '
               '現在地を共有\'s place ${d8Rect(from)} (${gap.toStringAsFixed(1)} dp)',
             );
           }
+          if (a.name == 'location-consent-accept' && measured) {
+            final o = from.intersect(a.rect);
+            final share = o.width > 0 && o.height > 0
+                ? o.width * o.height / (from.width * from.height)
+                : 0.0;
+            r.yesFraction = math.max(r.yesFraction ?? 0.0, share);
+          }
         }
       }
       await app.shares.closeAll();
+    }
+    r.dialogMeasured = measured;
+    if (r.yesFraction != null) {
+      r.lines.add(
+        'D8 s3-yes ${g.label}: the yes covers '
+        '${(100 * r.yesFraction!).toStringAsFixed(1)}% of 現在地を共有\'s place '
+        '(larger window)',
+      );
     }
   });
   await tester.pumpWidget(const SizedBox.shrink());
   return r;
 }
 
-/// The sweep for one language and width: every scale in [kD8Scales], one
-/// test each. `D8_SCALES=1.0,1.5` in the environment narrows it for a probe or
-/// a mutant run; the suite runs the whole sweep.
+/// One row of test/fixtures/stop_spot_guard/s3_baseline.tsv.
+class D8S3Baseline {
+  D8S3Baseline(this.code15Yes, this.narrowRed, this.wholeRed);
+
+  /// The yes's share of 現在地を共有's place on code 15's tree.
+  final double code15Yes;
+
+  /// Recorded red on the head the Chair ruled to carry (2026-10-14).
+  final bool narrowRed;
+  final bool wholeRed;
+}
+
+/// The key a geometry has in the S-3 fixture.
+String d8Key(String lang, double widthDp, double scale) =>
+    '$lang ${widthDp.toStringAsFixed(1)} ${scale.toStringAsFixed(2)}';
+
+/// The S-3 fixture, read once. Generated from two guard runs, never edited by
+/// hand (its header names them).
+Map<String, D8S3Baseline> d8S3Baseline() {
+  final out = <String, D8S3Baseline>{};
+  for (final line in File(
+    'test/fixtures/stop_spot_guard/s3_baseline.tsv',
+  ).readAsLinesSync()) {
+    if (line.startsWith('#') || line.startsWith('lang\t') || line.isEmpty) {
+      continue;
+    }
+    final f = line.split('\t');
+    out[d8Key(f[0], double.parse(f[1]), double.parse(f[2]))] = D8S3Baseline(
+      double.parse(f[3]),
+      f[5] == '1',
+      f[6] == '1',
+    );
+  }
+  return out;
+}
+
+/// S-3 NARROW's tolerance: the consent review's (2026-10-14).
+const double kD8YesTolerance = 0.005;
+
+/// The sweep for one language and width: every scale in [kD8Scales].
+/// `D8_SCALES=1.0,1.5` in the environment narrows it for a probe or a mutant
+/// run; the suite runs the whole sweep.
+///
+/// THREE TESTS PER GEOMETRY, and why they are apart. A test that holds
+/// several checks reports one result, so a red dialog check would hide a new
+/// red row check behind it. Apart, each says its own truth:
+/// - ROWS: every transition, effect grid, `end` pin and positive control.
+///   D-8's own; binds code 16. Green everywhere on this layout.
+/// - S-3 NARROW: the consent dialog's yes covers no more of 現在地を共有's place
+///   than on code 15's tree (+0.005), per geometry. D-8's own: its move must
+///   not make the yes easier to reach. RED at 16 large-text geometries where
+///   the capped label grows the target into the yes. Kept red, not skipped
+///   and not inverted: the Chair ruled them carried, to be fixed before this
+///   layout reaches code 17 or main (2026-10-14).
+/// - S-3 WHOLE: no answer of the consent dialog lies under 現在地を共有's place.
+///   Shared with code 15's tree (red there at 100 of 126) and carried as its
+///   own requirement; red at 90 here. Its red lines are kept, never deleted
+///   or skipped.
+/// ONE CENSUS per file: the sets of geometries red on S-3 NARROW and S-3 WHOLE
+/// equal the recorded sets exactly. A new red, or a recorded red that turned
+/// green unannounced, turns the census red; so the suite's red set can be
+/// read by name, and a change in it cannot pass in silence.
 void d8Sweep(String lang, double dpr) {
   final env = D8Env();
   setUp(env.setUp);
@@ -895,15 +990,110 @@ void d8Sweep(String lang, double dpr) {
   final scales = only == null || only.isEmpty
       ? kD8Scales
       : [for (final s in only.split(',')) double.parse(s)];
+  final baseline = d8S3Baseline();
+  final results = <String, D8Result>{};
+  final widthDp = kD8Edge.physical.width / dpr;
   for (final s in scales) {
     final g = D8Geometry(lang, dpr, s);
-    testWidgets('stop-spot guard, ${g.label}', (tester) async {
+    final key = d8Key(lang, g.widthDp, s);
+    testWidgets('stop-spot guard, rows, ${g.label}', (tester) async {
       final r = await d8RunGeometry(tester, env, g);
+      results[key] = r;
       for (final l in r.lines) {
         // ignore: avoid_print
         print(l);
       }
       expect(r.failures, isEmpty, reason: '\n${r.failures.join('\n')}');
     });
+    test('stop-spot guard, S-3 narrow: the yes covers no more of '
+        '現在地を共有\'s place than on code 15, ${g.label}', () {
+      final r = results[key];
+      final b = baseline[key];
+      expect(r, isNotNull, reason: 'the geometry was not measured: no verdict');
+      expect(b, isNotNull, reason: 'no code 15 baseline for $key: no verdict');
+      expect(
+        r!.yesFraction,
+        isNotNull,
+        reason: 'the consent dialog was not measured: no verdict',
+      );
+      final yes = r.yesFraction!;
+      final known = b!.narrowRed
+          ? 'KNOWN RED, carried: the Chair ruled 2026-10-14 that these 16 '
+                'large-text geometries are fixed before this layout reaches '
+                'code 17 or main'
+          : 'NEW: not among the 16 recorded geometries';
+      expect(
+        yes <= b.code15Yes + kD8YesTolerance,
+        isTrue,
+        reason:
+            '$key: the yes covers ${(100 * yes).toStringAsFixed(1)}% of '
+            '現在地を共有\'s place, against ${(100 * b.code15Yes).toStringAsFixed(1)}% '
+            'on code 15. $known.',
+      );
+    });
+    test('stop-spot guard, S-3 whole: no answer of the consent dialog under '
+        '現在地を共有\'s place, ${g.label}', () {
+      final r = results[key];
+      expect(r, isNotNull, reason: 'the geometry was not measured: no verdict');
+      expect(
+        r!.dialogMeasured,
+        isTrue,
+        reason:
+            'the consent dialog was not measured in both windows: no '
+            'verdict\n${r.dialogFailures.join('\n')}',
+      );
+      expect(
+        r.dialogFailures,
+        isEmpty,
+        reason:
+            'CARRIED as its own requirement (the Chair, 2026-10-14); red '
+            'on code 15\'s tree too.\n${r.dialogFailures.join('\n')}',
+      );
+    });
   }
+  test('stop-spot guard, S-3 census, $lang ${widthDp.toStringAsFixed(1)} dp: '
+      'the red sets are exactly as recorded', () {
+    final narrow = <String>{}, whole = <String>{};
+    final wantNarrow = <String>{}, wantWhole = <String>{};
+    for (final s in scales) {
+      final key = d8Key(lang, widthDp, s);
+      final r = results[key];
+      final b = baseline[key];
+      expect(r, isNotNull, reason: '$key was not measured: no census');
+      expect(b, isNotNull, reason: 'no baseline for $key: no census');
+      expect(
+        r!.dialogMeasured && r.yesFraction != null,
+        isTrue,
+        reason: '$key: the dialog was not measured: no census',
+      );
+      if (r.yesFraction! > b!.code15Yes + kD8YesTolerance) narrow.add(key);
+      if (r.dialogFailures.isNotEmpty) whole.add(key);
+      if (b.narrowRed) wantNarrow.add(key);
+      if (b.wholeRed) wantWhole.add(key);
+    }
+    expect(
+      narrow.difference(wantNarrow),
+      isEmpty,
+      reason: 'S-3 narrow: NEW red geometries',
+    );
+    expect(
+      wantNarrow.difference(narrow),
+      isEmpty,
+      reason:
+          'S-3 narrow: recorded red geometries now green; regenerate '
+          'the fixture and say so',
+    );
+    expect(
+      whole.difference(wantWhole),
+      isEmpty,
+      reason: 'S-3 whole: NEW red geometries',
+    );
+    expect(
+      wantWhole.difference(whole),
+      isEmpty,
+      reason:
+          'S-3 whole: recorded red geometries now green; regenerate the '
+          'fixture and say so',
+    );
+  });
 }
