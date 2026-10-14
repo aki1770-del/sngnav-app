@@ -86,6 +86,33 @@ void main() {
   });
 
   testWidgets(
+      'nothing labelled 停止 or 閉じる exists anywhere in the element tree '
+      'while no share runs, offstage included', (tester) async {
+    // The row's first version measured 停止 and 閉じる with hidden buttons in
+    // the tree; a finder that does not skip offstage widgets found the hidden
+    // 停止 and read a share as running. This is that finder.
+    for (final lang in const ['ja', 'en']) {
+      final g = D8Geometry(lang, 2.75, 1.0);
+      expect(await d8SetGeometry(tester, g), isTrue, reason: 'a real face');
+      final app = D8App(env, g);
+      await app.launch(tester);
+      expect(app.shareButton, findsOneWidget,
+          reason: 'control: the not-sharing row is drawn');
+      for (final label in [app.l.stop, app.l.close]) {
+        expect(find.text(label, skipOffstage: false), findsNothing,
+            reason: '$lang: "$label" is in the element tree while no share '
+                'runs');
+      }
+      // Control: the same finder does find 停止 once a share runs.
+      await app.reveal(tester, app.shareButton);
+      await app.tapAndNextFrame(tester, app.shareButton);
+      expect(find.text(app.l.stop, skipOffstage: false), findsOneWidget,
+          reason: 'control: the finder can find 停止 when it is drawn');
+      await app.shares.closeAll();
+    }
+  });
+
+  testWidgets(
       'the withdrawn note is a live region, so a screen reader is told when it '
       'appears', (tester) async {
     final handle = tester.ensureSemantics();

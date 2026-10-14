@@ -13,23 +13,32 @@
 /// THE RULE, as the screen review ruled it (2026-10-14):
 /// - PIN, where code 15's row with a yes held would have fitted on one line:
 ///   the control stays exactly where he has been tapping it, its right edge
-///   one withdrawal-width plus [spacing] left of the row's end, in every
-///   consent state. His thumb keeps its place.
+///   one withdrawal-width plus [ShareStartRow.spacing] left of the row's end,
+///   in every consent state. His thumb keeps its place.
 /// - RESERVED END, everywhere else, and wherever PIN would come within
-///   [clearance] of the end column: start-aligned, its width capped so its
-///   right edge stays [clearance] left of the widest of 停止 and 閉じる at this
-///   text size. Its label wraps if it must.
-/// The end column is read from real buttons laid out here with the same
-/// labels, never from a number: the separation is horizontal by
-/// construction, whatever the face, the status line's height, or whether the
-/// map-return control moved the card. The stop-spot guard
-/// (test/support/d8_stop_spot_guard.dart) measures the real 停止 against the
-/// real share control at every covered size, so a divergence between those
-/// buttons and the real 停止 turns it red.
+///   [ShareStartRow.clearance] of the end column: start-aligned, its width
+///   capped so its right edge stays that far left of the widest of 停止 and
+///   閉じる at this text size. Its label wraps if it must.
 ///
-/// The measuring buttons are laid out and nothing else: not painted, not hit
-/// tested, not in the semantics tree, not focusable, and invisible to the
-/// test finders, which treat them as offstage.
+/// HOW THE WIDTHS ARE KNOWN, and what the first version got wrong. They are
+/// computed, never drawn: [textButtonNaturalWidth] resolves a TextButton's
+/// style the way the framework resolves it (its own defaultStyleOf and
+/// themeStyleOf, the visual density, the padded tap target) and measures the
+/// label with the text painter the label's own Text would use. Nothing stands
+/// in the element tree but the share control itself.
+/// ⚑ The first version (5e73c4f7) laid out real, hidden TextButtons labelled
+/// 停止 and 閉じる to measure them, and its comment said they were invisible to
+/// the test finders. That was true only for finders that skip offstage
+/// widgets. A finder that does not (`skipOffstage: false`) found the hidden
+/// 停止 in the not-sharing row and read a share as running when none was: four
+/// tests failed. Corrected here; the measuring is off the tree.
+///
+/// The computed widths are pinned against real TextButtons laid out in the
+/// app's own theme, at both languages and every text size the stop-spot guard
+/// covers (test/widgets/stop_spot_guard/text_button_width_test.dart), and the
+/// guard measures the real 停止 against the real share control, so a
+/// divergence between the computation and the real button turns one of them
+/// red.
 library;
 
 import 'dart:math' as math;
@@ -45,24 +54,83 @@ const double kStopSpotClearance = 24.0;
 /// Which rule placed the share control in the last layout.
 enum ShareStartRule { pin, reservedEnd }
 
-/// The not-sharing row: [share] placed by PIN or RESERVED END, measured
-/// against [withdrawLabel], [stopLabel] and [closeLabel] drawn as the real
-/// buttons draw them.
-class ShareStartRow extends MultiChildRenderObjectWidget {
-  ShareStartRow({
+/// The width a `TextButton(onPressed: …, child: Text(label))` takes in
+/// [context] when nothing narrows it: its padded tap target, label on one
+/// line. Computed from the framework's own style resolution; no button is
+/// built.
+double textButtonNaturalWidth(BuildContext context, String label) {
+  const probe = TextButton(onPressed: null, child: SizedBox.shrink());
+  final defaults = probe.defaultStyleOf(context);
+  final themed = probe.themeStyleOf(context);
+  // An enabled button at rest: the state 停止 and 閉じる are drawn in.
+  const states = <WidgetState>{};
+  T? pick<T>(T? Function(ButtonStyle? s) of) => of(themed) ?? of(defaults);
+
+  final textStyle = pick((s) => s?.textStyle?.resolve(states));
+  final padding = pick((s) => s?.padding?.resolve(states))!
+      .resolve(Directionality.of(context));
+  final minimumSize = pick((s) => s?.minimumSize?.resolve(states))!;
+  final maximumSize = pick((s) => s?.maximumSize?.resolve(states))!;
+  final density = pick((s) => s?.visualDensity)!;
+  final tapTarget = pick((s) => s?.tapTargetSize)!;
+  final adjust = density.baseSizeAdjustment;
+
+  // Material draws the label under DefaultTextStyle(textStyle), not merged
+  // with the ambient one; Text then applies bold-text if the platform asks.
+  var style = textStyle ?? Theme.of(context).textTheme.bodyMedium!;
+  if (MediaQuery.boldTextOf(context)) {
+    style = style.merge(const TextStyle(fontWeight: FontWeight.bold));
+  }
+  final painter = TextPainter(
+    text: TextSpan(text: label, style: style),
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+    locale: Localizations.maybeLocaleOf(context),
+    textHeightBehavior: DefaultTextHeightBehavior.maybeOf(context),
+  )..layout();
+  final textWidth = painter.width;
+  painter.dispose();
+
+  // ButtonStyleButton: density never narrows the horizontal padding.
+  final dx = math.max(0.0, adjust.dx);
+  final constraints = density.effectiveConstraints(BoxConstraints(
+    minWidth: minimumSize.width,
+    minHeight: minimumSize.height,
+    maxWidth: maximumSize.width,
+    maxHeight: maximumSize.height,
+  ));
+  var width = (textWidth + padding.horizontal + 2 * dx)
+      .clamp(constraints.minWidth, constraints.maxWidth)
+      .toDouble();
+  if (tapTarget == MaterialTapTargetSize.padded) {
+    width = math.max(width, kMinInteractiveDimension + adjust.dx);
+  }
+  return width;
+}
+
+/// The not-sharing row: [share] placed by PIN or RESERVED END, against the
+/// widths [withdrawLabel], [stopLabel] and [closeLabel] would take as
+/// TextButtons at this text size.
+class ShareStartRow extends StatelessWidget {
+  const ShareStartRow({
     super.key,
-    required Widget share,
-    required String withdrawLabel,
-    required String stopLabel,
-    required String closeLabel,
+    required this.share,
+    required this.withdrawLabel,
+    required this.stopLabel,
+    required this.closeLabel,
     this.clearance = kStopSpotClearance,
     this.spacing = 8,
-  }) : super(children: [
-          share,
-          _measure(withdrawLabel),
-          _measure(stopLabel),
-          _measure(closeLabel),
-        ]);
+  });
+
+  /// The share control, the only widget this row draws.
+  final Widget share;
+
+  /// The withdrawal's label, as code 15's row drew it beside [share].
+  final String withdrawLabel;
+
+  /// 停止 and 閉じる, drawn at the row's end while a share runs.
+  final String stopLabel;
+  final String closeLabel;
 
   /// The edge-to-edge clearance from the end column.
   final double clearance;
@@ -70,13 +138,36 @@ class ShareStartRow extends MultiChildRenderObjectWidget {
   /// The spacing code 15's row had between its two buttons.
   final double spacing;
 
-  static Widget _measure(String label) => ExcludeFocus(
-        child: TextButton(onPressed: null, child: Text(label)),
+  @override
+  Widget build(BuildContext context) => _ShareStartRowLayout(
+        withdrawWidth: textButtonNaturalWidth(context, withdrawLabel),
+        endColumn: math.max(textButtonNaturalWidth(context, stopLabel),
+            textButtonNaturalWidth(context, closeLabel)),
+        clearance: clearance,
+        spacing: spacing,
+        child: share,
       );
+}
+
+class _ShareStartRowLayout extends SingleChildRenderObjectWidget {
+  const _ShareStartRowLayout({
+    required this.withdrawWidth,
+    required this.endColumn,
+    required this.clearance,
+    required this.spacing,
+    required Widget super.child,
+  });
+
+  final double withdrawWidth;
+  final double endColumn;
+  final double clearance;
+  final double spacing;
 
   @override
   RenderShareStartRow createRenderObject(BuildContext context) =>
       RenderShareStartRow(
+        withdrawWidth: withdrawWidth,
+        endColumn: endColumn,
         clearance: clearance,
         spacing: spacing,
         textDirection: Directionality.of(context),
@@ -86,41 +177,42 @@ class ShareStartRow extends MultiChildRenderObjectWidget {
   void updateRenderObject(
       BuildContext context, RenderShareStartRow renderObject) {
     renderObject
+      ..withdrawWidth = withdrawWidth
+      ..endColumn = endColumn
       ..clearance = clearance
       ..spacing = spacing
       ..textDirection = Directionality.of(context);
   }
-
-  @override
-  MultiChildRenderObjectElement createElement() => _ShareStartRowElement(this);
 }
 
-/// The measuring buttons are offstage to the test finders, as they are to
-/// her: only the share control is "on stage".
-class _ShareStartRowElement extends MultiChildRenderObjectElement {
-  _ShareStartRowElement(super.widget);
-
-  @override
-  void debugVisitOnstageChildren(ElementVisitor visitor) {
-    if (children.isNotEmpty) visitor(children.first);
-  }
-}
-
-class _ShareStartRowParentData extends ContainerBoxParentData<RenderBox> {}
-
-/// Lays out four children: the share control, then the withdrawal, 停止 and
-/// 閉じる measuring buttons. Paints, hit tests and describes the first only.
-class RenderShareStartRow extends RenderBox
-    with
-        ContainerRenderObjectMixin<RenderBox, _ShareStartRowParentData>,
-        RenderBoxContainerDefaultsMixin<RenderBox, _ShareStartRowParentData> {
+/// Places its one child, the share control, by PIN or RESERVED END.
+class RenderShareStartRow extends RenderShiftedBox {
   RenderShareStartRow({
+    required double withdrawWidth,
+    required double endColumn,
     required double clearance,
     required double spacing,
     required TextDirection textDirection,
-  })  : _clearance = clearance,
+  })  : _withdrawWidth = withdrawWidth,
+        _endColumn = endColumn,
+        _clearance = clearance,
         _spacing = spacing,
-        _textDirection = textDirection;
+        _textDirection = textDirection,
+        super(null);
+
+  double _withdrawWidth;
+  set withdrawWidth(double v) {
+    if (v == _withdrawWidth) return;
+    _withdrawWidth = v;
+    markNeedsLayout();
+  }
+
+  double _endColumn;
+  set endColumn(double v) {
+    if (v == _endColumn) return;
+    _endColumn = v;
+    markNeedsLayout();
+  }
 
   double _clearance;
   set clearance(double v) {
@@ -147,34 +239,18 @@ class RenderShareStartRow extends RenderBox
   ShareStartRule get rule => _rule;
   ShareStartRule _rule = ShareStartRule.reservedEnd;
 
-  @override
-  void setupParentData(RenderBox child) {
-    if (child.parentData is! _ShareStartRowParentData) {
-      child.parentData = _ShareStartRowParentData();
-    }
-  }
-
-  RenderBox get _share => firstChild!;
-  RenderBox get _withdraw => childAfter(_share)!;
-  RenderBox get _stop => childAfter(_withdraw)!;
-  RenderBox get _close => childAfter(_stop)!;
-
-  /// The placement for [constraints]: the share control's constraints, its
-  /// start x (left to right), and the rule.
+  /// The share control's constraints and start x (left to right), and the
+  /// rule, for [constraints]. [natural] gives the control's width laid out
+  /// loosely in the row.
   (BoxConstraints, double, ShareStartRule) _place(
-    BoxConstraints constraints,
-    Size Function(RenderBox, BoxConstraints) size,
-  ) {
+      BoxConstraints constraints, double Function(BoxConstraints) natural) {
     final w = constraints.maxWidth;
-    if (!w.isFinite) {
-      // Unbounded: nothing to align against. Start-aligned, natural width.
-      return (constraints.loosen(), 0, ShareStartRule.reservedEnd);
-    }
-    final loose = BoxConstraints(maxWidth: w);
-    final withdrawW = size(_withdraw, loose).width;
-    final endColumn =
-        math.max(size(_stop, loose).width, size(_close, loose).width);
-    final shareW = size(_share, loose).width;
+    final loose = constraints.loosen();
+    if (!w.isFinite) return (loose, 0, ShareStartRule.reservedEnd);
+    // A button never draws wider than the row it sits in.
+    final withdrawW = math.min(_withdrawWidth, w);
+    final endColumn = math.min(_endColumn, w);
+    final shareW = natural(loose);
     final pinnedRight = w - withdrawW - _spacing;
     final fitsOneLine = shareW + _spacing + withdrawW <= w;
     if (fitsOneLine && pinnedRight <= w - _clearance - endColumn) {
@@ -186,8 +262,10 @@ class RenderShareStartRow extends RenderBox
 
   @override
   Size computeDryLayout(covariant BoxConstraints constraints) {
-    final (c, _, _) = _place(constraints, ChildLayoutHelper.dryLayoutChild);
-    final s = _share.getDryLayout(c);
+    final c = child;
+    if (c == null) return constraints.smallest;
+    final (cc, _, _) = _place(constraints, (l) => c.getDryLayout(l).width);
+    final s = c.getDryLayout(cc);
     return constraints.constrain(Size(
         constraints.maxWidth.isFinite ? constraints.maxWidth : s.width,
         s.height));
@@ -195,61 +273,21 @@ class RenderShareStartRow extends RenderBox
 
   @override
   void performLayout() {
-    Size layout(RenderBox child, BoxConstraints c) =>
-        ChildLayoutHelper.layoutChild(child, c);
-    final (c, x, rule) = _place(constraints, layout);
+    final c = child;
+    if (c == null) {
+      size = constraints.smallest;
+      return;
+    }
+    final (cc, x, rule) = _place(constraints, (l) {
+      c.layout(l, parentUsesSize: true);
+      return c.size.width;
+    });
     _rule = rule;
-    final s = layout(_share, c);
+    c.layout(cc, parentUsesSize: true);
+    final s = c.size;
     final w = constraints.maxWidth.isFinite ? constraints.maxWidth : s.width;
     final start = _textDirection == TextDirection.ltr ? x : w - x - s.width;
-    (_share.parentData! as _ShareStartRowParentData).offset = Offset(start, 0);
-    for (final m in [_withdraw, _stop, _close]) {
-      (m.parentData! as _ShareStartRowParentData).offset = Offset.zero;
-    }
+    (c.parentData! as BoxParentData).offset = Offset(start, 0);
     size = constraints.constrain(Size(w, s.height));
   }
-
-  @override
-  double computeMinIntrinsicWidth(double height) =>
-      _share.getMinIntrinsicWidth(height);
-
-  @override
-  double computeMaxIntrinsicWidth(double height) =>
-      _share.getMaxIntrinsicWidth(height);
-
-  @override
-  double computeMinIntrinsicHeight(double width) =>
-      _share.getMinIntrinsicHeight(width);
-
-  @override
-  double computeMaxIntrinsicHeight(double width) =>
-      _share.getMaxIntrinsicHeight(width);
-
-  @override
-  double? computeDistanceToActualBaseline(TextBaseline baseline) {
-    final d = _share.getDistanceToActualBaseline(baseline);
-    if (d == null) return null;
-    return d + (_share.parentData! as _ShareStartRowParentData).offset.dy;
-  }
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    final pd = _share.parentData! as _ShareStartRowParentData;
-    context.paintChild(_share, offset + pd.offset);
-  }
-
-  @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    final pd = _share.parentData! as _ShareStartRowParentData;
-    return result.addWithPaintOffset(
-      offset: pd.offset,
-      position: position,
-      hitTest: (result, transformed) =>
-          _share.hitTest(result, position: transformed),
-    );
-  }
-
-  @override
-  void visitChildrenForSemantics(RenderObjectVisitor visitor) =>
-      visitor(_share);
 }
