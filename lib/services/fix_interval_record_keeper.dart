@@ -14,10 +14,16 @@
 ///   ([kCode13RecordFileNames]): main deletes those on every launch.
 ///   test/services/fix_interval_record_keeper_test.dart pins the two lists as
 ///   disjoint.
-/// - NO LAUNCH PATH DELETES THEM. The only deletion of these names anywhere in
-///   lib/ is [LeftBehindFixIntervalRecord.deleteOnHisTap], and its only caller
-///   is the 記録を消す button on the left-behind card.
-///   test/architectural/code15_record_is_kept_test.dart holds that by census.
+/// - NO LAUNCH PATH DELETES THEM. The only deletions of these names in lib/
+///   are his taps on 記録を消す. On a build that does not record (main), that
+///   is [LeftBehindFixIntervalRecord.deleteOnHisTap], from the left-behind
+///   card. On a build that records (the test line: codes 15 and 16), the
+///   left-behind card is not drawn and that method has no caller; his tap
+///   reaches the recorder's own delete (services/code15_fix_interval_record
+///   .dart), which keeps the stopped marker. Corrected 2026-10-14: this said
+///   the left-behind card's was the only deletion, which was true on main
+///   only. test/architectural/code15_record_is_kept_test.dart holds the rule
+///   by census on each line.
 /// - The left-behind card: on a build that does not record (main), while the
 ///   record file exists, his page shows a card that says so, with 記録を共有 and
 ///   記録を消す (the 2026-10-09 dignity read, WDA W3). A build must not remove
@@ -47,13 +53,18 @@ import 'package:share_plus/share_plus.dart';
 import '../build_info.dart';
 import 'code13_record_cleanup.dart';
 
-/// Code 15's record, in the app-support directory.
+/// The fix-interval record, in the app-support directory. NAMED FOR CODE 15,
+/// the build that began this format; the name is a key, not a claim about who
+/// wrote the lines. Later builds append to the same file behind their own
+/// `k=build` line, which names the build that wrote what follows (2026-10-14).
 const String kCode15RecordFileName = 'fix_interval_record_15.txt';
 
-/// Code 15's "recording stopped" marker, beside the record.
+/// The record's "recording stopped" marker, beside the record. Named for code
+/// 15 too; his stop holds across every build that reads it.
 const String kCode15StoppedFileName = 'fix_interval_record_15.stopped';
 
-/// Every file code 15 writes. No build deletes these by name; only his tap.
+/// Every file the record keeps, by name: code 15 began them, and later builds
+/// write into them. No build deletes these by name; only his tap.
 const List<String> kCode15RecordFileNames = [
   kCode15RecordFileName,
   kCode15StoppedFileName,

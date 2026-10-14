@@ -1,4 +1,9 @@
-/// THE FIX-INTERVAL RECORD: CODE 15 ONLY (2026-10-10).
+/// THE FIX-INTERVAL RECORD: CODE 15's LINE (2026-10-10; code 16, 2026-10-14).
+///
+/// Code 16 writes into the same file, under the same name, which is a key and
+/// not a claim about who wrote its lines: each build that writes puts its own
+/// `k=build` line first ([RecordWriter], [kRecordBuildLinePattern]), and the
+/// lines before the first such line are code 15's.
 ///
 /// Why this exists. The tunnel-exit and weak-GPS fix (C-110 + TC-8) is held
 /// until one reading of how far apart his phone delivers GPS fixes is taken.
