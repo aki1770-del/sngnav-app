@@ -5631,11 +5631,16 @@ class _HomePageState extends State<HomePage> {
         // His tap handed nothing on: said once, in the live region, until his
         // next tap on 記録を共有 or 記録を消す.
         if (_code15ShareFailed) l.code15RecordShareFailed,
-        // Code 16: a build that cannot read its own version number writes no
-        // line of any kind; the card says so before anything else is true.
-        if (record.cannotNameItself)
-          l.code15RecordCannotNameBuildNote
-        else if (record.full)
+        // Code 16: a build that could not read its own version number writes
+        // no line of any kind; the card says so first. If he has also stopped
+        // the record, his stop is said too (2026-10-14, the dignity review):
+        // under the note alone, 記録を再開 would sit under a line that says
+        // only "not recording", and a tap meant to make it record would
+        // undo his stop.
+        if (record.cannotNameItself) ...[
+          l.code15RecordCannotNameBuildNote,
+          if (record.stopped) l.code15RecordStoppedNote,
+        ] else if (record.full)
           l.code15RecordFullNote
         else if (record.stopped)
           l.code15RecordStoppedNote,

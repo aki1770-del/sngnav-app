@@ -90,6 +90,22 @@ void main() {
         writer: RecordWriter.unreadable);
     await boot(tester, r);
     expect(status(tester), startsWith(l.code15RecordCannotNameBuildNote));
+    expect(status(tester), isNot(contains(l.code15RecordStoppedNote)),
+        reason: 'control: not stopped, no stop line');
+  });
+
+  testWidgets('stopped, and the build cannot name itself: both lines are drawn, '
+      'his stop included', (tester) async {
+    final r = Code15FixIntervalRecord(
+        directory: Directory('${tmp.path}/e')..createSync(),
+        writer: RecordWriter.unreadable);
+    r.stop();
+    expect(r.stopped, isTrue, reason: 'control: his stop holds');
+    await boot(tester, r);
+    final lines = status(tester).split('\n');
+    expect(lines[0], l.code15RecordCannotNameBuildNote);
+    expect(lines[1], l.code15RecordStoppedNote,
+        reason: 'his stop is not hidden behind the note');
   });
 
   testWidgets('the naming arrives after the page is up: the card redraws with '
