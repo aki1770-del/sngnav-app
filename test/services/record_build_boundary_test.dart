@@ -427,6 +427,52 @@ void main() {
     });
   });
 
+  group('W-2 as amended: the boundary is decided from the file\'s bytes at '
+      'the write', () {
+    // The safety reader's T-B (2026-10-14), as offered. Two writers of one
+    // build in one process (a second page's engine): on 55bad2e8 each kept
+    // its own decision from the naming, so the first page wrote a second
+    // boundary after the second page's resume, and the reader refuses the
+    // whole file (order, C11).
+    test('T-B two writers of one build in one process: exactly one boundary',
+        () async {
+      File('${dir.path}/${kCode15RecordFileNames[0]}').writeAsStringSync(
+          's=0 t=0 k=launch\n'
+          's=1 t=0 k=start a=- v=- late=- fg=1\n'
+          's=1 t=5000 k=fine a=4.0 v=13.4 late=900 fg=1\n');
+      File('${dir.path}/${kCode15RecordFileNames[1]}').writeAsStringSync('stopped\n');
+      final a = (await openCode15FixIntervalRecord(
+          directory: dir, identity: testBuildIdentity))!;
+      await a.named;
+      final b = (await openCode15FixIntervalRecord(
+          directory: dir, identity: testBuildIdentity))!;
+      await b.named;
+      b.resume(); // his resume, on the second page
+      fine(a, 4000); // the first page's share goes on writing
+      final boundaries =
+          linesOf(a).where((l) => kRecordBuildLinePattern.hasMatch(l)).length;
+      expect(boundaries, 1);
+      expect(linesOf(a).sublist(3),
+          [kTestBoundaryLine, kFixTimingResumeLine, startsWith('s=1 t=4000 k=fine')]);
+    });
+
+    test('T-B2 the other direction: his delete on the second page leaves the '
+        'first page owing a boundary for the fresh file', () async {
+      final a = (await openCode15FixIntervalRecord(
+          directory: dir, identity: testBuildIdentity))!;
+      await a.named;
+      final b = (await openCode15FixIntervalRecord(
+          directory: dir, identity: testBuildIdentity))!;
+      await b.named;
+      expect(linesOf(a), [kTestBoundaryLine, kFixTimingLaunchLine, kFixTimingLaunchLine],
+          reason: 'control: one boundary for two opens by one build');
+      b.deleteRecordOnHisTap(); // his delete, on the second page
+      fine(a, 7000); // the first page's share writes next
+      expect(linesOf(a), [kTestBoundaryLine, startsWith('s=1 t=7000 k=fine')],
+          reason: 'a fresh file with no boundary would be read as code 15\'s');
+    });
+  });
+
   group('W-8: no k=engine line on code 16', () {
     test('lib/ carries no k=engine at all', () {
       final hits = Directory('lib')

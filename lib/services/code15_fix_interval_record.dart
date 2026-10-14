@@ -442,9 +442,14 @@ class Code15FixIntervalRecord {
       _heldOverflow || (_writer != null && !_writer!.canWrite);
 
   /// Whether this build's boundary line is still owed: decided from the
-  /// file's bytes when the writer is named and again after his delete. True
-  /// until the writer is named (the stricter side for [full]).
+  /// file's bytes when the writer is named, after his delete, and AT THE
+  /// WRITE whenever it may have changed (see [_append]). True until the
+  /// writer is named (the stricter side for [full]).
   bool _boundaryOwed = true;
+
+  /// The file's length after this object's last write. A shorter file means
+  /// another writer of this build (a second page's engine) deleted it.
+  int _lengthAtLastWrite = 0;
 
   /// The boundary is owed when the file holds no `k=build` line, at any
   /// versionCode, 15 included (a file without one was written only by builds
@@ -564,7 +569,19 @@ class Code15FixIntervalRecord {
     final count = _count;
     try {
       // His stop holds for every line, the boundary included.
-      if ((!evenIfStopped && stopped) || full) return false;
+      if (!evenIfStopped && stopped) return false;
+      // DECIDED FROM THE FILE'S BYTES AT THE WRITE (2026-10-14, the safety
+      // reader's W-2 as amended). One process can hold two writers of this
+      // build (a second page's engine), each with its own object. While a
+      // boundary is owed, another may have written it since; and a file
+      // shorter than at this object's last write was deleted by another, so
+      // a boundary is owed again. In neither case is the decision kept from
+      // the naming: it is read again from the file. A full read happens only
+      // then: while owed, once; after another writer's delete, once.
+      if (_boundaryOwed || lengthBytes < _lengthAtLastWrite) {
+        _boundaryOwed = _owedFromFile();
+      }
+      if (full) return false;
       file.parent.createSync(recursive: true);
       if (_boundaryOwed) {
         // Immediately before this build's first line. [full] above has
@@ -576,6 +593,7 @@ class Code15FixIntervalRecord {
         count.add(w.boundaryLine);
       }
       file.writeAsStringSync('$line\n', mode: FileMode.append, flush: true);
+      _lengthAtLastWrite = lengthBytes;
     } catch (_) {
       return false;
     }
@@ -731,6 +749,7 @@ class Code15FixIntervalRecord {
     _hasFixLines = fixTimingTextHasFixLines(readAll());
     _count = Code15MinimumCount.ofText(readAll());
     _lastShare = null;
+    _lengthAtLastWrite = 0;
     // Lines made before his tap and still waiting for the naming are his
     // record too: they go with it (2026-10-14). Kept, they were written into
     // the fresh file at the naming, after his delete, where code 15 had them
