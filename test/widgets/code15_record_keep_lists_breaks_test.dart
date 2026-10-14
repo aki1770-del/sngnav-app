@@ -49,7 +49,13 @@ const _widths = [360.0, 1080 / _dpr, 411.4285714];
 const _scales = [0.85, 1.0, 1.1, 1.15, 1.3, 1.5, 2.0];
 
 /// The display review's lists (2026-10-10, rows 1, 4 and 5), as ruled.
-const _statusWords = ['渡せませんでした', '送られていません', '「記録を共有」', '開けません', 'ありません'];
+const _statusWords = [
+  '渡せませんでした', '送られていません', '「記録を共有」', '開けません', 'ありません',
+  // Code 16 (2026-10-14), the screen review's sweep gap: the note for a build
+  // that could not name itself was joined in code and never laid out here.
+  // 読み取れなかった, not 読めない, since the dignity review's past tense.
+  '読み取れなかった', '記録していません',
+];
 const _disclosureWords = [
   // Code 16 (2026-10-14): the quoted tokens the card now names.
   '「k=build」', '「build:」',
@@ -240,6 +246,24 @@ void main() {
         await t.pump();
         read('status empty', const Key('code15-record-status'), _statusWords,
             '${l.code15RecordShareFailed}\n${l.code15RecordEmpty}');
+
+        // A build that could not name itself (code 16): its note first, then
+        // the record's line; and with his stop, the stop line too.
+        final unnamed = Code15FixIntervalRecord(
+            writer: RecordWriter.unreadable, directory: Directory('${tmp.path}/c')..createSync());
+        await pumpCard('cannot name', unnamed, tmp);
+        await t.ensureVisible(find.byKey(const Key('code15-record-status')));
+        await t.pump();
+        read('status cannot name', const Key('code15-record-status'), _statusWords,
+            '${l.code15RecordShareFailed}\n${l.code15RecordCannotNameBuildNote}\n'
+            '${l.code15RecordEmpty}');
+        unnamed.stop();
+        await pumpCard('cannot name, stopped', unnamed, tmp);
+        await t.ensureVisible(find.byKey(const Key('code15-record-status')));
+        await t.pump();
+        read('status cannot name, stopped', const Key('code15-record-status'), _statusWords,
+            '${l.code15RecordShareFailed}\n${l.code15RecordCannotNameBuildNote}\n'
+            '${l.code15RecordStoppedNote}\n${l.code15RecordEmpty}');
 
         // No record at all: the unavailable line.
         await pumpCard('unavailable', null, tmp);
