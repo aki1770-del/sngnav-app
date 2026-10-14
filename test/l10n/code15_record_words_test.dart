@@ -343,9 +343,13 @@ void main() {
   group('the keep lists for the status and the disclosure (the display '
       'review, 2026-10-10), Japanese only', () {
     test('the status\'s list, exactly, and each word is in a state it draws', () {
+      // Code 16 (2026-10-14): two words for the note a build that cannot name
+      // itself draws.
       expect(_ja.code15RecordStatusKeepTogether,
-          ['渡せませんでした', '送られていません', '「記録を共有」', '開けません', 'ありません']);
+          ['渡せませんでした', '送られていません', '「記録を共有」', '開けません', 'ありません',
+           '読めない', '記録していません']);
       final states = [
+        _ja.code15RecordCannotNameBuildNote,
         _ja.code15RecordShareFailed,
         _ja.code15RecordPresent,
         _ja.code15RecordEmpty,
@@ -385,6 +389,7 @@ void main() {
           'code15RecordStoppedNote': l.code15RecordStoppedNote,
           'code15RecordFullNote': l.code15RecordFullNote,
           'code15RecordShareFailed': l.code15RecordShareFailed,
+          'code15RecordCannotNameBuildNote': l.code15RecordCannotNameBuildNote,
           'code15RecordDisclosure': l.code15RecordDisclosure,
           for (final e in _allForms().entries) 'code15RecordCount ${e.key}': e.value,
         };
