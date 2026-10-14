@@ -26,6 +26,12 @@ import 'package:sngnav_app/services/code15_fix_interval_record.dart';
 
 // The drafted words, as literals, with the three numbers left as fields so the
 // test fills them from source exactly as the app must.
+//
+// CODE 16 (2026-10-14): the disclosure's middle changed. The start mark is
+// named as what it is on this build, the purpose list takes it, and the
+// version line and the header's build: line are named. Drafted by the app
+// engineer with the code; the screen review and the dignity review read it
+// before the build goes to him. Until they do, this pins a draft, and says so.
 String _drafted({required bool ja}) {
   final cap = kCode15RecordCapKbText;
   final period = kCode15DesignFixPeriod.inSeconds;
@@ -35,13 +41,20 @@ String _drafted({required bool ja}) {
           'アカウントも不要です。このテスト版は、現在地を共有している間だけ、GPS の測位が'
           '届いた間隔を記録します（届いた時刻の間隔と遅れ・測位の種類と精度・速度・'
           'アプリが前面にあったか）。共有を止めたとき、アプリ自身が共有を終えたとき、'
-          'アプリが起動したとき、アプリを離れたときと戻ったとき、測位が届かない間は'
+          'アプリを離れたときと戻ったとき、測位が届かない間は'
           'アプリが動いていること（数秒ごと）も記録します（時刻は書きません）。'
-          'アプリを離れた・戻った印、動いている印、アプリが共有を終えた印は、'
+          'また、共有しているかどうかにかかわらず、アプリの画面が新しく開くたびに'
+          '印を残します（起動したときや、戻る操作で離れたあとにもう一度開いたときなど）。'
+          '版が初めてこの記録に書くとき（新しい版を入れたあとや、「記録を消す」のあと）は、'
+          'その版を示す一行（「k=build」で始まり、版番号と、版を見分ける短い英数字が'
+          '入ります）を最初に残します。'
+          'アプリが開いた印、アプリを離れた・戻った印、動いている印、アプリが共有を終えた印は、'
           '端末がアプリを止めたかどうかなど、アプリと端末がどう動いたかを見るためだけに'
           '使い、あなたが何をしたかを見るためには使いません。'
+          '版を示す行は、どの版が書いたかを見るためだけに使います。'
           '記録を止めたときと再開したときも、その印だけを残します。緯度経度や地名は'
-          '記録しません。共有する内容には書き出した時刻が入ります。'
+          '記録しません。共有する内容には、書き出した時刻と、'
+          '共有した版を示す「build:」の行が入ります。'
           '記録はこの端末に残り、Google のバックアップや、新しい端末へのデータ移行には'
           '含まれません（スマートフォンのメーカー独自のバックアップや移行アプリについては'
           '確かめていません）。アプリから送られるのは、「記録を共有」を押したときだけです。'
@@ -55,14 +68,22 @@ String _drafted({required bool ja}) {
           'while you share your location, how far apart GPS fixes arrive (the '
           'interval and delay of each, its kind and accuracy, your speed, and '
           'whether the app was in front). It also records when you stop '
-          'sharing, when the app itself ends a share, when the app starts, '
-          'when you leave the app and come back, and, while no fix arrives, '
-          'that the app is still running (every few seconds). No clock time. '
-          'The leave, return, still-running and app-ended marks are used only '
-          'to read how the app and the phone behaved, such as whether the '
-          'phone stopped the app, never to read what you did. It marks when '
-          'you stop and restart recording. It records no coordinates and no '
-          'place names. The shared text includes the time it was exported. '
+          'sharing, when the app itself ends a share, when you leave the app '
+          'and come back, and, while no fix arrives, that the app is still '
+          'running (every few seconds). No clock time. It also marks each time '
+          'the app opens its screen anew, such as when it starts or when you '
+          'open it again after going back out of it, whether or not you share. '
+          'When a version first writes to this record (after a newer version '
+          'is installed, or after Delete record), it first writes one line '
+          'naming that version: it begins with k=build and holds the version '
+          'number and short codes that tell builds apart. The start, leave, '
+          'return, still-running and app-ended marks are used only to read how '
+          'the app and the phone behaved, such as whether the phone stopped the '
+          'app, never to read what you did. The version line is used only to '
+          'read which version wrote which lines. It marks when you stop and '
+          'restart recording. It records no coordinates and no place names. '
+          'The shared text includes the time it was exported and a build: line '
+          'naming the version that shared it. '
           'The record stays on this phone. It is not included in Google\'s '
           'backup or in a transfer to a new phone (a phone maker\'s own backup '
           'or transfer app has not been checked). The app sends it only when '
@@ -363,8 +384,10 @@ void main() {
       expect(_en.code15RecordStatusKeepTogether, isEmpty);
     });
 
-    test('the disclosure\'s list, exactly (25 words), each in the disclosure', () {
+    test('the disclosure\'s list, exactly (27 words), each in the disclosure', () {
+      // Code 16 (2026-10-14): the two quoted tokens the card now names.
       expect(_ja.code15RecordDisclosureKeepTogether, [
+        '「k=build」', '「build:」',
         'テレメトリ', 'アカウント', 'テスト版', 'アプリ', 'バックアップ', 'データ移行',
         'スマートフォン', 'メーカー', '移行アプリ', 'コード13', '書きません', '使いません',
         '記録しません', '含まれません', '確かめていません', 'わかりません', '消えません',
