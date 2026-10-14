@@ -48,7 +48,9 @@ void main() {
 
   const l = AppL10n(Locale('ja'));
 
+  final shared = <String>[];
   Future<void> boot(WidgetTester tester, Code15FixIntervalRecord record) async {
+    shared.clear();
     final positions = StreamController<PositionFix>.broadcast();
     addTearDown(positions.close);
     await tester.pumpWidget(SngnavApp(
@@ -58,6 +60,9 @@ void main() {
       jmaFetch: () async => const JmaFailure('test: no observation'),
       positionSource: () => positions.stream,
       code15Record: record,
+      code15RecordShareSink: (path) async =>
+          shared.add(File(path).readAsStringSync()),
+      code15ShareCacheDirectory: Directory('${tmp.path}/cache'),
     ));
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 50));
@@ -97,5 +102,29 @@ void main() {
     r.nameWriter(RecordWriter.unreadable);
     await tester.pump();
     expect(status(tester), startsWith(l.code15RecordCannotNameBuildNote));
+  });
+
+  testWidgets('his share names the build that shares, in one build: line, and '
+      'changes no byte of the record', (tester) async {
+    final r = Code15FixIntervalRecord(
+        directory: Directory('${tmp.path}/d')..createSync(),
+        writer: kTestRecordWriter);
+    r.recordLaunch();
+    await boot(tester, r);
+    final before = r.readAll();
+    final button = find.byKey(const Key('code15-record-share-button'));
+    await tester.ensureVisible(button);
+    await tester.pump();
+    await tester.tap(button);
+    for (var i = 0; i < 10; i++) {
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    expect(shared, hasLength(1), reason: 'control: the share reached the sink');
+    final head = shared.single.split('---\n').first.split('\n');
+    expect(head.where((l) => l.startsWith('build:')).toList(),
+        ['build: 16 c0de16a 16a1b2c3d4e5']);
+    expect(shared.single.endsWith(before), isTrue);
+    expect(r.readAll(), before, reason: 'sharing writes no byte of the record');
   });
 }

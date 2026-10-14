@@ -5772,10 +5772,20 @@ class _HomePageState extends State<HomePage> {
       // this share fails before share_plus is reached.
       copies.deleteSharePlusCopy();
       try {
+        // The header names the build that shares (code 16). In the first
+        // second after a start it may not be named yet: wait for it briefly,
+        // and past that say so in the header (`build: - - -`), never guess.
+        RecordWriter? exporting;
+        try {
+          await record.named.timeout(const Duration(seconds: 2));
+          exporting = record.writer;
+        } catch (_) {
+          exporting = null;
+        }
         // The whole record, under its header, as a FILE: the share sheet
         // carries a link, never the text (services/record_share_file.dart).
-        final file =
-            copies.stage(composeCode15SharePayload(recordText: record.readAll()));
+        final file = copies.stage(composeCode15SharePayload(
+            recordText: record.readAll(), exportingBuild: exporting));
         await (widget.code15RecordShareSink ?? shareCode15RecordViaShareSheet)(
             file.path);
       } catch (_) {

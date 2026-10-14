@@ -967,12 +967,25 @@ Future<Code15FixIntervalRecord?> openCode15FixIntervalRecord({
   }
 }
 
+/// The share header's line for a build not (yet) named: every token a
+/// declared gap, never a guess.
+const String kRecordUnnamedBuildHeader = 'build: - - -';
+
 /// The record's share payload: an identity header (code 13's three lines, plus
 /// the record's line and byte counts so a receiver that cut the text is seen
 /// at the reading end), `---`, then every line as written. Never cut. When the
 /// record holds no fix line, it says so before any markers it does hold.
+///
+/// Code 16 (2026-10-14): the header carries exactly one `build: V S A` line
+/// (versionCode, commit, APK), right after `exported:`, naming the EXPORTING
+/// build in the boundary line's tokens ([RecordWriter.headerLine]); `-` for anything it
+/// could not read, and all three when it is not named. It names the build
+/// that shares, never the builds that wrote: those are the boundary lines'.
+/// The title line and `lines:`/`bytes:` are as before, and sharing writes no
+/// byte of the record.
 String composeCode15SharePayload({
   required String recordText,
+  required RecordWriter? exportingBuild,
   String? operatingSystem,
   DateTime? exportedAt,
 }) {
@@ -984,6 +997,7 @@ String composeCode15SharePayload({
     ..writeln('sngnav-app $appVersion fix-timing record (test build)')
     ..writeln('os: $os')
     ..writeln('exported: $ts')
+    ..writeln(exportingBuild?.headerLine ?? kRecordUnnamedBuildHeader)
     ..writeln('lines: $lines')
     ..writeln('bytes: $bytes')
     ..writeln('---');

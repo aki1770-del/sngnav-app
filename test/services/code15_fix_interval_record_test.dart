@@ -596,6 +596,7 @@ void main() {
       final text = r.readAll();
       final payload = composeCode15SharePayload(
         recordText: text,
+        exportingBuild: kTestRecordWriter,
         operatingSystem: 'android',
         exportedAt: DateTime.utc(2026, 10, 10, 8),
       );
@@ -610,7 +611,8 @@ void main() {
     test('the share text says there is no record when it holds no fix line',
         () {
       String payload(String text) => composeCode15SharePayload(
-          recordText: text, operatingSystem: 'android',
+          recordText: text, exportingBuild: kTestRecordWriter,
+          operatingSystem: 'android',
           exportedAt: DateTime.utc(2026, 10, 10));
       const none = '測位間隔の記録はありません';
       const markers = '$kFixTimingLaunchLine\n$kFixTimingPauseLine\n';

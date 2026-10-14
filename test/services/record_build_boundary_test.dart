@@ -350,6 +350,58 @@ void main() {
     });
   });
 
+  group('W-7 and BIS mutant 7: the share header names the exporting build',
+      () {
+    // The reading's own header rule, written out (classify_endings_v5.py,
+    // HEADER_BUILD_RE).
+    final headerRe = RegExp(r'^build: ([1-9]\d*|-) ([0-9a-f]{7}|-) ([0-9a-f]{12}|-)$');
+    String payload(RecordWriter? w, String text) => composeCode15SharePayload(
+        recordText: text,
+        exportingBuild: w,
+        operatingSystem: 'android',
+        exportedAt: DateTime.utc(2026, 10, 14, 12));
+
+    test('exactly one build: line, right after exported:, with all three '
+        'tokens', () {
+      const text = '$kTestBoundaryLine\n$kFixTimingLaunchLine\n';
+      final head = payload(kTestRecordWriter, text).split('---\n').first.split('\n');
+      expect(head.where((l) => l.startsWith('build:')).toList(),
+          ['build: 16 c0de16a 16a1b2c3d4e5']);
+      expect(head[head.indexWhere((l) => l.startsWith('exported:')) + 1],
+          'build: 16 c0de16a 16a1b2c3d4e5');
+      expect(headerRe.hasMatch('build: 16 c0de16a 16a1b2c3d4e5'), isTrue);
+    });
+
+    test('the title line, lines: and bytes: are as before', () {
+      const text = '$kTestBoundaryLine\n$kFixTimingLaunchLine\n';
+      final p = payload(kTestRecordWriter, text);
+      expect(p.split('\n').first, 'sngnav-app $appVersion fix-timing record (test build)');
+      expect(p, contains('lines: 2\n'));
+      expect(p, contains('bytes: ${utf8.encode(text).length}\n'));
+      expect(p.endsWith(text), isTrue, reason: 'the record whole, after ---');
+    });
+
+    test('declared gaps: an unnamed build, and one that cannot name itself',
+        () {
+      for (final w in [null, RecordWriter.unreadable]) {
+        final head = payload(w, '').split('---\n').first;
+        expect(head, contains('\n$kRecordUnnamedBuildHeader\n'), reason: '$w');
+        expect(headerRe.hasMatch(kRecordUnnamedBuildHeader), isTrue);
+      }
+      final noApk = RecordWriter(versionCode: 16, gitSha: 'c0de16a');
+      expect(payload(noApk, '').split('\n')[3], 'build: 16 c0de16a -',
+          reason: 'BIS 7: the apk slot is never dropped, only declared a gap');
+    });
+
+    test('sharing writes no byte of the record', () {
+      final r = open(kTestRecordWriter);
+      r.recordLaunch();
+      final before = r.readAll();
+      payload(r.writer, r.readAll());
+      expect(r.readAll(), before);
+    });
+  });
+
   group('W-8: no k=engine line on code 16', () {
     test('lib/ carries no k=engine at all', () {
       final hits = Directory('lib')
