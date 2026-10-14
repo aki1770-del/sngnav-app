@@ -14,8 +14,9 @@
 ///
 /// WHAT A PASS MEANS. The real ShareStartRow, laid out with labels chosen so
 /// the condition binds, takes the reserved end: start-aligned, its right edge
-/// at least 24 dp left of the end column. A control with the app's own labels
-/// takes PIN, at the place PIN defines. Not a device.
+/// at least 24 dp left of the end column. A control with synthetic labels
+/// shaped like the app's (a withdrawal far wider than 停止 and 閉じる) takes
+/// PIN, at the place PIN defines. Not a device.
 library;
 
 import 'package:flutter/material.dart';
@@ -26,9 +27,8 @@ import 'package:sngnav_app/widgets/share_start_row.dart';
 void main() {
   /// Lays out the row [width] dp wide (800: the test font draws every letter
   /// a full em, so code 15's one-line row needs room), starting at x = 0, and
-  /// returns the
-  /// share control's rectangle, the rule taken, and the end column's width as
-  /// the row computed it.
+  /// returns the share control's rectangle, the rule taken, the end column's
+  /// width and the withdrawal's width, both measured as the row measures them.
   Future<(Rect, ShareStartRule, double, double)> layOut(
     WidgetTester tester, {
     required String withdraw,
