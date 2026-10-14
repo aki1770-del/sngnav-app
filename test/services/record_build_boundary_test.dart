@@ -487,6 +487,31 @@ void main() {
   });
 
   group('W-9: the count closes its segment at the boundary', () {
+    // The safety reader's T-C (2026-10-14), as offered: the LIVE path. The
+    // rule's own test below reads text; this one reads the record object's
+    // count as it writes, over a code 15 share left open, so the card and
+    // the reading of the file cannot come apart. Red on the W9 mutant
+    // (the boundary not fed to the live count), green on the writer.
+    test('T-C the live count is the count of the file\'s own text', () {
+      File('${dir.path}/${kCode15RecordFileNames[0]}').writeAsStringSync(
+          's=0 t=0 k=launch\n'
+          's=1 t=0 k=start a=- v=- late=- fg=1\n'
+          's=1 t=5000 k=fine a=4.0 v=13.4 late=900 fg=1\n'
+          's=1 t=10000 k=fine a=4.0 v=13.4 late=900 fg=1\n'
+          's=1 t=500000 k=fine a=4.0 v=0 late=900 fg=0\n');
+      final r = open(kTestRecordWriter);
+      r.count;
+      fine(r, 1000);
+      fine(r, 2000);
+      final live = r.count;
+      final ofFile = Code15MinimumCount.ofText(r.readAll());
+      expect(
+          [live.movingMs, live.movingIntervals, live.unclassifiedIntervals,
+           live.stoppedMs, live.stoppedIntervals],
+          [ofFile.movingMs, ofFile.movingIntervals, ofFile.unclassifiedIntervals,
+           ofFile.stoppedMs, ofFile.stoppedIntervals]);
+    });
+
     test('no interval crosses it', () {
       const a = 's=1 t=0 k=fine a=8.0 v=15.0 late=200 fg=1';
       const b = 's=1 t=5000 k=fine a=8.0 v=15.0 late=200 fg=1';
