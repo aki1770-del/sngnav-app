@@ -1019,8 +1019,17 @@ void d8Sweep(String lang, double dpr) {
       final b = baseline[key];
       expect(r, isNotNull, reason: 'the geometry was not measured: no verdict');
       expect(b, isNotNull, reason: 'no code 15 baseline for $key: no verdict');
+      // Both windows, or no verdict (2026-10-14, the consent review's X2: one
+      // window's measurement passed this test while the other had aborted).
       expect(
-        r!.yesFraction,
+        r!.dialogMeasured,
+        isTrue,
+        reason:
+            'the consent dialog was not measured in both windows: no '
+            'verdict',
+      );
+      expect(
+        r.yesFraction,
         isNotNull,
         reason: 'the consent dialog was not measured: no verdict',
       );
