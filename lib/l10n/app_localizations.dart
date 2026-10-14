@@ -2414,8 +2414,9 @@ class AppL10n {
           '開けません',
           'ありません',
           // code 16 (2026-10-14): [code15RecordCannotNameBuildNote]'s
-          // negations, by the family rule.
-          '読めない',
+          // negations, by the family rule. 読み取れなかった since the dignity
+          // review's past tense (2026-10-14); the screen review confirms it.
+          '読み取れなかった',
           '記録していません',
         ]
       : const <String>[];
@@ -2423,11 +2424,13 @@ class AppL10n {
   /// The status's first line when this build could not read its own version
   /// number (code 16, 2026-10-14). It writes no line of any kind, because a
   /// line it wrote would be read as an earlier build's; his stop and his
-  /// delete still work. Drafted with the code; the screen review and the
-  /// dignity review read it before it reaches a phone.
+  /// delete still work. In the past tense, on the dignity review's read
+  /// (2026-10-14): it fires also when the platform did not answer in time,
+  /// and a relaunch may then name itself, so "cannot" would tell him not to
+  /// try. "Could not" is true in both cases.
   String get code15RecordCannotNameBuildNote => _ja
-      ? 'この版は自分の版番号を読めないため、記録していません。'
-      : 'This version cannot read its own version number, so it is not '
+      ? 'この版は自分の版番号を読み取れなかったため、記録していません。'
+      : 'This version could not read its own version number, so it is not '
           'recording.';
 
   /// Share action (code 13's).

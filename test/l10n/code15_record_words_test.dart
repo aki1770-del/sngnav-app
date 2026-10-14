@@ -368,7 +368,7 @@ void main() {
       // itself draws.
       expect(_ja.code15RecordStatusKeepTogether,
           ['渡せませんでした', '送られていません', '「記録を共有」', '開けません', 'ありません',
-           '読めない', '記録していません']);
+           '読み取れなかった', '記録していません']);
       final states = [
         _ja.code15RecordCannotNameBuildNote,
         _ja.code15RecordShareFailed,
