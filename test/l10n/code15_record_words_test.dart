@@ -384,10 +384,11 @@ void main() {
       expect(_en.code15RecordStatusKeepTogether, isEmpty);
     });
 
-    test('the disclosure\'s list, exactly (27 words), each in the disclosure', () {
-      // Code 16 (2026-10-14): the two quoted tokens the card now names.
+    test('the disclosure\'s list, exactly (28 words), each in the disclosure', () {
+      // Code 16 (2026-10-14): the two quoted tokens the card now names, and
+      // 届かない (the screen review's row 5).
       expect(_ja.code15RecordDisclosureKeepTogether, [
-        '「k=build」', '「build:」',
+        '「k=build」', '「build:」', '届かない',
         'テレメトリ', 'アカウント', 'テスト版', 'アプリ', 'バックアップ', 'データ移行',
         'スマートフォン', 'メーカー', '移行アプリ', 'コード13', '書きません', '使いません',
         '記録しません', '含まれません', '確かめていません', 'わかりません', '消えません',

@@ -2533,6 +2533,9 @@ class AppL10n {
           // Code 16 (2026-10-14): the two quoted tokens the card now names.
           '「k=build」',
           '「build:」',
+          // 2026-10-14, the screen review's row 5: a negation the round-4
+          // list missed. Split, 「…測位が届」 reads "the fix arrives".
+          '届かない',
           'テレメトリ',
           'アカウント',
           'テスト版',
