@@ -638,6 +638,11 @@ class D8Result {
   /// a pass. S-3 NARROW compares it with code 15's.
   double? yesFraction;
 
+  /// The consent dialog's no, the same way (2026-10-14, the consent review's
+  /// fix): a no that moves deeper into 現在地を共有's place is a carried
+  /// geometry getting worse, as a deeper yes is. Null when not measured.
+  double? noFraction;
+
   /// True only once the dialog was measured in both windows. S-3 WHOLE with
   /// nothing measured is never a pass (an aborted sequence D leaves it false).
   bool dialogMeasured = false;
@@ -883,6 +888,7 @@ Future<D8Result> d8RunGeometry(
           'are not both drawn (${answers.length})',
         );
         r.yesFraction = null;
+        r.noFraction = null;
         measured = false;
       } else {
         for (final a in answers) {
@@ -904,6 +910,13 @@ Future<D8Result> d8RunGeometry(
                 : 0.0;
             r.yesFraction = math.max(r.yesFraction ?? 0.0, share);
           }
+          if (a.name == 'location-consent-decline' && measured) {
+            final o = from.intersect(a.rect);
+            final share = o.width > 0 && o.height > 0
+                ? o.width * o.height / (from.width * from.height)
+                : 0.0;
+            r.noFraction = math.max(r.noFraction ?? 0.0, share);
+          }
         }
       }
       await app.shares.closeAll();
@@ -923,7 +936,13 @@ Future<D8Result> d8RunGeometry(
 
 /// One row of test/fixtures/stop_spot_guard/s3_baseline.tsv.
 class D8S3Baseline {
-  D8S3Baseline(this.code15Yes, this.headYes, this.narrowRed, this.wholeRed);
+  D8S3Baseline(
+    this.code15Yes,
+    this.headYes,
+    this.narrowRed,
+    this.wholeRed,
+    this.headNo,
+  );
 
   /// The yes's share of 現在地を共有's place on code 15's tree.
   final double code15Yes;
@@ -938,6 +957,12 @@ class D8S3Baseline {
   /// 2026-10-14, as the project's board record (7108b257) writes it down.
   final bool narrowRed;
   final bool wholeRed;
+
+  /// The no's share of 現在地を共有's place on that head: the no's CEILING at a
+  /// carried geometry (2026-10-14, the consent review's fix: the no grown 30 dp
+  /// left every verdict green). The fixture's last column; a fixture without it
+  /// does not parse, which is a fail.
+  final double headNo;
 }
 
 /// The key a geometry has in the S-3 fixture.
@@ -960,6 +985,7 @@ Map<String, D8S3Baseline> d8S3Baseline() {
       double.parse(f[4]),
       f[5] == '1',
       f[6] == '1',
+      double.parse(f[7]),
     );
   }
   return out;
@@ -967,6 +993,10 @@ Map<String, D8S3Baseline> d8S3Baseline() {
 
 /// S-3 NARROW's tolerance: the consent review's (2026-10-14).
 const double kD8YesTolerance = 0.005;
+
+/// The no ceiling's tolerance: the same half point, for the same reason (the
+/// fixture's shares come from rectangles printed to 0.1 dp).
+const double kD8NoTolerance = 0.005;
 
 /// Where the two carried skips rest, on disk.
 const String _kD8CarryRecord =
@@ -987,8 +1017,9 @@ String d8CarriedNarrowSkip(D8S3Baseline b) =>
 const String kD8CarriedWholeSkip =
     'KNOWN RED, carried: at this geometry an answer of the consent dialog was '
     'recorded under 現在地を共有\'s place, as on code 15\'s tree. '
-    '$_kD8CarryRecord Still measured: this file\'s S-3 census fails if it '
-    'turns green, if any other geometry turns red, or if the dialog is not '
+    '$_kD8CarryRecord Still measured: this file\'s S-3 census fails if the '
+    'yes or the no goes deeper into the place than recorded, if it turns '
+    'green, if any other geometry turns red, or if the dialog is not '
     'measured.';
 
 /// The sweep for one language and width: every scale in [kD8Scales].
@@ -1020,8 +1051,9 @@ const String kD8CarriedWholeSkip =
 /// verdict on every carried geometry. Everywhere else the two S-3 tests run.
 /// A geometry with no baseline row is never skipped (no verdict is a fail).
 /// ONE CENSUS per file: the sets of geometries red on S-3 NARROW and S-3 WHOLE
-/// equal the recorded sets exactly, no carried geometry is deeper than its
-/// carry, and every geometry's dialog was measured in both windows. A new red,
+/// equal the recorded sets exactly, at no carried geometry (narrow or whole)
+/// does the yes or the no lie deeper in the place than its carry, and every
+/// geometry's dialog was measured in both windows. A new red,
 /// a deeper red, a recorded red that turned green unannounced, or a dialog not
 /// measured turns the census red; so the suite's red set can be read by name,
 /// and a change in it cannot pass in silence. It prints every carried
@@ -1120,6 +1152,7 @@ void d8Sweep(String lang, double dpr) {
   test('stop-spot guard, S-3 census, $lang ${widthDp.toStringAsFixed(1)} dp: '
       'the red sets are exactly as recorded', () {
     final narrow = <String>{}, whole = <String>{}, deeper = <String>{};
+    final noDeeper = <String>{};
     final wantNarrow = <String>{}, wantWhole = <String>{};
     for (final s in scales) {
       final key = d8Key(lang, widthDp, s);
@@ -1128,15 +1161,22 @@ void d8Sweep(String lang, double dpr) {
       expect(r, isNotNull, reason: '$key was not measured: no census');
       expect(b, isNotNull, reason: 'no baseline for $key: no census');
       expect(
-        r!.dialogMeasured && r.yesFraction != null,
+        r!.dialogMeasured && r.yesFraction != null && r.noFraction != null,
         isTrue,
         reason: '$key: the dialog was not measured: no census',
       );
       if (r.yesFraction! > b!.code15Yes + kD8YesTolerance) narrow.add(key);
-      // The ceiling: a carried geometry may not get deeper than it was
-      // recorded while carried.
-      if (b.narrowRed && r.yesFraction! > b.headYes + kD8YesTolerance) {
+      // The ceilings: at a carried geometry, narrow or whole, neither answer
+      // may lie deeper in the place than it was recorded while carried
+      // (2026-10-14, the consent review's fix: under the 16 narrow alone, the
+      // yes could grow by up to 37.9 points at the 74 whole-only geometries,
+      // and the no anywhere, with every verdict green).
+      final carried = b.narrowRed || b.wholeRed;
+      if (carried && r.yesFraction! > b.headYes + kD8YesTolerance) {
         deeper.add(key);
+      }
+      if (carried && r.noFraction! > b.headNo + kD8NoTolerance) {
+        noDeeper.add(key);
       }
       if (r.dialogFailures.isNotEmpty) whole.add(key);
       if (b.narrowRed) wantNarrow.add(key);
@@ -1147,9 +1187,11 @@ void d8Sweep(String lang, double dpr) {
         // ignore: avoid_print
         print(
           'D8 S-3 carried $key: the yes covers '
-          '${(100 * r.yesFraction!).toStringAsFixed(1)}% of 現在地を共有\'s place '
-          '(carry ${(100 * b.headYes).toStringAsFixed(1)}%, code 15 '
-          '${(100 * b.code15Yes).toStringAsFixed(1)}%); S-3 whole '
+          '${(100 * r.yesFraction!).toStringAsFixed(3)}% of 現在地を共有\'s place '
+          '(carry ${(100 * b.headYes).toStringAsFixed(3)}%, code 15 '
+          '${(100 * b.code15Yes).toStringAsFixed(3)}%); the no '
+          '${(100 * r.noFraction!).toStringAsFixed(3)}% (carry '
+          '${(100 * b.headNo).toStringAsFixed(3)}%); S-3 whole '
           '${r.dialogFailures.isEmpty ? 'green' : 'red'} '
           '(carried ${b.wholeRed ? 'red' : 'green'})',
         );
@@ -1163,7 +1205,12 @@ void d8Sweep(String lang, double dpr) {
     expect(
       deeper,
       isEmpty,
-      reason: 'S-3 narrow: NEW: deeper than carried at a carried geometry',
+      reason: 'S-3: NEW: the yes deeper than carried at a carried geometry',
+    );
+    expect(
+      noDeeper,
+      isEmpty,
+      reason: 'S-3: NEW: the no deeper than carried at a carried geometry',
     );
     expect(
       wantNarrow.difference(narrow),
