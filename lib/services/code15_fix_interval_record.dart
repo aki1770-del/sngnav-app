@@ -57,12 +57,16 @@
 /// code15_record_is_kept_test.dart holds the census for this branch.
 library;
 
+import 'dart:async' show Completer, unawaited;
 import 'dart:convert' show utf8;
 import 'dart:io' show Directory, File, FileMode, Platform;
 
+import 'package:flutter/foundation.dart'
+    show Listenable, ValueNotifier, immutable;
 import 'package:path_provider/path_provider.dart';
 
 import '../build_info.dart';
+import 'build_identity.dart' show BuildIdentity;
 import 'record_share_file.dart' show RecordFileShareSink, shareRecordFileViaShareSheet;
 import 'fix_interval_record_keeper.dart'
     show kCode15RecordFileName, kCode15StoppedFileName, kCode15RecordFileNames;
@@ -292,11 +296,105 @@ String formatCode15Mark({
     't=${msSinceStreamStart < 0 ? 0 : msSinceStreamStart} k=${kind.token}';
 
 /// Code 15's whitelist: code 13's, plus exactly one alternative for the four
-/// new kinds. Every line written matches it, and nothing else is written.
+/// new kinds, plus (code 16) exactly one for the boundary line
+/// [kRecordBuildLinePattern]. Every line written matches it, and nothing else
+/// is written.
 final RegExp kCode15LinePattern = RegExp(
   '${kFixTimingLinePattern.pattern.substring(0, kFixTimingLinePattern.pattern.length - 2)}'
-  r'|s=\d+ t=\d+ k=(alive|leave|back|appstop))$',
+  r'|s=\d+ t=\d+ k=(alive|leave|back|appstop)'
+  r'|s=0 t=0 k=build vc=[1-9][0-9]* sha=([0-9a-f]{7}|-) apk=([0-9a-f]{12}|-) launch=engine)$',
 );
+
+// ---------------------------------------------------------------------------
+// CODE 16: THE BOUNDARY LINE (2026-10-14). The file keeps code 15's name, as a
+// key; which build wrote which lines is carried in the bytes.
+// ---------------------------------------------------------------------------
+
+/// What a `launch` line means in every line after this build's boundary: an
+/// ENGINE start. Code 16 carries no process gate, so a launch is written at
+/// each opening of the record, which is each start of the app's engine. A
+/// constant, never inferred from a version.
+const String kRecordLaunchMeaning = 'engine';
+
+/// The boundary line, exactly, single spaces, in this order, lowercase hex:
+/// `s=0 t=0 k=build vc=V sha=S apk=A launch=engine`, where V is the
+/// versionCode, S the first 7 hex of the commit or `-`, and A the first 12 hex
+/// of the installed APK's hash or `-`. The groups are vc, sha, apk.
+final RegExp kRecordBuildLinePattern = RegExp(
+  r'^s=0 t=0 k=build vc=([1-9][0-9]*) sha=([0-9a-f]{7}|-) apk=([0-9a-f]{12}|-) launch=engine$',
+);
+
+/// Who writes into the record: the running build, as it reads itself from
+/// the installed package. Never from a version literal or [appVersion].
+@immutable
+class RecordWriter {
+  const RecordWriter._(this.versionCode, this.sha, this.apk);
+
+  /// From what the platform answered. [versionCode] null or not positive: the
+  /// build cannot name itself and writes no line of any kind ([canWrite]).
+  /// [gitSha]: the first 7 lowercase hex, or `-` when null, `UNKNOWN`,
+  /// `UNREADABLE`, carrying `-dirty`, or not beginning with 7 hex: a declared
+  /// gap, never a match. [selfSha256]: the first 12 lowercase hex of the
+  /// installed APK's hash, or `-`.
+  factory RecordWriter({int? versionCode, String? gitSha, String? selfSha256}) =>
+      RecordWriter._(
+        versionCode != null && versionCode > 0 ? versionCode : null,
+        _token(gitSha, 7, gapIfDirty: true),
+        _token(selfSha256, 12),
+      );
+
+  /// The running build's identity, as [BuildIdentity] read it.
+  factory RecordWriter.fromIdentity(BuildIdentity id) => RecordWriter(
+      versionCode: id.versionCode, gitSha: id.gitSha, selfSha256: id.selfSha256);
+
+  /// A build that could not read its own versionCode.
+  static final RecordWriter unreadable = RecordWriter();
+
+  final int? versionCode;
+  final String sha;
+  final String apk;
+
+  /// Only a build that knows its versionCode writes: a line it wrote without
+  /// naming itself would be read as the previous writer's (Sakichi Vision 14).
+  bool get canWrite => versionCode != null;
+
+  /// This build's boundary line.
+  String get boundaryLine =>
+      's=0 t=0 k=build vc=$versionCode sha=$sha apk=$apk launch=$kRecordLaunchMeaning';
+
+  /// This build's share-header line: the same tokens, and `-` for a versionCode
+  /// it could not read.
+  String get headerLine => 'build: ${versionCode ?? '-'} $sha $apk';
+
+  /// Whether the boundary [line] names this writer: the same versionCode and
+  /// the same APK, falling back to the versionCode alone when either APK is
+  /// `-`. A same-code build with other bytes is a new writer.
+  bool isNamedBy(RegExpMatch line) {
+    final vc = int.parse(line.group(1)!);
+    final apk = line.group(3)!;
+    return vc == versionCode && (apk == '-' || this.apk == '-' || apk == this.apk);
+  }
+
+  static String _token(String? v, int n, {bool gapIfDirty = false}) {
+    if (v == null) return '-';
+    final t = v.trim();
+    if (gapIfDirty && t.contains('-dirty')) return '-';
+    final m = RegExp('^[0-9a-fA-F]{$n}').matchAsPrefix(t);
+    return m == null ? '-' : m.group(0)!.toLowerCase();
+  }
+}
+
+/// How many lines may wait for the writer to be named. The platform answers
+/// in about a second; past this, nothing is kept and nothing is written.
+const int kRecordMaxHeldLines = 512;
+
+class _Held {
+  const _Held(this.line, this.evenIfStopped, this.share, this.t);
+  final String line;
+  final bool evenIfStopped;
+  final int? share;
+  final int? t;
+}
 
 // ---------------------------------------------------------------------------
 // The record.
@@ -305,11 +403,76 @@ final RegExp kCode15LinePattern = RegExp(
 /// The app-support directory's code 15 record. Size-capped, append-only, on by
 /// default, never throws.
 class Code15FixIntervalRecord {
+  /// [writer] is the build that writes, or null until the platform has named
+  /// it ([nameWriter]); until then every line waits, in order, and nothing is
+  /// written.
   Code15FixIntervalRecord({
     required Directory directory,
+    required RecordWriter? writer,
     this.maxBytes = kCode15RecordMaxBytes,
   })  : file = File('${directory.path}/$kCode15RecordFileName'),
-        stoppedFile = File('${directory.path}/$kCode15StoppedFileName');
+        stoppedFile = File('${directory.path}/$kCode15StoppedFileName') {
+    if (writer != null) nameWriter(writer);
+  }
+
+  RecordWriter? _writer;
+  final List<_Held> _held = [];
+  bool _heldOverflow = false;
+  final Completer<void> _named = Completer<void>();
+  final ValueNotifier<int> _changes = ValueNotifier<int>(0);
+
+  /// The build that writes, once named.
+  RecordWriter? get writer => _writer;
+
+  /// Completes once the writer is named.
+  Future<void> get named => _named.future;
+
+  /// Fires when the writer is named and its waiting lines are written: what
+  /// the card says may have changed without a tap.
+  Listenable get changes => _changes;
+
+  /// Named, and it cannot name itself: it writes no line of any kind, and its
+  /// card says it is not recording.
+  bool get cannotNameItself =>
+      _heldOverflow || (_writer != null && !_writer!.canWrite);
+
+  /// Whether this build's boundary line is still owed: decided from the
+  /// file's bytes when the writer is named and again after his delete. True
+  /// until the writer is named (the stricter side for [full]).
+  bool _boundaryOwed = true;
+
+  /// The boundary is owed when the file holds no `k=build` line, at any
+  /// versionCode, 15 included (a file without one was written only by builds
+  /// that write none), or when its last one names another writer.
+  bool _owedFromFile() {
+    final w = _writer;
+    if (w == null || !w.canWrite) return false;
+    RegExpMatch? last;
+    for (final line in readAll().split('\n')) {
+      final m = kRecordBuildLinePattern.firstMatch(line);
+      if (m != null) last = m;
+    }
+    return last == null || !w.isNamedBy(last);
+  }
+
+  /// Names the build that writes, once: decides whether its boundary is owed
+  /// from the file's bytes, then writes the lines that waited, in order,
+  /// through the same guards as any line. A build that cannot read its
+  /// versionCode drops them all: no line of any kind.
+  void nameWriter(RecordWriter writer) {
+    if (_writer != null) return;
+    _writer = writer;
+    _boundaryOwed = _owedFromFile();
+    final held = List<_Held>.of(_held);
+    _held.clear();
+    if (writer.canWrite && !_heldOverflow) {
+      for (final h in held) {
+        _append(h.line, evenIfStopped: h.evenIfStopped, share: h.share, t: h.t);
+      }
+    }
+    if (!_named.isCompleted) _named.complete();
+    _changes.value++;
+  }
 
   /// The record ([kCode15RecordFileName]).
   final File file;
@@ -349,6 +512,7 @@ class Code15FixIntervalRecord {
   /// the share text call a fix-interval record. One scan at open, then kept
   /// by the writes and the delete this object makes.
   bool get hasFixLines => _hasFixLines;
+  static final RegExp _fixKind = RegExp(r'^s=\d+ t=\d+ k=(fine|coarse) ');
   late bool _hasFixLines = fixTimingTextHasFixLines(readAll());
 
   /// The bars' data minimum, counted from the lines on disk: one scan at open,
@@ -356,8 +520,11 @@ class Code15FixIntervalRecord {
   Code15MinimumCount get count => _count;
   late Code15MinimumCount _count = Code15MinimumCount.ofText(readAll());
 
-  /// Whether the record has reached its cap and so stopped recording.
-  bool get full => lengthBytes + kCode15MaxLineBytes > maxBytes;
+  /// Whether the record has reached its cap and so stopped recording. While
+  /// this build's boundary is owed, the boundary and one more line must fit,
+  /// or no line of any kind is written.
+  bool get full =>
+      lengthBytes + (_boundaryOwed ? 2 : 1) * kCode15MaxLineBytes > maxBytes;
 
   /// The share the last t-carrying line was written for, and its t: what the
   /// alive timer measures the quiet against.
@@ -368,13 +535,41 @@ class Code15FixIntervalRecord {
   /// full. When the line carries a share's t, it is remembered for the alive
   /// timer. Returns whether it was written.
   bool _append(String line, {bool evenIfStopped = false, int? share, int? t}) {
+    final w = _writer;
+    // Not yet named: the line waits, in order. Nothing is written until the
+    // build that writes it is known. His stop is read NOW, when the line is
+    // made, as it always was: a line his stop refuses is not kept, and a line
+    // made while he was recording is written even if he stops before the
+    // build is named.
+    if (w == null) {
+      if (!evenIfStopped && stopped) return false;
+      if (_held.length < kRecordMaxHeldLines) {
+        _held.add(_Held(line, true, share, t));
+      } else {
+        _held.clear();
+        _heldOverflow = true;
+      }
+      return false;
+    }
+    // A build that cannot name itself writes no line of any kind.
+    if (!w.canWrite || _heldOverflow) return false;
     // The count starts from the file BEFORE the first write, so the line about
     // to be written is counted once, never twice (the 2026-10-10 boundary
     // ruling, section 1.2: a lazy start after the write read it, then added it).
     final count = _count;
     try {
+      // His stop holds for every line, the boundary included.
       if ((!evenIfStopped && stopped) || full) return false;
       file.parent.createSync(recursive: true);
+      if (_boundaryOwed) {
+        // Immediately before this build's first line. [full] above has
+        // already made sure the boundary and this line both fit. It carries
+        // no share and no t: the alive timer's state does not move.
+        file.writeAsStringSync('${w.boundaryLine}\n',
+            mode: FileMode.append, flush: true);
+        _boundaryOwed = false;
+        count.add(w.boundaryLine);
+      }
       file.writeAsStringSync('$line\n', mode: FileMode.append, flush: true);
     } catch (_) {
       return false;
@@ -383,6 +578,7 @@ class Code15FixIntervalRecord {
       _lastShare = share;
       _lastShareT = t;
     }
+    if (_fixKind.hasMatch(line)) _hasFixLines = true;
     count.add(line);
     return true;
   }
@@ -530,6 +726,10 @@ class Code15FixIntervalRecord {
     _hasFixLines = fixTimingTextHasFixLines(readAll());
     _count = Code15MinimumCount.ofText(readAll());
     _lastShare = null;
+    // A fresh file holds no boundary: the next line this build writes is
+    // preceded by one (decided from the file's bytes, as at naming). Until
+    // the writer is named it stays owed.
+    if (_writer != null) _boundaryOwed = _owedFromFile();
   }
 }
 
@@ -732,16 +932,35 @@ class Code15MinimumCount {
 /// Opens the record in the app-support directory at process start, and writes
 /// its `launch` line; or null when it cannot be opened (the card then says so).
 /// The app opens the record only here, once per process.
+///
+/// The build that writes is named when the platform answers ([identity],
+/// production [BuildIdentity.fromPlatform]), without holding the app's start:
+/// the APK's self-hash takes about a second. Until then the `launch` line and
+/// anything after it wait, in order. An identity that does not answer within
+/// [identityTimeout] names a build that cannot name itself: no line of any
+/// kind, and the card says so.
 Future<Code15FixIntervalRecord?> openCode15FixIntervalRecord({
   Directory? directory,
+  Future<BuildIdentity> Function()? identity,
+  Duration identityTimeout = const Duration(seconds: 30),
 }) async {
   try {
     final dir = directory ?? await getApplicationSupportDirectory();
-    final record = Code15FixIntervalRecord(directory: dir);
+    final record = Code15FixIntervalRecord(directory: dir, writer: null);
     record.recordLaunch();
     // The one scan, here where the record opens.
     record.hasFixLines;
     record.count;
+    unawaited(() async {
+      BuildIdentity id;
+      try {
+        id = await (identity ?? BuildIdentity.fromPlatform)()
+            .timeout(identityTimeout);
+      } catch (_) {
+        id = const BuildIdentity.unknown();
+      }
+      record.nameWriter(RecordWriter.fromIdentity(id));
+    }());
     return record;
   } catch (_) {
     return null;

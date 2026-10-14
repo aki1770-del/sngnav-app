@@ -2413,8 +2413,22 @@ class AppL10n {
           '「記録を共有」',
           '開けません',
           'ありません',
+          // code 16 (2026-10-14): [code15RecordCannotNameBuildNote]'s
+          // negations, by the family rule.
+          '読めない',
+          '記録していません',
         ]
       : const <String>[];
+
+  /// The status's first line when this build could not read its own version
+  /// number (code 16, 2026-10-14). It writes no line of any kind, because a
+  /// line it wrote would be read as an earlier build's; his stop and his
+  /// delete still work. Drafted with the code; the screen review and the
+  /// dignity review read it before it reaches a phone.
+  String get code15RecordCannotNameBuildNote => _ja
+      ? 'この版は自分の版番号を読めないため、記録していません。'
+      : 'This version cannot read its own version number, so it is not '
+          'recording.';
 
   /// Share action (code 13's).
   String get code15RecordShare => _ja ? '記録を共有' : 'Share record';

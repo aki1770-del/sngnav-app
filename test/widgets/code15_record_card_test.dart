@@ -40,6 +40,7 @@ import 'package:sngnav_app/services/notification_permission.dart';
 import 'package:sngnav_app/widgets/keep_together.dart';
 
 import '../support/fake_alert_actuators.dart';
+import '../support/test_record_writer.dart';
 
 var _clockNow = DateTime.utc(2026, 1, 14, 21);
 
@@ -90,7 +91,7 @@ JmaObservation _clear() => JmaObservation(
 
 class _App {
   _App(this.dir, {int maxBytes = kCode15RecordMaxBytes})
-      : record = Code15FixIntervalRecord(directory: dir, maxBytes: maxBytes),
+      : record = Code15FixIntervalRecord(writer: kTestRecordWriter, directory: dir, maxBytes: maxBytes),
         errorLog = LocalErrorLog(file: File('${dir.path}/error_log.txt'));
   final Directory dir;
   final Code15FixIntervalRecord record;
@@ -201,6 +202,16 @@ String _textOf(WidgetTester tester, String key) {
 int _t(String line) => int.parse(RegExp(r' t=(\d+) ').firstMatch('$line ')!.group(1)!);
 
 /// Milliseconds between consecutive lines of [kind] in share [share].
+/// The share number on the record's first share line. Code 16: the record's
+/// first line is this build's boundary, which names no share; reading the
+/// share from it would read s=0 and leave the checks below with nothing to
+/// check (a gap list of no gaps passes every rule).
+String _firstShare(List<String> lines) {
+  expect(lines.first, kTestBoundaryLine,
+      reason: 'code 16: the boundary is the first line');
+  return RegExp(r'^s=(\d+)').firstMatch(lines[1])!.group(1)!;
+}
+
 List<int> _gaps(List<String> lines, String kind, int share) {
   final t = [
     for (final l in lines)
@@ -243,10 +254,11 @@ void main() {
       await app.share(tester);
       await app.drive(tester, 20, const Duration(seconds: 1));
       final lines = app.lines;
-      expect(lines.first, matches(RegExp(r'^s=\d+ t=0 k=start ')),
+      expect(lines.first, kTestBoundaryLine, reason: lines.join('\n'));
+      expect(lines[1], matches(RegExp(r'^s=\d+ t=0 k=start ')),
           reason: lines.join('\n'));
       final share =
-          int.parse(RegExp(r'^s=(\d+)').firstMatch(lines.first)!.group(1)!);
+          int.parse(_firstShare(lines));
       expect(lines.where((l) => l.contains(' k=fine ')).length, 20);
       expect(_gaps(lines, 'fine', share), everyElement(1000));
       expect(lines.where((l) => l.contains(' k=fine ')),
@@ -267,7 +279,7 @@ void main() {
       await app.drive(tester, 8, const Duration(seconds: 15));
       final lines = app.lines;
       final share =
-          int.parse(RegExp(r'^s=(\d+)').firstMatch(lines.first)!.group(1)!);
+          int.parse(_firstShare(lines));
       expect(lines.where((l) => l.contains(' k=fine ')).length, 8);
       expect(_gaps(lines, 'fine', share), everyElement(15000),
           reason: lines.join('\n'));
@@ -312,7 +324,7 @@ void main() {
       await _advance(tester, const Duration(seconds: 2));
       await app.stopSharing(tester);
       final lines = app.lines;
-      final share = RegExp(r'^s=(\d+)').firstMatch(lines.first)!.group(1);
+      final share = _firstShare(lines);
       expect(lines.last, 's=$share t=5000 k=end', reason: lines.join('\n'));
       expect(lines.where((l) => l.contains(' k=end')).length, 1);
       expect(app.record.readAll(), isNot(contains('k=appstop')),
@@ -375,7 +387,7 @@ void main() {
       await app.share(tester);
       await app.drive(tester, 2, const Duration(seconds: 5));
       final share =
-          RegExp(r'^s=(\d+)').firstMatch(app.lines.first)!.group(1);
+          _firstShare(app.lines);
       await _advance(tester, const Duration(seconds: 1));
       await _to(tester, _leave);
       expect(app.lines.last, 's=$share t=11000 k=leave',
@@ -417,7 +429,7 @@ void main() {
     await app.share(tester);
     await app.drive(tester, 2, const Duration(seconds: 1));
     final share =
-        RegExp(r'^s=(\d+)').firstMatch(app.lines.first)!.group(1);
+        _firstShare(app.lines);
     await _to(tester, _leave);
     await _advance(tester, const Duration(seconds: 3));
     await _to(tester, _back);
@@ -480,7 +492,8 @@ void main() {
       await app.share(tester);
       await app.drive(tester, 40, const Duration(seconds: 1));
       expect(app.record.full, isTrue, reason: 'control: the cap was reached');
-      expect(app.lines.first, matches(RegExp(r'^s=\d+ t=0 k=start ')));
+      expect(app.lines.first, kTestBoundaryLine);
+      expect(app.lines[1], matches(RegExp(r'^s=\d+ t=0 k=start ')));
       expect(_textOf(tester, 'code15-record-status'),
           '上限（約$kCode15RecordCapKbText KB）に達したため、記録を止めています。\n'
           '測位間隔の記録があります。「記録を共有」で送れます。');

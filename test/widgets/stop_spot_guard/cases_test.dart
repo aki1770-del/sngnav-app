@@ -24,6 +24,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../support/d8_stop_spot_guard.dart';
+import '../../support/test_record_writer.dart';
 
 void main() {
   final env = D8Env();
@@ -148,7 +149,9 @@ void main() {
     app.shares.current!.add(d8Fix());
     await app.settle(tester);
     final before = app.record.readAll().trimRight().split('\n');
-    expect(before.first, 's=1 t=0 k=start a=- v=- late=- fg=1',
+    expect(before.first, kTestBoundaryLine,
+        reason: 'code 16: this build\'s boundary is the first line');
+    expect(before[1], 's=1 t=0 k=start a=- v=- late=- fg=1',
         reason: 'control: the share\'s start line is in the record');
     expect(app.endLines(1), 0, reason: 'control: no end while sharing');
     await app.reveal(tester, app.stop);

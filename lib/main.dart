@@ -1577,6 +1577,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    // Code 16: the record names its writer when the platform answers, after
+    // the page is up. What its card says may change then without a tap.
+    widget.code15Record?.changes.addListener(_onCode15RecordChanged);
     _appLifecycle = AppLifecycleListener(
       // Code 15: his return deletes no share copy. A receiver may open the
       // link after he is back (services/record_share_file.dart).
@@ -2056,6 +2059,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    widget.code15Record?.changes.removeListener(_onCode15RecordChanged);
     // WS5 — release the screen wakelock when this surface leaves (foreground-
     // only contract). No-op on desktop/test.
     unawaited(_actuators.keepAwake(false));
@@ -3642,6 +3646,9 @@ class _HomePageState extends State<HomePage> {
     }
     return _now().difference(since).inMilliseconds;
   }
+
+  /// The record named its writer (code 16): redraw if its card changed.
+  void _onCode15RecordChanged() => _code15AfterWrite(true);
 
   /// Redraws the page when a write changed what the record's card shows.
   void _code15AfterWrite(bool wrote) {
@@ -5602,7 +5609,7 @@ class _HomePageState extends State<HomePage> {
     final r = widget.code15Record;
     if (r == null) return 'none';
     final c = r.count;
-    return '${r.hasFixLines} ${r.full} ${r.stopped} '
+    return '${r.cannotNameItself} ${r.hasFixLines} ${r.full} ${r.stopped} '
         '${c.movingMs ~/ 60000} ${c.stoppedMs ~/ 60000} ${c.minimumReached}';
   }
 
@@ -5624,7 +5631,11 @@ class _HomePageState extends State<HomePage> {
         // His tap handed nothing on: said once, in the live region, until his
         // next tap on 記録を共有 or 記録を消す.
         if (_code15ShareFailed) l.code15RecordShareFailed,
-        if (record.full)
+        // Code 16: a build that cannot read its own version number writes no
+        // line of any kind; the card says so before anything else is true.
+        if (record.cannotNameItself)
+          l.code15RecordCannotNameBuildNote
+        else if (record.full)
           l.code15RecordFullNote
         else if (record.stopped)
           l.code15RecordStoppedNote,

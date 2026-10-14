@@ -42,6 +42,7 @@ import 'package:sngnav_app/widgets/keep_together.dart';
 
 import '../render_see/render_see_env.dart';
 import '../support/fake_alert_actuators.dart';
+import '../support/test_record_writer.dart';
 
 const _dpr = 2.75;
 const _widths = [360.0, 1080 / _dpr, 411.4285714];
@@ -192,7 +193,7 @@ void main() {
         addTearDown(() => tmp.deleteSync(recursive: true));
 
         // A record with fix lines, the share failed: failure line + present.
-        final full = Code15FixIntervalRecord(directory: Directory('${tmp.path}/a')..createSync());
+        final full = Code15FixIntervalRecord(writer: kTestRecordWriter, directory: Directory('${tmp.path}/a')..createSync());
         for (var i = 1; i <= 20; i++) {
           full.record(
               share: 1,
@@ -228,7 +229,7 @@ void main() {
             l.code15RecordDisclosure);
 
         // A record with no fix lines, the share failed: failure line + empty.
-        final empty = Code15FixIntervalRecord(directory: Directory('${tmp.path}/b')..createSync());
+        final empty = Code15FixIntervalRecord(writer: kTestRecordWriter, directory: Directory('${tmp.path}/b')..createSync());
         await pumpCard('empty', empty, tmp);
         await t.ensureVisible(find.byKey(const Key('code15-record-status')));
         await t.pump();

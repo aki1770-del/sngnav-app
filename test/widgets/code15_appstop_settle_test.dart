@@ -32,6 +32,7 @@ import 'package:sngnav_app/services/share_without_service.dart'
     show kShareAwaySettle;
 
 import '../support/fake_alert_actuators.dart';
+import '../support/test_record_writer.dart';
 
 const String _n1 = 'アプリが画面から離れたため、現在地の警告は止まりました。';
 
@@ -143,7 +144,7 @@ void main() {
       'window: the record holds `appstop` for that share, no `leave`, no `end`',
       (tester) async {
     final recordDir = Directory('${tmp.path}/record')..createSync();
-    final record = Code15FixIntervalRecord(directory: recordDir);
+    final record = Code15FixIntervalRecord(writer: kTestRecordWriter, directory: recordDir);
     var now = DateTime.utc(2026, 1, 14, 21);
     await tester.pumpWidget(
       SngnavApp(

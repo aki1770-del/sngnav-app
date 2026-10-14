@@ -22,6 +22,7 @@ import 'package:sngnav_app/services/code13_record_cleanup.dart';
 import 'package:sngnav_app/services/code15_fix_interval_record.dart';
 import 'package:sngnav_app/services/error_log.dart';
 import 'package:sngnav_app/services/fix_interval_record_keeper.dart';
+import '../support/test_record_writer.dart';
 
 void main() {
   late Directory dir;
@@ -31,7 +32,7 @@ void main() {
   });
 
   Code15FixIntervalRecord open({int maxBytes = kCode15RecordMaxBytes}) =>
-      Code15FixIntervalRecord(directory: dir, maxBytes: maxBytes);
+      Code15FixIntervalRecord(writer: kTestRecordWriter, directory: dir, maxBytes: maxBytes);
 
   bool fine(Code15FixIntervalRecord r, int s, {int share = 1}) => r.record(
         share: share,
@@ -282,7 +283,9 @@ void main() {
           isFalse);
       expect(r.hasLines, isFalse);
       expect(r.recordAppStop(share: 2, msSinceStreamStart: 9000), isTrue);
-      expect(linesOf(r), ['s=2 t=9000 k=appstop']);
+      // Code 16: this build's boundary line comes first, before the first
+      // line it writes into a file that holds none.
+      expect(linesOf(r), [kTestBoundaryLine, 's=2 t=9000 k=appstop']);
     });
 
     test('a stopped or a full record writes no appstop', () {
@@ -309,7 +312,8 @@ void main() {
 
     test('every write and stop it can make creates only those names, and '
         'after a stop exactly those names', () async {
-      final r = (await openCode15FixIntervalRecord(directory: dir))!;
+      final r = (await openCode15FixIntervalRecord(directory: dir, identity: testBuildIdentity))!;
+      await r.named;
       r.record(share: 1, msSinceStreamStart: 0, kind: FixEventKind.start,
           appInFront: true);
       fine(r, 5);
@@ -343,7 +347,8 @@ void main() {
 
     test('main\'s launch path, run three times over what it wrote, leaves it '
         'byte for byte', () async {
-      final r = (await openCode15FixIntervalRecord(directory: dir))!;
+      final r = (await openCode15FixIntervalRecord(directory: dir, identity: testBuildIdentity))!;
+      await r.named;
       fine(r, 1);
       r.stop();
       final before = {
@@ -382,7 +387,8 @@ void main() {
       expect(r.recordAliveIfQuiet(share: 1, msSinceStreamStart: 14000),
           isFalse);
       expect(r.recordAliveIfQuiet(share: 1, msSinceStreamStart: 17000), isTrue);
-      expect(linesOf(r).sublist(2), [
+      // Code 16: the boundary, the start and the fix come first.
+      expect(linesOf(r).sublist(3), [
         's=1 t=11000 k=alive',
         's=1 t=17000 k=alive',
       ]);
@@ -446,7 +452,8 @@ void main() {
           r.recordLifecycle(
               share: 3, msSinceStreamStart: 99500, kind: Code15MarkKind.alive),
           isFalse);
-      expect(linesOf(r), ['s=3 t=42000 k=leave', 's=3 t=99000 k=back']);
+      expect(linesOf(r),
+          [kTestBoundaryLine, 's=3 t=42000 k=leave', 's=3 t=99000 k=back']);
     });
   });
 
@@ -462,6 +469,7 @@ void main() {
       r.resume();
       expect(fine(r, 3), isTrue);
       expect(linesOf(r), [
+        kTestBoundaryLine,
         startsWith('s=1 t=1000 k=fine'),
         kFixTimingPauseLine,
         kFixTimingResumeLine,
@@ -471,22 +479,32 @@ void main() {
 
     test('the stop holds across reopening, as at a relaunch, and no launch is '
         'written while stopped', () async {
-      final first = (await openCode15FixIntervalRecord(directory: dir))!;
+      final first = (await openCode15FixIntervalRecord(directory: dir, identity: testBuildIdentity))!;
+      await first.named;
       first.stop();
       final before = first.readAll();
-      final again = (await openCode15FixIntervalRecord(directory: dir))!;
+      final again = (await openCode15FixIntervalRecord(directory: dir, identity: testBuildIdentity))!;
+      await again.named;
       expect(again.stopped, isTrue);
       expect(again.readAll(), before);
     });
 
     test('each opening writes the launch line, as at each process start',
         () async {
-      final first = (await openCode15FixIntervalRecord(directory: dir))!;
+      final first = (await openCode15FixIntervalRecord(directory: dir, identity: testBuildIdentity))!;
+      await first.named;
       fine(first, 1);
-      final again = (await openCode15FixIntervalRecord(directory: dir))!;
-      final lines = linesOf(again);
-      expect(lines.first, kFixTimingLaunchLine);
-      expect(lines.last, kFixTimingLaunchLine);
+      final again = (await openCode15FixIntervalRecord(directory: dir, identity: testBuildIdentity))!;
+      await again.named;
+      // Code 16: the first opening writes this build's boundary, then its
+      // launch; the second, by the same build, its launch only (the file's
+      // last boundary already names it).
+      expect(linesOf(again), [
+        kTestBoundaryLine,
+        kFixTimingLaunchLine,
+        startsWith('s=1 t=1000 k=fine'),
+        kFixTimingLaunchLine,
+      ]);
     });
 
     test('his delete removes every line and keeps whether it records: a '
@@ -557,8 +575,10 @@ void main() {
       }
       expect(r.full, isTrue);
       final lines = linesOf(r);
-      expect(lines.length, written);
-      expect(lines.first, startsWith('s=1 t=0 '));
+      // Code 16: every fix line written, after this build's boundary.
+      expect(lines.length, written + 1);
+      expect(lines.first, kTestBoundaryLine);
+      expect(lines[1], startsWith('s=1 t=0 '));
       expect(r.lengthBytes, lessThanOrEqualTo(2048));
       expect(r.recordAliveIfQuiet(share: 1, msSinceStreamStart: 9999999),
           isFalse);

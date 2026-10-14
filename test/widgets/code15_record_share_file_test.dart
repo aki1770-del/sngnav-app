@@ -39,6 +39,7 @@ import 'package:sngnav_app/services/record_share_file.dart';
 import 'package:sngnav_app/widgets/keep_together.dart' show plainOf;
 
 import '../support/fake_alert_actuators.dart';
+import '../support/test_record_writer.dart';
 
 const _failedJa = '記録を端末の共有画面に渡せませんでした。何も送られていません。';
 const _failedEn = 'The record could not be handed to the share screen. Nothing was sent.';
@@ -121,7 +122,8 @@ void main() {
     int maxBytes = kCode15RecordMaxBytes,
   }) async {
     final record = Code15FixIntervalRecord(
-        directory: Directory('${dir.path}/files')..createSync(),
+writer: kTestRecordWriter,
+directory: Directory('${dir.path}/files')..createSync(),
         maxBytes: maxBytes);
     final fake = _FakeSharePlus(cache);
     await tester.pumpWidget(SngnavApp(

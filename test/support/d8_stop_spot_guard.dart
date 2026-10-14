@@ -66,6 +66,7 @@ import 'package:sngnav_app/services/notification_permission.dart';
 
 import '../render_see/render_see_env.dart';
 import 'fake_alert_actuators.dart';
+import 'test_record_writer.dart';
 
 /// The clearance, edge to edge (the screen review, 2026-10-14).
 const double kD8ClearanceDp = 24.0;
@@ -426,7 +427,7 @@ class D8App {
     for (final f in dir.listSync()) {
       f.deleteSync(recursive: true);
     }
-    record = Code15FixIntervalRecord(directory: dir);
+    record = Code15FixIntervalRecord(writer: kTestRecordWriter, directory: dir);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     await tester.pumpWidget(

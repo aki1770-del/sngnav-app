@@ -28,6 +28,7 @@ import 'package:sngnav_app/services/code15_fix_interval_record.dart';
 import 'package:sngnav_app/services/fix_interval_record_keeper.dart';
 
 import '../support/fake_alert_actuators.dart';
+import '../support/test_record_writer.dart';
 
 // The dignity read's words (W3), verbatim. Pinned here as literals so a
 // paraphrase in app_localizations.dart fails.
@@ -59,7 +60,7 @@ void main() {
 
   Code15FixIntervalRecord keptRecord() {
     File('${dir.path}/$kCode15RecordFileName').writeAsStringSync(lines);
-    return Code15FixIntervalRecord(directory: dir);
+    return Code15FixIntervalRecord(writer: kTestRecordWriter, directory: dir);
   }
 
   Future<void> pump(
