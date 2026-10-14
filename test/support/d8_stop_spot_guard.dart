@@ -923,10 +923,16 @@ Future<D8Result> d8RunGeometry(
 
 /// One row of test/fixtures/stop_spot_guard/s3_baseline.tsv.
 class D8S3Baseline {
-  D8S3Baseline(this.code15Yes, this.narrowRed, this.wholeRed);
+  D8S3Baseline(this.code15Yes, this.headYes, this.narrowRed, this.wholeRed);
 
   /// The yes's share of 現在地を共有's place on code 15's tree.
   final double code15Yes;
+
+  /// The same on the head the carry was recorded on: the CEILING for a
+  /// carried geometry. A carried red that grows past it is not the carried
+  /// red any more (2026-10-14, the consent review's fix: without it a yes
+  /// twice as deep still read as "carried" and the census stayed green).
+  final double headYes;
 
   /// Recorded red on the head the Chair ruled to carry (2026-10-14).
   final bool narrowRed;
@@ -950,6 +956,7 @@ Map<String, D8S3Baseline> d8S3Baseline() {
     final f = line.split('\t');
     out[d8Key(f[0], double.parse(f[1]), double.parse(f[2]))] = D8S3Baseline(
       double.parse(f[3]),
+      double.parse(f[4]),
       f[5] == '1',
       f[6] == '1',
     );
@@ -1018,11 +1025,15 @@ void d8Sweep(String lang, double dpr) {
         reason: 'the consent dialog was not measured: no verdict',
       );
       final yes = r.yesFraction!;
-      final known = b!.narrowRed
-          ? 'KNOWN RED, carried: the Chair ruled 2026-10-14 that these 16 '
+      final deeper = b!.narrowRed && yes > b.headYes + kD8YesTolerance;
+      final known = !b.narrowRed
+          ? 'NEW: not among the 16 recorded geometries'
+          : deeper
+          ? 'NEW: deeper than carried (the carry was recorded at '
+                '${(100 * b.headYes).toStringAsFixed(1)}%)'
+          : 'KNOWN RED, carried: the Chair ruled 2026-10-14 that these 16 '
                 'large-text geometries are fixed before this layout reaches '
-                'code 17 or main'
-          : 'NEW: not among the 16 recorded geometries';
+                'code 17 or main';
       expect(
         yes <= b.code15Yes + kD8YesTolerance,
         isTrue,
@@ -1054,7 +1065,7 @@ void d8Sweep(String lang, double dpr) {
   }
   test('stop-spot guard, S-3 census, $lang ${widthDp.toStringAsFixed(1)} dp: '
       'the red sets are exactly as recorded', () {
-    final narrow = <String>{}, whole = <String>{};
+    final narrow = <String>{}, whole = <String>{}, deeper = <String>{};
     final wantNarrow = <String>{}, wantWhole = <String>{};
     for (final s in scales) {
       final key = d8Key(lang, widthDp, s);
@@ -1068,6 +1079,11 @@ void d8Sweep(String lang, double dpr) {
         reason: '$key: the dialog was not measured: no census',
       );
       if (r.yesFraction! > b!.code15Yes + kD8YesTolerance) narrow.add(key);
+      // The ceiling: a carried geometry may not get deeper than it was
+      // recorded while carried.
+      if (b.narrowRed && r.yesFraction! > b.headYes + kD8YesTolerance) {
+        deeper.add(key);
+      }
       if (r.dialogFailures.isNotEmpty) whole.add(key);
       if (b.narrowRed) wantNarrow.add(key);
       if (b.wholeRed) wantWhole.add(key);
@@ -1076,6 +1092,11 @@ void d8Sweep(String lang, double dpr) {
       narrow.difference(wantNarrow),
       isEmpty,
       reason: 'S-3 narrow: NEW red geometries',
+    );
+    expect(
+      deeper,
+      isEmpty,
+      reason: 'S-3 narrow: NEW: deeper than carried at a carried geometry',
     );
     expect(
       wantNarrow.difference(narrow),
