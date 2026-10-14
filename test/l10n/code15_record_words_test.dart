@@ -43,7 +43,7 @@ String _drafted({required bool ja}) {
           'アプリが前面にあったか）。共有を止めたとき、アプリ自身が共有を終えたとき、'
           'アプリを離れたときと戻ったとき、測位が届かない間は'
           'アプリが動いていること（数秒ごと）も記録します（時刻は書きません）。'
-          'また、共有しているかどうかにかかわらず、アプリの画面が新しく開くたびに'
+          'また、アプリの画面が新しく開くたびに、共有していないときも'
           '印を残します（起動したときや、戻る操作で離れたあとにもう一度開いたときなど）。'
           '版が初めてこの記録に書くとき（新しい版を入れたあとや、「記録を消す」のあと）は、'
           'その版を示す一行（「k=build」で始まり、版番号と、版を見分ける短い英数字が'
@@ -384,11 +384,12 @@ void main() {
       expect(_en.code15RecordStatusKeepTogether, isEmpty);
     });
 
-    test('the disclosure\'s list, exactly (28 words), each in the disclosure', () {
-      // Code 16 (2026-10-14): the two quoted tokens the card now names, and
-      // 届かない (the screen review's row 5).
+    test('the disclosure\'s list, exactly (29 words), each in the disclosure', () {
+      // Code 16 (2026-10-14): the two quoted tokens the card now names,
+      // 届かない (the screen review's row 5), and 共有していないときも
+      // (its wording B for the start-mark sentence).
       expect(_ja.code15RecordDisclosureKeepTogether, [
-        '「k=build」', '「build:」', '届かない',
+        '「k=build」', '「build:」', '届かない', '共有していないときも',
         'テレメトリ', 'アカウント', 'テスト版', 'アプリ', 'バックアップ', 'データ移行',
         'スマートフォン', 'メーカー', '移行アプリ', 'コード13', '書きません', '使いません',
         '記録しません', '含まれません', '確かめていません', 'わかりません', '消えません',

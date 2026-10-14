@@ -2464,7 +2464,7 @@ class AppL10n {
             'アプリを離れたときと戻ったとき、'
             '測位が届かない間はアプリが動いていること（数秒ごと）も記録します'
             '（時刻は書きません）。'
-            'また、共有しているかどうかにかかわらず、アプリの画面が新しく開くたびに'
+            'また、アプリの画面が新しく開くたびに、共有していないときも'
             '印を残します（起動したときや、戻る操作で離れたあとにもう一度開いたときなど）。'
             '版が初めてこの記録に書くとき（新しい版を入れたあとや、「記録を消す」のあと）は、'
             'その版を示す一行（「k=build」で始まり、版番号と、版を見分ける短い英数字が'
@@ -2536,6 +2536,12 @@ class AppL10n {
           // 2026-10-14, the screen review's row 5: a negation the round-4
           // list missed. Split, 「…測位が届」 reads "the fix arrives".
           '届かない',
+          // 2026-10-14, the start-mark sentence reworded (the screen review's
+          // wording B): the unit that says "not only while sharing". The
+          // earlier 「共有しているかどうかにかかわらず」 could end a line on
+          // 「…共有している」, "while sharing", the narrowing it was there to
+          // remove.
+          '共有していないときも',
           'テレメトリ',
           'アカウント',
           'テスト版',

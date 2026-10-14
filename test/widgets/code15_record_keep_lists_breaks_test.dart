@@ -62,6 +62,8 @@ const _disclosureWords = [
   // 2026-10-14, the screen review's row 5: a negation its own round-4 list
   // missed. Split, 「測位が届」 reads "the fix arrives".
   '届かない',
+  // 2026-10-14, the start-mark sentence's wording B.
+  '共有していないときも',
   'テレメトリ', 'アカウント', 'テスト版', 'アプリ', 'バックアップ', 'データ移行',
   'スマートフォン', 'メーカー', '移行アプリ', 'コード13', '書きません', '使いません',
   '記録しません', '含まれません', '確かめていません', 'わかりません', '消えません',
