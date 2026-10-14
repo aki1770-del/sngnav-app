@@ -447,8 +447,9 @@ class Code15FixIntervalRecord {
   /// writer is named (the stricter side for [full]).
   bool _boundaryOwed = true;
 
-  /// The file's length after this object's last write. A shorter file means
-  /// another writer of this build (a second page's engine) deleted it.
+  /// The file's length when this object last saw it: after its last write,
+  /// or, before its first, at its naming. A shorter file means another writer
+  /// of this build (a second page's engine) deleted it.
   int _lengthAtLastWrite = 0;
 
   /// The boundary is owed when the file holds no `k=build` line, at any
@@ -473,6 +474,12 @@ class Code15FixIntervalRecord {
     if (_writer != null) return;
     _writer = writer;
     _boundaryOwed = _owedFromFile();
+    // The length it was decided on (2026-10-14, the safety reader's T-D).
+    // An object that has not written since its naming (the record stopped or
+    // full at its open) kept 0 here, so another writer's delete could never
+    // read as shorter: it wrote into the fresh file with no boundary, and its
+    // lines read as code 15's.
+    _lengthAtLastWrite = lengthBytes;
     final held = List<_Held>.of(_held);
     _held.clear();
     if (writer.canWrite && !_heldOverflow) {
