@@ -968,6 +968,29 @@ Map<String, D8S3Baseline> d8S3Baseline() {
 /// S-3 NARROW's tolerance: the consent review's (2026-10-14).
 const double kD8YesTolerance = 0.005;
 
+/// Where the two carried skips rest, on disk.
+const String _kD8CarryRecord =
+    'Carried under the Chair\'s answer A of 2026-10-14 (its board record, '
+    '7108b257); skipped on his answer of the same day, "Acknowledge now; mark '
+    'them skipped next", as the CI gate\'s entry 7 (89b89c47) records it.';
+
+/// The reason a carried S-3 NARROW geometry is skipped. Its carry is named in
+/// figures, so the skip says what it is skipping.
+String d8CarriedNarrowSkip(D8S3Baseline b) =>
+    'KNOWN RED, carried: at this geometry the yes was recorded covering '
+    '${(100 * b.headYes).toStringAsFixed(1)}% of 現在地を共有\'s place, against '
+    '${(100 * b.code15Yes).toStringAsFixed(1)}% on code 15. $_kD8CarryRecord '
+    'Still measured: this file\'s S-3 census fails if it goes deeper, turns '
+    'green, or is not measured.';
+
+/// The reason a carried S-3 WHOLE geometry is skipped.
+const String kD8CarriedWholeSkip =
+    'KNOWN RED, carried: at this geometry an answer of the consent dialog was '
+    'recorded under 現在地を共有\'s place, as on code 15\'s tree. '
+    '$_kD8CarryRecord Still measured: this file\'s S-3 census fails if it '
+    'turns green, if any other geometry turns red, or if the dialog is not '
+    'measured.';
+
 /// The sweep for one language and width: every scale in [kD8Scales].
 /// `D8_SCALES=1.0,1.5` in the environment narrows it for a probe or a mutant
 /// run; the suite runs the whole sweep.
@@ -980,19 +1003,29 @@ const double kD8YesTolerance = 0.005;
 /// - S-3 NARROW: the consent dialog's yes covers no more of 現在地を共有's place
 ///   than on code 15's tree (+0.005), per geometry. D-8's own: its move must
 ///   not make the yes easier to reach. RED at 16 large-text geometries where
-///   the capped label grows the target into the yes. Kept red, not skipped
-///   and not inverted. The Chair answered A on 2026-10-14 ("ship the fix,
-///   carry the dialog"); the board record of that answer (7108b257) writes
-///   down that these 16 stay red and are fixed before this layout reaches
-///   code 17 or main. The words here rest on that record, not on more.
+///   the capped label grows the target into the yes. The Chair answered A on
+///   2026-10-14 ("ship the fix, carry the dialog"); the board record of that
+///   answer (7108b257) writes down that these 16 stay red and are fixed before
+///   this layout reaches code 17 or main. The words here rest on that record,
+///   not on more.
 /// - S-3 WHOLE: no answer of the consent dialog lies under 現在地を共有's place.
 ///   Shared with code 15's tree (red there at 100 of 126) and carried as its
-///   own requirement; red at 90 here. Its red lines are kept, never deleted
-///   or skipped.
+///   own requirement; red at 90 here.
+/// SKIPPED AT THE RECORDED SETS, NEVER UNMEASURED (2026-10-14). The Chair's
+/// answer to the CI question, "Acknowledge now; mark them skipped next", as
+/// the CI gate's entry 7 (89b89c47) records it: the 16 narrow and the 90 whole
+/// carried geometries are skipped with a KNOWN RED reason, so a later head can
+/// go green. A skip stops a verdict, not the measurement: ROWS measures the
+/// dialog at every geometry whatever is skipped, and the CENSUS below is the
+/// verdict on every carried geometry. Everywhere else the two S-3 tests run.
+/// A geometry with no baseline row is never skipped (no verdict is a fail).
 /// ONE CENSUS per file: the sets of geometries red on S-3 NARROW and S-3 WHOLE
-/// equal the recorded sets exactly. A new red, or a recorded red that turned
-/// green unannounced, turns the census red; so the suite's red set can be
-/// read by name, and a change in it cannot pass in silence.
+/// equal the recorded sets exactly, no carried geometry is deeper than its
+/// carry, and every geometry's dialog was measured in both windows. A new red,
+/// a deeper red, a recorded red that turned green unannounced, or a dialog not
+/// measured turns the census red; so the suite's red set can be read by name,
+/// and a change in it cannot pass in silence. It prints every carried
+/// geometry's measured value, so a skipped number is still read.
 void d8Sweep(String lang, double dpr) {
   final env = D8Env();
   setUp(env.setUp);
@@ -1007,6 +1040,7 @@ void d8Sweep(String lang, double dpr) {
   for (final s in scales) {
     final g = D8Geometry(lang, dpr, s);
     final key = d8Key(lang, g.widthDp, s);
+    final carry = baseline[key];
     testWidgets('stop-spot guard, rows, ${g.label}', (tester) async {
       final r = await d8RunGeometry(tester, env, g);
       results[key] = r;
@@ -1016,46 +1050,52 @@ void d8Sweep(String lang, double dpr) {
       }
       expect(r.failures, isEmpty, reason: '\n${r.failures.join('\n')}');
     });
-    test('stop-spot guard, S-3 narrow: the yes covers no more of '
-        '現在地を共有\'s place than on code 15, ${g.label}', () {
-      final r = results[key];
-      final b = baseline[key];
-      expect(r, isNotNull, reason: 'the geometry was not measured: no verdict');
-      expect(b, isNotNull, reason: 'no code 15 baseline for $key: no verdict');
-      // Both windows, or no verdict (2026-10-14, the consent review's X2: one
-      // window's measurement passed this test while the other had aborted).
-      expect(
-        r!.dialogMeasured,
-        isTrue,
-        reason:
-            'the consent dialog was not measured in both windows: no '
-            'verdict',
-      );
-      expect(
-        r.yesFraction,
-        isNotNull,
-        reason: 'the consent dialog was not measured: no verdict',
-      );
-      final yes = r.yesFraction!;
-      final deeper = b!.narrowRed && yes > b.headYes + kD8YesTolerance;
-      final known = !b.narrowRed
-          ? 'NEW: not among the 16 recorded geometries'
-          : deeper
-          ? 'NEW: deeper than carried (the carry was recorded at '
-                '${(100 * b.headYes).toStringAsFixed(1)}%)'
-          : 'KNOWN RED, carried under the Chair\'s answer A of 2026-10-14; '
-                'its board record (7108b257) writes that these 16 large-text '
-                'geometries stay red and are fixed before this layout reaches '
-                'code 17 or main';
-      expect(
-        yes <= b.code15Yes + kD8YesTolerance,
-        isTrue,
-        reason:
-            '$key: the yes covers ${(100 * yes).toStringAsFixed(1)}% of '
-            '現在地を共有\'s place, against ${(100 * b.code15Yes).toStringAsFixed(1)}% '
-            'on code 15. $known.',
-      );
-    });
+    test(
+      'stop-spot guard, S-3 narrow: the yes covers no more of '
+      '現在地を共有\'s place than on code 15, ${g.label}',
+      () {
+        final r = results[key];
+        final b = baseline[key];
+        expect(
+          r,
+          isNotNull,
+          reason: 'the geometry was not measured: no verdict',
+        );
+        expect(
+          b,
+          isNotNull,
+          reason: 'no code 15 baseline for $key: no verdict',
+        );
+        // Both windows, or no verdict (2026-10-14, the consent review's X2: one
+        // window's measurement passed this test while the other had aborted).
+        expect(
+          r!.dialogMeasured,
+          isTrue,
+          reason:
+              'the consent dialog was not measured in both windows: no '
+              'verdict',
+        );
+        expect(
+          r.yesFraction,
+          isNotNull,
+          reason: 'the consent dialog was not measured: no verdict',
+        );
+        final yes = r.yesFraction!;
+        // A carried geometry is skipped above and judged by the census, so a
+        // red here is always outside the recorded 16.
+        expect(
+          yes <= b!.code15Yes + kD8YesTolerance,
+          isTrue,
+          reason:
+              '$key: the yes covers ${(100 * yes).toStringAsFixed(1)}% of '
+              '現在地を共有\'s place, against ${(100 * b.code15Yes).toStringAsFixed(1)}% '
+              'on code 15. NEW: not among the 16 recorded geometries.',
+        );
+      },
+      skip: carry != null && carry.narrowRed
+          ? d8CarriedNarrowSkip(carry)
+          : false,
+    );
     test('stop-spot guard, S-3 whole: no answer of the consent dialog under '
         '現在地を共有\'s place, ${g.label}', () {
       final r = results[key];
@@ -1071,10 +1111,11 @@ void d8Sweep(String lang, double dpr) {
         r.dialogFailures,
         isEmpty,
         reason:
-            'CARRIED as its own requirement (the Chair, 2026-10-14); red '
-            'on code 15\'s tree too.\n${r.dialogFailures.join('\n')}',
+            'NEW: not among the 90 recorded geometries (a carried geometry '
+            'is skipped above and judged by the census).\n'
+            '${r.dialogFailures.join('\n')}',
       );
-    });
+    }, skip: carry != null && carry.wholeRed ? kD8CarriedWholeSkip : false);
   }
   test('stop-spot guard, S-3 census, $lang ${widthDp.toStringAsFixed(1)} dp: '
       'the red sets are exactly as recorded', () {
@@ -1100,6 +1141,19 @@ void d8Sweep(String lang, double dpr) {
       if (r.dialogFailures.isNotEmpty) whole.add(key);
       if (b.narrowRed) wantNarrow.add(key);
       if (b.wholeRed) wantWhole.add(key);
+      // A skipped verdict's number is still read: every carried geometry's
+      // measured value goes into the log.
+      if (b.narrowRed || b.wholeRed) {
+        // ignore: avoid_print
+        print(
+          'D8 S-3 carried $key: the yes covers '
+          '${(100 * r.yesFraction!).toStringAsFixed(1)}% of 現在地を共有\'s place '
+          '(carry ${(100 * b.headYes).toStringAsFixed(1)}%, code 15 '
+          '${(100 * b.code15Yes).toStringAsFixed(1)}%); S-3 whole '
+          '${r.dialogFailures.isEmpty ? 'green' : 'red'} '
+          '(carried ${b.wholeRed ? 'red' : 'green'})',
+        );
+      }
     }
     expect(
       narrow.difference(wantNarrow),
