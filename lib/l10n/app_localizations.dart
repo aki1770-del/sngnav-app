@@ -1503,6 +1503,13 @@ class AppL10n {
   String get locationConsentWithdraw =>
       _ja ? '共有の同意を取り消す' : 'Withdraw sharing consent';
 
+  /// Words in [locationConsentWithdraw] that must not break across lines,
+  /// now that the control has a line of its own (2026-10-14, the screen
+  /// review's keep list). At 360 dp and text size 2.0 it otherwise broke
+  /// 「共有の同意を取り消 / す」. English breaks at spaces only.
+  List<String> get locationConsentWithdrawKeepTogether =>
+      _ja ? const ['取り消す'] : const [];
+
   /// Said after she takes it back, so the effect is visible rather than
   /// inferred from a control disappearing.
   String get locationConsentWithdrawnNote => _ja

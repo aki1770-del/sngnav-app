@@ -110,6 +110,7 @@ import 'services/fix_interval_record_keeper.dart';
 import 'services/gps_trust.dart' show kGpsCoarseAccuracyMeters;
 import 'services/drive_hud_localizer.dart';
 import 'widgets/update_notice.dart';
+import 'widgets/share_start_row.dart';
 import 'widgets/keep_together.dart';
 import 'app_theme.dart';
 import 'widgets/kv_row.dart';
@@ -6703,36 +6704,32 @@ class _HomePageState extends State<HomePage> {
           // concern that was withdrawn once the consent dialog itself opened
           // with them: she reads them there before any yes.
           // test/widgets/share_control_first_screen_test.dart holds the fold.
-          Align(
-            alignment: AlignmentDirectional.centerEnd,
-            child: Wrap(
-              spacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                TextButton(
-                  key: const Key('share-location-button'),
-                  // Gated on the affirmative act since 2026-09-23. It was
-                  // `_shareLocation` directly: a bare button whose next step
-                  // was the OS prompt, with the disclosure merely nearby.
-                  onPressed: _onShareLocationPressed,
-                  child: Text(l.shareMyLocation),
-                ),
-                // Drawn ONLY while we are holding a yes. There is nothing to
-                // take back otherwise, and a control that undoes nothing is
-                // the same defect as prose that consents to nothing.
-                if (_locationConsent == true)
-                  TextButton(
-                    key: const Key('location-consent-withdraw'),
-                    onPressed: _withdrawLocationConsent,
-                    child: Text(l.locationConsentWithdraw),
-                  ),
-                // The Akita mock position is on the development page
-                // (2026-09-15); a release build never offers it.
-              ],
+          //
+          // ⚑ NOTHING OF THIS ROW MAY SIT WHERE 停止 WAS (code 16,
+          // 2026-10-14). Code 15 end-aligned this row, and the end is where
+          // 停止 is drawn while a share runs: in the frame after 停止 the
+          // withdrawal lay under 64.4% of its target, centre included, so a
+          // second press took back his consent and nothing told him. The
+          // withdrawal now has its own line further down (below), and
+          // ShareStartRow keeps 現在地を共有 where his thumb already goes
+          // wherever code 15's row fitted on one line, and 24 dp clear of the
+          // end column everywhere else. The Akita mock position is on the
+          // development page (2026-09-15); a release build never offers it.
+          // test/widgets/stop_spot_guard/ holds it, at ja and en, three
+          // widths and text sizes 1.0 to 2.0.
+          ShareStartRow(
+            share: TextButton(
+              key: const Key('share-location-button'),
+              // Gated on the affirmative act since 2026-09-23. It was
+              // `_shareLocation` directly: a bare button whose next step
+              // was the OS prompt, with the disclosure merely nearby.
+              onPressed: _onShareLocationPressed,
+              child: Text(l.shareMyLocation),
             ),
+            withdrawLabel: l.locationConsentWithdraw,
+            stopLabel: l.stop,
+            closeLabel: l.close,
           ),
-          // Said once, after she takes it back, so the control's effect is
-          // visible rather than inferred from a button disappearing.
           // EACH PARAGRAPH BELOW IS ITS OWN SEMANTICS NODE (2026-09-25).
           // The map card is a plain Card, and a Card merges every child that
           // is not its own node into the card's single label. Measured in the
@@ -6746,23 +6743,6 @@ class _HomePageState extends State<HomePage> {
           // draws nothing: no pixel moves.
           // test/widgets/location_card_reading_order_test.dart holds the
           // order.
-          //
-          // The note stays directly under the control whose effect it reports,
-          // above the drive sentences: below them it would sit eight lines
-          // further down at text size 1.3, where the button she pressed has
-          // just disappeared and nothing near it says why (2026-09-25).
-          if (_locationConsentWithdrawn && _locationConsent == null) ...[
-            const SizedBox(height: 4),
-            Semantics(
-              container: true,
-              child: Text(
-                key: const Key('location-consent-withdrawn-note'),
-                l.locationConsentWithdrawnNote,
-                style:
-                    const TextStyle(fontSize: 11, color: kCautionTextOnAmber),
-              ),
-            ),
-          ],
           // 2026-10-06: a share without its foreground service ended because
           // the app left the screen. The line telling her may not have been
           // heard as the app went to the background, so the page she returns
@@ -6818,10 +6798,62 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
             ),
           ),
+          // OUR HALF OF WITHDRAWAL, on its own line, directly above the
+          // other half (code 16, 2026-10-14, the consent review's ruling):
+          // the two withdrawals read as a pair, ours first, and the OS
+          // sentence's 「これはこのアプリの同意とは別のものです」 has its
+          // referent directly above it. Never in the row 停止 swaps with
+          // (see ShareStartRow above), and never removed or hidden to keep it
+          // away from 停止: with no withdrawal there, 現在地を共有 took the end
+          // slot, and a double press on 停止 restarted the share he had just
+          // ended. Still one tap, no confirm, no timer, no undo; still drawn
+          // ONLY while we hold a yes. There is nothing to take back
+          // otherwise, and a control that undoes nothing is the same defect
+          // as prose that consents to nothing.
+          if (_locationConsent == true)
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton(
+                key: const Key('location-consent-withdraw'),
+                onPressed: _withdrawLocationConsent,
+                // 取り消す is kept whole if the label must break (the screen
+                // review's keep list, 2026-10-14).
+                child: KeepTogetherText(
+                  l.locationConsentWithdraw,
+                  words: l.locationConsentWithdrawKeepTogether,
+                ),
+              ),
+            ),
+          // Said once, after she takes it back, so the control's effect is
+          // visible rather than inferred from a button disappearing. It stays
+          // directly under the control whose effect it reports, in the place
+          // the control had (2026-09-25; moved with it 2026-10-14). A LIVE
+          // REGION since code 16: a sighted driver was told and a driver
+          // using a screen reader was told nothing about her own consent
+          // act, because the status line above does not change its words.
+          // TalkBack announces a live region when it appears (the pinned
+          // SDK's AccessibilityBridge sends a content change for a new node);
+          // whether it is heard is a device read.
+          if (_locationConsentWithdrawn && _locationConsent == null) ...[
+            const SizedBox(height: 4),
+            Semantics(
+              container: true,
+              liveRegion: true,
+              child: Text(
+                key: const Key('location-consent-withdrawn-note'),
+                l.locationConsentWithdrawnNote,
+                style:
+                    const TextStyle(fontSize: 11, color: kCautionTextOnAmber),
+              ),
+            ),
+          ],
           // THE OTHER HALF OF WITHDRAWAL, and it is a different subject matter
           // from ours: the platform's permission. We cannot revoke it and we
           // do not pretend to — the app NAMES the route and opens the page.
-          const SizedBox(height: 4),
+          // 8 dp above it, not 4 (2026-10-14): after a withdrawal its note
+          // takes the control's place and 端末の設定を開く is the next control
+          // below, which at 4 dp came 22.9 dp from where the withdrawal was.
+          const SizedBox(height: 8),
           Semantics(
             container: true,
             child: Text(

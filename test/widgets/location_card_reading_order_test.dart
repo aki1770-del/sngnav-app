@@ -25,6 +25,11 @@
 /// drive sentences on the card; the consent dialog, which the control opens,
 /// still reads them before either answer (the last test below).
 ///
+/// THE ORDER CHANGED AGAIN 2026-10-14 (code 16), on the consent review's
+/// ruling: the withdrawal and its note moved out of the share button's row to
+/// their own line directly before the platform permission sentence, so she
+/// hears our way back and the platform's as a pair.
+///
 /// The dialog is also named by its title now, rather than by 「通知」; that is
 /// held by dialogs_named_by_their_titles_test.dart, which walks the whole
 /// semantics tree. This file's simulated traversal does not visit the node
@@ -198,14 +203,20 @@ void main() {
       semantics.dispose();
     });
 
+    // Since code 16 (2026-10-14) the withdrawal is no longer beside the
+    // share button: in that row it was drawn where 停止 had been, and a
+    // second press on 停止 took back her consent. It is heard where it is
+    // now drawn, directly before the platform's own route, so the two ways
+    // to take consent back are heard as a pair, ours first.
     testWidgets('$lang, a remembered yes: the way back is heard beside the '
-        'share button, and the paragraphs keep their places', (tester) async {
+        'platform\'s own route, and the paragraphs keep their places',
+        (tester) async {
       final semantics = tester.ensureSemantics();
       final positions = await boot(tester, lang, consent: true);
       _readInOrder(tester, l, [
         (l.shareMyLocation, 'the share button', paragraph: false),
-        (l.locationConsentWithdraw, 'the withdraw button', paragraph: false),
         (l.driveDisclosure, 'the drive sentences', paragraph: true),
+        (l.locationConsentWithdraw, 'the withdraw button', paragraph: false),
         (
           l.locationOsPermissionRoute,
           'the platform permission sentence',
@@ -236,14 +247,14 @@ void main() {
       );
       _readInOrder(tester, l, [
         (l.shareMyLocation, 'the share button', paragraph: false),
+        (l.driveDisclosure, 'the drive sentences', paragraph: true),
+        // The note is in the place of the control whose effect it reports,
+        // directly before the platform's own route (code 16).
         (
           l.locationConsentWithdrawnNote,
           'the withdrawal note',
           paragraph: true,
         ),
-        // The note is under the control whose effect it reports, above the
-        // drive sentences.
-        (l.driveDisclosure, 'the drive sentences', paragraph: true),
         (
           l.locationOsPermissionRoute,
           'the platform permission sentence',
