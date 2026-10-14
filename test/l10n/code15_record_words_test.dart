@@ -73,7 +73,7 @@ String _drafted({required bool ja}) {
           'running (every few seconds). No clock time. It also marks each time '
           'the app opens its screen anew, such as when it starts or when you '
           'open it again after going back out of it, whether or not you share. '
-          'When a version first writes to this record (after a newer version '
+          'When a version first writes to this record (for example, after a newer version '
           'is installed, or after Delete record), it first writes one line '
           'naming that version: it begins with k=build and holds the version '
           'number and short codes that tell builds apart. The start, leave, '
