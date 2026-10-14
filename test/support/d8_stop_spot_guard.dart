@@ -934,7 +934,8 @@ class D8S3Baseline {
   /// twice as deep still read as "carried" and the census stayed green).
   final double headYes;
 
-  /// Recorded red on the head the Chair ruled to carry (2026-10-14).
+  /// Recorded red on the head carried under the Chair's answer A of
+  /// 2026-10-14, as the project's board record (7108b257) writes it down.
   final bool narrowRed;
   final bool wholeRed;
 }
@@ -980,8 +981,10 @@ const double kD8YesTolerance = 0.005;
 ///   than on code 15's tree (+0.005), per geometry. D-8's own: its move must
 ///   not make the yes easier to reach. RED at 16 large-text geometries where
 ///   the capped label grows the target into the yes. Kept red, not skipped
-///   and not inverted: the Chair ruled them carried, to be fixed before this
-///   layout reaches code 17 or main (2026-10-14).
+///   and not inverted. The Chair answered A on 2026-10-14 ("ship the fix,
+///   carry the dialog"); the board record of that answer (7108b257) writes
+///   down that these 16 stay red and are fixed before this layout reaches
+///   code 17 or main. The words here rest on that record, not on more.
 /// - S-3 WHOLE: no answer of the consent dialog lies under 現在地を共有's place.
 ///   Shared with code 15's tree (red there at 100 of 126) and carried as its
 ///   own requirement; red at 90 here. Its red lines are kept, never deleted
@@ -1040,8 +1043,9 @@ void d8Sweep(String lang, double dpr) {
           : deeper
           ? 'NEW: deeper than carried (the carry was recorded at '
                 '${(100 * b.headYes).toStringAsFixed(1)}%)'
-          : 'KNOWN RED, carried: the Chair ruled 2026-10-14 that these 16 '
-                'large-text geometries are fixed before this layout reaches '
+          : 'KNOWN RED, carried under the Chair\'s answer A of 2026-10-14; '
+                'its board record (7108b257) writes that these 16 large-text '
+                'geometries stay red and are fixed before this layout reaches '
                 'code 17 or main';
       expect(
         yes <= b.code15Yes + kD8YesTolerance,

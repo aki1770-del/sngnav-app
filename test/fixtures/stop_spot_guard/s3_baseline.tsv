@@ -1,7 +1,8 @@
 # The stop-spot guard's S-3 baseline (code 16, 2026-10-14). Generated, never hand-edited.
 # code15_yes: the consent dialog's yes, as a share of 現在地を共有's place (larger of the two windows),
 #   measured by this guard on code 15's tree (b7749a3d, whose lib/ is ecfade34's).
-# narrow_red / whole_red: the red sets on the head the Chair ruled to carry (f1a47d46):
+# narrow_red / whole_red: the red sets on the head (f1a47d46), carried under the Chair's answer A of
+#   2026-10-14 as its board record (7108b257) writes it down:
 #   narrow = the yes covers more than code15_yes + 0.005; whole = any answer intersects the place.
 lang	width	scale	code15_yes	head_yes	narrow_red	whole_red
 en	360.0	1.00	0.009585	0.002177	0	1
