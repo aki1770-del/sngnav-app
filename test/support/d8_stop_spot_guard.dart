@@ -96,7 +96,9 @@ const List<double> kD8Dprs = [3.0, 2.75, 2.625];
 
 /// Text scale 1.00 to 2.00 in 0.05 steps: a four-scale sample hides the worst
 /// cases between its samples (measured by the screen review at 0.01 steps).
-final List<double> kD8Scales = [for (var i = 0; i <= 20; i++) (100 + 5 * i) / 100];
+final List<double> kD8Scales = [
+  for (var i = 0; i <= 20; i++) (100 + 5 * i) / 100,
+];
 
 /// The control the guard allows inside the clearance in T2r, and only there.
 const String kD8ReturnControlKey = 'her-map-return-to-position';
@@ -112,22 +114,32 @@ class D8Geometry {
   double get widthDp => physical.width / dpr;
   double get heightDp => physical.height / dpr;
   D8Geometry inFrame(D8Frame f) => D8Geometry(lang, dpr, scale, frame: f);
-  String get label => '$lang ${widthDp.toStringAsFixed(1)}x'
+  String get label =>
+      '$lang ${widthDp.toStringAsFixed(1)}x'
       '${heightDp.toStringAsFixed(1)}dp x${scale.toStringAsFixed(2)} [${frame.name}]';
 }
 
 /// Sets the view to [g] and loads a real face: a Japanese face for ja,
 /// Roboto for en. Returns whether the face loaded.
 Future<bool> d8SetGeometry(WidgetTester tester, D8Geometry g) async {
-  final faceLoaded = await tester.runAsync(() => loadDiscoveredFace(
-          'Roboto', g.lang == 'ja' ? FaceSearch.japanese : FaceSearch.roboto)) ??
+  final faceLoaded =
+      await tester.runAsync(
+        () => loadDiscoveredFace(
+          'Roboto',
+          g.lang == 'ja' ? FaceSearch.japanese : FaceSearch.roboto,
+        ),
+      ) ??
       false;
   tester.view.devicePixelRatio = g.dpr;
   tester.view.physicalSize = g.physical;
-  tester.view.padding =
-      FakeViewPadding(top: g.frame.insetTop, bottom: g.frame.insetBottom);
-  tester.view.viewPadding =
-      FakeViewPadding(top: g.frame.insetTop, bottom: g.frame.insetBottom);
+  tester.view.padding = FakeViewPadding(
+    top: g.frame.insetTop,
+    bottom: g.frame.insetBottom,
+  );
+  tester.view.viewPadding = FakeViewPadding(
+    top: g.frame.insetTop,
+    bottom: g.frame.insetBottom,
+  );
   tester.platformDispatcher.textScaleFactorTestValue = g.scale;
   addTearDown(tester.view.reset);
   addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
@@ -143,7 +155,8 @@ class D8Control {
   String toString() => '$name ${d8Rect(rect)}';
 }
 
-String d8Rect(Rect r) => '[${r.left.toStringAsFixed(1)},${r.top.toStringAsFixed(1)}]'
+String d8Rect(Rect r) =>
+    '[${r.left.toStringAsFixed(1)},${r.top.toStringAsFixed(1)}]'
     '[${r.right.toStringAsFixed(1)},${r.bottom.toStringAsFixed(1)}]';
 
 /// Whether a tap acts on [w]. See the library comment for what is not counted.
@@ -180,10 +193,10 @@ String _ownerKey(Element e) {
   // The framework keys its own InkWell internals ("ink renderer"): never a
   // name a control is known by.
   String? describe(Key? k) => switch (k) {
-        ValueKey<String>(:final value) => value,
-        LabeledGlobalKey() when !'$k'.contains('ink renderer') => '$k',
-        _ => null,
-      };
+    ValueKey<String>(:final value) => value,
+    LabeledGlobalKey() when !'$k'.contains('ink renderer') => '$k',
+    _ => null,
+  };
   var found = describe(e.widget.key);
   if (found != null) return found;
   var depth = 0;
@@ -295,13 +308,13 @@ class D8Transition {
   /// Every control closer than [kD8ClearanceDp], except those whose key is
   /// in [allowed].
   List<String> violations({Set<String> allowed = const {}}) => [
-        for (final c in after)
-          if (d8EdgeGap(from, c.rect) < kD8ClearanceDp &&
-              !allowed.any((k) => c.name.contains('($k)')))
-            '$name ${geometry.label}: ${c.name} at '
-                '${d8EdgeGap(from, c.rect).toStringAsFixed(1)} dp from the '
-                'former target ${d8Rect(from)}',
-      ];
+    for (final c in after)
+      if (d8EdgeGap(from, c.rect) < kD8ClearanceDp &&
+          !allowed.any((k) => c.name.contains('($k)')))
+        '$name ${geometry.label}: ${c.name} at '
+            '${d8EdgeGap(from, c.rect).toStringAsFixed(1)} dp from the '
+            'former target ${d8Rect(from)}',
+  ];
 
   String line({Set<String> allowed = const {}}) {
     final (c, g) = allowed.isEmpty ? nearest : nearestExcept(allowed);
@@ -309,7 +322,7 @@ class D8Transition {
     final share = over == null || over.width <= 0 || over.height <= 0
         ? ''
         : ', overlapping ${(100 * over.width * over.height / (from.width * from.height)).toStringAsFixed(1)}% '
-            'of the former target, its centre ${c!.rect.contains(from.center) ? 'INSIDE' : 'outside'}';
+              'of the former target, its centre ${c!.rect.contains(from.center) ? 'INSIDE' : 'outside'}';
     return 'D8 $name ${geometry.label}: from ${d8Rect(from)} nearest '
         '${g.toStringAsFixed(1)} dp ${c?.name ?? '(no control on screen)'}$share';
   }
@@ -339,11 +352,11 @@ final DateTime kD8Clock = DateTime.utc(2026, 1, 14, 21);
 
 /// A trusted fix at Akita, 12 m.
 PositionAvailable d8Fix() => PositionAvailable(
-      latitude: 39.7186,
-      longitude: 140.1024,
-      accuracyMeters: 12,
-      timestamp: kD8Clock,
-    );
+  latitude: 39.7186,
+  longitude: 140.1024,
+  accuracyMeters: 12,
+  timestamp: kD8Clock,
+);
 
 /// The platform's typed refusal: the share row then offers 閉じる.
 const PositionUnavailable kD8Refusal = PositionUnavailable(
@@ -379,7 +392,9 @@ class D8Env {
   void tearDown() {
     final m = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     m.setMockMethodCallHandler(
-        const MethodChannel('plugins.flutter.io/path_provider'), null);
+      const MethodChannel('plugins.flutter.io/path_provider'),
+      null,
+    );
     m.setMockMethodCallHandler(NotificationPermission.channel, null);
     if (tmp.existsSync()) tmp.deleteSync(recursive: true);
   }
@@ -406,26 +421,29 @@ class D8App {
     await tester.pumpWidget(const SizedBox.shrink());
     await settleIO(tester, rounds: 10);
     if (env.consentFile.existsSync()) env.consentFile.deleteSync();
-    final dir = Directory('${env.tmp.path}/support')..createSync(recursive: true);
+    final dir = Directory('${env.tmp.path}/support')
+      ..createSync(recursive: true);
     for (final f in dir.listSync()) {
       f.deleteSync(recursive: true);
     }
     record = Code15FixIntervalRecord(directory: dir);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
-    await tester.pumpWidget(SngnavApp(
-      locale: Locale(geometry.lang),
-      actuators: FakeAlertActuators(),
-      clock: () => kD8Clock,
-      jmaFetch: () async => const JmaFailure('test: no observation'),
-      positionSource: shares.call,
-      code15Record: record,
-      locationConsent: heldYes,
-      openPlatformSettings: () async {
-        settingsOpened++;
-        return true;
-      },
-    ));
+    await tester.pumpWidget(
+      SngnavApp(
+        locale: Locale(geometry.lang),
+        actuators: FakeAlertActuators(),
+        clock: () => kD8Clock,
+        jmaFetch: () async => const JmaFailure('test: no observation'),
+        positionSource: shares.call,
+        code15Record: record,
+        locationConsent: heldYes,
+        openPlatformSettings: () async {
+          settingsOpened++;
+          return true;
+        },
+      ),
+    );
     await settle(tester, frames: 8);
   }
 
@@ -445,8 +463,9 @@ class D8App {
   /// _bringDriveStopIntoView uses for 停止).
   Future<void> reveal(WidgetTester tester, Finder f) async {
     final rect = tester.getRect(f);
-    final scrollable =
-        find.ancestor(of: f, matching: find.byType(Scrollable)).first;
+    final scrollable = find
+        .ancestor(of: f, matching: find.byType(Scrollable))
+        .first;
     final position = tester.state<ScrollableState>(scrollable).position;
     final viewTop = tester.getRect(scrollable).top;
     final screenBottom = d8Screen(tester).bottom;
@@ -455,7 +474,8 @@ class D8App {
         ? position.pixels + rect.bottom - screenBottom + 8
         : position.pixels - (viewTop - rect.top);
     position.jumpTo(
-        target.clamp(position.minScrollExtent, position.maxScrollExtent));
+      target.clamp(position.minScrollExtent, position.maxScrollExtent),
+    );
     await tester.pump();
   }
 
@@ -480,7 +500,8 @@ class D8App {
   Future<void> settleIO(WidgetTester tester, {int rounds = 25}) async {
     for (var i = 0; i < rounds; i++) {
       await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)));
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
       await tester.pump();
     }
   }
@@ -512,16 +533,16 @@ class D8App {
 /// the route stack (no route, no dialog), the system settings, and the record.
 class D8Snapshot {
   D8Snapshot(this.app, WidgetTester tester)
-      : shares = app.shares.starts,
-        canPop = app.navigatorCanPop(tester),
-        dialogs = find.byType(Dialog).evaluate().length,
-        withdrawDrawn = app.withdraw.evaluate().isNotEmpty,
-        noteDrawn = app.withdrawnNote.evaluate().isNotEmpty,
-        stopDrawn =
-            app.stop.evaluate().isNotEmpty || app.close.evaluate().isNotEmpty,
-        settingsOpened = app.settingsOpened,
-        recordLines = _withoutAlive(app.record.readAll()),
-        consentExists = app.env.consentFile.existsSync();
+    : shares = app.shares.starts,
+      canPop = app.navigatorCanPop(tester),
+      dialogs = find.byType(Dialog).evaluate().length,
+      withdrawDrawn = app.withdraw.evaluate().isNotEmpty,
+      noteDrawn = app.withdrawnNote.evaluate().isNotEmpty,
+      stopDrawn =
+          app.stop.evaluate().isNotEmpty || app.close.evaluate().isNotEmpty,
+      settingsOpened = app.settingsOpened,
+      recordLines = _withoutAlive(app.record.readAll()),
+      consentExists = app.env.consentFile.existsSync();
   final D8App app;
   final int shares;
   final bool canPop;
@@ -540,24 +561,23 @@ class D8Snapshot {
 
   /// Every difference from [before], named.
   List<String> differences(D8Snapshot before) => [
-        if (shares != before.shares)
-          'a share started (${before.shares} -> $shares)',
-        if (canPop != before.canPop)
-          'a route was pushed (canPop ${before.canPop} -> $canPop)',
-        if (dialogs != before.dialogs)
-          'a dialog appeared (${before.dialogs} -> $dialogs)',
-        if (withdrawDrawn != before.withdrawDrawn)
-          'consent changed (withdrawal drawn ${before.withdrawDrawn} -> $withdrawDrawn)',
-        if (noteDrawn != before.noteDrawn)
-          'consent changed (withdrawn note ${before.noteDrawn} -> $noteDrawn)',
-        if (stopDrawn != before.stopDrawn)
-          'the share changed (停止 drawn ${before.stopDrawn} -> $stopDrawn)',
-        if (settingsOpened != before.settingsOpened)
-          'the system settings were opened',
-        if (recordLines != before.recordLines) 'a record line was written',
-        if (consentExists != before.consentExists)
-          'the consent store was written',
-      ];
+    if (shares != before.shares)
+      'a share started (${before.shares} -> $shares)',
+    if (canPop != before.canPop)
+      'a route was pushed (canPop ${before.canPop} -> $canPop)',
+    if (dialogs != before.dialogs)
+      'a dialog appeared (${before.dialogs} -> $dialogs)',
+    if (withdrawDrawn != before.withdrawDrawn)
+      'consent changed (withdrawal drawn ${before.withdrawDrawn} -> $withdrawDrawn)',
+    if (noteDrawn != before.noteDrawn)
+      'consent changed (withdrawn note ${before.noteDrawn} -> $noteDrawn)',
+    if (stopDrawn != before.stopDrawn)
+      'the share changed (停止 drawn ${before.stopDrawn} -> $stopDrawn)',
+    if (settingsOpened != before.settingsOpened)
+      'the system settings were opened',
+    if (recordLines != before.recordLines) 'a record line was written',
+    if (consentExists != before.consentExists) 'the consent store was written',
+  ];
 }
 
 /// The effect grid: taps a 9 x 7 grid over [target] (1 dp inside its edges),
@@ -565,13 +585,19 @@ class D8Snapshot {
 /// the first tap that changed anything changed. Empty when nothing changed.
 /// Rectangles find controls; this finds any handler.
 Future<List<String>> d8EffectGrid(
-    WidgetTester tester, D8App app, Rect target, String what) async {
+  WidgetTester tester,
+  D8App app,
+  Rect target,
+  String what,
+) async {
   final before = D8Snapshot(app, tester);
   final inner = target.deflate(1);
   for (var j = 0; j < 7; j++) {
     for (var i = 0; i < 9; i++) {
       final p = Offset(
-          inner.left + inner.width * i / 8, inner.top + inner.height * j / 6);
+        inner.left + inner.width * i / 8,
+        inner.top + inner.height * j / 6,
+      );
       await tester.tapAt(p);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
@@ -580,7 +606,7 @@ Future<List<String>> d8EffectGrid(
         return [
           '$what ${app.geometry.label}: a tap at (${p.dx.toStringAsFixed(1)},'
               '${p.dy.toStringAsFixed(1)}) inside the former target '
-              '${d8Rect(target)}: ${diff.join('; ')}'
+              '${d8Rect(target)}: ${diff.join('; ')}',
         ];
       }
     }
@@ -605,184 +631,255 @@ void _check(D8Result r, D8Transition t, {Set<String> allowed = const {}}) {
   r.failures.addAll(t.violations(allowed: allowed));
 }
 
+/// Runs one sequence of the guard. An exception inside it is recorded as that
+/// sequence's failure, never swallowed, and the next sequence still runs: on
+/// a red tree a stray tap can end the share a later step expects, and one
+/// abort must not leave the dialog check unmeasured.
+Future<void> _sequence(
+  D8Result r,
+  String name,
+  D8Geometry g,
+  Future<void> Function() body,
+) async {
+  try {
+    await body();
+  } catch (e) {
+    r.fail(
+      'sequence $name ${g.label}: aborted: '
+      '${e.toString().split('\n').first}',
+    );
+  }
+}
+
 /// The whole guard at one geometry, through the real HomePage: T2, T1 and T3
 /// on one launch; T2r and T1r with follow paused; T1c after a refusal; the
 /// effect grid after each; the `end` pin; and the consent dialog's answers
 /// against 現在地を共有's place. Returns every line and every failure.
 Future<D8Result> d8RunGeometry(
-    WidgetTester tester, D8Env env, D8Geometry g) async {
+  WidgetTester tester,
+  D8Env env,
+  D8Geometry g,
+) async {
   final r = D8Result();
   if (!await d8SetGeometry(tester, g)) {
-    r.fail('${g.label}: no real face loaded, so this measures the test font: '
-        'no verdict');
+    r.fail(
+      '${g.label}: no real face loaded, so this measures the test font: '
+      'no verdict',
+    );
     return r;
   }
 
-  // ---- A: a yes held, follow on: T2, T1, T3 -------------------------------
-  var app = D8App(env, g);
-  await app.launch(tester);
-  await app.reveal(tester, app.shareButton);
-  var from = await app.tapAndNextFrame(tester, app.shareButton);
-  if (app.shares.starts != 1 || app.stop.evaluate().isEmpty) {
-    r.fail('T2 ${g.label}: control: the share did not start at the tap '
-        '(starts ${app.shares.starts})');
-    return r;
-  }
-  _check(r, D8Transition('T2', g, from, d8ControlsOnScreen(tester)));
-  app.shares.current!.add(d8Fix());
-  await app.settle(tester);
-  _check(r, D8Transition('T2-settled', g, from, d8ControlsOnScreen(tester)));
-  r.failures.addAll(await d8EffectGrid(tester, app, from, 'T2-grid'));
+  await _sequence(r, 'A', g, () async {
+    // ---- A: a yes held, follow on: T2, T1, T3 -------------------------------
+    var app = D8App(env, g);
+    await app.launch(tester);
+    await app.reveal(tester, app.shareButton);
+    var from = await app.tapAndNextFrame(tester, app.shareButton);
+    if (app.shares.starts != 1 || app.stop.evaluate().isEmpty) {
+      r.fail(
+        'T2 ${g.label}: control: the share did not start at the tap '
+        '(starts ${app.shares.starts})',
+      );
+      return;
+    }
+    _check(r, D8Transition('T2', g, from, d8ControlsOnScreen(tester)));
+    app.shares.current!.add(d8Fix());
+    await app.settle(tester);
+    _check(r, D8Transition('T2-settled', g, from, d8ControlsOnScreen(tester)));
+    r.failures.addAll(await d8EffectGrid(tester, app, from, 'T2-grid'));
 
-  await app.reveal(tester, app.stop);
-  final share = 1;
-  from = await app.tapAndNextFrame(tester, app.stop);
-  _check(r, D8Transition('T1', g, from, d8ControlsOnScreen(tester)));
-  // The `end` pin: his tap's `end`, written once, before the share is cleared.
-  final ends = app.endLines(share);
-  r.lines.add('D8 end-pin ${g.label}: $ends end line(s) for share $share');
-  if (ends != 1) {
-    r.fail('end-pin ${g.label}: $ends `end` line(s) for share $share after 停止, '
-        'expected exactly 1');
-  }
-  r.failures.addAll(await d8EffectGrid(tester, app, from, 'T1-grid'));
-  await app.settle(tester);
-  _check(r, D8Transition('T1-settled', g, from, d8ControlsOnScreen(tester)));
+    await app.reveal(tester, app.stop);
+    final share = 1;
+    from = await app.tapAndNextFrame(tester, app.stop);
+    _check(r, D8Transition('T1', g, from, d8ControlsOnScreen(tester)));
+    // The `end` pin: his tap's `end`, written once, before the share is cleared.
+    final ends = app.endLines(share);
+    r.lines.add('D8 end-pin ${g.label}: $ends end line(s) for share $share');
+    if (ends != 1) {
+      r.fail(
+        'end-pin ${g.label}: $ends `end` line(s) for share $share after 停止, '
+        'expected exactly 1',
+      );
+    }
+    r.failures.addAll(await d8EffectGrid(tester, app, from, 'T1-grid'));
+    await app.settle(tester);
+    _check(r, D8Transition('T1-settled', g, from, d8ControlsOnScreen(tester)));
 
-  if (app.withdraw.evaluate().isEmpty) {
-    // A tree where the grid already withdrew: measure T3 on a fresh launch.
-    app = D8App(env, g);
+    if (app.withdraw.evaluate().isEmpty) {
+      // A tree where the grid already withdrew: measure T3 on a fresh launch.
+      app = D8App(env, g);
+      await app.launch(tester);
+      await app.reveal(tester, app.shareButton);
+      await app.tapAndNextFrame(tester, app.shareButton);
+      app.shares.current!.add(d8Fix());
+      await app.settle(tester);
+      await app.reveal(tester, app.stop);
+      await app.tapAndNextFrame(tester, app.stop);
+      await app.settle(tester);
+    }
+    if (app.withdraw.evaluate().isEmpty) {
+      r.fail(
+        'T3 ${g.label}: the withdrawal is not drawn after 停止 with a yes held',
+      );
+    } else {
+      await app.reveal(tester, app.withdraw);
+      from = await app.tapAndNextFrame(tester, app.withdraw);
+      if (app.withdrawnNote.evaluate().isEmpty) {
+        r.fail(
+          'T3 ${g.label}: control: no withdrawn note after the withdrawal',
+        );
+      }
+      _check(r, D8Transition('T3', g, from, d8ControlsOnScreen(tester)));
+      await app.settle(tester);
+      _check(
+        r,
+        D8Transition('T3-settled', g, from, d8ControlsOnScreen(tester)),
+      );
+    }
+    await app.shares.closeAll();
+  });
+  await _sequence(r, 'B', g, () async {
+    // ---- B: follow paused: T2r, then T1r ------------------------------------
+    var app = D8App(env, g);
+    await app.launch(tester);
+    await app.pauseFollow(tester);
+    await app.reveal(tester, app.shareButton);
+    var from = await app.tapAndNextFrame(tester, app.shareButton);
+    final t2r = D8Transition('T2r', g, from, d8ControlsOnScreen(tester));
+    _check(r, t2r, allowed: {kD8ReturnControlKey});
+    // Positive control: the instrument finds a real intersection here, the
+    // return control over the share control's former place, as code 15 has it.
+    final ret = t2r.after.where(
+      (c) => c.name.contains('($kD8ReturnControlKey)'),
+    );
+    if (ret.isEmpty) {
+      r.fail(
+        'T2r ${g.label}: positive control: the return control is not drawn '
+        'after a share with follow paused, so T2r and T1r measured nothing',
+      );
+    } else {
+      final gap = d8EdgeGap(from, ret.first.rect);
+      r.lines.add(
+        'D8 T2r-positive-control ${g.label}: the return control at '
+        '${gap.toStringAsFixed(1)} dp from the share control\'s former place',
+      );
+      if (gap >= kD8ClearanceDp) {
+        r.fail(
+          'T2r ${g.label}: positive control: the return control is '
+          '${gap.toStringAsFixed(1)} dp away; the instrument must find it '
+          'inside $kD8ClearanceDp dp, or it may be blind',
+        );
+      }
+    }
+    app.shares.current!.add(d8Fix());
+    await app.settle(tester);
+    // The exception is earned: no consent, share, record, route or dialog
+    // change from any tap over the share control's former place.
+    r.failures.addAll(await d8EffectGrid(tester, app, from, 'T2r-grid'));
+    // Positive control for the grid, where the return control lies inside the
+    // grid: its taps reached the control's handler, so follow resumed and the
+    // control is gone. Where it lies outside, no tap could reach it.
+    final reachable =
+        ret.isNotEmpty && ret.first.rect.overlaps(from.deflate(1));
+    r.lines.add(
+      'D8 T2r-grid-positive-control ${g.label}: the return control '
+      '${reachable ? 'lies inside the grid' : 'lies outside the grid: not applicable'}',
+    );
+    if (reachable && app.returnControl.evaluate().isNotEmpty) {
+      r.fail(
+        'T2r-grid ${g.label}: positive control: no grid tap reached the '
+        'return control, so the grid may not reach handlers',
+      );
+    }
+    await app.pauseFollow(tester);
+    if (app.returnControl.evaluate().isEmpty) {
+      r.fail(
+        'T1r ${g.label}: control: the return control is not drawn with '
+        'follow paused during a share',
+      );
+    } else {
+      await app.reveal(tester, app.stop);
+      from = await app.tapAndNextFrame(tester, app.stop);
+      _check(r, D8Transition('T1r', g, from, d8ControlsOnScreen(tester)));
+      r.failures.addAll(await d8EffectGrid(tester, app, from, 'T1r-grid'));
+      await app.settle(tester);
+      _check(
+        r,
+        D8Transition('T1r-settled', g, from, d8ControlsOnScreen(tester)),
+      );
+    }
+    await app.shares.closeAll();
+  });
+  await _sequence(r, 'C', g, () async {
+    // ---- C: a refusal: T1c -------------------------------------------------
+    var app = D8App(env, g);
     await app.launch(tester);
     await app.reveal(tester, app.shareButton);
     await app.tapAndNextFrame(tester, app.shareButton);
-    app.shares.current!.add(d8Fix());
+    app.shares.current!.add(kD8Refusal);
     await app.settle(tester);
-    await app.reveal(tester, app.stop);
-    await app.tapAndNextFrame(tester, app.stop);
-    await app.settle(tester);
-  }
-  if (app.withdraw.evaluate().isEmpty) {
-    r.fail('T3 ${g.label}: the withdrawal is not drawn after 停止 with a yes held');
-  } else {
-    await app.reveal(tester, app.withdraw);
-    from = await app.tapAndNextFrame(tester, app.withdraw);
-    if (app.withdrawnNote.evaluate().isEmpty) {
-      r.fail('T3 ${g.label}: control: no withdrawn note after the withdrawal');
-    }
-    _check(r, D8Transition('T3', g, from, d8ControlsOnScreen(tester)));
-    await app.settle(tester);
-    _check(r, D8Transition('T3-settled', g, from, d8ControlsOnScreen(tester)));
-  }
-  await app.shares.closeAll();
-
-  // ---- B: follow paused: T2r, then T1r ------------------------------------
-  app = D8App(env, g);
-  await app.launch(tester);
-  await app.pauseFollow(tester);
-  await app.reveal(tester, app.shareButton);
-  from = await app.tapAndNextFrame(tester, app.shareButton);
-  final t2r = D8Transition('T2r', g, from, d8ControlsOnScreen(tester));
-  _check(r, t2r, allowed: {kD8ReturnControlKey});
-  // Positive control: the instrument finds a real intersection here, the
-  // return control over the share control's former place, as code 15 has it.
-  final ret = t2r.after.where((c) => c.name.contains('($kD8ReturnControlKey)'));
-  if (ret.isEmpty) {
-    r.fail('T2r ${g.label}: positive control: the return control is not drawn '
-        'after a share with follow paused, so T2r and T1r measured nothing');
-  } else {
-    final gap = d8EdgeGap(from, ret.first.rect);
-    r.lines.add('D8 T2r-positive-control ${g.label}: the return control at '
-        '${gap.toStringAsFixed(1)} dp from the share control\'s former place');
-    if (gap >= kD8ClearanceDp) {
-      r.fail('T2r ${g.label}: positive control: the return control is '
-          '${gap.toStringAsFixed(1)} dp away; the instrument must find it '
-          'inside $kD8ClearanceDp dp, or it may be blind');
-    }
-  }
-  app.shares.current!.add(d8Fix());
-  await app.settle(tester);
-  // The exception is earned: no consent, share, record, route or dialog
-  // change from any tap over the share control's former place.
-  r.failures.addAll(await d8EffectGrid(tester, app, from, 'T2r-grid'));
-  // Positive control for the grid, where the return control lies inside the
-  // grid: its taps reached the control's handler, so follow resumed and the
-  // control is gone. Where it lies outside, no tap could reach it.
-  final reachable = ret.isNotEmpty && ret.first.rect.overlaps(from.deflate(1));
-  r.lines.add('D8 T2r-grid-positive-control ${g.label}: the return control '
-      '${reachable ? 'lies inside the grid' : 'lies outside the grid: not applicable'}');
-  if (reachable && app.returnControl.evaluate().isNotEmpty) {
-    r.fail('T2r-grid ${g.label}: positive control: no grid tap reached the '
-        'return control, so the grid may not reach handlers');
-  }
-  await app.pauseFollow(tester);
-  if (app.returnControl.evaluate().isEmpty) {
-    r.fail('T1r ${g.label}: control: the return control is not drawn with '
-        'follow paused during a share');
-  } else {
-    await app.reveal(tester, app.stop);
-    from = await app.tapAndNextFrame(tester, app.stop);
-    _check(r, D8Transition('T1r', g, from, d8ControlsOnScreen(tester)));
-    r.failures.addAll(await d8EffectGrid(tester, app, from, 'T1r-grid'));
-    await app.settle(tester);
-    _check(r, D8Transition('T1r-settled', g, from, d8ControlsOnScreen(tester)));
-  }
-  await app.shares.closeAll();
-
-  // ---- C: a refusal: T1c -------------------------------------------------
-  app = D8App(env, g);
-  await app.launch(tester);
-  await app.reveal(tester, app.shareButton);
-  await app.tapAndNextFrame(tester, app.shareButton);
-  app.shares.current!.add(kD8Refusal);
-  await app.settle(tester);
-  if (app.close.evaluate().isEmpty) {
-    r.fail('T1c ${g.label}: control: 閉じる is not drawn after a refusal');
-  } else {
-    await app.reveal(tester, app.close);
-    from = await app.tapAndNextFrame(tester, app.close);
-    _check(r, D8Transition('T1c', g, from, d8ControlsOnScreen(tester)));
-    r.failures.addAll(await d8EffectGrid(tester, app, from, 'T1c-grid'));
-    await app.settle(tester);
-    _check(r, D8Transition('T1c-settled', g, from, d8ControlsOnScreen(tester)));
-  }
-  await app.shares.closeAll();
-
-  // ---- D: no yes held: the consent dialog's answers ----------------------
-  // A second press on 現在地を共有 must not land on either answer: a yes
-  // reached by a double press is not her affirmative act. The answers are
-  // pinned to the dialog's foot, so where they sit depends on the window:
-  // measured in both frames, and the worse one governs.
-  for (final f in const [kD8Edge, kD8Api29Window]) {
-    final gd = g.inFrame(f);
-    await d8SetGeometry(tester, gd);
-    app = D8App(env, gd);
-    await app.launch(tester, heldYes: null);
-    await app.settleIO(tester);
-    await app.reveal(tester, app.shareButton);
-    from = await app.tapAndNextFrame(tester, app.shareButton);
-    await app.settleIO(tester);
-    await app.settle(tester);
-    final answers = [
-      for (final k in const ['location-consent-accept', 'location-consent-decline'])
-        if (find.byKey(Key(k)).evaluate().isNotEmpty)
-          D8Control(k, tester.getRect(find.byKey(Key(k)))),
-    ];
-    if (answers.length != 2) {
-      r.fail('dialog ${gd.label}: control: the consent dialog\'s two answers '
-          'are not both drawn (${answers.length})');
+    if (app.close.evaluate().isEmpty) {
+      r.fail('T1c ${g.label}: control: 閉じる is not drawn after a refusal');
     } else {
-      for (final a in answers) {
-        final gap = d8EdgeGap(from, a.rect);
-        r.lines.add('D8 dialog ${gd.label}: ${a.name} ${d8Rect(a.rect)} at '
-            '${gap.toStringAsFixed(1)} dp from 現在地を共有\'s place ${d8Rect(from)}');
-        if (gap < 0) {
-          r.fail('dialog ${gd.label}: ${a.name} ${d8Rect(a.rect)} intersects '
-              '現在地を共有\'s place ${d8Rect(from)} (${gap.toStringAsFixed(1)} dp)');
-        }
-      }
+      await app.reveal(tester, app.close);
+      final from = await app.tapAndNextFrame(tester, app.close);
+      _check(r, D8Transition('T1c', g, from, d8ControlsOnScreen(tester)));
+      r.failures.addAll(await d8EffectGrid(tester, app, from, 'T1c-grid'));
+      await app.settle(tester);
+      _check(
+        r,
+        D8Transition('T1c-settled', g, from, d8ControlsOnScreen(tester)),
+      );
     }
     await app.shares.closeAll();
-  }
+  });
+  await _sequence(r, 'D', g, () async {
+    // ---- D: no yes held: the consent dialog's answers ----------------------
+    // A second press on 現在地を共有 must not land on either answer: a yes
+    // reached by a double press is not her affirmative act. The answers are
+    // pinned to the dialog's foot, so where they sit depends on the window:
+    // measured in both frames, and the worse one governs.
+    for (final f in const [kD8Edge, kD8Api29Window]) {
+      final gd = g.inFrame(f);
+      await d8SetGeometry(tester, gd);
+      final app = D8App(env, gd);
+      await app.launch(tester, heldYes: null);
+      await app.settleIO(tester);
+      await app.reveal(tester, app.shareButton);
+      final from = await app.tapAndNextFrame(tester, app.shareButton);
+      await app.settleIO(tester);
+      await app.settle(tester);
+      final answers = [
+        for (final k in const [
+          'location-consent-accept',
+          'location-consent-decline',
+        ])
+          if (find.byKey(Key(k)).evaluate().isNotEmpty)
+            D8Control(k, tester.getRect(find.byKey(Key(k)))),
+      ];
+      if (answers.length != 2) {
+        r.fail(
+          'dialog ${gd.label}: control: the consent dialog\'s two answers '
+          'are not both drawn (${answers.length})',
+        );
+      } else {
+        for (final a in answers) {
+          final gap = d8EdgeGap(from, a.rect);
+          r.lines.add(
+            'D8 dialog ${gd.label}: ${a.name} ${d8Rect(a.rect)} at '
+            '${gap.toStringAsFixed(1)} dp from 現在地を共有\'s place ${d8Rect(from)}',
+          );
+          if (gap < 0) {
+            r.fail(
+              'dialog ${gd.label}: ${a.name} ${d8Rect(a.rect)} intersects '
+              '現在地を共有\'s place ${d8Rect(from)} (${gap.toStringAsFixed(1)} dp)',
+            );
+          }
+        }
+      }
+      await app.shares.closeAll();
+    }
+  });
   await tester.pumpWidget(const SizedBox.shrink());
   return r;
 }
