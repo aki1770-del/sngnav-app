@@ -28,16 +28,19 @@ void main() {
   /// Lays out the row [width] dp wide (800: the test font draws every letter
   /// a full em, so code 15's one-line row needs room), starting at x = 0, and
   /// returns the share control's rectangle, the rule taken, the end column's
-  /// width and the withdrawal's width, both measured as the row measures them.
-  Future<(Rect, ShareStartRule, double, double)> layOut(
+  /// width and the withdrawal's width, both measured as the row measures them,
+  /// and the share control's own natural width, measured the same way.
+  Future<(Rect, ShareStartRule, double, double, double)> layOut(
     WidgetTester tester, {
     required String withdraw,
     required String stop,
     required String close,
+    String share = 'Share',
     double width = 800,
   }) async {
     late double endColumn;
     late double withdrawW;
+    late double shareW;
     await tester.pumpWidget(
       MaterialApp(
         theme: sngnavTheme(),
@@ -52,11 +55,12 @@ void main() {
                       .map((t) => textButtonNaturalWidth(context, t))
                       .reduce((a, b) => a > b ? a : b);
                   withdrawW = textButtonNaturalWidth(context, withdraw);
+                  shareW = textButtonNaturalWidth(context, share);
                   return ShareStartRow(
                     share: TextButton(
                       key: const Key('share'),
                       onPressed: () {},
-                      child: const Text('Share'),
+                      child: Text(share),
                     ),
                     withdrawLabel: withdraw,
                     stopLabel: stop,
@@ -79,18 +83,26 @@ void main() {
       row.rule,
       endColumn,
       withdrawW,
+      shareW,
     );
   }
 
   testWidgets('control: with a wide withdrawal, PIN holds the share control at '
       'its place, clear of the end column', (tester) async {
-    final (r, rule, endColumn, withdrawW) = await layOut(
+    final (r, rule, endColumn, withdrawW, shareW) = await layOut(
       tester,
       withdraw: 'Withdraw sharing consent',
       stop: 'Stop',
       close: 'Close',
     );
     expect(rule, ShareStartRule.pin);
+    expect(
+      r.width,
+      closeTo(shareW, 0.01),
+      reason:
+          'control: laid out loosely, the share control is as wide as the '
+          'measure the binding case uses for it',
+    );
     expect(
       r.right,
       closeTo(800 - withdrawW - 8, 0.01),
@@ -103,7 +115,7 @@ void main() {
       'takes the reserved end instead', (tester) async {
     // A narrow withdrawal and a wide end column: the one-line row fits, and
     // PIN's place would lie inside the end column.
-    final (r, rule, endColumn, withdrawW) = await layOut(
+    final (r, rule, endColumn, withdrawW, shareW) = await layOut(
       tester,
       withdraw: 'W',
       stop: 'Stop recording',
@@ -113,6 +125,19 @@ void main() {
       withdrawW + 8,
       lessThan(kStopSpotClearance + endColumn),
       reason: 'control: these labels make the condition bind',
+    );
+    // And the one-line row fits (2026-10-14, the consent review's advice):
+    // otherwise the reserved end would come from the other path, and a
+    // mutant that removed the 24 dp condition would pass here unseen.
+    final spacing = tester
+        .widget<ShareStartRow>(find.byType(ShareStartRow))
+        .spacing;
+    expect(
+      shareW + spacing + withdrawW,
+      lessThanOrEqualTo(800),
+      reason:
+          'control: the one-line row fits, so the reserved end comes '
+          'from the 24 dp condition alone',
     );
     expect(rule, ShareStartRule.reservedEnd);
     expect(r.left, 0, reason: 'start-aligned');
